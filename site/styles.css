@@ -304,7 +304,7 @@ button {
 .planning-link {
   width: fit-content;
   min-height: 40px;
-  margin-top: 0;
+  margin-top: 18px;
   padding: 0 16px;
   display: inline-flex;
   align-items: center;
@@ -350,16 +350,6 @@ button {
 }
 
 .hero-dashboard > * { position: relative; }
-
-.hero-no-kpis {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-}
-
-.hero-no-kpis .planning-link {
-  align-self: start;
-  justify-self: end;
-}
 
 .eyebrow {
   text-transform: uppercase;
