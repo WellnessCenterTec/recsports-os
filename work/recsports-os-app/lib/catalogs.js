@@ -196,3 +196,16 @@ export const roadmapItems = [
   ["Fase 7", "Vercel privado", "TI", "Pendiente", "Publicar entorno protegido para pruebas internas"],
   ["Fase 8", "Liberacion", "Direccion Deportiva", "Pendiente", "Capacitacion, soporte y gobierno de datos"]
 ];
+
+export const systemCatalogs = {
+  Periodos: ["AD26", "FJ26", "IN26"],
+  Areas: areas.filter((area) => !["general", "configuracion"].includes(area.id)).map((area) => area.name),
+  Carreras: careers,
+  "Estatus alumnos": ["Activo", "Asistio", "No asistio", "Baja", "Acreditado", "NP"],
+  "Estatus sistema": ["Pendiente", "En progreso", "Completado", "Rechazado", "Archivado"],
+  Generos: ["Femenino", "Masculino", "No especificado"],
+  "Nivel escolar": ["Profesional", "Posgrado"],
+  "Tallas uniforme": ["XS", "S", "M", "L", "XL", "XXL", "Sin dato"],
+  Roles: demoUsers.map((user) => user.name),
+  "Tipos de fuente": ["Indicadores", "Uniformes", "Catalogos", "Compras", "Captura manual"]
+};

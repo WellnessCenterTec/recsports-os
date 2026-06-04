@@ -374,6 +374,7 @@ La prueba local ya incluye:
 - Bitacora de auditoria local para registrar login, capturas, exportaciones, configuracion y cambios de rol.
 - Centro de alertas para seguimiento de riesgos, pendientes de migracion y datos operativos por revisar.
 - Roadmap de implementacion por fases, responsables, estado y entregables.
+- Catalogos del sistema para normalizar periodos, areas, carreras, estatus, tallas, roles y fuentes.
 
 En produccion, el login simulado debe sustituirse por Supabase Auth o SSO institucional, y las capturas locales por tablas PostgreSQL.
 
@@ -465,6 +466,30 @@ Cada fase debe tener:
 - Entregable.
 - Riesgos.
 - Fecha objetivo.
+
+## Catalogos del sistema
+
+Los catalogos evitan captura libre inconsistente y deben administrarse desde Configuracion.
+
+Catalogos iniciales:
+
+- Periodos.
+- Areas.
+- Carreras.
+- Estatus de alumnos.
+- Estatus del sistema.
+- Generos.
+- Nivel escolar.
+- Tallas de uniforme.
+- Roles.
+- Tipos de fuente.
+
+Reglas:
+
+- Los formularios deben consumir catalogos.
+- Las importaciones deben validar contra catalogos.
+- Solo Direccion o Administrador puede editar catalogos.
+- Cada cambio de catalogo debe registrarse en auditoria.
 
 ## Filtros recomendados
 

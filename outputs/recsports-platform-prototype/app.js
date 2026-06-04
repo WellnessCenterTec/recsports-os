@@ -190,6 +190,21 @@ const demoUsers = [
   { id: "compras", name: "Compras y Presupuesto", role: "compras", area: "compras", label: "Compras y Presupuesto" }
 ];
 
+function getSystemCatalogs() {
+  return {
+    Periodos: ["AD26", "FJ26", "IN26"],
+    Areas: areas.filter((area) => !["general", "configuracion"].includes(area.id)).map((area) => area.name),
+    Carreras: careers,
+    "Estatus alumnos": ["Activo", "Asistio", "No asistio", "Baja", "Acreditado", "NP"],
+    "Estatus sistema": ["Pendiente", "En progreso", "Completado", "Rechazado", "Archivado"],
+    Generos: ["Femenino", "Masculino", "No especificado"],
+    "Nivel escolar": ["Profesional", "Posgrado"],
+    "Tallas uniforme": ["XS", "S", "M", "L", "XL", "XXL", "Sin dato"],
+    Roles: demoUsers.map((user) => user.name),
+    "Tipos de fuente": ["Indicadores", "Uniformes", "Catalogos", "Compras", "Captura manual"]
+  };
+}
+
 const students = Array.from({ length: 180 }, (_, i) => ({
   matricula: `A0${String(840000 + i * 37).slice(0, 7)}`,
   genero: genders[i % genders.length],
@@ -589,6 +604,7 @@ function renderAlertCenter(compact = false) {
 }
 
 function renderConfigurationDashboard() {
+  const systemCatalogs = getSystemCatalogs();
   return `
     <div class="permission-strip">Panel exclusivo para Direccion Deportiva y administracion del sistema.</div>
     <div class="kpi-grid">
@@ -646,6 +662,20 @@ function renderConfigurationDashboard() {
               <span>${row[2]}</span>
               <em>${row[3]}</em>
               <p>${row[4]}</p>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+      <section class="blueprint-card wide">
+        <h3>Catalogos del sistema</h3>
+        <div class="catalog-grid">
+          ${Object.entries(systemCatalogs).map(([name, values]) => `
+            <article class="catalog-card">
+              <div>
+                <strong>${name}</strong>
+                <span>${values.length} valores</span>
+              </div>
+              <p>${values.slice(0, 8).join(", ")}${values.length > 8 ? "..." : ""}</p>
             </article>
           `).join("")}
         </div>
@@ -1054,6 +1084,7 @@ function downloadCsv(name = "reporte") {
     return;
   }
   if (activeArea === "configuracion") {
+    const systemCatalogs = getSystemCatalogs();
     const headers = ["tipo", "campo_1", "campo_2", "campo_3"];
     const csv = [
       headers.join(","),
@@ -1062,7 +1093,8 @@ function downloadCsv(name = "reporte") {
       ...validationRules.map((row) => ["validacion", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(",")),
       ...migrationBacklog.map((row) => ["backlog", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(",")),
       ...systemAlerts().map((row) => ["alerta", csvEscape(row.priority), csvEscape(row.module), csvEscape(`${row.message} - ${row.status}`)].join(",")),
-      ...roadmapItems.map((row) => ["roadmap", csvEscape(`${row[0]} ${row[1]}`), csvEscape(row[2]), csvEscape(`${row[3]} - ${row[4]}`)].join(","))
+      ...roadmapItems.map((row) => ["roadmap", csvEscape(`${row[0]} ${row[1]}`), csvEscape(row[2]), csvEscape(`${row[3]} - ${row[4]}`)].join(",")),
+      ...Object.entries(systemCatalogs).flatMap(([name, values]) => values.map((value) => ["catalogo", csvEscape(name), csvEscape(value), ""].join(",")))
     ].join("\n");
     downloadBlob(csv, "configuracion-sistema.csv");
     addAudit("exportacion", "Configuracion del sistema");

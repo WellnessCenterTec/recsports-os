@@ -635,6 +635,44 @@ textarea { min-height: 76px; resize: vertical; }
   margin-bottom: 0;
 }
 
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.catalog-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 13px;
+}
+
+.catalog-card div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.catalog-card strong {
+  font-size: 14px;
+}
+
+.catalog-card span {
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.catalog-card p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.38;
+  margin-bottom: 0;
+}
+
 .wireframes {
   display: grid;
   grid-template-columns: repeat(3, minmax(0,1fr));
@@ -713,6 +751,7 @@ th { color: var(--muted); background: #f7faf9; }
   .filters-band, .hero-kpis, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list { grid-template-columns: 1fr; }
   .blueprint-grid, .wireframes { grid-template-columns: 1fr; }
   .roadmap-board { grid-template-columns: 1fr; }
+  .catalog-grid { grid-template-columns: 1fr; }
   .blueprint-card.wide { grid-column: auto; }
   h1 { font-size: 28px; }
   .segmented { overflow-x: auto; }

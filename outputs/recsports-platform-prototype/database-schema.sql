@@ -212,6 +212,18 @@ create table implementation_roadmap (
   updated_at timestamptz default now()
 );
 
+create table system_catalogs (
+  id uuid primary key default gen_random_uuid(),
+  catalog_type text not null,
+  value text not null,
+  description text,
+  active boolean default true,
+  sort_order int default 0,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (catalog_type, value)
+);
+
 create index idx_participations_area_periodo on participations(area, periodo);
 create index idx_participations_matricula on participations(matricula);
 create index idx_participations_fecha on participations(fecha);
@@ -221,3 +233,4 @@ create index idx_import_jobs_status on import_jobs(status);
 create index idx_import_errors_job on import_errors(import_job_id);
 create index idx_system_alerts_status on system_alerts(status, priority);
 create index idx_roadmap_status on implementation_roadmap(status);
+create index idx_system_catalogs_type on system_catalogs(catalog_type, active);
