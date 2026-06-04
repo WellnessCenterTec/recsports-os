@@ -371,6 +371,7 @@ La prueba local ya incluye:
 - Exportacion CSV.
 - Impresion para PDF.
 - Centro de importaciones para controlar fuentes, reglas y pendientes de migracion.
+- Bitacora de auditoria local para registrar login, capturas, exportaciones, configuracion y cambios de rol.
 
 En produccion, el login simulado debe sustituirse por Supabase Auth o SSO institucional, y las capturas locales por tablas PostgreSQL.
 
@@ -394,6 +395,28 @@ Reglas clave:
 - Uniformes: se importa completo al modulo Colaboradores por autorizacion expresa.
 - Compras: se importa cuando se cierre estructura de presupuesto.
 - Catalogos: deben existir antes de cargar operaciones masivas.
+
+## Auditoria
+
+En produccion cada accion relevante debe registrarse:
+
+- Inicio y cierre de sesion.
+- Cambio de rol o perfil activo.
+- Altas, ediciones y bajas de registros.
+- Exportaciones PDF o Excel.
+- Cambios de configuracion.
+- Importaciones y errores de carga.
+- Limpieza o correccion masiva de datos.
+
+La bitacora debe guardar:
+
+- Usuario.
+- Rol.
+- Area.
+- Accion.
+- Entidad afectada.
+- Fecha y hora.
+- Detalle breve.
 
 ## Filtros recomendados
 

@@ -165,3 +165,15 @@ export const migrationBacklog = [
   ["Media", "Revisar duplicados por matricula y periodo", "Pendiente"],
   ["Baja", "Definir etiquetas visuales por modulo", "Base creada"]
 ];
+
+export const auditActions = [
+  "login",
+  "logout",
+  "cambio_rol",
+  "captura",
+  "edicion",
+  "exportacion",
+  "importacion",
+  "configuracion",
+  "limpieza"
+];

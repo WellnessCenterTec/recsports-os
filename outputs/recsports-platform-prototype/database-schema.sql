@@ -151,6 +151,9 @@ create table audit_log (
   accion text not null,
   entidad text not null,
   entidad_id text,
+  area text,
+  detalle text,
+  ip_address text,
   created_at timestamptz default now()
 );
 

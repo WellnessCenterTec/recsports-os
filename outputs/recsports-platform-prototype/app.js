@@ -118,6 +118,7 @@ const activities = ["clases", "gimnasio", "intramuros", "vivencia", "representat
 const STORAGE_KEY = "recsports_os_local_captures";
 const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
+const AUDIT_KEY = "recsports_os_audit_log";
 const UNIFORMES_DATA_URL = "./uniformes-data.json";
 const submenus = ["Dashboard", "Captura", "Participantes", "Calendario", "Indicadores", "Reportes", "Configuracion"];
 const roleMatrix = [
@@ -192,6 +193,7 @@ let currentUser = loadSession();
 let uniformesData = {};
 let uniformesLoaded = false;
 let collaboratorFilter = { coordinator: "todos", shirt: "todos", firstAid: "todos" };
+let auditLog = loadAuditLog();
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -228,6 +230,31 @@ function saveSession(user) {
 function clearSession() {
   currentUser = null;
   localStorage.removeItem(SESSION_KEY);
+}
+
+function loadAuditLog() {
+  try {
+    return JSON.parse(localStorage.getItem(AUDIT_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveAuditLog() {
+  localStorage.setItem(AUDIT_KEY, JSON.stringify(auditLog));
+}
+
+function addAudit(action, detail = "") {
+  const entry = {
+    at: new Date().toISOString(),
+    user: currentUser?.name || "Sin sesion",
+    role: currentUser?.role || "anonimo",
+    area: currentUser?.area || "general",
+    action,
+    detail
+  };
+  auditLog = [entry, ...auditLog].slice(0, 200);
+  saveAuditLog();
 }
 
 function applyTheme() {
@@ -410,6 +437,7 @@ function renderLogin() {
     }
     const user = demoUsers.find((item) => item.id === form.get("userId")) || demoUsers[0];
     saveSession(user);
+    addAudit("login", `Ingreso como ${user.name}`);
     activeArea = user.role === "direccion" ? "general" : user.area;
     activeView = "dashboard";
     render();
@@ -556,6 +584,19 @@ function renderConfigurationDashboard() {
           <table>
             <thead><tr><th>Prioridad</th><th>Tarea</th><th>Estado</th></tr></thead>
             <tbody>${migrationBacklog.map((row) => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </section>
+      <section class="blueprint-card wide">
+        <h3>Bitacora de auditoria local</h3>
+        <div class="permission-strip">
+          Ultimas ${auditLog.length} acciones registradas en este navegador.
+          <button class="ghost-btn inline-action" id="clearAudit">Limpiar bitacora</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Rol</th><th>Area</th><th>Accion</th><th>Detalle</th></tr></thead>
+            <tbody>${auditLog.slice(0, 30).map((row) => `<tr><td>${new Date(row.at).toLocaleString("es-MX")}</td><td>${row.user}</td><td>${row.role}</td><td>${labelArea(row.area)}</td><td>${row.action}</td><td>${row.detail}</td></tr>`).join("") || '<tr><td colspan="6">Sin acciones registradas.</td></tr>'}</tbody>
           </table>
         </div>
       </section>
@@ -873,8 +914,15 @@ function render() {
   $("#clearLocal")?.addEventListener("click", () => {
     localCaptures = [];
     saveCaptures();
+    addAudit("limpieza", "Capturas locales eliminadas");
     render();
     toast("Capturas locales eliminadas");
+  });
+  $("#clearAudit")?.addEventListener("click", () => {
+    auditLog = [];
+    saveAuditLog();
+    render();
+    toast("Bitacora local eliminada");
   });
   $$(".collab-filter").forEach((select) => select.addEventListener("input", (event) => {
     collaboratorFilter[event.target.dataset.filter] = event.target.value;
@@ -908,6 +956,7 @@ function saveCaptureFromForm() {
   }
   localCaptures.unshift(row);
   saveCaptures();
+  addAudit("captura", `Registro en ${labelArea(row.area)} para ${row.matricula}`);
   activeView = "dashboard";
   render();
   toast("Captura local guardada y reflejada en indicadores");
@@ -919,6 +968,7 @@ function csvEscape(value) {
 
 function downloadCsv(name = "reporte") {
   if (activeArea === "colaboradores") {
+    addAudit("exportacion", "CSV de colaboradores");
     downloadUniformesCsv(name);
     return;
   }
@@ -932,6 +982,7 @@ function downloadCsv(name = "reporte") {
       ...migrationBacklog.map((row) => ["backlog", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(","))
     ].join("\n");
     downloadBlob(csv, "configuracion-sistema.csv");
+    addAudit("exportacion", "Configuracion del sistema");
     toast("Configuracion del sistema descargada");
     return;
   }
@@ -950,6 +1001,7 @@ function downloadCsv(name = "reporte") {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+  addAudit("exportacion", `CSV de ${labelArea(activeArea)}`);
   toast("Reporte CSV descargado");
 }
 
@@ -981,6 +1033,7 @@ function downloadUniformesCsv(name = "colaboradores") {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+  addAudit("exportacion", "Reporte de colaboradores");
   toast("Reporte de colaboradores descargado");
 }
 
@@ -1073,6 +1126,7 @@ $$(".segmented button").forEach((button) => button.addEventListener("click", () 
     if (id === "roleSelect") {
       const user = demoUsers.find((item) => item.id === event.target.value) || demoUsers[0];
       saveSession(user);
+      addAudit("cambio_rol", `Cambio a ${user.name}`);
       activeArea = user.role === "direccion" ? "general" : user.area;
       activeView = "dashboard";
     }
@@ -1083,27 +1137,32 @@ $$(".segmented button").forEach((button) => button.addEventListener("click", () 
 $("#themeSelect").addEventListener("input", (event) => {
   activeTheme = event.target.value;
   localStorage.setItem(THEME_KEY, activeTheme);
+  addAudit("tema", `Tema visual: ${activeTheme}`);
   applyTheme();
   toast("Tema visual actualizado");
 });
 
 $("#exportExcel").addEventListener("click", () => downloadCsv("recsports-export"));
 $("#exportPdf").addEventListener("click", () => {
+  addAudit("exportacion", `PDF/impresion de ${labelArea(activeArea)}`);
   toast("Abriendo impresion para guardar como PDF");
   setTimeout(() => window.print(), 350);
 });
 
 $("#logoutButton").addEventListener("click", () => {
+  addAudit("logout", "Sesion cerrada");
   clearSession();
   render();
   toast("Sesion cerrada");
 });
 
 document.addEventListener("mock-colab-save", () => {
+  addAudit("colaboradores", "Guardado simulado de colaborador");
   toast("Guardado simulado. En produccion actualizara la tabla de colaboradores.");
 });
 
 document.addEventListener("mock-config-save", () => {
+  addAudit("configuracion", "Guardado simulado de usuario/catalogo");
   toast("Configuracion simulada guardada localmente");
 });
 
