@@ -139,3 +139,29 @@ export const seedStudents = Array.from({ length: 180 }, (_, i) => ({
   acreditado: i % 6 !== 0,
   baja: i % 11 === 0
 }));
+
+export const importPlan = [
+  ["Indicadores", "Solo datos permitidos de alumnos", "Pendiente depuracion"],
+  ["Uniformes", "Informacion completa autorizada", "Cargado en prototipo"],
+  ["Catalogos", "Areas, carreras, periodos, disciplinas", "Base inicial"],
+  ["Compras", "Presupuesto y solicitudes", "Pendiente definicion"]
+];
+
+export const validationRules = [
+  ["Alumnos", "Matricula", "Debe iniciar con A0 y no contener nombre ni correo"],
+  ["Alumnos", "Genero", "Solo valores normalizados"],
+  ["Alumnos", "Carrera", "Debe existir en catalogo de carreras"],
+  ["Alumnos", "Semestre", "Numero entre 1 y 12"],
+  ["Alumnos", "Nivel escolar", "Profesional o Posgrado"],
+  ["Colaboradores", "Nomina", "Debe iniciar con L0 o registrar excepcion"],
+  ["Colaboradores", "Uniforme", "Tallas normalizadas"],
+  ["Compras", "Monto", "Numero positivo y asociado a area"]
+];
+
+export const migrationBacklog = [
+  ["Alta", "Separar datos sensibles de Historial Clinico antes de cualquier importacion", "Pendiente"],
+  ["Alta", "Definir catalogo oficial de disciplinas, torneos y eventos", "Pendiente"],
+  ["Media", "Homologar nombres de estatus", "En diseno"],
+  ["Media", "Revisar duplicados por matricula y periodo", "Pendiente"],
+  ["Baja", "Definir etiquetas visuales por modulo", "Base creada"]
+];

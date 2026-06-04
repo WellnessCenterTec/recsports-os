@@ -154,8 +154,42 @@ create table audit_log (
   created_at timestamptz default now()
 );
 
+create table import_jobs (
+  id uuid primary key default gen_random_uuid(),
+  source_name text not null,
+  module text not null,
+  status text not null check (status in ('pendiente', 'validando', 'aprobado', 'importado', 'rechazado')),
+  allowed_fields text[],
+  total_rows int default 0,
+  valid_rows int default 0,
+  invalid_rows int default 0,
+  created_by uuid references app_users(id),
+  created_at timestamptz default now(),
+  completed_at timestamptz
+);
+
+create table import_errors (
+  id uuid primary key default gen_random_uuid(),
+  import_job_id uuid references import_jobs(id),
+  row_number int,
+  field_name text,
+  error_message text not null,
+  created_at timestamptz default now()
+);
+
+create table data_validation_rules (
+  id uuid primary key default gen_random_uuid(),
+  module text not null,
+  field_name text not null,
+  rule_description text not null,
+  active boolean default true,
+  created_at timestamptz default now()
+);
+
 create index idx_participations_area_periodo on participations(area, periodo);
 create index idx_participations_matricula on participations(matricula);
 create index idx_participations_fecha on participations(fecha);
 create index idx_collaborators_coordinador on collaborators(coordinador);
 create index idx_contract_layouts_nomina on collaborator_contract_layouts(nomina);
+create index idx_import_jobs_status on import_jobs(status);
+create index idx_import_errors_job on import_errors(import_job_id);

@@ -370,8 +370,30 @@ La prueba local ya incluye:
 - Capturas guardadas localmente.
 - Exportacion CSV.
 - Impresion para PDF.
+- Centro de importaciones para controlar fuentes, reglas y pendientes de migracion.
 
 En produccion, el login simulado debe sustituirse por Supabase Auth o SSO institucional, y las capturas locales por tablas PostgreSQL.
+
+## Centro de importaciones
+
+Antes de cargar datos historicos a produccion, cada fuente debe pasar por un flujo de validacion:
+
+- Identificar fuente.
+- Confirmar campos permitidos.
+- Normalizar catalogos.
+- Detectar duplicados.
+- Validar campos requeridos.
+- Registrar errores.
+- Aprobar importacion.
+- Guardar bitacora de carga.
+
+Reglas clave:
+
+- Indicadores: importar solo datos permitidos de alumnos y datos operativos por modulo.
+- Historial clinico: no se importa al sistema operativo.
+- Uniformes: se importa completo al modulo Colaboradores por autorizacion expresa.
+- Compras: se importa cuando se cierre estructura de presupuesto.
+- Catalogos: deben existir antes de cargar operaciones masivas.
 
 ## Filtros recomendados
 

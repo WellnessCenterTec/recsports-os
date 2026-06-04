@@ -132,6 +132,23 @@ const importPlan = [
   ["Catalogos", "Areas, carreras, periodos, disciplinas", "Base inicial"],
   ["Compras", "Presupuesto y solicitudes", "Pendiente definicion"]
 ];
+const validationRules = [
+  ["Alumnos", "Matricula", "Debe iniciar con A0 y no contener nombre ni correo"],
+  ["Alumnos", "Genero", "Solo valores normalizados: Femenino, Masculino, No especificado"],
+  ["Alumnos", "Carrera", "Debe existir en catalogo de carreras"],
+  ["Alumnos", "Semestre", "Numero entre 1 y 12"],
+  ["Alumnos", "Nivel escolar", "Profesional o Posgrado"],
+  ["Colaboradores", "Nomina", "Debe iniciar con L0 o registrar excepcion operativa"],
+  ["Colaboradores", "Uniforme", "Tallas normalizadas para playera y pants"],
+  ["Compras", "Monto", "Numero positivo y asociado a area"]
+];
+const migrationBacklog = [
+  ["Alta", "Separar datos sensibles de Historial Clinico antes de cualquier importacion", "Pendiente"],
+  ["Alta", "Definir catalogo oficial de disciplinas, torneos y eventos", "Pendiente"],
+  ["Media", "Homologar nombres de estatus: activo, baja, NP, acreditado", "En diseno"],
+  ["Media", "Revisar duplicados por matricula y periodo", "Pendiente"],
+  ["Baja", "Definir etiquetas visuales por modulo", "Base creada"]
+];
 const dbTables = [
   "students_minimal(matricula, genero, carrera, semestre, nivel)",
   "participations(id, matricula, area, periodo, estatus, fecha)",
@@ -508,6 +525,41 @@ function renderConfigurationDashboard() {
         </div>
       </section>
       <section class="blueprint-card wide">
+        <h3>Centro de importaciones</h3>
+        <div class="module-grid">
+          <article class="module-card" data-tone="green">
+            <h3>Archivo Indicadores</h3>
+            <p>Importar solo matricula, genero, carrera, semestre, nivel escolar y datos operativos por modulo.</p>
+          </article>
+          <article class="module-card" data-tone="blue">
+            <h3>Archivo Uniformes</h3>
+            <p>Importacion completa autorizada para Colaboradores: uniformes, pruebas fisicas, contactos, layouts y gimnasio.</p>
+          </article>
+          <article class="module-card" data-tone="gold">
+            <h3>Validacion previa</h3>
+            <p>Cada carga debe pasar normalizacion de catalogos, duplicados, campos requeridos y permisos por modulo.</p>
+          </article>
+        </div>
+      </section>
+      <section class="blueprint-card">
+        <h3>Reglas de validacion</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fuente</th><th>Campo</th><th>Regla</th></tr></thead>
+            <tbody>${validationRules.map((row) => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </section>
+      <section class="blueprint-card">
+        <h3>Backlog de migracion</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Prioridad</th><th>Tarea</th><th>Estado</th></tr></thead>
+            <tbody>${migrationBacklog.map((row) => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </section>
+      <section class="blueprint-card wide">
         <h3>Politicas de datos</h3>
         <div class="module-grid">
           <article class="module-card" data-tone="blue">
@@ -871,13 +923,16 @@ function downloadCsv(name = "reporte") {
     return;
   }
   if (activeArea === "configuracion") {
-    const headers = ["rol", "area", "permiso"];
+    const headers = ["tipo", "campo_1", "campo_2", "campo_3"];
     const csv = [
       headers.join(","),
-      ...demoUsers.map((user) => [csvEscape(user.name), csvEscape(labelArea(user.area)), csvEscape(user.role === "direccion" ? "Lectura y edicion global" : "Captura y consulta de su modulo")].join(","))
+      ...demoUsers.map((user) => ["permiso", csvEscape(user.name), csvEscape(labelArea(user.area)), csvEscape(user.role === "direccion" ? "Lectura y edicion global" : "Captura y consulta de su modulo")].join(",")),
+      ...importPlan.map((row) => ["importacion", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(",")),
+      ...validationRules.map((row) => ["validacion", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(",")),
+      ...migrationBacklog.map((row) => ["backlog", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(","))
     ].join("\n");
-    downloadBlob(csv, "configuracion-permisos.csv");
-    toast("Matriz de permisos descargada");
+    downloadBlob(csv, "configuracion-sistema.csv");
+    toast("Configuracion del sistema descargada");
     return;
   }
   const rows = filteredStudents();
