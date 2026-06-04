@@ -167,6 +167,17 @@ const roadmapItems = [
   ["Fase 7", "Vercel privado", "TI", "Pendiente", "Publicar entorno protegido para pruebas internas"],
   ["Fase 8", "Liberacion", "Direccion Deportiva", "Pendiente", "Capacitacion, soporte y gobierno de datos"]
 ];
+const scheduledReports = [
+  ["Ejecutivo general", "Resumen ejecutivo direccion", "PDF", "Semanal", "Direccion Deportiva", "Disenado"],
+  ["Ejecutivo general", "Base agregada de participacion", "Excel", "Mensual", "Direccion Deportiva", "Disenado"],
+  ["Clases Deportivas", "Acreditacion por disciplina", "Excel", "Por periodo", "Coord. Clases Deportivas", "Pendiente"],
+  ["Gimnasio", "Asistencia semanal", "PDF/Excel", "Semanal", "Coord. Gimnasio", "Pendiente"],
+  ["Intramuros", "Retencion y jornadas", "PDF", "Quincenal", "Coord. Intramuros", "Pendiente"],
+  ["Vivencia", "Cumplimiento de eventos", "PDF", "Mensual", "Coord. Vivencia", "Pendiente"],
+  ["Colaboradores", "Uniformes y cursos", "Excel", "Mensual", "Coord. Colaboradores", "En prototipo"],
+  ["Compras y Presupuesto", "Presupuesto ejercido", "PDF/Excel", "Mensual", "Compras", "Pendiente"],
+  ["Configuracion", "Matriz de permisos y auditoria", "Excel", "Bajo demanda", "Direccion Deportiva", "En prototipo"]
+];
 const dbTables = [
   "students_minimal(matricula, genero, carrera, semestre, nivel)",
   "participations(id, matricula, area, periodo, estatus, fecha)",
@@ -680,6 +691,15 @@ function renderConfigurationDashboard() {
           `).join("")}
         </div>
       </section>
+      <section class="blueprint-card wide">
+        <h3>Centro de reportes</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Modulo</th><th>Reporte</th><th>Formato</th><th>Frecuencia</th><th>Responsable</th><th>Estado</th></tr></thead>
+            <tbody>${scheduledReports.map((row) => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td><td>${row[4]}</td><td>${row[5]}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </section>
       <section class="blueprint-card">
         <h3>Reglas de validacion</h3>
         <div class="table-wrap">
@@ -1094,7 +1114,8 @@ function downloadCsv(name = "reporte") {
       ...migrationBacklog.map((row) => ["backlog", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(",")),
       ...systemAlerts().map((row) => ["alerta", csvEscape(row.priority), csvEscape(row.module), csvEscape(`${row.message} - ${row.status}`)].join(",")),
       ...roadmapItems.map((row) => ["roadmap", csvEscape(`${row[0]} ${row[1]}`), csvEscape(row[2]), csvEscape(`${row[3]} - ${row[4]}`)].join(",")),
-      ...Object.entries(systemCatalogs).flatMap(([name, values]) => values.map((value) => ["catalogo", csvEscape(name), csvEscape(value), ""].join(",")))
+      ...Object.entries(systemCatalogs).flatMap(([name, values]) => values.map((value) => ["catalogo", csvEscape(name), csvEscape(value), ""].join(","))),
+      ...scheduledReports.map((row) => ["reporte", csvEscape(`${row[0]} - ${row[1]}`), csvEscape(`${row[2]} / ${row[3]}`), csvEscape(`${row[4]} - ${row[5]}`)].join(","))
     ].join("\n");
     downloadBlob(csv, "configuracion-sistema.csv");
     addAudit("exportacion", "Configuracion del sistema");

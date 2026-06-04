@@ -375,6 +375,7 @@ La prueba local ya incluye:
 - Centro de alertas para seguimiento de riesgos, pendientes de migracion y datos operativos por revisar.
 - Roadmap de implementacion por fases, responsables, estado y entregables.
 - Catalogos del sistema para normalizar periodos, areas, carreras, estatus, tallas, roles y fuentes.
+- Centro de reportes para definir formato, frecuencia, responsable y estado de cada reporte oficial.
 
 En produccion, el login simulado debe sustituirse por Supabase Auth o SSO institucional, y las capturas locales por tablas PostgreSQL.
 
@@ -490,6 +491,33 @@ Reglas:
 - Las importaciones deben validar contra catalogos.
 - Solo Direccion o Administrador puede editar catalogos.
 - Cada cambio de catalogo debe registrarse en auditoria.
+
+## Centro de reportes
+
+El sistema debe administrar reportes oficiales por modulo.
+
+Cada reporte debe definir:
+
+- Modulo.
+- Nombre del reporte.
+- Formato: PDF, Excel o ambos.
+- Frecuencia.
+- Responsable.
+- Estado.
+- Filtros disponibles.
+- Permisos de descarga.
+
+Reportes iniciales:
+
+- Resumen ejecutivo direccion.
+- Base agregada de participacion.
+- Acreditacion por disciplina.
+- Asistencia semanal de gimnasio.
+- Retencion y jornadas de intramuros.
+- Cumplimiento de eventos.
+- Uniformes y cursos de colaboradores.
+- Presupuesto ejercido.
+- Matriz de permisos y auditoria.
 
 ## Filtros recomendados
 
