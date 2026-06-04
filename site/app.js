@@ -111,6 +111,74 @@ const areas = [
   }
 ];
 
+const classTeacherPerformance = [
+  { teacher: "Adrian Guadalupe Torres Sandoval", total: 312, approved: 251, failed: 61, approvedRate: 80, failedRate: 20 },
+  { teacher: "Arturo Yared Nájera Núñez", total: 60, approved: 46, failed: 14, approvedRate: 77, failedRate: 23 },
+  { teacher: "Esteban Pérez Martínez", total: 360, approved: 264, failed: 96, approvedRate: 73, failedRate: 27 },
+  { teacher: "Ventura Guadalupe Vázquez González", total: 359, approved: 257, failed: 102, approvedRate: 72, failedRate: 28 },
+  { teacher: "Hugo Sánchez Medina", total: 304, approved: 216, failed: 88, approvedRate: 71, failedRate: 29 },
+  { teacher: "Perla Limón Moreno", total: 240, approved: 171, failed: 69, approvedRate: 71, failedRate: 29 },
+  { teacher: "Milton Andres Páez Navarro", total: 160, approved: 114, failed: 46, approvedRate: 71, failedRate: 29 },
+  { teacher: "Kevin Antonio Ruíz García", total: 208, approved: 145, failed: 63, approvedRate: 70, failedRate: 30 },
+  { teacher: "Omar Alejandro Ruiz Garibay", total: 61, approved: 43, failed: 18, approvedRate: 70, failedRate: 30 },
+  { teacher: "Miguel Angel Carranza Sauceda", total: 207, approved: 137, failed: 70, approvedRate: 66, failedRate: 34 },
+  { teacher: "Carolina Esquivel Morales", total: 341, approved: 220, failed: 121, approvedRate: 65, failedRate: 35 },
+  { teacher: "Ameyalli Rocha Espinoza", total: 359, approved: 222, failed: 137, approvedRate: 62, failedRate: 38 },
+  { teacher: "Arturo Mario Najera Balleza", total: 239, approved: 149, failed: 90, approvedRate: 62, failedRate: 38 },
+  { teacher: "Jose de Jesus Castillo Ortiz", total: 160, approved: 100, failed: 60, approvedRate: 62, failedRate: 38 },
+  { teacher: "Víctor Antonio Paz Villalobos", total: 120, approved: 73, failed: 47, approvedRate: 61, failedRate: 39 },
+  { teacher: "Alicia Domínguez Rodríguez", total: 208, approved: 125, failed: 83, approvedRate: 60, failedRate: 40 },
+  { teacher: "Yara Lisania Lira Martínez", total: 329, approved: 195, failed: 134, approvedRate: 59, failedRate: 41 },
+  { teacher: "María Teresa Medrano Reyes", total: 199, approved: 114, failed: 85, approvedRate: 57, failedRate: 43 },
+  { teacher: "Yulian Valdez Ramírez", total: 209, approved: 114, failed: 95, approvedRate: 55, failedRate: 45 },
+  { teacher: "Yveth Marion González Eguren", total: 260, approved: 140, failed: 120, approvedRate: 54, failedRate: 46 },
+  { teacher: "Narda Dominick Lopez Copado", total: 110, approved: 57, failed: 53, approvedRate: 52, failedRate: 48 },
+  { teacher: "Martha Hernández Hernández", total: 64, approved: 31, failed: 33, approvedRate: 48, failedRate: 52 },
+  { teacher: "Cecilia Estefanía Valdez Palacios", total: 37, approved: 17, failed: 20, approvedRate: 46, failedRate: 54 },
+  { teacher: "Josue Fernando Silguero Urquiza", total: 360, approved: 161, failed: 199, approvedRate: 45, failedRate: 55 }
+];
+
+const classDisciplineIndicators = [
+  { period: "PMT1", discipline: "Acondicionamiento físico PMT1", banner: 30, bajas: 5, np: 7, finished: 18 },
+  { period: "PMT1", discipline: "Artes Marciales PMT1", banner: 30, bajas: 4, np: 6, finished: 20 },
+  { period: "PMT1", discipline: "Basquetbol Femenil PMT1", banner: 27, bajas: 4, np: 0, finished: 23 },
+  { period: "PMT1", discipline: "Basquetbol Varonil PMT1", banner: 28, bajas: 4, np: 0, finished: 24 },
+  { period: "PMT1", discipline: "Box PMT1", banner: 329, bajas: 40, np: 41, finished: 248 },
+  { period: "PMT1", discipline: "Ciclismo PMT1", banner: 244, bajas: 45, np: 20, finished: 179 },
+  { period: "PMT1", discipline: "Cross training PMT1", banner: 180, bajas: 15, np: 16, finished: 149 },
+  { period: "PMT1", discipline: "Escala Deportiva PMT1", banner: 192, bajas: 20, np: 21, finished: 151 },
+  { period: "PMT1", discipline: "Fitness PMT1", banner: 130, bajas: 18, np: 16, finished: 96 },
+  { period: "PMT1", discipline: "Fútbol rápido femenil PMT1", banner: 30, bajas: 2, np: 0, finished: 28 },
+  { period: "PMT1", discipline: "Fútbol rápido varonil PMT1", banner: 30, bajas: 4, np: 0, finished: 26 },
+  { period: "PMT1", discipline: "Fútbol soccer femenil PMT1", banner: 32, bajas: 6, np: 1, finished: 25 },
+  { period: "PMT1", discipline: "Fútbol soccer varonil PMT1", banner: 32, bajas: 6, np: 0, finished: 26 },
+  { period: "PMT1", discipline: "Natación PMT1", banner: 547, bajas: 41, np: 42, finished: 464 },
+  { period: "PMT1", discipline: "Tenis PMT1", banner: 417, bajas: 37, np: 36, finished: 344 },
+  { period: "PMT1", discipline: "Voleibol femenil PMT1", banner: 30, bajas: 1, np: 0, finished: 29 },
+  { period: "PMT1", discipline: "Voleibol varonil PMT1", banner: 30, bajas: 0, np: 0, finished: 30 },
+  { period: "PMT1", discipline: "Yoga PMT1", banner: 247, bajas: 28, np: 22, finished: 197 },
+  { period: "PMT1", discipline: "Totales Periodo 1", banner: 2585, bajas: 280, np: 228, finished: 2077, total: true },
+  { period: "PMT2", discipline: "Acondicionamiento físico PMT2", banner: 30, bajas: 4, np: 9, finished: 17 },
+  { period: "PMT2", discipline: "Artes Marciales PMT2", banner: 30, bajas: 6, np: 7, finished: 17 },
+  { period: "PMT2", discipline: "Basquetbol Femenil PMT2", banner: 27, bajas: 7, np: 7, finished: 13 },
+  { period: "PMT2", discipline: "Basquetbol Varonil PMT2", banner: 28, bajas: 5, np: 4, finished: 19 },
+  { period: "PMT2", discipline: "Box PMT2", banner: 330, bajas: 62, np: 68, finished: 200 },
+  { period: "PMT2", discipline: "Ciclismo PMT2", banner: 244, bajas: 53, np: 43, finished: 148 },
+  { period: "PMT2", discipline: "Cross training PMT2", banner: 180, bajas: 32, np: 33, finished: 115 },
+  { period: "PMT2", discipline: "Escala Deportiva PMT2", banner: 131, bajas: 34, np: 18, finished: 79 },
+  { period: "PMT2", discipline: "Fitness PMT2", banner: 192, bajas: 27, np: 28, finished: 137 },
+  { period: "PMT2", discipline: "Fútbol rápido femenil PMT2", banner: 30, bajas: 10, np: 3, finished: 17 },
+  { period: "PMT2", discipline: "Fútbol rápido varonil PMT2", banner: 30, bajas: 6, np: 5, finished: 19 },
+  { period: "PMT2", discipline: "Fútbol soccer varonil PMT2", banner: 64, bajas: 7, np: 0, finished: 57 },
+  { period: "PMT2", discipline: "Fútbol soccer femenil PMT2", banner: 32, bajas: 4, np: 7, finished: 21 },
+  { period: "PMT2", discipline: "Natación PMT2", banner: 577, bajas: 89, np: 80, finished: 408 },
+  { period: "PMT2", discipline: "Tenis PMT2", banner: 415, bajas: 69, np: 81, finished: 265 },
+  { period: "PMT2", discipline: "Voleibol femenil PMT2", banner: 31, bajas: 6, np: 4, finished: 21 },
+  { period: "PMT2", discipline: "Voleibol varonil PMT2", banner: 30, bajas: 4, np: 4, finished: 22 },
+  { period: "PMT2", discipline: "Yoga PMT2", banner: 248, bajas: 48, np: 39, finished: 161 },
+  { period: "PMT2", discipline: "Totales Periodo 2", banner: 2649, bajas: 473, np: 440, finished: 1736, total: true }
+];
+
 const careers = ["ITC", "LAF", "LIN", "MC", "LNB", "ARQ", "IMT", "LAE", "MNA", "DCA"];
 const genders = ["Femenino", "Masculino", "No especificado"];
 const levels = ["Profesional", "Posgrado"];
@@ -605,6 +673,8 @@ function renderDashboard(area) {
 
   const alertsMarkup = area.id === "general" ? renderAlertCenter(true) : "";
   const progressMarkup = area.id === "general" ? renderProjectProgress() : "";
+  const classTeachersMarkup = area.id === "clases" ? renderClassTeacherPerformance() : "";
+  const classIndicatorsMarkup = area.id === "clases" ? renderClassDisciplineIndicators() : "";
   return `
     <div class="permission-strip">
       ${allowedDataText()} Capturas guardadas en este piloto: ${localCaptures.length}.
@@ -652,6 +722,8 @@ function renderDashboard(area) {
         <p class="hero-copy">Segmentación sugerida: género, carrera, semestre, nivel escolar, periodo, área, disciplina, evento y estatus.</p>
       </div>
     </div>
+    ${classIndicatorsMarkup}
+    ${classTeachersMarkup}
     <div class="module-grid">${moduleCards}</div>
     <div class="table-wrap">
       <table>
@@ -659,6 +731,90 @@ function renderDashboard(area) {
         <tbody>${data.slice(0, 14).map((s) => `<tr><td>${s.matricula}</td><td>${s.genero}</td><td>${s.carrera}</td><td>${s.semestre}</td><td>${s.nivel}</td><td>${labelArea(s.area)}</td><td>${s.registros}</td></tr>`).join("")}</tbody>
       </table>
     </div>
+  `;
+}
+
+function renderClassDisciplineIndicators() {
+  return `
+    <section class="class-indicators-panel">
+      <div class="section-title compact">
+        <div>
+          <p class="eyebrow">CD Indicadores clases</p>
+          <h2>Indicadores por disciplina y periodo</h2>
+        </div>
+        <span class="session-pill">PMT1 + PMT2</span>
+      </div>
+      <div class="table-wrap class-indicators-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Disciplina del periodo</th>
+              <th>Alumnos inscritos Banner</th>
+              <th>Bajas</th>
+              <th>NP</th>
+              <th>Alumnos que finalizaron y acreditaron</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${classDisciplineIndicators.map((row) => `
+              <tr class="${row.period === "PMT2" ? "period-two" : "period-one"} ${row.total ? "period-total" : ""}">
+                <td>${row.discipline}</td>
+                <td>${row.banner}</td>
+                <td>${row.bajas}</td>
+                <td>${row.np}</td>
+                <td>${row.finished}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function renderClassTeacherPerformance() {
+  const totals = classTeacherPerformance.reduce((acc, row) => {
+    acc.total += row.total;
+    acc.approved += row.approved;
+    acc.failed += row.failed;
+    return acc;
+  }, { total: 0, approved: 0, failed: 0 });
+  const approvedRate = totals.total ? Math.round((totals.approved / totals.total) * 100) : 0;
+  const failedRate = totals.total ? 100 - approvedRate : 0;
+  return `
+    <section class="teacher-performance">
+      <div class="section-title compact">
+        <div>
+          <p class="eyebrow">CD Lista de Alumnos</p>
+          <h2>Profesores por % de aprobados y reprobados</h2>
+        </div>
+        <span class="session-pill">${classTeacherPerformance.length} profesores · ${totals.total} registros</span>
+      </div>
+      <div class="teacher-summary">
+        <div><strong>${approvedRate}%</strong><span>Aprobados global</span></div>
+        <div><strong>${failedRate}%</strong><span>Reprobados / bajas</span></div>
+        <div><strong>${totals.approved}</strong><span>Aprobados</span></div>
+        <div><strong>${totals.failed}</strong><span>Reprobados</span></div>
+      </div>
+      <div class="teacher-list">
+        ${classTeacherPerformance.map((row) => `
+          <article class="teacher-row">
+            <div class="teacher-meta">
+              <strong>${row.teacher}</strong>
+              <span>${row.total} alumnos · ${row.approved} aprobados · ${row.failed} reprobados/bajas</span>
+            </div>
+            <div class="teacher-bar" aria-label="${row.teacher}: ${row.approvedRate}% aprobados, ${row.failedRate}% reprobados">
+              <span class="teacher-bar-approved" style="width:${row.approvedRate}%"></span>
+              <span class="teacher-bar-failed" style="width:${row.failedRate}%"></span>
+            </div>
+            <div class="teacher-rates">
+              <strong>${row.approvedRate}%</strong>
+              <span>${row.failedRate}%</span>
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    </section>
   `;
 }
 

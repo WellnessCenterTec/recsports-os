@@ -273,6 +273,10 @@ body[data-theme="dark"] .main-panel,
 body[data-theme="dark"] .side-panel,
 body[data-theme="dark"] .blueprint-card,
 body[data-theme="dark"] .wire-main,
+body[data-theme="dark"] .class-indicators-panel,
+body[data-theme="dark"] .teacher-performance,
+body[data-theme="dark"] .teacher-row,
+body[data-theme="dark"] .teacher-summary div,
 body[data-theme="dark"] .ops-summary article,
 body[data-theme="dark"] table {
   background: var(--panel);
@@ -518,9 +522,6 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   flex-wrap: wrap;
   gap: 12px;
   margin: 4px 0 10px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
 }
 
 .gender-legend span,
@@ -572,6 +573,152 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   color: var(--muted);
   font-size: 11px;
   font-weight: 800;
+}
+
+.class-indicators-panel {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 16px;
+}
+
+.class-indicators-table {
+  margin-top: 0;
+}
+
+.class-indicators-table table {
+  min-width: 900px;
+}
+
+.class-indicators-table th {
+  background: #b7d8a9;
+  color: #0b1f26;
+  border: 1px solid #0b1f26;
+  text-align: center;
+}
+
+.class-indicators-table td {
+  border: 1px solid #0b1f26;
+  font-size: 14px;
+}
+
+.class-indicators-table td:not(:first-child) {
+  text-align: center;
+}
+
+.class-indicators-table .period-one td {
+  background: #d9ead3;
+}
+
+.class-indicators-table .period-two td {
+  background: #cfe2f3;
+}
+
+.class-indicators-table .period-total td {
+  font-weight: 800;
+}
+
+.class-indicators-table .period-total td:last-child {
+  color: #1155cc;
+}
+
+.teacher-performance {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 16px;
+}
+
+.teacher-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.teacher-summary div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7faf9;
+  padding: 12px;
+}
+
+.teacher-summary strong {
+  display: block;
+  font-size: 22px;
+}
+
+.teacher-summary span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.teacher-list {
+  display: grid;
+  gap: 9px;
+}
+
+.teacher-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) minmax(180px, 1fr) 82px;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.teacher-meta strong,
+.teacher-meta span {
+  display: block;
+}
+
+.teacher-meta strong {
+  font-size: 13px;
+}
+
+.teacher-meta span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.teacher-bar {
+  display: flex;
+  height: 14px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: #e7ecef;
+}
+
+.teacher-bar-approved {
+  background: linear-gradient(90deg, var(--green), #6bd98b);
+}
+
+.teacher-bar-failed {
+  background: linear-gradient(90deg, #f4c3c3, var(--red));
+}
+
+.teacher-rates {
+  text-align: right;
+}
+
+.teacher-rates strong,
+.teacher-rates span {
+  display: block;
+  font-size: 12px;
+}
+
+.teacher-rates strong {
+  color: var(--green);
+}
+
+.teacher-rates span {
+  color: var(--red);
 }
 
 .donut {
@@ -982,7 +1129,7 @@ th { color: var(--muted); background: #f7faf9; }
 @media (max-width: 760px) {
   .workspace, .sidebar { padding: 14px; }
   .topbar, .top-actions, .section-title, .report-row, .permission-strip { flex-direction: column; align-items: stretch; }
-  .filters-band, .hero-kpis, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary { grid-template-columns: 1fr; }
+  .filters-band, .hero-kpis, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row { grid-template-columns: 1fr; }
   .blueprint-grid, .wireframes { grid-template-columns: 1fr; }
   .roadmap-board { grid-template-columns: 1fr; }
   .catalog-grid { grid-template-columns: 1fr; }
