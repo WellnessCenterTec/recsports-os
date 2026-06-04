@@ -351,14 +351,14 @@ button {
 
 .hero-dashboard > * { position: relative; }
 
-.compact-hero {
-  min-height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 16px 18px;
-  grid-template-columns: none;
-  gap: 0;
+.hero-no-kpis {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.hero-no-kpis .planning-link {
+  align-self: start;
+  justify-self: end;
 }
 
 .eyebrow {
