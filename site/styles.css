@@ -326,6 +326,25 @@ button {
 }
 .primary-btn { background: var(--teal); color: #fff; }
 .ghost-btn { background: #fff; color: var(--teal); }
+.planning-link {
+  width: fit-content;
+  min-height: 40px;
+  margin-top: 18px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--teal);
+  border-radius: 8px;
+  background: var(--teal);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.planning-link:hover {
+  filter: brightness(.96);
+}
 .danger-btn {
   min-height: 38px;
   padding: 0 14px;
