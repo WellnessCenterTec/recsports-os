@@ -200,6 +200,18 @@ create table system_alerts (
   closed_at timestamptz
 );
 
+create table implementation_roadmap (
+  id uuid primary key default gen_random_uuid(),
+  phase text not null,
+  title text not null,
+  responsible text,
+  status text not null default 'pendiente',
+  deliverable text,
+  target_date date,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
 create index idx_participations_area_periodo on participations(area, periodo);
 create index idx_participations_matricula on participations(matricula);
 create index idx_participations_fecha on participations(fecha);
@@ -208,3 +220,4 @@ create index idx_contract_layouts_nomina on collaborator_contract_layouts(nomina
 create index idx_import_jobs_status on import_jobs(status);
 create index idx_import_errors_job on import_errors(import_job_id);
 create index idx_system_alerts_status on system_alerts(status, priority);
+create index idx_roadmap_status on implementation_roadmap(status);

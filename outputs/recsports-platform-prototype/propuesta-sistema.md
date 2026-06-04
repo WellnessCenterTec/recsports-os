@@ -373,6 +373,7 @@ La prueba local ya incluye:
 - Centro de importaciones para controlar fuentes, reglas y pendientes de migracion.
 - Bitacora de auditoria local para registrar login, capturas, exportaciones, configuracion y cambios de rol.
 - Centro de alertas para seguimiento de riesgos, pendientes de migracion y datos operativos por revisar.
+- Roadmap de implementacion por fases, responsables, estado y entregables.
 
 En produccion, el login simulado debe sustituirse por Supabase Auth o SSO institucional, y las capturas locales por tablas PostgreSQL.
 
@@ -443,6 +444,27 @@ Cada alerta debe tener:
 - Responsable.
 - Fecha de creacion.
 - Fecha de cierre.
+
+## Roadmap de implementacion
+
+Fases recomendadas:
+
+1. Prototipo local: validar modulos, permisos, colaboradores, configuracion y alertas.
+2. Base tecnica Next.js: instalar dependencias, ejecutar app formal y ordenar componentes.
+3. Supabase: crear proyecto, tablas, roles, RLS y variables de entorno.
+4. Migracion controlada: depurar Indicadores, importar Uniformes y cerrar catalogos.
+5. Dashboards reales: reemplazar datos simulados por consultas a PostgreSQL.
+6. Piloto operativo: probar captura real por area con coordinadores.
+7. Vercel privado: publicar entorno protegido para pruebas internas.
+8. Liberacion: capacitacion, soporte y gobierno de datos.
+
+Cada fase debe tener:
+
+- Responsable.
+- Estado.
+- Entregable.
+- Riesgos.
+- Fecha objetivo.
 
 ## Filtros recomendados
 

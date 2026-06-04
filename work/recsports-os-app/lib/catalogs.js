@@ -185,3 +185,14 @@ export const alertRules = [
   ["Media", "Importacion", "Normalizar estatus antes de carga masiva"],
   ["Baja", "Diseno", "Definir iconos finales por modulo"]
 ];
+
+export const roadmapItems = [
+  ["Fase 1", "Prototipo local", "Direccion Deportiva", "Completado", "Validar modulos, permisos, colaboradores, configuracion y alertas"],
+  ["Fase 2", "Base tecnica Next.js", "Producto / TI", "En progreso", "Instalar dependencias, ejecutar app Next y ordenar componentes"],
+  ["Fase 3", "Supabase", "TI / Administrador", "Pendiente", "Crear proyecto, tablas, roles, RLS y variables de entorno"],
+  ["Fase 4", "Migracion controlada", "Direccion / Coordinadores", "Pendiente", "Depurar Indicadores, importar Uniformes, cerrar catalogos"],
+  ["Fase 5", "Dashboards reales", "Producto", "Pendiente", "Reemplazar datos simulados por consultas a PostgreSQL"],
+  ["Fase 6", "Piloto operativo", "Coordinadores", "Pendiente", "Probar captura real por area durante un periodo corto"],
+  ["Fase 7", "Vercel privado", "TI", "Pendiente", "Publicar entorno protegido para pruebas internas"],
+  ["Fase 8", "Liberacion", "Direccion Deportiva", "Pendiente", "Capacitacion, soporte y gobierno de datos"]
+];

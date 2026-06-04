@@ -157,6 +157,16 @@ const alertRules = [
   ["Media", "Importacion", "Normalizar estatus antes de carga masiva"],
   ["Baja", "Diseno", "Definir iconos finales por modulo"]
 ];
+const roadmapItems = [
+  ["Fase 1", "Prototipo local", "Direccion Deportiva", "Completado", "Validar modulos, permisos, colaboradores, configuracion y alertas"],
+  ["Fase 2", "Base tecnica Next.js", "Producto / TI", "En progreso", "Instalar dependencias, ejecutar app Next y ordenar componentes"],
+  ["Fase 3", "Supabase", "TI / Administrador", "Pendiente", "Crear proyecto, tablas, roles, RLS y variables de entorno"],
+  ["Fase 4", "Migracion controlada", "Direccion / Coordinadores", "Pendiente", "Depurar Indicadores, importar Uniformes, cerrar catalogos"],
+  ["Fase 5", "Dashboards reales", "Producto", "Pendiente", "Reemplazar datos simulados por consultas a PostgreSQL"],
+  ["Fase 6", "Piloto operativo", "Coordinadores", "Pendiente", "Probar captura real por area durante un periodo corto"],
+  ["Fase 7", "Vercel privado", "TI", "Pendiente", "Publicar entorno protegido para pruebas internas"],
+  ["Fase 8", "Liberacion", "Direccion Deportiva", "Pendiente", "Capacitacion, soporte y gobierno de datos"]
+];
 const dbTables = [
   "students_minimal(matricula, genero, carrera, semestre, nivel)",
   "participations(id, matricula, area, periodo, estatus, fecha)",
@@ -626,6 +636,20 @@ function renderConfigurationDashboard() {
       <section class="blueprint-card wide">
         ${renderAlertCenter(false)}
       </section>
+      <section class="blueprint-card wide">
+        <h3>Roadmap de implementacion</h3>
+        <div class="roadmap-board">
+          ${roadmapItems.map((row) => `
+            <article class="roadmap-item ${row[3].toLowerCase().replaceAll(" ", "-")}">
+              <strong>${row[0]}</strong>
+              <h3>${row[1]}</h3>
+              <span>${row[2]}</span>
+              <em>${row[3]}</em>
+              <p>${row[4]}</p>
+            </article>
+          `).join("")}
+        </div>
+      </section>
       <section class="blueprint-card">
         <h3>Reglas de validacion</h3>
         <div class="table-wrap">
@@ -1037,7 +1061,8 @@ function downloadCsv(name = "reporte") {
       ...importPlan.map((row) => ["importacion", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(",")),
       ...validationRules.map((row) => ["validacion", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(",")),
       ...migrationBacklog.map((row) => ["backlog", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(",")),
-      ...systemAlerts().map((row) => ["alerta", csvEscape(row.priority), csvEscape(row.module), csvEscape(`${row.message} - ${row.status}`)].join(","))
+      ...systemAlerts().map((row) => ["alerta", csvEscape(row.priority), csvEscape(row.module), csvEscape(`${row.message} - ${row.status}`)].join(",")),
+      ...roadmapItems.map((row) => ["roadmap", csvEscape(`${row[0]} ${row[1]}`), csvEscape(row[2]), csvEscape(`${row[3]} - ${row[4]}`)].join(","))
     ].join("\n");
     downloadBlob(csv, "configuracion-sistema.csv");
     addAudit("exportacion", "Configuracion del sistema");
