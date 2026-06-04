@@ -377,6 +377,7 @@ La prueba local ya incluye:
 - Catalogos del sistema para normalizar periodos, areas, carreras, estatus, tallas, roles y fuentes.
 - Centro de reportes para definir formato, frecuencia, responsable y estado de cada reporte oficial.
 - Datos maestros y modelo logico para visualizar entidades, relaciones y sensibilidad de informacion.
+- Avance del proyecto visible desde Dashboard Ejecutivo para dar seguimiento a fases, progreso y siguiente paso.
 
 En produccion, el login simulado debe sustituirse por Supabase Auth o SSO institucional, y las capturas locales por tablas PostgreSQL.
 

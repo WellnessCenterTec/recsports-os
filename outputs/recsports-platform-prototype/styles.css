@@ -708,6 +708,83 @@ textarea { min-height: 76px; resize: vertical; }
   margin: 8px 0;
 }
 
+.project-progress {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.progress-track {
+  height: 14px;
+  border-radius: 999px;
+  background: #e7ecef;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--blue), var(--green), var(--gold));
+}
+
+.progress-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.progress-cards div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fbfa;
+}
+
+.progress-cards strong {
+  display: block;
+  font-size: 24px;
+}
+
+.progress-cards span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mini-roadmap {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mini-roadmap article {
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--blue);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.mini-roadmap article.completado { border-left-color: var(--green); }
+.mini-roadmap article.en-progreso { border-left-color: var(--gold); }
+.mini-roadmap article.pendiente { border-left-color: var(--blue); }
+.mini-roadmap strong, .mini-roadmap span, .mini-roadmap em {
+  display: block;
+  font-size: 12px;
+}
+.mini-roadmap span {
+  color: var(--ink);
+  font-weight: 800;
+  margin: 4px 0;
+}
+.mini-roadmap em {
+  color: var(--muted);
+  font-style: normal;
+}
+
 .wireframes {
   display: grid;
   grid-template-columns: repeat(3, minmax(0,1fr));
@@ -788,6 +865,7 @@ th { color: var(--muted); background: #f7faf9; }
   .roadmap-board { grid-template-columns: 1fr; }
   .catalog-grid { grid-template-columns: 1fr; }
   .data-model-grid { grid-template-columns: 1fr; }
+  .progress-cards, .mini-roadmap { grid-template-columns: 1fr; }
   .blueprint-card.wide { grid-column: auto; }
   h1 { font-size: 28px; }
   .segmented { overflow-x: auto; }

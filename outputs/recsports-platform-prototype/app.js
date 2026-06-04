@@ -426,6 +426,17 @@ function systemAlerts() {
   return alerts;
 }
 
+function projectProgress() {
+  const total = roadmapItems.length;
+  const completed = roadmapItems.filter((row) => row[3] === "Completado").length;
+  const inProgress = roadmapItems.filter((row) => row[3] === "En progreso").length;
+  const pending = roadmapItems.filter((row) => row[3] === "Pendiente").length;
+  const weighted = completed + inProgress * 0.5;
+  const percent = Math.round((weighted / total) * 100);
+  const next = roadmapItems.find((row) => row[3] === "En progreso") || roadmapItems.find((row) => row[3] === "Pendiente");
+  return { total, completed, inProgress, pending, percent, next };
+}
+
 function filteredCollaborators() {
   return collaboratorRows().filter((row) => {
     const coordinatorMatch = collaboratorFilter.coordinator === "todos" || row["Coordinador"] === collaboratorFilter.coordinator;
@@ -570,11 +581,13 @@ function renderDashboard(area) {
   `).join("");
 
   const alertsMarkup = area.id === "general" ? renderAlertCenter(true) : "";
+  const progressMarkup = area.id === "general" ? renderProjectProgress() : "";
   return `
     <div class="permission-strip">
       ${allowedDataText()} Capturas guardadas en esta prueba local: ${localCaptures.length}.
       ${localCaptures.length ? '<button class="ghost-btn inline-action" id="clearLocal">Limpiar capturas locales</button>' : ""}
     </div>
+    ${progressMarkup}
     ${alertsMarkup}
     <div class="kpi-grid">
       <div class="kpi"><span>Alumnos unicos</span><strong>${metrics.unique}</strong><em>por matricula</em></div>
@@ -606,6 +619,39 @@ function renderDashboard(area) {
         <tbody>${data.slice(0, 14).map((s) => `<tr><td>${s.matricula}</td><td>${s.genero}</td><td>${s.carrera}</td><td>${s.semestre}</td><td>${s.nivel}</td><td>${labelArea(s.area)}</td><td>${s.registros}</td></tr>`).join("")}</tbody>
       </table>
     </div>
+  `;
+}
+
+function renderProjectProgress() {
+  const progress = projectProgress();
+  return `
+    <section class="project-progress">
+      <div class="section-title compact">
+        <div>
+          <p class="eyebrow">Avance del proyecto</p>
+          <h2>${progress.percent}% listo para piloto tecnico</h2>
+        </div>
+        <span class="session-pill">Siguiente: ${progress.next ? progress.next[1] : "Por definir"}</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" style="width:${progress.percent}%"></div>
+      </div>
+      <div class="progress-cards">
+        <div><strong>${progress.completed}</strong><span>Completadas</span></div>
+        <div><strong>${progress.inProgress}</strong><span>En progreso</span></div>
+        <div><strong>${progress.pending}</strong><span>Pendientes</span></div>
+        <div><strong>${progress.total}</strong><span>Fases totales</span></div>
+      </div>
+      <div class="mini-roadmap">
+        ${roadmapItems.slice(0, 8).map((row) => `
+          <article class="${row[3].toLowerCase().replaceAll(" ", "-")}">
+            <strong>${row[0]}</strong>
+            <span>${row[1]}</span>
+            <em>${row[3]}</em>
+          </article>
+        `).join("")}
+      </div>
+    </section>
   `;
 }
 
