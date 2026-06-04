@@ -178,6 +178,32 @@ const scheduledReports = [
   ["Compras y Presupuesto", "Presupuesto ejercido", "PDF/Excel", "Mensual", "Compras", "Pendiente"],
   ["Configuracion", "Matriz de permisos y auditoria", "Excel", "Bajo demanda", "Direccion Deportiva", "En prototipo"]
 ];
+const dataModelEntities = [
+  ["students_minimal", "Alumnos", "Matricula, genero, carrera, semestre, nivel escolar", "Media", "Base de segmentacion permitida"],
+  ["participations", "Todos los modulos de alumnos", "Matricula, area, periodo, fecha, estatus, operacion", "Media", "Registro transaccional de participacion"],
+  ["classes", "Clases Deportivas", "Disciplina, CRN, grupo, cupo, horario", "Baja", "Oferta academico-deportiva"],
+  ["events", "Vivencia / Comunicacion", "Evento, fecha, meta, clasificacion", "Baja", "Eventos y activaciones"],
+  ["tournaments", "Intramuros", "Torneo, tipo, rama, periodo, estatus", "Baja", "Competencias internas"],
+  ["collaborators", "Colaboradores", "Nomina, nombre, contacto, uniformes, cursos", "Alta", "Informacion completa autorizada"],
+  ["collaborator_physical_tests", "Colaboradores", "Pruebas fisicas y asistencia", "Alta", "Seguimiento interno autorizado"],
+  ["purchases", "Compras y Presupuesto", "Area, concepto, proveedor, monto, estatus", "Media", "Gestion financiera"],
+  ["app_users", "Sistema", "Usuario, rol, area, activo", "Alta", "Control de acceso"],
+  ["audit_log", "Sistema", "Usuario, accion, entidad, fecha", "Media", "Trazabilidad"],
+  ["import_jobs", "Sistema", "Fuente, modulo, estado, filas validas", "Media", "Control de migraciones"],
+  ["system_alerts", "Direccion", "Prioridad, modulo, mensaje, estado", "Baja", "Seguimiento ejecutivo"],
+  ["system_catalogs", "Sistema", "Tipo, valor, descripcion, activo", "Baja", "Normalizacion de captura"],
+  ["scheduled_reports", "Sistema", "Reporte, formato, frecuencia, responsable", "Baja", "Gobierno de reportes"]
+];
+const dataRelationships = [
+  ["students_minimal", "participations", "matricula"],
+  ["app_users", "audit_log", "user_id"],
+  ["app_users", "import_jobs", "created_by"],
+  ["import_jobs", "import_errors", "import_job_id"],
+  ["tournaments", "teams", "tournament_id"],
+  ["collaborators", "collaborator_contract_layouts", "nomina"],
+  ["system_catalogs", "formularios", "catalog_type/value"],
+  ["scheduled_reports", "exports", "report_id"]
+];
 const dbTables = [
   "students_minimal(matricula, genero, carrera, semestre, nivel)",
   "participations(id, matricula, area, periodo, estatus, fecha)",
@@ -700,6 +726,28 @@ function renderConfigurationDashboard() {
           </table>
         </div>
       </section>
+      <section class="blueprint-card wide">
+        <h3>Datos maestros y modelo logico</h3>
+        <div class="data-model-grid">
+          ${dataModelEntities.map((row) => `
+            <article class="data-entity ${row[3].toLowerCase()}">
+              <strong>${row[0]}</strong>
+              <span>${row[1]}</span>
+              <p>${row[2]}</p>
+              <em>Sensibilidad: ${row[3]}</em>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+      <section class="blueprint-card wide">
+        <h3>Relaciones principales</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Entidad origen</th><th>Entidad destino</th><th>Llave / relacion</th></tr></thead>
+            <tbody>${dataRelationships.map((row) => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </section>
       <section class="blueprint-card">
         <h3>Reglas de validacion</h3>
         <div class="table-wrap">
@@ -1115,7 +1163,9 @@ function downloadCsv(name = "reporte") {
       ...systemAlerts().map((row) => ["alerta", csvEscape(row.priority), csvEscape(row.module), csvEscape(`${row.message} - ${row.status}`)].join(",")),
       ...roadmapItems.map((row) => ["roadmap", csvEscape(`${row[0]} ${row[1]}`), csvEscape(row[2]), csvEscape(`${row[3]} - ${row[4]}`)].join(",")),
       ...Object.entries(systemCatalogs).flatMap(([name, values]) => values.map((value) => ["catalogo", csvEscape(name), csvEscape(value), ""].join(","))),
-      ...scheduledReports.map((row) => ["reporte", csvEscape(`${row[0]} - ${row[1]}`), csvEscape(`${row[2]} / ${row[3]}`), csvEscape(`${row[4]} - ${row[5]}`)].join(","))
+      ...scheduledReports.map((row) => ["reporte", csvEscape(`${row[0]} - ${row[1]}`), csvEscape(`${row[2]} / ${row[3]}`), csvEscape(`${row[4]} - ${row[5]}`)].join(",")),
+      ...dataModelEntities.map((row) => ["entidad", csvEscape(row[0]), csvEscape(row[1]), csvEscape(`${row[3]} - ${row[4]}`)].join(",")),
+      ...dataRelationships.map((row) => ["relacion", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(","))
     ].join("\n");
     downloadBlob(csv, "configuracion-sistema.csv");
     addAudit("exportacion", "Configuracion del sistema");

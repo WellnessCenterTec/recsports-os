@@ -376,6 +376,7 @@ La prueba local ya incluye:
 - Roadmap de implementacion por fases, responsables, estado y entregables.
 - Catalogos del sistema para normalizar periodos, areas, carreras, estatus, tallas, roles y fuentes.
 - Centro de reportes para definir formato, frecuencia, responsable y estado de cada reporte oficial.
+- Datos maestros y modelo logico para visualizar entidades, relaciones y sensibilidad de informacion.
 
 En produccion, el login simulado debe sustituirse por Supabase Auth o SSO institucional, y las capturas locales por tablas PostgreSQL.
 
@@ -518,6 +519,39 @@ Reportes iniciales:
 - Uniformes y cursos de colaboradores.
 - Presupuesto ejercido.
 - Matriz de permisos y auditoria.
+
+## Datos maestros y modelo logico
+
+Entidades principales:
+
+- students_minimal.
+- participations.
+- classes.
+- events.
+- tournaments.
+- collaborators.
+- collaborator_physical_tests.
+- purchases.
+- app_users.
+- audit_log.
+- import_jobs.
+- system_alerts.
+- system_catalogs.
+- scheduled_reports.
+
+Cada entidad debe clasificar su sensibilidad:
+
+- Baja: catalogos, reportes, eventos generales.
+- Media: datos operativos por matricula, compras, auditoria.
+- Alta: usuarios, colaboradores y contactos internos.
+
+Relaciones clave:
+
+- students_minimal se relaciona con participations por matricula.
+- app_users se relaciona con audit_log e import_jobs.
+- import_jobs se relaciona con import_errors.
+- collaborators se relaciona con pruebas fisicas y layouts.
+- system_catalogs alimenta formularios e importaciones.
 
 ## Filtros recomendados
 

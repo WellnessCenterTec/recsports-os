@@ -238,6 +238,24 @@ create table scheduled_reports (
   updated_at timestamptz default now()
 );
 
+create table data_entities (
+  id uuid primary key default gen_random_uuid(),
+  table_name text not null unique,
+  module text not null,
+  fields_summary text,
+  sensitivity text not null check (sensitivity in ('baja', 'media', 'alta')),
+  purpose text,
+  created_at timestamptz default now()
+);
+
+create table data_relationships (
+  id uuid primary key default gen_random_uuid(),
+  source_entity text not null,
+  target_entity text not null,
+  relationship_key text not null,
+  created_at timestamptz default now()
+);
+
 create index idx_participations_area_periodo on participations(area, periodo);
 create index idx_participations_matricula on participations(matricula);
 create index idx_participations_fecha on participations(fecha);
@@ -249,3 +267,4 @@ create index idx_system_alerts_status on system_alerts(status, priority);
 create index idx_roadmap_status on implementation_roadmap(status);
 create index idx_system_catalogs_type on system_catalogs(catalog_type, active);
 create index idx_scheduled_reports_module on scheduled_reports(module, active);
+create index idx_data_entities_sensitivity on data_entities(sensitivity);
