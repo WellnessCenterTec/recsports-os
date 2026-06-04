@@ -1,0 +1,15 @@
+@import "./prototype.css";
+
+.top-actions button,
+.primary-btn,
+.ghost-btn,
+.danger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}

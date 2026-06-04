@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RecSports OS | Prototipo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="loginRoot"></div>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Menu principal">
+        <div class="brand">
+          <div class="brand-mark">RS</div>
+          <div>
+            <strong>RecSports OS</strong>
+            <span>Direccion Deportiva</span>
+          </div>
+        </div>
+        <nav id="areaNav" class="nav-list"></nav>
+        <div class="privacy-note">
+          <strong>Privacidad por modulo</strong>
+          <span>Alumnos: datos minimos. Colaboradores: informacion autorizada del archivo Uniformes.</span>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="search-wrap">
+            <span class="search-icon">⌕</span>
+            <input id="globalSearch" type="search" placeholder="Buscar modulo, indicador, reporte o matricula" />
+          </div>
+          <div class="top-actions">
+            <select id="themeSelect" aria-label="Tema visual">
+              <option value="tec">Tec deportivo</option>
+              <option value="power">Power BI limpio</option>
+              <option value="dark">Modo nocturno</option>
+            </select>
+            <select id="roleSelect" aria-label="Rol activo">
+              <option value="direccion">Direccion Deportiva</option>
+              <option value="clases">Coord. Clases Deportivas</option>
+              <option value="gimnasio">Coord. Gimnasio</option>
+              <option value="intramuros">Coord. Intramuros</option>
+              <option value="vivencia">Coord. Vivencia</option>
+              <option value="comunicacion">Coord. Comunicacion</option>
+              <option value="representativos">Coord. Representativos</option>
+              <option value="gamer">Coord. Gamer</option>
+              <option value="colaboradores">Coord. Colaboradores</option>
+              <option value="compras">Compras y Presupuesto</option>
+            </select>
+            <button class="ghost-btn" id="exportExcel">Exportar Excel</button>
+            <button class="primary-btn" id="exportPdf">Exportar PDF</button>
+            <button class="danger-btn" id="logoutButton">Salir</button>
+          </div>
+        </header>
+
+        <section class="hero-dashboard">
+          <div>
+            <p class="eyebrow">MVP local sin publicacion</p>
+            <h1>Operacion deportiva en tiempo real</h1>
+            <p class="hero-copy">Indicadores automaticos por area, captura controlada por coordinador y vision ejecutiva sin depender de hojas de calculo.</p>
+          </div>
+          <div class="hero-kpis" id="executiveKpis"></div>
+        </section>
+
+        <section class="filters-band" aria-label="Filtros recomendados">
+          <label>
+            Periodo
+            <select id="periodFilter">
+              <option>AD26</option>
+              <option>FJ26</option>
+              <option>IN26</option>
+            </select>
+          </label>
+          <label>
+            Nivel
+            <select id="levelFilter">
+              <option value="todos">Todos</option>
+              <option>Profesional</option>
+              <option>Posgrado</option>
+            </select>
+          </label>
+          <label>
+            Carrera
+            <select id="careerFilter">
+              <option value="todos">Todas</option>
+            </select>
+          </label>
+          <label>
+            Genero
+            <select id="genderFilter">
+              <option value="todos">Todos</option>
+              <option>Femenino</option>
+              <option>Masculino</option>
+              <option>No especificado</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="view-grid">
+          <div class="main-panel">
+            <div class="section-title">
+              <div>
+                <p class="eyebrow">Dashboard ejecutivo</p>
+                <h2 id="currentTitle">Vista general</h2>
+              </div>
+              <div class="segmented" role="tablist" aria-label="Vista">
+                <button class="active" data-view="dashboard">Dashboard</button>
+                <button data-view="capture">Captura</button>
+                <button data-view="reports">Reportes</button>
+                <button data-view="blueprint">Sistema</button>
+              </div>
+            </div>
+            <div id="contentArea"></div>
+          </div>
+
+          <aside class="side-panel">
+            <div class="section-title compact">
+              <div>
+                <p class="eyebrow">Arquitectura</p>
+                <h2>Mapa del sistema</h2>
+              </div>
+            </div>
+            <div id="systemMap" class="system-map"></div>
+          </aside>
+        </section>
+      </main>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>

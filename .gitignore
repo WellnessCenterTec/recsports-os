@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+
+# Local analysis artifacts that may contain sensitive source workbook snippets.
+work/workbook_inventory.json
+work/uniformes_summary.json
+
+# Keep generated dependency installs out of Git.
+work/recsports-os-app/node_modules/
+work/recsports-os-app/.next/
