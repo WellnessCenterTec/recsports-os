@@ -98,6 +98,16 @@ const areas = [
     indicators: ["Presupuesto ejercido", "Comprometido", "Disponible", "Ordenes pendientes", "Costo por participante"],
     charts: ["Gasto por area", "Presupuesto vs real", "Estatus de compras"],
     reports: ["Solicitudes por area", "Presupuesto mensual", "Ordenes de compra"]
+  },
+  {
+    id: "configuracion",
+    name: "Configuracion",
+    tone: "blue",
+    source: "Administracion del sistema",
+    capture: ["Usuario", "Rol", "Area", "Permiso", "Catalogo", "Estado"],
+    indicators: ["Usuarios activos", "Roles configurados", "Catalogos activos", "Importaciones pendientes", "Politicas de datos"],
+    charts: ["Usuarios por rol", "Permisos por modulo", "Estado de importaciones"],
+    reports: ["Matriz de permisos", "Catalogos del sistema", "Bitacora de auditoria"]
   }
 ];
 
@@ -115,6 +125,12 @@ const roleMatrix = [
   ["Coordinador de area", "Su area", "Alta, edicion y consulta de capturas propias"],
   ["Compras y Presupuesto", "Compras, uniformes y presupuesto", "Gestion financiera y lectura de necesidades por area"],
   ["Consulta", "Dashboards agregados", "Solo lectura sin descargas nominales"]
+];
+const importPlan = [
+  ["Indicadores", "Solo datos permitidos de alumnos", "Pendiente depuracion"],
+  ["Uniformes", "Informacion completa autorizada", "Cargado en prototipo"],
+  ["Catalogos", "Areas, carreras, periodos, disciplinas", "Base inicial"],
+  ["Compras", "Presupuesto y solicitudes", "Pendiente definicion"]
 ];
 const dbTables = [
   "students_minimal(matricula, genero, carrera, semestre, nivel)",
@@ -406,6 +422,7 @@ function renderExecutiveKpis() {
 
 function renderDashboard(area) {
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
+  if (area.id === "configuracion") return renderConfigurationDashboard();
   const data = filteredStudents();
   const metrics = metricSet(data);
   const byArea = areas.filter(a => a.id !== "general").map(a => ({
@@ -458,6 +475,55 @@ function renderDashboard(area) {
         <thead><tr><th>Matricula</th><th>Genero</th><th>Carrera</th><th>Semestre</th><th>Nivel</th><th>Area</th><th>Registros</th></tr></thead>
         <tbody>${data.slice(0, 14).map((s) => `<tr><td>${s.matricula}</td><td>${s.genero}</td><td>${s.carrera}</td><td>${s.semestre}</td><td>${s.nivel}</td><td>${labelArea(s.area)}</td><td>${s.registros}</td></tr>`).join("")}</tbody>
       </table>
+    </div>
+  `;
+}
+
+function renderConfigurationDashboard() {
+  return `
+    <div class="permission-strip">Panel exclusivo para Direccion Deportiva y administracion del sistema.</div>
+    <div class="kpi-grid">
+      <div class="kpi"><span>Usuarios demo</span><strong>${demoUsers.length}</strong><em>perfiles base</em></div>
+      <div class="kpi"><span>Modulos</span><strong>${areas.length - 1}</strong><em>areas operativas</em></div>
+      <div class="kpi"><span>Fuentes</span><strong>2</strong><em>Indicadores + Uniformes</em></div>
+      <div class="kpi"><span>Privacidad</span><strong>Activa</strong><em>politica por modulo</em></div>
+    </div>
+    <div class="blueprint-grid">
+      <section class="blueprint-card">
+        <h3>Roles y permisos</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Rol</th><th>Area</th><th>Permiso</th></tr></thead>
+            <tbody>${demoUsers.map((user) => `<tr><td>${user.name}</td><td>${labelArea(user.area)}</td><td>${user.role === "direccion" ? "Lectura y edicion global" : "Captura y consulta de su modulo"}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </section>
+      <section class="blueprint-card">
+        <h3>Plan de importacion</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fuente</th><th>Uso</th><th>Estado</th></tr></thead>
+            <tbody>${importPlan.map((row) => `<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </section>
+      <section class="blueprint-card wide">
+        <h3>Politicas de datos</h3>
+        <div class="module-grid">
+          <article class="module-card" data-tone="blue">
+            <h3>Alumnos</h3>
+            <p>Solo matricula, genero, carrera, semestre y nivel escolar. Sin nombres, correo, telefono ni historial clinico.</p>
+          </article>
+          <article class="module-card" data-tone="green">
+            <h3>Colaboradores</h3>
+            <p>Se permite usar informacion completa del archivo de uniformes, incluyendo contactos y datos operativos internos.</p>
+          </article>
+          <article class="module-card" data-tone="gold">
+            <h3>Produccion</h3>
+            <p>Supabase Auth, roles por modulo, bitacora de cambios y politicas de acceso en base de datos.</p>
+          </article>
+        </div>
+      </section>
     </div>
   `;
 }
@@ -580,6 +646,7 @@ function renderCollaboratorsDashboard() {
 function renderCapture(area) {
   const selected = area.id === "general" ? areas.find((item) => item.id === currentUser?.area) || areas[1] : area;
   if (selected.id === "colaboradores") return renderCollaboratorsCapture(selected);
+  if (selected.id === "configuracion") return renderConfigurationCapture();
   const editable = canEditArea(selected.id);
   return `
     <div class="permission-strip">Rol activo: ${currentUser?.name || "Sin sesion"}. ${editable ? "Puedes capturar en este modulo." : "Este perfil solo puede consultar esta vista."}</div>
@@ -604,6 +671,34 @@ function renderCapture(area) {
           <thead><tr><th>Campo</th><th>Uso</th></tr></thead>
           <tbody>${selected.capture.map((field) => `<tr><td>${field}</td><td>${fieldPurpose(field)}</td></tr>`).join("")}</tbody>
         </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderConfigurationCapture() {
+  return `
+    <div class="permission-strip">Estos ajustes son de muestra. En produccion se guardaran en tablas de usuarios, roles y catalogos.</div>
+    <div class="form-grid">
+      <div class="form-panel">
+        <h3>Alta de usuario</h3>
+        <form>
+          <label>Nombre operativo<input value="Nuevo coordinador" /></label>
+          <label>Correo institucional<input value="usuario@tec.mx" /></label>
+          <label>Rol<select><option>Coordinador de area</option><option>Direccion</option><option>Compras</option><option>Consulta</option></select></label>
+          <label>Area<select>${areas.filter((area) => !["general", "configuracion"].includes(area.id)).map((area) => `<option>${area.name}</option>`).join("")}</select></label>
+          <label class="full">Permiso<select><option>Captura y consulta</option><option>Solo lectura</option><option>Administrador</option></select></label>
+          <button class="primary-btn full" type="button" onclick="document.dispatchEvent(new CustomEvent('mock-config-save'))">Guardar usuario</button>
+        </form>
+      </div>
+      <div class="form-panel">
+        <h3>Catalogo base</h3>
+        <form>
+          <label>Tipo<select><option>Area</option><option>Periodo</option><option>Carrera</option><option>Disciplina</option><option>Estatus</option></select></label>
+          <label>Valor<input value="Nuevo valor" /></label>
+          <label class="full">Descripcion<input value="Descripcion operativa" /></label>
+          <button class="ghost-btn full" type="button" onclick="document.dispatchEvent(new CustomEvent('mock-config-save'))">Agregar catalogo</button>
+        </form>
       </div>
     </div>
   `;
@@ -775,6 +870,16 @@ function downloadCsv(name = "reporte") {
     downloadUniformesCsv(name);
     return;
   }
+  if (activeArea === "configuracion") {
+    const headers = ["rol", "area", "permiso"];
+    const csv = [
+      headers.join(","),
+      ...demoUsers.map((user) => [csvEscape(user.name), csvEscape(labelArea(user.area)), csvEscape(user.role === "direccion" ? "Lectura y edicion global" : "Captura y consulta de su modulo")].join(","))
+    ].join("\n");
+    downloadBlob(csv, "configuracion-permisos.csv");
+    toast("Matriz de permisos descargada");
+    return;
+  }
   const rows = filteredStudents();
   const headers = ["matricula", "genero", "carrera", "semestre", "nivel", "area", "registros", "estatus", "periodo"];
   const csv = [
@@ -791,6 +896,18 @@ function downloadCsv(name = "reporte") {
   link.remove();
   URL.revokeObjectURL(url);
   toast("Reporte CSV descargado");
+}
+
+function downloadBlob(text, filename) {
+  const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function downloadUniformesCsv(name = "colaboradores") {
@@ -929,6 +1046,10 @@ $("#logoutButton").addEventListener("click", () => {
 
 document.addEventListener("mock-colab-save", () => {
   toast("Guardado simulado. En produccion actualizara la tabla de colaboradores.");
+});
+
+document.addEventListener("mock-config-save", () => {
+  toast("Configuracion simulada guardada localmente");
 });
 
 loadUniformesData();

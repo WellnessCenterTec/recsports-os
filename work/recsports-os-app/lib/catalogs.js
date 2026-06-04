@@ -98,6 +98,16 @@ export const areas = [
     indicators: ["Presupuesto ejercido", "Comprometido", "Disponible", "Ordenes pendientes", "Costo por participante"],
     charts: ["Gasto por area", "Presupuesto vs real", "Estatus de compras"],
     reports: ["Solicitudes por area", "Presupuesto mensual", "Ordenes de compra"]
+  },
+  {
+    id: "configuracion",
+    name: "Configuracion",
+    source: "Administracion del sistema",
+    tone: "blue",
+    capture: ["Usuario", "Rol", "Area", "Permiso", "Catalogo", "Estado"],
+    indicators: ["Usuarios activos", "Roles configurados", "Catalogos activos", "Importaciones pendientes", "Politicas de datos"],
+    charts: ["Usuarios por rol", "Permisos por modulo", "Estado de importaciones"],
+    reports: ["Matriz de permisos", "Catalogos del sistema", "Bitacora de auditoria"]
   }
 ];
 
