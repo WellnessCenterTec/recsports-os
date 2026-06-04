@@ -372,6 +372,7 @@ La prueba local ya incluye:
 - Impresion para PDF.
 - Centro de importaciones para controlar fuentes, reglas y pendientes de migracion.
 - Bitacora de auditoria local para registrar login, capturas, exportaciones, configuracion y cambios de rol.
+- Centro de alertas para seguimiento de riesgos, pendientes de migracion y datos operativos por revisar.
 
 En produccion, el login simulado debe sustituirse por Supabase Auth o SSO institucional, y las capturas locales por tablas PostgreSQL.
 
@@ -417,6 +418,31 @@ La bitacora debe guardar:
 - Entidad afectada.
 - Fecha y hora.
 - Detalle breve.
+
+## Centro de alertas
+
+El sistema debe generar alertas automaticas para Direccion Deportiva y responsables de modulo.
+
+Alertas iniciales:
+
+- Fuentes pendientes de importacion.
+- Datos sensibles detectados en fuentes no autorizadas.
+- Catalogos incompletos.
+- Estatus no homologados.
+- Duplicados por matricula y periodo.
+- Colaboradores sin primeros auxilios registrado.
+- Colaboradores con avance de cursos menor a la meta.
+- Compras o presupuesto pendientes de definicion.
+
+Cada alerta debe tener:
+
+- Prioridad: alta, media o baja.
+- Modulo.
+- Mensaje.
+- Estado.
+- Responsable.
+- Fecha de creacion.
+- Fecha de cierre.
 
 ## Filtros recomendados
 

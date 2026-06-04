@@ -189,6 +189,17 @@ create table data_validation_rules (
   created_at timestamptz default now()
 );
 
+create table system_alerts (
+  id uuid primary key default gen_random_uuid(),
+  priority text not null check (priority in ('alta', 'media', 'baja')),
+  module text not null,
+  message text not null,
+  status text not null default 'abierta',
+  responsible_user_id uuid references app_users(id),
+  created_at timestamptz default now(),
+  closed_at timestamptz
+);
+
 create index idx_participations_area_periodo on participations(area, periodo);
 create index idx_participations_matricula on participations(matricula);
 create index idx_participations_fecha on participations(fecha);
@@ -196,3 +207,4 @@ create index idx_collaborators_coordinador on collaborators(coordinador);
 create index idx_contract_layouts_nomina on collaborator_contract_layouts(nomina);
 create index idx_import_jobs_status on import_jobs(status);
 create index idx_import_errors_job on import_errors(import_job_id);
+create index idx_system_alerts_status on system_alerts(status, priority);

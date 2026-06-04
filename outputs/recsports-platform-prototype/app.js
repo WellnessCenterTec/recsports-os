@@ -150,6 +150,13 @@ const migrationBacklog = [
   ["Media", "Revisar duplicados por matricula y periodo", "Pendiente"],
   ["Baja", "Definir etiquetas visuales por modulo", "Base creada"]
 ];
+const alertRules = [
+  ["Alta", "Migracion", "Historial clinico no debe importarse hasta separar datos sensibles"],
+  ["Alta", "Catalogos", "Falta cerrar catalogo oficial de disciplinas, torneos y eventos"],
+  ["Media", "Colaboradores", "Revisar colaboradores sin primeros auxilios"],
+  ["Media", "Importacion", "Normalizar estatus antes de carga masiva"],
+  ["Baja", "Diseno", "Definir iconos finales por modulo"]
+];
 const dbTables = [
   "students_minimal(matricula, genero, carrera, semestre, nivel)",
   "participations(id, matricula, area, periodo, estatus, fecha)",
@@ -343,6 +350,20 @@ function collaboratorMetrics() {
   };
 }
 
+function systemAlerts() {
+  const rows = collaboratorRows();
+  const noFirstAid = rows.filter((row) => String(row["Primeros auxilios"]).toLowerCase() !== "true").length;
+  const lowCourses = rows.filter((row) => numberFrom(row["% de cursos"]) < 50).length;
+  const pendingImports = importPlan.filter((row) => String(row[2]).toLowerCase().includes("pendiente")).length;
+  const alerts = [
+    ...alertRules.map((row) => ({ priority: row[0], module: row[1], message: row[2], status: row[0] === "Baja" ? "Observacion" : "Requiere accion" })),
+    { priority: noFirstAid ? "Media" : "Baja", module: "Colaboradores", message: `${noFirstAid} colaboradores sin primeros auxilios marcado`, status: noFirstAid ? "Revisar" : "OK" },
+    { priority: lowCourses ? "Media" : "Baja", module: "Colaboradores", message: `${lowCourses} colaboradores con avance de cursos menor a 50%`, status: lowCourses ? "Seguimiento" : "OK" },
+    { priority: pendingImports ? "Alta" : "Baja", module: "Importaciones", message: `${pendingImports} fuentes pendientes de definicion o depuracion`, status: pendingImports ? "Pendiente" : "OK" }
+  ];
+  return alerts;
+}
+
 function filteredCollaborators() {
   return collaboratorRows().filter((row) => {
     const coordinatorMatch = collaboratorFilter.coordinator === "todos" || row["Coordinador"] === collaboratorFilter.coordinator;
@@ -486,11 +507,13 @@ function renderDashboard(area) {
     </article>
   `).join("");
 
+  const alertsMarkup = area.id === "general" ? renderAlertCenter(true) : "";
   return `
     <div class="permission-strip">
       ${allowedDataText()} Capturas guardadas en esta prueba local: ${localCaptures.length}.
       ${localCaptures.length ? '<button class="ghost-btn inline-action" id="clearLocal">Limpiar capturas locales</button>' : ""}
     </div>
+    ${alertsMarkup}
     <div class="kpi-grid">
       <div class="kpi"><span>Alumnos unicos</span><strong>${metrics.unique}</strong><em>por matricula</em></div>
       <div class="kpi"><span>Registros</span><strong>${metrics.registers}</strong><em>asistencias, eventos o inscripciones</em></div>
@@ -521,6 +544,37 @@ function renderDashboard(area) {
         <tbody>${data.slice(0, 14).map((s) => `<tr><td>${s.matricula}</td><td>${s.genero}</td><td>${s.carrera}</td><td>${s.semestre}</td><td>${s.nivel}</td><td>${labelArea(s.area)}</td><td>${s.registros}</td></tr>`).join("")}</tbody>
       </table>
     </div>
+  `;
+}
+
+function renderAlertCenter(compact = false) {
+  const alerts = systemAlerts();
+  const highCount = alerts.filter((alert) => alert.priority === "Alta").length;
+  const mediumCount = alerts.filter((alert) => alert.priority === "Media").length;
+  const visible = compact ? alerts.slice(0, 5) : alerts;
+  return `
+    <section class="alert-center">
+      <div class="section-title compact">
+        <div>
+          <p class="eyebrow">Seguimiento</p>
+          <h2>Centro de alertas</h2>
+        </div>
+        <div class="chip-list">
+          <span class="chip danger-chip">${highCount} altas</span>
+          <span class="chip warning-chip">${mediumCount} medias</span>
+        </div>
+      </div>
+      <div class="alert-list">
+        ${visible.map((alert) => `
+          <article class="alert-item ${alert.priority.toLowerCase()}">
+            <strong>${alert.priority}</strong>
+            <span>${alert.module}</span>
+            <p>${alert.message}</p>
+            <em>${alert.status}</em>
+          </article>
+        `).join("")}
+      </div>
+    </section>
   `;
 }
 
@@ -568,6 +622,9 @@ function renderConfigurationDashboard() {
             <p>Cada carga debe pasar normalizacion de catalogos, duplicados, campos requeridos y permisos por modulo.</p>
           </article>
         </div>
+      </section>
+      <section class="blueprint-card wide">
+        ${renderAlertCenter(false)}
       </section>
       <section class="blueprint-card">
         <h3>Reglas de validacion</h3>
@@ -979,7 +1036,8 @@ function downloadCsv(name = "reporte") {
       ...demoUsers.map((user) => ["permiso", csvEscape(user.name), csvEscape(labelArea(user.area)), csvEscape(user.role === "direccion" ? "Lectura y edicion global" : "Captura y consulta de su modulo")].join(",")),
       ...importPlan.map((row) => ["importacion", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(",")),
       ...validationRules.map((row) => ["validacion", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(",")),
-      ...migrationBacklog.map((row) => ["backlog", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(","))
+      ...migrationBacklog.map((row) => ["backlog", csvEscape(row[0]), csvEscape(row[1]), csvEscape(row[2])].join(",")),
+      ...systemAlerts().map((row) => ["alerta", csvEscape(row.priority), csvEscape(row.module), csvEscape(`${row.message} - ${row.status}`)].join(","))
     ].join("\n");
     downloadBlob(csv, "configuracion-sistema.csv");
     addAudit("exportacion", "Configuracion del sistema");

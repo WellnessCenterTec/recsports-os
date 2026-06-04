@@ -177,3 +177,11 @@ export const auditActions = [
   "configuracion",
   "limpieza"
 ];
+
+export const alertRules = [
+  ["Alta", "Migracion", "Historial clinico no debe importarse hasta separar datos sensibles"],
+  ["Alta", "Catalogos", "Falta cerrar catalogo oficial de disciplinas, torneos y eventos"],
+  ["Media", "Colaboradores", "Revisar colaboradores sin primeros auxilios"],
+  ["Media", "Importacion", "Normalizar estatus antes de carga masiva"],
+  ["Baja", "Diseno", "Definir iconos finales por modulo"]
+];
