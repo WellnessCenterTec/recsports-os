@@ -4,28 +4,28 @@ const areas = [
     name: "Ejecutivo general",
     tone: "blue",
     source: "Reporte final, Reporte Automatizado, Sofi 2",
-    capture: ["Periodo", "Matricula", "Genero", "Carrera", "Semestre", "Nivel escolar", "Area de participacion"],
-    indicators: ["Alumnos unicos impactados", "Registros por servicio", "Participacion cruzada", "Distribucion por carrera", "Distribucion por nivel", "Retencion global"],
-    charts: ["Embudo de participacion", "Participacion por area", "Mapa de calor por semana", "Distribucion por perfil academico"],
-    reports: ["Resumen ejecutivo PDF", "Base agregada Excel", "Cruce de participacion por area"]
+    capture: ["Periodo", "Matrícula", "Género", "Carrera", "Semestre", "Nivel escolar", "Área de participación"],
+    indicators: ["Alumnos únicos impactados", "Registros por servicio", "Participación cruzada", "Distribución por carrera", "Distribución por nivel", "Retención global"],
+    charts: ["Embudo de participación", "Participación por área", "Mapa de calor por semana", "Distribución por perfil académico"],
+    reports: ["Resumen ejecutivo PDF", "Base agregada Excel", "Cruce de participación por área"]
   },
   {
     id: "clases",
     name: "Clases Deportivas",
     tone: "green",
     source: "Programacion Clases, CD Lista de Alumnos, CD Indicadores clases",
-    capture: ["Matricula", "Disciplina", "CRN", "Grupo", "Calificacion/estatus", "Periodo"],
-    indicators: ["Inscritos Banner", "Bajas", "NP", "Acreditados", "Ocupacion", "Alumnos unicos"],
-    charts: ["Acreditados vs bajas", "Ocupacion por disciplina", "Genero por disciplina"],
-    reports: ["Lista por disciplina", "Reporte de acreditacion", "Ocupacion por horario"]
+    capture: ["Matrícula", "Disciplina", "CRN", "Grupo", "Calificación/estatus", "Periodo"],
+    indicators: ["Inscritos Banner", "Bajas", "NP", "Acreditados", "Ocupación", "Alumnos únicos"],
+    charts: ["Acreditados vs bajas", "Ocupación por disciplina", "Género por disciplina"],
+    reports: ["Lista por disciplina", "Reporte de acreditación", "Ocupación por horario"]
   },
   {
     id: "gimnasio",
     name: "Gimnasio",
     tone: "gold",
     source: "Gym Indicadores, Gym Lista de Alumnos",
-    capture: ["Matricula", "Fecha de acceso", "Sede", "Tipo de servicio", "Periodo"],
-    indicators: ["Accesos diarios", "Accesos semanales", "Matriculas unicas", "Frecuencia promedio", "EMIS"],
+    capture: ["Matrícula", "Fecha de acceso", "Sede", "Tipo de servicio", "Periodo"],
+    indicators: ["Accesos diarios", "Accesos semanales", "Matrículas únicas", "Frecuencia promedio", "EMIS"],
     charts: ["Trafico por dia", "Semanas con mayor uso", "Profesional vs Posgrado"],
     reports: ["Bitacora de accesos", "Reporte semanal de asistencia", "Export de usuarios unicos"]
   },
@@ -34,7 +34,7 @@ const areas = [
     name: "Intramuros",
     tone: "red",
     source: "Intra Indicadores LiFE, Intra Lista de Alumnos, Intra Jornadas",
-    capture: ["Matricula", "Torneo", "Equipo", "Rama", "Jornada", "Estatus"],
+    capture: ["Matrícula", "Torneo", "Equipo", "Rama", "Jornada", "Estatus"],
     indicators: ["Equipos inscritos", "Alumnos por torneo", "Juegos programados", "Juegos por default", "Retencion", "Bajas"],
     charts: ["Retencion por torneo", "Equipos por rama", "Juegos realizados vs default"],
     reports: ["Rol de jornadas", "Cedula de equipos", "Reporte de retencion"]
@@ -44,28 +44,28 @@ const areas = [
     name: "Vivencia",
     tone: "lav",
     source: "Vivencia Fechas, Vivencia Lista de Alumnos",
-    capture: ["Matricula", "Evento", "Fecha", "Clasificacion", "Meta", "Asistencia"],
+    capture: ["Matrícula", "Evento", "Fecha", "Clasificación", "Meta", "Asistencia"],
     indicators: ["Eventos realizados", "Participantes", "Cumplimiento de meta", "Hombres/Mujeres", "Eventos insignia"],
     charts: ["Meta vs asistencia", "Eventos por clasificacion", "Participacion por semestre"],
     reports: ["Calendario de eventos", "Reporte de cumplimiento", "Lista agregada por evento"]
   },
   {
     id: "comunicacion",
-    name: "Comunicacion",
+    name: "Comunicación",
     tone: "blue",
     source: "Infografia Wellness LIVE, Servicios e inscritos",
-    capture: ["Campana", "Canal", "Area", "Periodo", "Alcance", "Clics", "Conversiones"],
-    indicators: ["Alcance", "Conversion a registro", "Servicios promovidos", "Participacion atribuida"],
-    charts: ["Conversion por canal", "Impacto por area", "Tendencia de campanas"],
-    reports: ["Reporte de campanas", "Conversion por area", "Resumen para direccion"]
+    capture: ["Campaña", "Canal", "Área", "Periodo", "Alcance", "Clics", "Conversiones"],
+    indicators: ["Alcance", "Conversión a registro", "Servicios promovidos", "Participación atribuida"],
+    charts: ["Conversión por canal", "Impacto por área", "Tendencia de campañas"],
+    reports: ["Reporte de campañas", "Conversión por área", "Resumen para dirección"]
   },
   {
     id: "representativos",
     name: "Representativos",
     tone: "green",
     source: "Repres Lista, Uniformes",
-    capture: ["Matricula", "Deporte", "Rama", "Coach", "Temporada", "Estatus"],
-    indicators: ["Atletas activos", "Equipos por deporte", "Distribucion por genero", "Uniformes pendientes"],
+    capture: ["Matrícula", "Deporte", "Rama", "Coach", "Temporada", "Estatus"],
+    indicators: ["Atletas activos", "Equipos por deporte", "Distribución por género", "Uniformes pendientes"],
     charts: ["Atletas por deporte", "Rama por equipo", "Estatus de uniforme"],
     reports: ["Roster por coach", "Uniformes por atleta", "Reporte de temporada"]
   },
@@ -74,9 +74,9 @@ const areas = [
     name: "Gamer",
     tone: "lav",
     source: "Gamer Lista",
-    capture: ["Matricula", "Actividad gamer", "Torneo", "Fecha", "Estatus"],
-    indicators: ["Participantes unicos", "Eventos gamer", "Reincidencia", "Distribucion por carrera"],
-    charts: ["Participacion por torneo", "Perfil academico", "Tendencia mensual"],
+    capture: ["Matrícula", "Actividad gamer", "Torneo", "Fecha", "Estatus"],
+    indicators: ["Participantes únicos", "Eventos gamer", "Reincidencia", "Distribución por carrera"],
+    charts: ["Participación por torneo", "Perfil académico", "Tendencia mensual"],
     reports: ["Lista de participantes", "Reporte de torneos", "Ranking agregado"]
   },
   {
@@ -84,7 +84,7 @@ const areas = [
     name: "Colaboradores",
     tone: "blue",
     source: "Uniformes, Pruebas fisicas, Gimnasio, Historial de profesores, layouts AD26 y Verano26",
-    capture: ["Nomina", "Colaborador", "Puesto", "Coordinador", "Talla playera", "Talla pants", "Correo", "Cumpleaños", "Genero", "Primeros auxilios", "Contacto de emergencia"],
+    capture: ["Nómina", "Colaborador", "Puesto", "Coordinador", "Talla playera", "Talla pants", "Correo", "Cumpleaños", "Género", "Primeros auxilios", "Contacto de emergencia"],
     indicators: ["Colaboradores registrados", "Uniformes por talla", "Cursos completados", "Primeros auxilios", "Asistencia a gimnasio", "Contratos por layout"],
     charts: ["Tallas de playera", "Cursos por coordinador", "Primeros auxilios", "Asistencia a gimnasio", "Costo de contratos"],
     reports: ["Directorio de colaboradores", "Reporte de uniformes", "Pruebas fisicas", "Layouts de contratacion"]
@@ -101,7 +101,7 @@ const areas = [
   },
   {
     id: "configuracion",
-    name: "Configuracion",
+    name: "Configuración",
     tone: "blue",
     source: "Administracion del sistema",
     capture: ["Usuario", "Rol", "Area", "Permiso", "Catalogo", "Estado"],
@@ -120,11 +120,11 @@ const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
 const UNIFORMES_DATA_URL = "./uniformes-data.json";
-const submenus = ["Dashboard", "Captura", "Participantes", "Calendario", "Indicadores", "Reportes", "Configuracion"];
+const submenus = ["Dashboard", "Captura", "Participantes", "Calendario", "Indicadores", "Reportes", "Configuración"];
 const roleMatrix = [
-  ["Direccion Deportiva", "Todo el sistema", "Lectura global, descarga ejecutiva, aprobaciones y auditoria"],
-  ["Coordinador de area", "Su area", "Alta, edicion y consulta de capturas propias"],
-  ["Compras y Presupuesto", "Compras, uniformes y presupuesto", "Gestion financiera y lectura de necesidades por area"],
+  ["Dirección Deportiva", "Todo el sistema", "Lectura global, descarga ejecutiva, aprobaciones y auditoría"],
+  ["Coordinador de área", "Su área", "Alta, edición y consulta de capturas propias"],
+  ["Compras y Presupuesto", "Compras, uniformes y presupuesto", "Gestión financiera y lectura de necesidades por área"],
   ["Consulta", "Dashboards agregados", "Solo lectura sin descargas nominales"]
 ];
 const importPlan = [
@@ -139,33 +139,33 @@ const validationRules = [
   ["Alumnos", "Carrera", "Debe existir en catalogo de carreras"],
   ["Alumnos", "Semestre", "Numero entre 1 y 12"],
   ["Alumnos", "Nivel escolar", "Profesional o Posgrado"],
-  ["Colaboradores", "Nomina", "Debe iniciar con L0 o registrar excepcion operativa"],
+  ["Colaboradores", "Nómina", "Debe iniciar con L0 o registrar excepción operativa"],
   ["Colaboradores", "Uniforme", "Tallas normalizadas para playera y pants"],
   ["Compras", "Monto", "Numero positivo y asociado a area"]
 ];
 const migrationBacklog = [
-  ["Alta", "Separar datos sensibles de Historial Clinico antes de cualquier importacion", "Pendiente"],
-  ["Alta", "Definir catalogo oficial de disciplinas, torneos y eventos", "Pendiente"],
-  ["Media", "Homologar nombres de estatus: activo, baja, NP, acreditado", "En diseno"],
-  ["Media", "Revisar duplicados por matricula y periodo", "Pendiente"],
-  ["Baja", "Definir etiquetas visuales por modulo", "Base creada"]
+  ["Alta", "Separar datos sensibles de Historial Clínico antes de cualquier importación", "Pendiente"],
+  ["Alta", "Definir catálogo oficial de disciplinas, torneos y eventos", "Pendiente"],
+  ["Media", "Homologar nombres de estatus: activo, baja, NP, acreditado", "En diseño"],
+  ["Media", "Revisar duplicados por matrícula y periodo", "Pendiente"],
+  ["Baja", "Definir etiquetas visuales por módulo", "Base creada"]
 ];
 const alertRules = [
-  ["Alta", "Migracion", "Historial clinico no debe importarse hasta separar datos sensibles"],
-  ["Alta", "Catalogos", "Falta cerrar catalogo oficial de disciplinas, torneos y eventos"],
+  ["Alta", "Migración", "Historial clínico no debe importarse hasta separar datos sensibles"],
+  ["Alta", "Catálogos", "Falta cerrar catálogo oficial de disciplinas, torneos y eventos"],
   ["Media", "Colaboradores", "Revisar colaboradores sin primeros auxilios"],
-  ["Media", "Importacion", "Normalizar estatus antes de carga masiva"],
-  ["Baja", "Diseno", "Definir iconos finales por modulo"]
+  ["Media", "Importación", "Normalizar estatus antes de carga masiva"],
+  ["Baja", "Diseño", "Definir iconos finales por módulo"]
 ];
 const roadmapItems = [
-  ["Fase 1", "Prototipo local", "Direccion Deportiva", "Completado", "Validar modulos, permisos, colaboradores, configuracion y alertas"],
-  ["Fase 2", "Base tecnica Next.js", "Producto / TI", "En progreso", "Instalar dependencias, ejecutar app Next y ordenar componentes"],
+  ["Fase 1", "Piloto web inicial", "Dirección Deportiva", "Completado", "Validar módulos, permisos, colaboradores, configuración y alertas"],
+  ["Fase 2", "Base técnica Next.js", "Producto / TI", "En progreso", "Instalar dependencias, ejecutar app Next y ordenar componentes"],
   ["Fase 3", "Supabase", "TI / Administrador", "Pendiente", "Crear proyecto, tablas, roles, RLS y variables de entorno"],
-  ["Fase 4", "Migracion controlada", "Direccion / Coordinadores", "Pendiente", "Depurar Indicadores, importar Uniformes, cerrar catalogos"],
+  ["Fase 4", "Migración controlada", "Dirección / Coordinadores", "Pendiente", "Depurar Indicadores, importar Uniformes, cerrar catálogos"],
   ["Fase 5", "Dashboards reales", "Producto", "Pendiente", "Reemplazar datos simulados por consultas a PostgreSQL"],
-  ["Fase 6", "Piloto operativo", "Coordinadores", "Pendiente", "Probar captura real por area durante un periodo corto"],
+  ["Fase 6", "Piloto operativo", "Coordinadores", "Pendiente", "Probar captura real por área durante un periodo corto"],
   ["Fase 7", "Vercel privado", "TI", "Pendiente", "Publicar entorno protegido para pruebas internas"],
-  ["Fase 8", "Liberacion", "Direccion Deportiva", "Pendiente", "Capacitacion, soporte y gobierno de datos"]
+  ["Fase 8", "Liberación", "Dirección Deportiva", "Pendiente", "Capacitación, soporte y gobierno de datos"]
 ];
 const scheduledReports = [
   ["Ejecutivo general", "Resumen ejecutivo direccion", "PDF", "Semanal", "Direccion Deportiva", "Disenado"],
@@ -215,12 +215,12 @@ const dbTables = [
 ];
 
 const demoUsers = [
-  { id: "dir", name: "Direccion Deportiva", role: "direccion", area: "general", label: "Direccion Deportiva" },
+  { id: "dir", name: "Dirección Deportiva", role: "direccion", area: "general", label: "Dirección Deportiva" },
   { id: "coord-clases", name: "Coord. Clases Deportivas", role: "coordinador", area: "clases", label: "Clases Deportivas" },
   { id: "coord-gym", name: "Coord. Gimnasio", role: "coordinador", area: "gimnasio", label: "Gimnasio" },
   { id: "coord-intra", name: "Coord. Intramuros", role: "coordinador", area: "intramuros", label: "Intramuros" },
   { id: "coord-vivencia", name: "Coord. Vivencia", role: "coordinador", area: "vivencia", label: "Vivencia" },
-  { id: "coord-com", name: "Coord. Comunicacion", role: "coordinador", area: "comunicacion", label: "Comunicacion" },
+  { id: "coord-com", name: "Coord. Comunicación", role: "coordinador", area: "comunicacion", label: "Comunicación" },
   { id: "coord-rep", name: "Coord. Representativos", role: "coordinador", area: "representativos", label: "Representativos" },
   { id: "coord-gamer", name: "Coord. Gamer", role: "coordinador", area: "gamer", label: "Gamer" },
   { id: "coord-colab", name: "Coord. Colaboradores", role: "coordinador", area: "colaboradores", label: "Colaboradores" },
@@ -268,7 +268,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function allowedDataText() {
-  return "La captura operativa solo usa matricula, genero, carrera, semestre y nivel escolar. Los campos de salud, nombre, correo y telefono quedan fuera del sistema.";
+  return "La captura operativa solo usa matrícula, género, carrera, semestre y nivel escolar. Los campos de salud, nombre, correo y teléfono quedan fuera del sistema.";
 }
 
 function loadCaptures() {
@@ -478,7 +478,7 @@ function renderNav() {
   $("#areaNav").innerHTML = allowed.map((area) => `
     <button class="nav-item ${area.id === activeArea ? "active" : ""}" data-area="${area.id}">
       <span>${area.name}</span>
-      <small>${area.id === "general" ? "Dir." : "Area"}</small>
+      <small>${area.id === "general" ? "Dir." : "Área"}</small>
     </button>
   `).join("");
   $$(".nav-item").forEach((button) => button.addEventListener("click", () => {
@@ -500,25 +500,25 @@ function renderLogin() {
         <div class="login-visual">
           <div>
             <div class="brand-mark">RS</div>
-            <p class="eyebrow" style="color:#f0b323">Prototipo local</p>
+            <p class="eyebrow" style="color:#f0b323">Piloto web</p>
             <h1>RecSports OS</h1>
-            <p>Entra con un perfil demo para validar permisos, captura por area y dashboards sin publicar la plataforma.</p>
+            <p>Entra con un perfil demo para validar permisos, captura por área y dashboards antes de liberar la plataforma.</p>
           </div>
-          <p>Privacidad por diseno: solo matricula, genero, carrera, semestre y nivel escolar.</p>
+          <p>Privacidad por diseño: solo matrícula, género, carrera, semestre y nivel escolar.</p>
         </div>
         <form id="loginForm">
-          <p class="eyebrow">Sesion de prueba</p>
+          <p class="eyebrow">Sesión de prueba</p>
           <h2>Selecciona un perfil</h2>
           <label>Perfil
             <select name="userId">
               ${demoUsers.map((user) => `<option value="${user.id}">${user.name}</option>`).join("")}
             </select>
           </label>
-          <label>Codigo de acceso
+          <label>Código de acceso
             <input name="accessCode" value="demo" />
           </label>
           <button class="primary-btn" type="button" id="loginButton">Entrar al prototipo</button>
-          <p class="hero-copy">Codigo temporal: demo. En produccion esto se reemplaza por Supabase Auth o SSO institucional.</p>
+          <p class="hero-copy">Código temporal: demo. En producción esto se reemplaza por Supabase Auth o SSO institucional.</p>
         </form>
       </section>
     </div>
@@ -526,7 +526,7 @@ function renderLogin() {
   $("#loginButton").addEventListener("click", () => {
     const form = new FormData($("#loginForm"));
     if (String(form.get("accessCode") || "").trim().toLowerCase() !== "demo") {
-      toast("Codigo incorrecto para el prototipo");
+      toast("Código incorrecto para el prototipo");
       return;
     }
     const user = demoUsers.find((item) => item.id === form.get("userId")) || demoUsers[0];
@@ -535,7 +535,7 @@ function renderLogin() {
     activeArea = user.role === "direccion" ? "general" : user.area;
     activeView = "dashboard";
     render();
-    toast(`Sesion iniciada: ${user.name}`);
+    toast(`Sesión iniciada: ${user.name}`);
   });
 }
 
@@ -552,10 +552,10 @@ function renderCareers() {
 function renderExecutiveKpis() {
   const metrics = metricSet(allParticipationRows());
   $("#executiveKpis").innerHTML = [
-    ["Alumnos unicos", metrics.unique, "+12% vs periodo ant."],
+    ["Alumnos únicos", metrics.unique, "+12% vs periodo ant."],
     ["Registros", metrics.registers, `${localCaptures.length} capturas locales`],
-    ["Retencion", `${metrics.retention}%`, "sin datos sensibles"],
-    ["Areas activas", areas.length - 1, "modulos operativos"]
+    ["Retención", `${metrics.retention}%`, "sin datos sensibles"],
+    ["Áreas activas", areas.filter((area) => !["general", "configuracion"].includes(area.id)).length, "módulos operativos"]
   ].map(([label, value, hint]) => `<div class="kpi"><span>${label}</span><strong>${value}</strong><em>${hint}</em></div>`).join("");
 }
 
@@ -584,20 +584,37 @@ function renderDashboard(area) {
   const progressMarkup = area.id === "general" ? renderProjectProgress() : "";
   return `
     <div class="permission-strip">
-      ${allowedDataText()} Capturas guardadas en esta prueba local: ${localCaptures.length}.
+      ${allowedDataText()} Capturas guardadas en este piloto: ${localCaptures.length}.
       ${localCaptures.length ? '<button class="ghost-btn inline-action" id="clearLocal">Limpiar capturas locales</button>' : ""}
     </div>
+    <section class="ops-summary" aria-label="Resumen operativo">
+      <article>
+        <span>Gobierno de datos</span>
+        <strong>Datos mínimos</strong>
+        <p>Alumnos identificados por matrícula y segmentación académica permitida.</p>
+      </article>
+      <article>
+        <span>Automatización</span>
+        <strong>Indicadores al guardar</strong>
+        <p>Registros, alumnos únicos, retención, participación y reportes se recalculan automáticamente.</p>
+      </article>
+      <article>
+        <span>Siguiente decisión</span>
+        <strong>Base de datos</strong>
+        <p>Conectar Supabase y activar permisos reales por coordinador.</p>
+      </article>
+    </section>
     ${progressMarkup}
     ${alertsMarkup}
     <div class="kpi-grid">
-      <div class="kpi"><span>Alumnos unicos</span><strong>${metrics.unique}</strong><em>por matricula</em></div>
+      <div class="kpi"><span>Alumnos únicos</span><strong>${metrics.unique}</strong><em>por matrícula</em></div>
       <div class="kpi"><span>Registros</span><strong>${metrics.registers}</strong><em>asistencias, eventos o inscripciones</em></div>
-      <div class="kpi"><span>Acreditados / activos</span><strong>${metrics.accredited}</strong><em>segun area</em></div>
-      <div class="kpi"><span>Retencion</span><strong>${metrics.retention}%</strong><em>bajas excluidas</em></div>
+      <div class="kpi"><span>Acreditados / activos</span><strong>${metrics.accredited}</strong><em>según área</em></div>
+      <div class="kpi"><span>Retención</span><strong>${metrics.retention}%</strong><em>bajas excluidas</em></div>
     </div>
     <div class="charts-grid">
       <div class="chart-panel">
-        <h3>Participacion por area</h3>
+        <h3>Participación por área</h3>
         ${byArea.map((row) => `
           <div class="bar-row">
             <span>${row.name}</span>
@@ -608,14 +625,14 @@ function renderDashboard(area) {
       </div>
       <div class="chart-panel">
         <h3>Perfil academico</h3>
-        <div class="donut" data-label="${metrics.unique} unicos"></div>
-        <p class="hero-copy">Segmentacion sugerida: genero, carrera, semestre, nivel escolar, periodo, area, disciplina, evento y estatus.</p>
+        <div class="donut" data-label="${metrics.unique} únicos"></div>
+        <p class="hero-copy">Segmentación sugerida: género, carrera, semestre, nivel escolar, periodo, área, disciplina, evento y estatus.</p>
       </div>
     </div>
     <div class="module-grid">${moduleCards}</div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Matricula</th><th>Genero</th><th>Carrera</th><th>Semestre</th><th>Nivel</th><th>Area</th><th>Registros</th></tr></thead>
+        <thead><tr><th>Matrícula</th><th>Género</th><th>Carrera</th><th>Semestre</th><th>Nivel</th><th>Área</th><th>Registros</th></tr></thead>
         <tbody>${data.slice(0, 14).map((s) => `<tr><td>${s.matricula}</td><td>${s.genero}</td><td>${s.carrera}</td><td>${s.semestre}</td><td>${s.nivel}</td><td>${labelArea(s.area)}</td><td>${s.registros}</td></tr>`).join("")}</tbody>
       </table>
     </div>
@@ -629,7 +646,7 @@ function renderProjectProgress() {
       <div class="section-title compact">
         <div>
           <p class="eyebrow">Avance del proyecto</p>
-          <h2>${progress.percent}% listo para piloto tecnico</h2>
+          <h2>${progress.percent}% listo para piloto técnico</h2>
         </div>
         <span class="session-pill">Siguiente: ${progress.next ? progress.next[1] : "Por definir"}</span>
       </div>
@@ -972,19 +989,19 @@ function renderCapture(area) {
       <div class="form-panel">
         <h3>Formulario de captura: ${selected.name}</h3>
         <form id="captureForm">
-          <label>Matricula<input name="matricula" value="A0841027" pattern="A0[0-9]{6,8}" ${editable ? "" : "disabled"} /></label>
-          <label>Genero<select name="genero" ${editable ? "" : "disabled"}><option>Femenino</option><option>Masculino</option><option>No especificado</option></select></label>
+          <label>Matrícula<input name="matricula" value="A0841027" pattern="A0[0-9]{6,8}" ${editable ? "" : "disabled"} /></label>
+          <label>Género<select name="genero" ${editable ? "" : "disabled"}><option>Femenino</option><option>Masculino</option><option>No especificado</option></select></label>
           <label>Carrera<select name="carrera" ${editable ? "" : "disabled"}>${careers.map((c) => `<option>${c}</option>`).join("")}</select></label>
           <label>Semestre<input name="semestre" type="number" min="1" max="12" value="4" ${editable ? "" : "disabled"} /></label>
           <label>Nivel escolar<select name="nivel" ${editable ? "" : "disabled"}><option>Profesional</option><option>Posgrado</option></select></label>
           <label>Periodo<select name="periodo" ${editable ? "" : "disabled"}><option>AD26</option><option>FJ26</option><option>IN26</option></select></label>
-          <label class="full">Dato operativo del area<select name="operacion" ${editable ? "" : "disabled"}>${selected.capture.filter(x => !["Matricula","Genero","Carrera","Semestre","Nivel escolar","Periodo"].includes(x)).map((x) => `<option>${x}</option>`).join("")}</select></label>
+          <label class="full">Dato operativo del área<select name="operacion" ${editable ? "" : "disabled"}>${selected.capture.filter(x => !["Matricula","Matrícula","Genero","Género","Carrera","Semestre","Nivel escolar","Periodo"].includes(x)).map((x) => `<option>${x}</option>`).join("")}</select></label>
           <label class="full">Estatus<select name="estatus" ${editable ? "" : "disabled"}><option>Activo</option><option>Asistio</option><option>No asistio</option><option>Baja</option><option>Acreditado</option></select></label>
           <button class="primary-btn full" type="button" id="saveMock" ${editable ? "" : "disabled"}>Guardar captura</button>
         </form>
       </div>
       <div class="form-panel">
-        <h3>Campos por area</h3>
+        <h3>Campos por área</h3>
         <table>
           <thead><tr><th>Campo</th><th>Uso</th></tr></thead>
           <tbody>${selected.capture.map((field) => `<tr><td>${field}</td><td>${fieldPurpose(field)}</td></tr>`).join("")}</tbody>
@@ -1093,9 +1110,11 @@ function labelArea(id) {
 function fieldPurpose(field) {
   const map = {
     Matricula: "Identificador base",
-    Genero: "Segmentacion agregada",
-    Carrera: "Analisis academico",
-    Semestre: "Analisis por avance",
+    "Matrícula": "Identificador base",
+    Genero: "Segmentación agregada",
+    "Género": "Segmentación agregada",
+    Carrera: "Análisis académico",
+    Semestre: "Análisis por avance",
     "Nivel escolar": "Profesional o posgrado",
     Periodo: "Corte institucional",
     Disciplina: "Oferta deportiva",
@@ -1103,7 +1122,7 @@ function fieldPurpose(field) {
     Evento: "Vivencia y activaciones",
     Monto: "Presupuesto"
   };
-  return map[field] || "Operacion del modulo";
+  return map[field] || "Operación del módulo";
 }
 
 function toast(text) {
