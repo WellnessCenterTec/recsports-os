@@ -383,6 +383,29 @@ function countBy(rows, key) {
   }, {});
 }
 
+function genderLabel(row) {
+  const value = String(row["Genero"] || row["Género"] || "").trim().toLowerCase();
+  if (value.startsWith("muj")) return "Mujer";
+  if (value.startsWith("hom")) return "Hombre";
+  return "Sin dato";
+}
+
+function shirtSizeByGender(rows) {
+  const order = ["XS", "S", "M", "L", "XL", "XXL"];
+  const bySize = rows.reduce((acc, row) => {
+    const size = row["Playeras Joma"] || "Sin dato";
+    const gender = genderLabel(row);
+    if (!acc[size]) acc[size] = { label: size, Mujer: 0, Hombre: 0, "Sin dato": 0, total: 0 };
+    acc[size][gender] += 1;
+    acc[size].total += 1;
+    return acc;
+  }, {});
+  return Object.values(bySize).sort((a, b) => {
+    if (b.total !== a.total) return b.total - a.total;
+    return order.indexOf(a.label) - order.indexOf(b.label);
+  });
+}
+
 function collaboratorRows() {
   return recordsFor("Uniformes");
 }
@@ -870,12 +893,13 @@ function renderCollaboratorsDashboard() {
   const rows = filteredCollaborators();
   const metrics = collaboratorMetrics();
   const shirtSizes = countBy(rows, "Playeras Joma");
+  const shirtGenderRows = shirtSizeByGender(rows);
   const pantSizes = countBy(rows, "Talla pants");
   const coordinators = countBy(rows, "Coordinador");
   const allRows = collaboratorRows();
   const coordinatorOptions = [...new Set(allRows.map((row) => row["Coordinador"]).filter(Boolean))].sort();
   const shirtOptions = [...new Set(allRows.map((row) => row["Playeras Joma"]).filter(Boolean))].sort();
-  const maxSize = Math.max(...Object.values(shirtSizes), 1);
+  const maxSize = Math.max(...shirtGenderRows.map((row) => row.total), 1);
   const maxCoord = Math.max(...Object.values(coordinators), 1);
   return `
     <div class="permission-strip">Este modulo usa la informacion completa autorizada del archivo Uniformes de Equipo RecSports 26.xlsx.</div>
@@ -916,11 +940,29 @@ function renderCollaboratorsDashboard() {
     <div class="charts-grid">
       <div class="chart-panel">
         <h3>Playeras Joma por talla</h3>
-        ${Object.entries(shirtSizes).map(([label, value]) => `
-          <div class="bar-row">
-            <span>${label}</span>
-            <div class="bar-track"><div class="bar-fill" style="width:${Math.round(value / maxSize * 100)}%"></div></div>
-            <strong>${value}</strong>
+        <div class="gender-legend" aria-label="Leyenda por genero">
+          <span><i class="legend-dot women"></i>Mujeres</span>
+          <span><i class="legend-dot men"></i>Hombres</span>
+          <span><i class="legend-dot unknown"></i>Sin dato</span>
+        </div>
+        ${shirtGenderRows.map((row) => `
+          <div class="bar-row gender-row">
+            <span>${row.label}</span>
+            <div>
+              <div class="bar-track gender-track">
+                <div class="bar-fill segmented-fill" style="width:${Math.round(row.total / maxSize * 100)}%">
+                  ${row.Mujer ? `<span class="segment women" style="width:${Math.round(row.Mujer / row.total * 100)}%" title="Mujeres: ${row.Mujer}"></span>` : ""}
+                  ${row.Hombre ? `<span class="segment men" style="width:${Math.round(row.Hombre / row.total * 100)}%" title="Hombres: ${row.Hombre}"></span>` : ""}
+                  ${row["Sin dato"] ? `<span class="segment unknown" style="width:${Math.round(row["Sin dato"] / row.total * 100)}%" title="Sin dato: ${row["Sin dato"]}"></span>` : ""}
+                </div>
+              </div>
+              <div class="gender-breakdown">
+                <span>M ${row.Mujer}</span>
+                <span>H ${row.Hombre}</span>
+                ${row["Sin dato"] ? `<span>Sin dato ${row["Sin dato"]}</span>` : ""}
+              </div>
+            </div>
+            <strong>${row.total}</strong>
           </div>
         `).join("")}
       </div>

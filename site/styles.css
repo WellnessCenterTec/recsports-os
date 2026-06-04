@@ -514,6 +514,67 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 .bar-track { height: 12px; background: #e7ecef; border-radius: 99px; overflow: hidden; }
 .bar-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--green)); border-radius: 99px; }
 
+.gender-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 4px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.gender-legend span,
+.gender-breakdown span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-dot.women,
+.segment.women { background: #c0267b; }
+.legend-dot.men,
+.segment.men { background: #00658a; }
+.legend-dot.unknown,
+.segment.unknown { background: #9aa6b2; }
+
+.gender-row {
+  grid-template-columns: 72px 1fr 44px;
+  align-items: start;
+}
+
+.gender-track {
+  height: 14px;
+}
+
+.segmented-fill {
+  display: flex;
+  overflow: hidden;
+  background: transparent;
+}
+
+.segment {
+  display: block;
+  height: 100%;
+}
+
+.gender-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .donut {
   width: 180px;
   height: 180px;
