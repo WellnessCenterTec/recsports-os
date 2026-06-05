@@ -462,6 +462,23 @@ async function loadSupabaseCaptures() {
   cloudStatus = "Supabase conectado";
 }
 
+async function fetchMyProfile() {
+  const rpcResult = await supabaseClient.rpc("get_my_profile");
+  if (!rpcResult.error && Array.isArray(rpcResult.data) && rpcResult.data[0]) {
+    return { profile: rpcResult.data[0], error: null };
+  }
+  const fallbackUser = (await supabaseClient.auth.getUser()).data?.user;
+  if (!fallbackUser) {
+    return { profile: null, error: rpcResult.error || { message: "No hay sesion activa" } };
+  }
+  const directResult = await supabaseClient
+    .from("app_profiles")
+    .select("id, email, display_name, role, area_key, active")
+    .eq("id", fallbackUser.id)
+    .single();
+  return { profile: directResult.data, error: directResult.error || rpcResult.error };
+}
+
 async function loadSupabaseSession() {
   if (!supabaseClient) return;
   const { data: sessionData } = await supabaseClient.auth.getSession();
@@ -470,13 +487,9 @@ async function loadSupabaseSession() {
     cloudStatus = "Supabase listo";
     return;
   }
-  const { data: profile, error } = await supabaseClient
-    .from("app_profiles")
-    .select("id, email, display_name, role, area_key, active")
-    .eq("id", authUser.id)
-    .single();
+  const { profile, error } = await fetchMyProfile();
   if (error || !profile?.active) {
-    cloudStatus = "Usuario sin perfil RecSports";
+    cloudStatus = error?.message || "Usuario sin perfil RecSports";
     return;
   }
   saveSession(profileToSession(profile, authUser));
@@ -522,18 +535,14 @@ async function loginWithSupabase() {
   }
   const authUser = data?.user;
   setFeedback("Acceso correcto. Revisando permisos RecSports...", "loading");
-  const { data: profile, error: profileError } = await supabaseClient
-    .from("app_profiles")
-    .select("id, email, display_name, role, area_key, active")
-    .eq("id", authUser.id)
-    .single();
+  const { profile, error: profileError } = await fetchMyProfile();
   if (profileError || !profile?.active) {
     await supabaseClient.auth.signOut();
     if (button) {
       button.disabled = false;
       button.textContent = "Entrar con Supabase";
     }
-    setFeedback("El usuario existe, pero falta permiso en RecSports OS.", "error");
+    setFeedback(`El usuario existe, pero falta permiso en RecSports OS. Detalle: ${profileError?.message || "perfil no activo"}`, "error");
     toast("El usuario existe, pero falta permiso en RecSports OS");
     return;
   }

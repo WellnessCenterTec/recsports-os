@@ -90,6 +90,28 @@ as $$
   );
 $$;
 
+create or replace function public.get_my_profile()
+returns table (
+  id uuid,
+  email text,
+  display_name text,
+  role app_role,
+  area_key text,
+  active boolean
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.id, p.email, p.display_name, p.role, p.area_key, p.active
+  from public.app_profiles p
+  where p.id = auth.uid()
+  limit 1;
+$$;
+
+grant execute on function public.get_my_profile() to authenticated;
+
 create table if not exists public.students_minimal (
   matricula text primary key check (matricula ~ '^A0[0-9]{6,8}$'),
   genero text not null check (genero in ('Femenino', 'Masculino', 'No especificado')),
