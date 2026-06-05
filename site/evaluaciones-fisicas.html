@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Evaluaciones Físicas | WellSync</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./evaluaciones-fisicas.css" />
+  </head>
+  <body class="physical-form-page">
+    <main class="physical-form-shell">
+      <header class="physical-form-header">
+        <div class="physical-form-brand">
+          <div class="brand-mark">WS</div>
+          <div>
+            <strong>WellSync</strong>
+            <span>Wellness Center</span>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow">Captura institucional</p>
+          <h1>Evaluación física</h1>
+          <p>Ingresa el código general, selecciona tu nombre y registra tus siete pruebas.</p>
+        </div>
+      </header>
+
+      <form id="physicalEvaluationForm" class="physical-evaluation-form">
+        <section id="physicalAccessSection" class="physical-section physical-access-section">
+          <div class="physical-section-title">
+            <span>1</span>
+            <div>
+              <h2>Código de acceso</h2>
+              <p>Utiliza el código general proporcionado por Dirección.</p>
+            </div>
+          </div>
+          <div class="physical-access-row">
+            <label>
+              Código general
+              <input id="physicalAccessCode" type="password" minlength="4" maxlength="20" autocomplete="off" placeholder="Escribe el código" required />
+            </label>
+            <button class="primary-btn" id="validatePhysicalAccess" type="button">Continuar</button>
+          </div>
+          <p id="physicalAccessMessage" class="physical-access-message" role="status"></p>
+        </section>
+
+        <div id="physicalCaptureSections" hidden>
+        <section class="physical-section">
+          <div class="physical-section-title">
+            <span>2</span>
+            <div>
+              <h2>Datos generales</h2>
+              <p>Selecciona tu nombre y la información de esta evaluación.</p>
+            </div>
+          </div>
+          <div class="physical-fields-grid">
+            <label class="field-wide">
+              Profesor o colaborador
+              <select id="physicalCollaborator" required>
+                <option value="">Cargando colaboradores...</option>
+              </select>
+            </label>
+            <label>
+              Periodo
+              <select id="physicalPeriod" required>
+                <option value="">Selecciona</option>
+                <option value="FJ26">FJ26</option>
+                <option value="AD26">AD26</option>
+                <option value="IN26">IN26</option>
+              </select>
+            </label>
+            <label>
+              Tipo de evaluación
+              <select id="physicalStage" required>
+                <option value="inicial">Inicial</option>
+                <option value="seguimiento">Seguimiento</option>
+                <option value="final">Final</option>
+              </select>
+            </label>
+            <label class="field-wide">
+              Disciplina o clase
+              <input id="physicalDiscipline" type="text" maxlength="100" placeholder="Ej. Gimnasio, Cross, Natación" required />
+            </label>
+          </div>
+        </section>
+
+        <section class="physical-section">
+          <div class="physical-section-title">
+            <span>3</span>
+            <div>
+              <h2>Resultados</h2>
+              <p>Captura el resultado o indica por qué no se realizó la prueba.</p>
+            </div>
+          </div>
+          <div id="physicalTests" class="physical-tests"></div>
+        </section>
+
+        <section class="physical-section">
+          <div class="physical-section-title">
+            <span>4</span>
+            <div>
+              <h2>Observaciones</h2>
+              <p>Este espacio es opcional.</p>
+            </div>
+          </div>
+          <label>
+            Comentario general
+            <textarea id="physicalNotes" rows="3" maxlength="500" placeholder="Observaciones relevantes de la sesión"></textarea>
+          </label>
+        </section>
+
+        <div class="physical-submit-bar">
+          <p id="physicalFormMessage" role="status">Completa la evaluación para continuar.</p>
+          <button class="primary-btn" id="reviewPhysicalEvaluation" type="button">Revisar evaluación</button>
+        </div>
+        </div>
+      </form>
+    </main>
+
+    <dialog id="physicalReviewDialog" class="physical-review-dialog">
+      <div id="physicalReviewContent"></div>
+      <div class="physical-review-actions">
+        <button class="ghost-btn" id="editPhysicalEvaluation" type="button">Regresar y editar</button>
+        <button class="primary-btn" id="savePhysicalEvaluation" type="button">Guardar evaluación</button>
+      </div>
+    </dialog>
+
+    <script>window.RECSPORTS_ENV = window.RECSPORTS_ENV || {};</script>
+    <script src="./env.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./evaluaciones-fisicas.js"></script>
+  </body>
+</html>

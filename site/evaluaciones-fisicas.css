@@ -1,0 +1,338 @@
+.physical-form-page {
+  margin: 0;
+  background: #f4f7f9;
+  color: #17202a;
+}
+
+.physical-form-shell {
+  width: min(1040px, calc(100% - 32px));
+  margin: 32px auto 64px;
+}
+
+.physical-form-header {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 32px;
+  align-items: center;
+  padding: 32px;
+  color: white;
+  background: linear-gradient(125deg, #052f49, #067c86 58%, #009b77);
+  border-radius: 8px 8px 0 0;
+}
+
+.physical-form-header h1 {
+  margin: 4px 0 8px;
+  font-size: clamp(32px, 5vw, 54px);
+  letter-spacing: 0;
+}
+
+.physical-form-header p {
+  margin: 0;
+  max-width: 620px;
+  color: #e4f2f2;
+}
+
+.physical-form-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.physical-form-brand strong,
+.physical-form-brand span {
+  display: block;
+}
+
+.physical-form-brand span {
+  color: #d7ebee;
+  font-size: 13px;
+}
+
+.physical-evaluation-form {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  background: white;
+  border: 1px solid #dbe3e8;
+  border-top: 0;
+}
+
+.physical-section {
+  padding: 24px;
+  border: 1px solid #dbe3e8;
+  border-radius: 8px;
+}
+
+.physical-access-section {
+  background: #f8fbfc;
+}
+
+.physical-access-section.is-validated {
+  background: #eef8f4;
+  border-color: #a8d8c8;
+}
+
+.physical-access-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  max-width: 620px;
+}
+
+.physical-access-row .primary-btn {
+  min-height: 44px;
+}
+
+.physical-access-message {
+  min-height: 20px;
+  margin: 10px 0 0;
+  color: #42616a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#physicalCaptureSections {
+  display: grid;
+  gap: 16px;
+}
+
+#physicalCaptureSections[hidden] {
+  display: none;
+}
+
+.physical-section-title {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.physical-section-title > span,
+.physical-test-number {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  color: white;
+  background: #087b83;
+  border-radius: 50%;
+  font-weight: 800;
+}
+
+.physical-section h2,
+.physical-section h3 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.physical-section-title p,
+.physical-test-copy p {
+  margin: 4px 0 0;
+  color: #68747f;
+}
+
+.physical-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+.physical-evaluation-form label {
+  display: grid;
+  gap: 7px;
+  color: #53606b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.physical-evaluation-form input,
+.physical-evaluation-form select,
+.physical-evaluation-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  color: #17202a;
+  background: white;
+  border: 1px solid #bdcbd3;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.physical-tests {
+  display: grid;
+  gap: 10px;
+}
+
+.physical-test-card {
+  display: grid;
+  grid-template-columns: 38px minmax(180px, 1.5fr) minmax(150px, .8fr) minmax(180px, 1fr);
+  gap: 14px;
+  align-items: end;
+  padding: 16px;
+  background: #f8fafb;
+  border: 1px solid #dbe3e8;
+  border-radius: 6px;
+}
+
+.physical-test-note-field {
+  grid-column: 3 / 5;
+}
+
+.input-with-unit {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  overflow: hidden;
+  background: white;
+  border: 1px solid #bdcbd3;
+  border-radius: 6px;
+}
+
+.input-with-unit input {
+  border: 0;
+}
+
+.input-with-unit span {
+  padding: 0 12px;
+  color: #68747f;
+  font-size: 12px;
+}
+
+.physical-submit-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  padding: 18px 24px;
+  background: #edf6f5;
+  border: 1px solid #c5e0dc;
+  border-radius: 8px;
+}
+
+.physical-submit-bar p {
+  margin: 0;
+  color: #52616b;
+}
+
+.physical-review-dialog {
+  width: min(760px, calc(100% - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 28px;
+  overflow: auto;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 24px 80px #001d2b55;
+}
+
+.physical-review-dialog::backdrop {
+  background: #001d2bcc;
+}
+
+.physical-review-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.physical-review-summary div,
+.physical-review-results div {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  background: #f3f7f8;
+  border-radius: 5px;
+}
+
+.physical-review-summary span,
+.physical-review-results span {
+  color: #68747f;
+  font-size: 12px;
+}
+
+.physical-review-results {
+  display: grid;
+  gap: 6px;
+}
+
+.physical-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.physical-success {
+  padding: 26px;
+  text-align: center;
+}
+
+.physical-success-mark {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  color: white;
+  background: #009b77;
+  border-radius: 50%;
+  font-size: 34px;
+}
+
+@media (max-width: 760px) {
+  .physical-form-shell {
+    width: 100%;
+    margin: 0;
+  }
+
+  .physical-form-header {
+    grid-template-columns: 1fr;
+    padding: 24px 20px;
+  }
+
+  .physical-evaluation-form {
+    padding: 12px;
+  }
+
+  .physical-section {
+    padding: 18px 14px;
+  }
+
+  .physical-fields-grid,
+  .physical-review-summary,
+  .physical-access-row {
+    grid-template-columns: 1fr;
+  }
+
+  .field-wide {
+    grid-column: auto;
+  }
+
+  .physical-test-card {
+    grid-template-columns: 34px 1fr;
+    align-items: start;
+  }
+
+  .physical-test-card > label {
+    grid-column: 1 / -1;
+  }
+
+  .physical-test-note-field {
+    grid-column: 1 / -1;
+  }
+
+  .physical-submit-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .physical-review-actions {
+    flex-direction: column-reverse;
+  }
+}

@@ -90,6 +90,16 @@ const areas = [
     reports: ["Directorio de colaboradores", "Reporte de uniformes", "Pruebas fisicas", "Layouts de contratacion"]
   },
   {
+    id: "evaluaciones",
+    name: "Evaluaciones Físicas",
+    tone: "green",
+    source: "Formación Deportiva histórico y capturas nuevas de WellSync",
+    capture: ["Código general", "Colaborador", "Periodo", "Tipo de evaluación", "Disciplina", "Siete pruebas físicas", "Observaciones"],
+    indicators: ["Evaluaciones realizadas", "Colaboradores únicos", "Iniciales vs finales", "Evolución por colaborador", "Promedios por prueba", "Históricos pendientes"],
+    charts: ["Comparativo inicial y final", "Tendencia por disciplina", "Tendencia por colaborador", "Resultados por semestre"],
+    reports: ["Historial de evaluaciones", "Comparativo inicial y final", "Resultados por colaborador"]
+  },
+  {
     id: "compras",
     name: "Compras y Presupuesto",
     tone: "gold",
@@ -346,6 +356,16 @@ let currentUser = loadSession();
 let cloudCaptures = [];
 let cloudCollaborators = [];
 let collaboratorsCloudLoaded = false;
+let physicalEvaluations = [];
+let physicalEvaluationsLoaded = false;
+let physicalEvaluationFilter = {
+  period: "todos",
+  stage: "todos",
+  discipline: "todos",
+  collaborator: "todos",
+  gender: "todos",
+  classification: "todos"
+};
 let collaboratorColumnOrder = [];
 let collaboratorSettingsLoaded = false;
 let photoUploaderOpen = false;
@@ -536,6 +556,10 @@ function collaboratorToCloud(row) {
   };
 }
 
+function supabaseErrorDetail(error) {
+  return String(error?.message || error?.details || error?.hint || "").trim();
+}
+
 async function loadSupabaseCollaborators() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const { data, error } = await supabaseClient
@@ -551,6 +575,83 @@ async function loadSupabaseCollaborators() {
   await loadCollaboratorPhotoUrls();
   collaboratorsCloudLoaded = true;
   await loadCollaboratorTableSettings();
+}
+
+async function loadPhysicalEvaluations() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const { data, error } = await supabaseClient
+    .from("physical_evaluations")
+    .select(`
+      id,
+      collaborator_nomina,
+      captured_name,
+      captured_email,
+      evaluated_at,
+      period_key,
+      semester_label,
+      evaluation_stage,
+      discipline,
+      gender,
+      birthdate,
+      source,
+      classification_status,
+      general_notes,
+      physical_evaluation_results (
+        test_key,
+        numeric_value,
+        unit,
+        result_status,
+        raw_value,
+        notes
+      )
+    `)
+    .order("evaluated_at", { ascending: false })
+    .limit(2500);
+  if (error) {
+    physicalEvaluationsLoaded = false;
+    console.error(error);
+    return;
+  }
+  physicalEvaluations = data || [];
+  physicalEvaluationsLoaded = true;
+}
+
+async function changePhysicalAccessCode() {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("evaluaciones")) {
+    toast("Necesitas entrar como Dirección para cambiar el código");
+    return;
+  }
+  const input = $("#newPhysicalAccessCode");
+  const newCode = String(input?.value || "").trim();
+  if (newCode.length < 4 || newCode.length > 20) {
+    toast("El código debe tener entre 4 y 20 caracteres");
+    return;
+  }
+  if (!window.confirm("¿Cambiar el código general? El código anterior dejará de funcionar.")) return;
+  const button = $("#savePhysicalAccessCode");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Guardando...";
+  }
+  const { error } = await supabaseClient.rpc("set_public_physical_evaluation_code", {
+    new_code: newCode
+  });
+  if (error) {
+    console.error(error);
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Cambiar código";
+    }
+    toast(`No se pudo cambiar el código: ${supabaseErrorDetail(error)}`);
+    return;
+  }
+  addAudit("evaluaciones", "Código general del formulario actualizado");
+  if (input) input.value = "";
+  if (button) {
+    button.disabled = false;
+    button.textContent = "Cambiar código";
+  }
+  toast("Código general actualizado");
 }
 
 async function loadCollaboratorPhotoUrls() {
@@ -668,7 +769,8 @@ async function addCollaboratorRow() {
   const { error } = await supabaseClient.from("collaborators").insert(collaboratorToCloud(row));
   if (error) {
     console.error(error);
-    toast(error.code === "23505" ? "Esa nómina ya existe" : "No se pudo agregar el profesor");
+    const detail = supabaseErrorDetail(error);
+    toast(error.code === "23505" ? "Esa nómina ya existe" : `No se pudo agregar el profesor${detail ? `: ${detail}` : ""}`);
     return;
   }
   collaboratorFilter = { coordinator: "todos", shirt: "todos", firstAid: "todos" };
@@ -845,7 +947,8 @@ async function uploadCollaboratorPhoto() {
     toast("Fotografía guardada en Supabase");
   } catch (error) {
     console.error(error);
-    toast("No se pudo guardar la fotografía");
+    const detail = supabaseErrorDetail(error);
+    toast(`No se pudo guardar la fotografía${detail ? `: ${detail}` : ""}`);
     if (button) {
       button.disabled = false;
       button.textContent = "Guardar fotografía";
@@ -944,7 +1047,7 @@ async function loadSupabaseSession() {
   }
   saveSession(profileToSession(profile, authUser));
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
-  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators()]);
+  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations()]);
 }
 
 async function loginWithSupabase() {
@@ -992,15 +1095,15 @@ async function loginWithSupabase() {
       button.disabled = false;
       button.textContent = "Entrar con Supabase";
     }
-    setFeedback(`El usuario existe, pero falta permiso en RecSports OS. Detalle: ${profileError?.message || "perfil no activo"}`, "error");
-    toast("El usuario existe, pero falta permiso en RecSports OS");
+    setFeedback(`El usuario existe, pero falta permiso en WellSync. Detalle: ${profileError?.message || "perfil no activo"}`, "error");
+    toast("El usuario existe, pero falta permiso en WellSync");
     return;
   }
   saveSession(profileToSession(profile, authUser));
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
   activeView = "dashboard";
-  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators()]);
+  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations()]);
   render();
   toast(`Sesion Supabase: ${currentUser.name}`);
 }
@@ -1338,6 +1441,228 @@ function filteredCollaborators() {
   });
 }
 
+const PHYSICAL_TEST_LABELS = {
+  cooper_12m: "Cooper 12 min",
+  abdominales: "Abdominales",
+  lagartijas: "Lagartijas",
+  saltos_cuerda: "Saltos con cuerda",
+  wall_ball: "Wall Ball",
+  remo_distancia: "Remo distancia",
+  remo_suspendido: "Remo suspendido"
+};
+
+function physicalFilterOptions(key) {
+  return [...new Set(physicalEvaluations.map((row) => String(row[key] || "").trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "es"));
+}
+
+function filteredPhysicalEvaluations() {
+  return physicalEvaluations.filter((row) => {
+    const period = row.period_key || row.semester_label || "Sin clasificar";
+    const discipline = row.discipline || "Sin clasificar";
+    const collaborator = row.collaborator_nomina || row.captured_name || "Sin identificar";
+    const gender = row.gender || "Sin dato";
+    const classification = row.classification_status || "pendiente";
+    return (physicalEvaluationFilter.period === "todos" || period === physicalEvaluationFilter.period)
+      && (physicalEvaluationFilter.stage === "todos" || row.evaluation_stage === physicalEvaluationFilter.stage)
+      && (physicalEvaluationFilter.discipline === "todos" || discipline === physicalEvaluationFilter.discipline)
+      && (physicalEvaluationFilter.collaborator === "todos" || collaborator === physicalEvaluationFilter.collaborator)
+      && (physicalEvaluationFilter.gender === "todos" || gender === physicalEvaluationFilter.gender)
+      && (physicalEvaluationFilter.classification === "todos" || classification === physicalEvaluationFilter.classification);
+  });
+}
+
+function physicalResult(row, testKey) {
+  return (row.physical_evaluation_results || []).find((result) => result.test_key === testKey);
+}
+
+function physicalAverage(rows, testKey, stage = "todos") {
+  const values = rows
+    .filter((row) => stage === "todos" || row.evaluation_stage === stage)
+    .map((row) => Number(physicalResult(row, testKey)?.numeric_value))
+    .filter((value) => Number.isFinite(value));
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
+function physicalStatusLabel(value) {
+  return {
+    inicial: "Inicial",
+    seguimiento: "Seguimiento",
+    final: "Final",
+    sin_clasificar: "Sin clasificar"
+  }[value] || "Sin clasificar";
+}
+
+function renderPhysicalEvaluationsDashboard() {
+  const rows = filteredPhysicalEvaluations();
+  const unique = new Set(rows.map((row) => row.collaborator_nomina || row.captured_name)).size;
+  const initial = rows.filter((row) => row.evaluation_stage === "inicial").length;
+  const final = rows.filter((row) => row.evaluation_stage === "final").length;
+  const pending = rows.filter((row) => row.classification_status === "pendiente").length;
+  const disciplineCounts = Object.entries(rows.reduce((acc, row) => {
+    const key = row.discipline || "Sin clasificar";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {})).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const maxDiscipline = Math.max(...disciplineCounts.map(([, count]) => count), 1);
+  const stages = [
+    ["Inicial", initial],
+    ["Seguimiento", rows.filter((row) => row.evaluation_stage === "seguimiento").length],
+    ["Final", final],
+    ["Sin clasificar", rows.filter((row) => row.evaluation_stage === "sin_clasificar").length]
+  ];
+  const maxStage = Math.max(...stages.map(([, count]) => count), 1);
+  const periodOptions = [...new Set(physicalEvaluations.map((row) => row.period_key || row.semester_label || "Sin clasificar"))].sort();
+  const disciplineOptions = [...new Set(physicalEvaluations.map((row) => row.discipline || "Sin clasificar"))].sort();
+  const collaboratorOptions = [...new Map(physicalEvaluations.map((row) => [
+    row.collaborator_nomina || row.captured_name,
+    row.captured_name || row.collaborator_nomina
+  ])).entries()].sort((a, b) => a[1].localeCompare(b[1], "es"));
+  const comparisonRows = Object.keys(PHYSICAL_TEST_LABELS).map((testKey) => {
+    const initialAverage = physicalAverage(rows, testKey, "inicial");
+    const finalAverage = physicalAverage(rows, testKey, "final");
+    const delta = initialAverage !== null && finalAverage !== null ? finalAverage - initialAverage : null;
+    return { testKey, initialAverage, finalAverage, delta };
+  });
+  const noData = !physicalEvaluationsLoaded
+    ? `<div class="permission-strip">Activa el esquema de Evaluaciones Físicas en Supabase para mostrar información real.</div>`
+    : "";
+  return `
+    ${noData}
+    <div class="physical-dashboard-actions">
+      <div>
+        <p class="eyebrow">WellSync</p>
+        <h3>Evaluaciones físicas de colaboradores</h3>
+        <p class="hero-copy">Las capturas nuevas se guardan en Supabase; los históricos incompletos permanecen identificados como pendientes.</p>
+      </div>
+      <div class="table-actions">
+        <a class="primary-btn physical-public-link" href="./evaluaciones-fisicas.html" target="_blank" rel="noopener">Abrir formulario público</a>
+        <button class="ghost-btn" id="refreshPhysicalEvaluations" type="button">Actualizar datos</button>
+      </div>
+    </div>
+    <div class="physical-filter-grid">
+      <label>Periodo
+        <select class="physical-filter" data-filter="period">
+          <option value="todos">Todos</option>
+          ${periodOptions.map((value) => `<option value="${escapeHtml(value)}" ${physicalEvaluationFilter.period === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+        </select>
+      </label>
+      <label>Tipo
+        <select class="physical-filter" data-filter="stage">
+          <option value="todos">Todos</option>
+          ${["inicial", "seguimiento", "final", "sin_clasificar"].map((value) => `<option value="${value}" ${physicalEvaluationFilter.stage === value ? "selected" : ""}>${physicalStatusLabel(value)}</option>`).join("")}
+        </select>
+      </label>
+      <label>Disciplina
+        <select class="physical-filter" data-filter="discipline">
+          <option value="todos">Todas</option>
+          ${disciplineOptions.map((value) => `<option value="${escapeHtml(value)}" ${physicalEvaluationFilter.discipline === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+        </select>
+      </label>
+      <label>Colaborador
+        <select class="physical-filter" data-filter="collaborator">
+          <option value="todos">Todos</option>
+          ${collaboratorOptions.map(([value, label]) => `<option value="${escapeHtml(value)}" ${physicalEvaluationFilter.collaborator === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+        </select>
+      </label>
+      <label>Género
+        <select class="physical-filter" data-filter="gender">
+          <option value="todos">Todos</option>
+          ${physicalFilterOptions("gender").map((value) => `<option value="${escapeHtml(value)}" ${physicalEvaluationFilter.gender === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+        </select>
+      </label>
+      <label>Clasificación
+        <select class="physical-filter" data-filter="classification">
+          <option value="todos">Todas</option>
+          <option value="clasificado" ${physicalEvaluationFilter.classification === "clasificado" ? "selected" : ""}>Clasificadas</option>
+          <option value="pendiente" ${physicalEvaluationFilter.classification === "pendiente" ? "selected" : ""}>Pendientes</option>
+        </select>
+      </label>
+    </div>
+    <div class="kpi-grid physical-kpi-grid">
+      <div class="kpi"><span>Evaluaciones</span><strong>${rows.length}</strong><em>registros filtrados</em></div>
+      <div class="kpi"><span>Colaboradores únicos</span><strong>${unique}</strong><em>por nómina o nombre</em></div>
+      <div class="kpi"><span>Iniciales / finales</span><strong>${initial} / ${final}</strong><em>comparación disponible</em></div>
+      <div class="kpi"><span>Pendientes</span><strong>${pending}</strong><em>históricos por clasificar</em></div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-panel">
+        <h3>Evaluaciones por disciplina</h3>
+        ${disciplineCounts.map(([label, count]) => `
+          <div class="bar-row">
+            <span>${escapeHtml(label)}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.round(count / maxDiscipline * 100)}%"></div></div>
+            <strong>${count}</strong>
+          </div>
+        `).join("") || "<p class='hero-copy'>Aún no hay registros para estos filtros.</p>"}
+      </div>
+      <div class="chart-panel">
+        <h3>Etapa de evaluación</h3>
+        ${stages.map(([label, count]) => `
+          <div class="bar-row compact-bar-row">
+            <span>${label}</span>
+            <div class="bar-track"><div class="bar-fill physical-stage-bar" style="width:${Math.round(count / maxStage * 100)}%"></div></div>
+            <strong>${count}</strong>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+    <div class="table-wrap physical-comparison-table">
+      <table>
+        <thead><tr><th>Prueba</th><th>Promedio inicial</th><th>Promedio final</th><th>Cambio</th></tr></thead>
+        <tbody>
+          ${comparisonRows.map((row) => `
+            <tr>
+              <td>${PHYSICAL_TEST_LABELS[row.testKey]}</td>
+              <td>${row.initialAverage === null ? "Sin datos" : row.initialAverage.toFixed(1)}</td>
+              <td>${row.finalAverage === null ? "Sin datos" : row.finalAverage.toFixed(1)}</td>
+              <td class="${row.delta !== null && row.delta >= 0 ? "positive-value" : ""}">${row.delta === null ? "Pendiente" : `${row.delta >= 0 ? "+" : ""}${row.delta.toFixed(1)}`}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+    <div class="physical-dashboard-actions physical-history-heading">
+      <div>
+        <p class="eyebrow">Historial</p>
+        <h3>Últimas evaluaciones</h3>
+      </div>
+      <button class="ghost-btn" id="exportPhysicalEvaluations" type="button">Exportar Excel</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Colaborador</th><th>Periodo</th><th>Tipo</th><th>Disciplina</th><th>Origen</th><th>Estado</th></tr></thead>
+        <tbody>
+          ${rows.slice(0, 80).map((row) => `
+            <tr>
+              <td>${row.evaluated_at ? new Date(row.evaluated_at).toLocaleDateString("es-MX") : "Sin fecha"}</td>
+              <td>${escapeHtml(row.captured_name || row.collaborator_nomina || "Sin identificar")}</td>
+              <td>${escapeHtml(row.period_key || row.semester_label || "Pendiente")}</td>
+              <td>${physicalStatusLabel(row.evaluation_stage)}</td>
+              <td>${escapeHtml(row.discipline || "Pendiente")}</td>
+              <td>${row.source === "historical_excel" ? "Histórico Excel" : "WellSync"}</td>
+              <td><span class="physical-status ${row.classification_status === "pendiente" ? "pending" : "ready"}">${row.classification_status === "pendiente" ? "Pendiente" : "Clasificada"}</span></td>
+            </tr>
+          `).join("") || '<tr><td colspan="7">No hay evaluaciones para estos filtros.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <section class="physical-code-panel">
+      <div>
+        <p class="eyebrow">Acceso del formulario</p>
+        <h3>Código general para profesores</h3>
+        <p class="hero-copy">Es el mismo código para todos. Al cambiarlo, el anterior deja de funcionar inmediatamente.</p>
+      </div>
+      <div class="physical-code-controls">
+        <label>Nuevo código
+          <input id="newPhysicalAccessCode" type="password" minlength="4" maxlength="20" autocomplete="new-password" placeholder="Entre 4 y 20 caracteres" />
+        </label>
+        <button class="primary-btn" id="savePhysicalAccessCode" type="button">Cambiar código</button>
+      </div>
+    </section>
+  `;
+}
+
 function filteredStudents() {
   const level = $("#levelFilter").value;
   const career = $("#careerFilter").value;
@@ -1387,12 +1712,12 @@ function renderLogin() {
   }
   root.innerHTML = `
     <div class="login-overlay">
-      <section class="login-card" aria-label="Acceso RecSports OS">
+      <section class="login-card" aria-label="Acceso WellSync">
         <div class="login-visual">
           <div>
-            <div class="brand-mark">RS</div>
+            <div class="brand-mark">WS</div>
             <p class="eyebrow" style="color:#f0b323">Piloto web</p>
-            <h1>RecSports OS</h1>
+            <h1>WellSync</h1>
             <p>Entra con un perfil demo para validar permisos, captura por área y dashboards antes de liberar la plataforma.</p>
           </div>
           <p>Privacidad por diseño: solo matrícula, género, carrera, semestre y nivel escolar.</p>
@@ -1469,6 +1794,7 @@ function renderExecutiveKpis() {
 
 function renderDashboard(area) {
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
+  if (area.id === "evaluaciones") return renderPhysicalEvaluationsDashboard();
   if (area.id === "configuracion") return renderConfigurationDashboard();
   const data = filteredStudents();
   const metrics = metricSet(data);
@@ -1491,7 +1817,6 @@ function renderDashboard(area) {
   const alertsMarkup = area.id === "general" ? renderAlertCenter(true) : "";
   const progressMarkup = area.id === "general" ? renderProjectProgress() : "";
   const classTeachersMarkup = area.id === "clases" ? renderClassTeacherPerformance() : "";
-  const classIndicatorsMarkup = area.id === "clases" ? renderClassDisciplineIndicators() : "";
   return `
     <div class="permission-strip">
       ${allowedDataText()} Estado: ${cloudStatus}. Capturas nube: ${cloudCaptures.length}. Capturas locales: ${localCaptures.length}.
@@ -1539,7 +1864,6 @@ function renderDashboard(area) {
         <p class="hero-copy">Segmentación sugerida: género, carrera, semestre, nivel escolar, periodo, área, disciplina, evento y estatus.</p>
       </div>
     </div>
-    ${classIndicatorsMarkup}
     ${classTeachersMarkup}
     <div class="module-grid">${moduleCards}</div>
     <div class="table-wrap">
@@ -1983,6 +2307,7 @@ function renderCollaboratorsDashboard() {
 function renderCapture(area) {
   const selected = area.id === "general" ? areas.find((item) => item.id === currentUser?.area) || areas[1] : area;
   if (selected.id === "colaboradores") return renderCollaboratorsCapture(selected);
+  if (selected.id === "evaluaciones") return renderPhysicalEvaluationsCapture();
   if (selected.id === "configuracion") return renderConfigurationCapture();
   const editable = canEditArea(selected.id);
   return `
@@ -2008,6 +2333,30 @@ function renderCapture(area) {
           <thead><tr><th>Campo</th><th>Uso</th></tr></thead>
           <tbody>${selected.capture.map((field) => `<tr><td>${field}</td><td>${fieldPurpose(field)}</td></tr>`).join("")}</tbody>
         </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderPhysicalEvaluationsCapture() {
+  return `
+    <div class="permission-strip">La captura de profesores se realiza desde un enlace general sin iniciar sesión. El código común controla el acceso y cada persona selecciona su nombre.</div>
+    <div class="form-grid">
+      <div class="form-panel physical-capture-launcher">
+        <p class="eyebrow">Enlace para profesores</p>
+        <h3>Formulario de Evaluación Física</h3>
+        <p>Incluye las siete pruebas, motivos de no realización, revisión final y guardado directo en Supabase.</p>
+        <a class="primary-btn physical-public-link" href="./evaluaciones-fisicas.html" target="_blank" rel="noopener">Abrir formulario público</a>
+      </div>
+      <div class="form-panel">
+        <h3>Flujo aprobado</h3>
+        <ol class="physical-flow-list">
+          <li>Escribe el código general.</li>
+          <li>Selecciona su nombre.</li>
+          <li>Captura las siete pruebas.</li>
+          <li>Indica lesión, contraindicación u otro motivo cuando corresponda.</li>
+          <li>Revisa y guarda.</li>
+        </ol>
       </div>
     </div>
   `;
@@ -2198,7 +2547,6 @@ function render() {
   });
   $("#collaboratorPhotoNomina")?.addEventListener("change", (event) => {
     selectedPhotoNomina = event.target.value;
-    render();
   });
   $("#saveCollaboratorPhoto")?.addEventListener("click", uploadCollaboratorPhoto);
   $("#removeCollaboratorPhoto")?.addEventListener("click", removeCollaboratorPhoto);
@@ -2208,6 +2556,17 @@ function render() {
     render();
   }));
   $("#importCollaboratorsToCloud")?.addEventListener("click", importCollaboratorsToCloud);
+  $$(".physical-filter").forEach((select) => select.addEventListener("input", (event) => {
+    physicalEvaluationFilter[event.target.dataset.filter] = event.target.value;
+    render();
+  }));
+  $("#refreshPhysicalEvaluations")?.addEventListener("click", async () => {
+    await loadPhysicalEvaluations();
+    render();
+    toast("Evaluaciones actualizadas");
+  });
+  $("#savePhysicalAccessCode")?.addEventListener("click", changePhysicalAccessCode);
+  $("#exportPhysicalEvaluations")?.addEventListener("click", () => downloadPhysicalEvaluationsCsv());
   $$("[data-delete-row]").forEach((button) => button.addEventListener("click", () => deleteCollaboratorRow(button.dataset.deleteRow)));
   $$("[data-move-column]").forEach((button) => button.addEventListener("click", () => {
     moveCollaboratorColumn(button.dataset.moveColumn, Number(button.dataset.direction));
@@ -2270,6 +2629,10 @@ function downloadCsv(name = "reporte") {
     downloadUniformesCsv(name);
     return;
   }
+  if (activeArea === "evaluaciones") {
+    downloadPhysicalEvaluationsCsv();
+    return;
+  }
   if (activeArea === "configuracion") {
     const systemCatalogs = getSystemCatalogs();
     const headers = ["tipo", "campo_1", "campo_2", "campo_3"];
@@ -2308,6 +2671,40 @@ function downloadCsv(name = "reporte") {
   URL.revokeObjectURL(url);
   addAudit("exportacion", `CSV de ${labelArea(activeArea)}`);
   toast("Reporte CSV descargado");
+}
+
+function downloadPhysicalEvaluationsCsv() {
+  const rows = filteredPhysicalEvaluations();
+  const testKeys = Object.keys(PHYSICAL_TEST_LABELS);
+  const headers = [
+    "fecha", "nomina", "colaborador", "periodo", "tipo", "disciplina", "genero",
+    "origen", "clasificacion",
+    ...testKeys.flatMap((key) => [`${key}_valor`, `${key}_estado`, `${key}_observacion`])
+  ];
+  const csv = [
+    headers.map(csvEscape).join(","),
+    ...rows.map((row) => {
+      const base = [
+        row.evaluated_at || "",
+        row.collaborator_nomina || "",
+        row.captured_name || "",
+        row.period_key || row.semester_label || "",
+        physicalStatusLabel(row.evaluation_stage),
+        row.discipline || "",
+        row.gender || "",
+        row.source || "",
+        row.classification_status || ""
+      ];
+      const results = testKeys.flatMap((key) => {
+        const result = physicalResult(row, key) || {};
+        return [result.numeric_value ?? result.raw_value ?? "", result.result_status || "", result.notes || ""];
+      });
+      return [...base, ...results].map(csvEscape).join(",");
+    })
+  ].join("\n");
+  downloadBlob(csv, `evaluaciones-fisicas-${new Date().toISOString().slice(0, 10)}.csv`);
+  addAudit("exportacion", "Evaluaciones físicas");
+  toast("Evaluaciones exportadas");
 }
 
 function downloadBlob(text, filename) {
@@ -2461,6 +2858,8 @@ $("#logoutButton").addEventListener("click", () => {
     supabaseClient?.auth.signOut();
     cloudCaptures = [];
     cloudCollaborators = [];
+    physicalEvaluations = [];
+    physicalEvaluationsLoaded = false;
     collaboratorsCloudLoaded = false;
     collaboratorColumnOrder = [];
     collaboratorSettingsLoaded = false;
