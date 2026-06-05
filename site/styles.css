@@ -115,6 +115,25 @@ body {
   margin-bottom: 18px;
 }
 
+.login-divider {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
 .session-pill {
   display: inline-flex;
   align-items: center;

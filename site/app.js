@@ -188,6 +188,10 @@ const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
 const UNIFORMES_DATA_URL = "./uniformes-data.json";
+const SUPABASE_ENV = window.RECSPORTS_ENV || {};
+const supabaseClient = window.supabase && SUPABASE_ENV.SUPABASE_URL && SUPABASE_ENV.SUPABASE_ANON_KEY
+  ? window.supabase.createClient(SUPABASE_ENV.SUPABASE_URL, SUPABASE_ENV.SUPABASE_ANON_KEY)
+  : null;
 const submenus = ["Dashboard", "Captura", "Participantes", "Calendario", "Indicadores", "Reportes", "Configuración"];
 const roleMatrix = [
   ["Dirección Deportiva", "Todo el sistema", "Lectura global, descarga ejecutiva, aprobaciones y auditoría"],
@@ -327,6 +331,8 @@ let activeView = "dashboard";
 let localCaptures = loadCaptures();
 let activeTheme = localStorage.getItem(THEME_KEY) || "tec";
 let currentUser = loadSession();
+let cloudCaptures = [];
+let cloudStatus = supabaseClient ? "Conectando Supabase" : "Demo local";
 let uniformesData = {};
 let uniformesLoaded = false;
 let collaboratorFilter = { coordinator: "todos", shirt: "todos", firstAid: "todos" };
@@ -394,6 +400,154 @@ function addAudit(action, detail = "") {
   saveAuditLog();
 }
 
+function profileToSession(profile, authUser) {
+  const role = profile?.role || "consulta";
+  const area = role === "direccion" || role === "admin" ? "general" : (profile?.area_key || "general");
+  return {
+    id: authUser?.id || profile?.id || "supabase-user",
+    name: profile?.display_name || authUser?.email || "Usuario Supabase",
+    email: authUser?.email || profile?.email || "",
+    role,
+    area,
+    label: profile?.display_name || authUser?.email || "Usuario Supabase",
+    auth: "supabase"
+  };
+}
+
+function normalizeStatus(value) {
+  const normalized = String(value || "activo").trim().toLowerCase();
+  if (normalized.includes("baja")) return "baja";
+  if (normalized.includes("np")) return "np";
+  if (normalized.includes("acredit")) return "acreditado";
+  if (normalized.includes("no asist")) return "no_asistio";
+  if (normalized.includes("asist")) return "asistio";
+  return "activo";
+}
+
+function participationFromCloud(row) {
+  const student = row.students_minimal || {};
+  const status = row.status || "activo";
+  return {
+    id: row.id,
+    matricula: row.matricula,
+    genero: student.genero || "No especificado",
+    carrera: student.carrera || "Sin carrera",
+    semestre: student.semestre || 1,
+    nivel: student.nivel_escolar || "Profesional",
+    periodo: row.period_key || "AD26",
+    operacion: row.operation_label || row.metadata?.operacion || "",
+    estatus: status,
+    area: row.area_key || "general",
+    registros: 1,
+    acreditado: status !== "baja" && status !== "np",
+    baja: status === "baja",
+    createdAt: row.created_at,
+    source: "supabase"
+  };
+}
+
+async function loadSupabaseCaptures() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const { data, error } = await supabaseClient
+    .from("participations")
+    .select("id, matricula, area_key, period_key, status, operation_label, metadata, created_at, students_minimal(genero, carrera, semestre, nivel_escolar)")
+    .order("created_at", { ascending: false })
+    .limit(800);
+  if (error) {
+    cloudStatus = "Supabase conectado, pendiente permisos";
+    toast("No pude leer capturas de Supabase todavia");
+    return;
+  }
+  cloudCaptures = (data || []).map(participationFromCloud);
+  cloudStatus = "Supabase conectado";
+}
+
+async function loadSupabaseSession() {
+  if (!supabaseClient) return;
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  const authUser = sessionData?.session?.user;
+  if (!authUser) {
+    cloudStatus = "Supabase listo";
+    return;
+  }
+  const { data: profile, error } = await supabaseClient
+    .from("app_profiles")
+    .select("id, email, display_name, role, area_key, active")
+    .eq("id", authUser.id)
+    .single();
+  if (error || !profile?.active) {
+    cloudStatus = "Usuario sin perfil RecSports";
+    return;
+  }
+  saveSession(profileToSession(profile, authUser));
+  activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
+  await loadSupabaseCaptures();
+}
+
+async function loginWithSupabase() {
+  if (!supabaseClient) {
+    toast("Supabase aun no esta configurado en esta publicacion");
+    return;
+  }
+  const form = new FormData($("#loginForm"));
+  const email = String(form.get("email") || "").trim();
+  const password = String(form.get("password") || "");
+  if (!email || !password) {
+    toast("Escribe correo y contrasena");
+    return;
+  }
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) {
+    toast("No pude iniciar sesion con Supabase");
+    return;
+  }
+  const authUser = data?.user;
+  const { data: profile, error: profileError } = await supabaseClient
+    .from("app_profiles")
+    .select("id, email, display_name, role, area_key, active")
+    .eq("id", authUser.id)
+    .single();
+  if (profileError || !profile?.active) {
+    await supabaseClient.auth.signOut();
+    toast("El usuario existe, pero falta permiso en RecSports OS");
+    return;
+  }
+  saveSession(profileToSession(profile, authUser));
+  addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
+  activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
+  activeView = "dashboard";
+  await loadSupabaseCaptures();
+  render();
+  toast(`Sesion Supabase: ${currentUser.name}`);
+}
+
+async function saveCaptureToSupabase(row) {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return false;
+  const studentPayload = {
+    matricula: row.matricula,
+    genero: row.genero,
+    carrera: row.carrera,
+    semestre: row.semestre,
+    nivel_escolar: row.nivel
+  };
+  const studentResult = await supabaseClient.from("students_minimal").upsert(studentPayload);
+  if (studentResult.error) throw studentResult.error;
+  const participationPayload = {
+    matricula: row.matricula,
+    area_key: row.area,
+    period_key: row.periodo,
+    status: normalizeStatus(row.estatus),
+    record_date: new Date().toISOString().slice(0, 10),
+    operation_label: row.operacion,
+    metadata: { operacion: row.operacion },
+    created_by: currentUser.id
+  };
+  const { error } = await supabaseClient.from("participations").insert(participationPayload);
+  if (error) throw error;
+  await loadSupabaseCaptures();
+  return true;
+}
+
 function applyTheme() {
   document.body.dataset.theme = activeTheme;
   const themeSelect = $("#themeSelect");
@@ -401,20 +555,20 @@ function applyTheme() {
 }
 
 function visibleAreas() {
-  if (!currentUser || currentUser.role === "direccion") return areas;
+  if (!currentUser || ["admin", "direccion"].includes(currentUser.role)) return areas;
   if (currentUser.role === "compras") return areas.filter((area) => area.id === "compras");
   return areas.filter((area) => area.id === currentUser.area);
 }
 
 function canEditArea(areaId) {
   if (!currentUser) return false;
-  if (currentUser.role === "direccion") return true;
+  if (["admin", "direccion"].includes(currentUser.role)) return true;
   if (currentUser.role === "compras") return areaId === "compras";
   return currentUser.area === areaId;
 }
 
 function allParticipationRows() {
-  return [...localCaptures, ...students];
+  return [...cloudCaptures, ...localCaptures, ...students];
 }
 
 async function loadUniformesData() {
@@ -598,6 +752,16 @@ function renderLogin() {
           <p>Privacidad por diseño: solo matrícula, género, carrera, semestre y nivel escolar.</p>
         </div>
         <form id="loginForm">
+          <p class="eyebrow">${cloudStatus}</p>
+          <h2>Acceso Supabase</h2>
+          <label>Correo
+            <input name="email" type="email" placeholder="correo@ejemplo.com" />
+          </label>
+          <label>Contrasena
+            <input name="password" type="password" placeholder="Contrasena de Supabase" />
+          </label>
+          <button class="primary-btn" type="button" id="supabaseLoginButton" ${supabaseClient ? "" : "disabled"}>Entrar con Supabase</button>
+          <div class="login-divider">Modo demo</div>
           <p class="eyebrow">Sesión de prueba</p>
           <h2>Selecciona un perfil</h2>
           <label>Perfil
@@ -614,6 +778,7 @@ function renderLogin() {
       </section>
     </div>
   `;
+  $("#supabaseLoginButton")?.addEventListener("click", loginWithSupabase);
   $("#loginButton").addEventListener("click", () => {
     const form = new FormData($("#loginForm"));
     if (String(form.get("accessCode") || "").trim().toLowerCase() !== "demo") {
@@ -632,6 +797,11 @@ function renderLogin() {
 
 function syncRoleSelector() {
   const roleSelect = $("#roleSelect");
+  if (currentUser?.auth === "supabase") {
+    roleSelect.innerHTML = `<option value="${currentUser.id}">${currentUser.name}</option>`;
+    roleSelect.value = currentUser.id;
+    return;
+  }
   roleSelect.innerHTML = demoUsers.map((user) => `<option value="${user.id}">${user.name}</option>`).join("");
   roleSelect.value = currentUser?.id || "dir";
 }
@@ -644,7 +814,7 @@ function renderExecutiveKpis() {
   const metrics = metricSet(allParticipationRows());
   $("#executiveKpis").innerHTML = [
     ["Alumnos únicos", metrics.unique, "+12% vs periodo ant."],
-    ["Registros", metrics.registers, `${localCaptures.length} capturas locales`],
+    ["Registros", metrics.registers, `${cloudCaptures.length} nube / ${localCaptures.length} local`],
     ["Retención", `${metrics.retention}%`, "sin datos sensibles"],
     ["Áreas activas", areas.filter((area) => !["general", "configuracion"].includes(area.id)).length, "módulos operativos"]
   ].map(([label, value, hint]) => `<div class="kpi"><span>${label}</span><strong>${value}</strong><em>${hint}</em></div>`).join("");
@@ -677,7 +847,7 @@ function renderDashboard(area) {
   const classIndicatorsMarkup = area.id === "clases" ? renderClassDisciplineIndicators() : "";
   return `
     <div class="permission-strip">
-      ${allowedDataText()} Capturas guardadas en este piloto: ${localCaptures.length}.
+      ${allowedDataText()} Estado: ${cloudStatus}. Capturas nube: ${cloudCaptures.length}. Capturas locales: ${localCaptures.length}.
       ${localCaptures.length ? '<button class="ghost-btn inline-action" id="clearLocal">Limpiar capturas locales</button>' : ""}
     </div>
     <section class="ops-summary" aria-label="Resumen operativo">
@@ -1375,7 +1545,7 @@ function render() {
   $$(".report-download").forEach((button) => button.addEventListener("click", () => downloadCsv(button.dataset.report || "reporte")));
 }
 
-function saveCaptureFromForm() {
+async function saveCaptureFromForm() {
   const form = $("#captureForm");
   const formData = new FormData(form);
   const selected = areas.find((a) => a.id === activeArea) || areas[1];
@@ -1398,9 +1568,22 @@ function saveCaptureFromForm() {
     toast("La matricula debe iniciar con A0 y usar solo numeros");
     return;
   }
+  try {
+    const savedInCloud = await saveCaptureToSupabase(row);
+    if (savedInCloud) {
+      addAudit("captura", `Registro Supabase en ${labelArea(row.area)} para ${row.matricula}`);
+      activeView = "dashboard";
+      render();
+      toast("Captura guardada en Supabase");
+      return;
+    }
+  } catch (error) {
+    console.error(error);
+    toast("Supabase no guardo; dejo respaldo local");
+  }
   localCaptures.unshift(row);
   saveCaptures();
-  addAudit("captura", `Registro en ${labelArea(row.area)} para ${row.matricula}`);
+  addAudit("captura", `Registro local en ${labelArea(row.area)} para ${row.matricula}`);
   activeView = "dashboard";
   render();
   toast("Captura local guardada y reflejada en indicadores");
@@ -1566,6 +1749,7 @@ function renderBlueprint(area) {
 
 renderCareers();
 render();
+loadSupabaseSession().then(() => render());
 
 $$(".segmented button").forEach((button) => button.addEventListener("click", () => {
   activeView = button.dataset.view;
@@ -1602,6 +1786,11 @@ $("#exportPdf").addEventListener("click", () => {
 
 $("#logoutButton").addEventListener("click", () => {
   addAudit("logout", "Sesion cerrada");
+  if (currentUser?.auth === "supabase") {
+    supabaseClient?.auth.signOut();
+    cloudCaptures = [];
+    cloudStatus = "Supabase listo";
+  }
   clearSession();
   render();
   toast("Sesion cerrada");
