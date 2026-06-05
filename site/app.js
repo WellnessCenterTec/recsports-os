@@ -188,6 +188,18 @@ const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
 const UNIFORMES_DATA_URL = "./uniformes-data.json";
+const BASE_COLLABORATOR_COLUMNS = [
+  "Nomina",
+  "Colaboradores",
+  "Puesto",
+  "Coordinador",
+  "% de cursos",
+  "Playeras Joma",
+  "Talla pants",
+  "correo institucional",
+  "Genero",
+  "Primeros auxilios"
+];
 const SUPABASE_ENV = window.RECSPORTS_ENV || {};
 const supabaseClient = window.supabase && SUPABASE_ENV.SUPABASE_URL && SUPABASE_ENV.SUPABASE_ANON_KEY
   ? window.supabase.createClient(SUPABASE_ENV.SUPABASE_URL, SUPABASE_ENV.SUPABASE_ANON_KEY)
@@ -332,6 +344,12 @@ let localCaptures = loadCaptures();
 let activeTheme = localStorage.getItem(THEME_KEY) || "tec";
 let currentUser = loadSession();
 let cloudCaptures = [];
+let cloudCollaborators = [];
+let collaboratorsCloudLoaded = false;
+let collaboratorColumnOrder = [];
+let collaboratorSettingsLoaded = false;
+let photoUploaderOpen = false;
+let selectedPhotoNomina = "";
 let cloudStatus = supabaseClient ? "Conectando Supabase" : "Demo local";
 let uniformesData = {};
 let uniformesLoaded = false;
@@ -462,6 +480,438 @@ async function loadSupabaseCaptures() {
   cloudStatus = "Supabase conectado";
 }
 
+function collaboratorFromCloud(row) {
+  return {
+    __id: row.nomina,
+    __photoPath: row.photo_path || "",
+    __photoUrl: "",
+    Nomina: row.nomina || "",
+    Colaboradores: row.full_name || "",
+    Puesto: row.puesto || "",
+    Coordinador: row.coordinador || "",
+    "% de cursos": row.course_percent ?? "",
+    "Playeras Joma": row.playera_joma || "",
+    "Talla pants": row.talla_pants || "",
+    "correo institucional": row.institutional_email || "",
+    "Fecha cumpleaños": row.birthdate_label || "",
+    Genero: row.genero || "",
+    "Primeros auxilios": row.first_aid === null ? "" : String(Boolean(row.first_aid)),
+    "Asistencia a gimnasio de colaboradores": row.gym_attendance ?? "",
+    "Contacto de emergencia": row.emergency_contact_1 || "",
+    "Numero 1": row.emergency_phone_1 || "",
+    "Contacto de emergencia 2": row.emergency_contact_2 || "",
+    "Numero 2": row.emergency_phone_2 || "",
+    ...(row.custom_data || {})
+  };
+}
+
+function collaboratorToCloud(row) {
+  const baseKeys = new Set([
+    "__id", "__photoPath", "__photoUrl", "Nomina", "Colaboradores", "Puesto", "Coordinador", "% de cursos",
+    "Playeras Joma", "Talla pants", "correo institucional", "Fecha cumpleaños",
+    "Genero", "Primeros auxilios", "Asistencia a gimnasio de colaboradores",
+    "Contacto de emergencia", "Numero 1", "Contacto de emergencia 2", "Numero 2"
+  ]);
+  const customData = Object.fromEntries(Object.entries(row).filter(([key]) => !baseKeys.has(key)));
+  const firstAidValue = String(row["Primeros auxilios"] ?? "").toLowerCase();
+  return {
+    nomina: String(row["Nomina"] || "").trim(),
+    full_name: String(row["Colaboradores"] || "").trim(),
+    puesto: row["Puesto"] || null,
+    coordinador: row["Coordinador"] || null,
+    course_percent: row["% de cursos"] === "" ? null : numberFrom(row["% de cursos"]),
+    playera_joma: row["Playeras Joma"] || null,
+    talla_pants: row["Talla pants"] || null,
+    institutional_email: row["correo institucional"] || null,
+    birthdate_label: row["Fecha cumpleaños"] || null,
+    genero: row["Genero"] || null,
+    first_aid: firstAidValue === "true" ? true : firstAidValue === "false" ? false : null,
+    gym_attendance: row["Asistencia a gimnasio de colaboradores"] === "" ? null : numberFrom(row["Asistencia a gimnasio de colaboradores"]),
+    emergency_contact_1: row["Contacto de emergencia"] || null,
+    emergency_phone_1: row["Numero 1"] || null,
+    emergency_contact_2: row["Contacto de emergencia 2"] || null,
+    emergency_phone_2: row["Numero 2"] || null,
+    photo_path: row.__photoPath || null,
+    custom_data: customData
+  };
+}
+
+async function loadSupabaseCollaborators() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const { data, error } = await supabaseClient
+    .from("collaborators")
+    .select("*")
+    .order("full_name", { ascending: true });
+  if (error) {
+    collaboratorsCloudLoaded = false;
+    toast("No pude leer colaboradores de Supabase");
+    return;
+  }
+  cloudCollaborators = (data || []).map(collaboratorFromCloud);
+  await loadCollaboratorPhotoUrls();
+  collaboratorsCloudLoaded = true;
+  await loadCollaboratorTableSettings();
+}
+
+async function loadCollaboratorPhotoUrls() {
+  const paths = [...new Set(cloudCollaborators.map((row) => row.__photoPath).filter(Boolean))];
+  if (!paths.length) return;
+  const { data, error } = await supabaseClient.storage
+    .from("collaborator-photos")
+    .createSignedUrls(paths, 60 * 60);
+  if (error) {
+    console.error(error);
+    return;
+  }
+  const urls = new Map((data || []).map((item) => [item.path, item.signedUrl]));
+  cloudCollaborators.forEach((row) => {
+    row.__photoUrl = urls.get(row.__photoPath) || "";
+  });
+}
+
+async function loadCollaboratorTableSettings() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const { data, error } = await supabaseClient
+    .from("collaborator_table_settings")
+    .select("columns")
+    .eq("id", "default")
+    .maybeSingle();
+  if (error) {
+    collaboratorColumnOrder = [];
+    collaboratorSettingsLoaded = false;
+    return;
+  }
+  collaboratorColumnOrder = Array.isArray(data?.columns) ? data.columns.filter(Boolean) : [];
+  collaboratorSettingsLoaded = true;
+}
+
+async function saveCollaboratorColumnOrder(columns) {
+  collaboratorColumnOrder = [...columns];
+  if (!supabaseClient || currentUser?.auth !== "supabase") return false;
+  const { error } = await supabaseClient
+    .from("collaborator_table_settings")
+    .upsert({
+      id: "default",
+      columns: collaboratorColumnOrder,
+      updated_by: currentUser.id
+    }, { onConflict: "id" });
+  if (error) {
+    console.error(error);
+    toast("Falta activar la configuración de columnas en Supabase");
+    return false;
+  }
+  collaboratorSettingsLoaded = true;
+  return true;
+}
+
+async function updateCollaboratorCell(rowId, column, value) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
+  const row = cloudCollaborators.find((item) => item.__id === rowId);
+  if (!row) {
+    toast("No encontré el registro para actualizar");
+    return;
+  }
+  const nextValue = typeof value === "string" ? value.trim() : value;
+  if (column === "Nomina" && !nextValue) {
+    toast("La nómina no puede quedar vacía");
+    render();
+    return;
+  }
+  if (column === "Colaboradores" && !nextValue) {
+    toast("El nombre no puede quedar vacío");
+    render();
+    return;
+  }
+  const previousValue = row[column];
+  row[column] = nextValue;
+  const payload = collaboratorToCloud(row);
+  const { error } = await supabaseClient
+    .from("collaborators")
+    .update(payload)
+    .eq("nomina", rowId);
+  if (error) {
+    row[column] = previousValue;
+    console.error(error);
+    toast(error.code === "23505" ? "Esa nómina ya existe" : "No se pudo guardar el cambio");
+    render();
+    return;
+  }
+  addAudit("colaboradores", `${column} actualizado para ${payload.nomina}`);
+  await loadSupabaseCollaborators();
+  render();
+  toast("Cambio guardado en línea");
+}
+
+async function addCollaboratorRow() {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
+  const nomina = String(window.prompt("Escribe la nómina del nuevo profesor:") || "").trim().toUpperCase();
+  if (!nomina) return;
+  const fullName = String(window.prompt("Escribe el nombre completo:") || "").trim();
+  if (!fullName) {
+    toast("El nombre es obligatorio");
+    return;
+  }
+  const row = {
+    __id: nomina,
+    Nomina: nomina,
+    Colaboradores: fullName,
+    Puesto: "Profesor",
+    Coordinador: "",
+    "% de cursos": "",
+    "Playeras Joma": "",
+    "Talla pants": "",
+    "correo institucional": "",
+    Genero: "",
+    "Primeros auxilios": "",
+    ...Object.fromEntries(collaboratorColumns().filter((column) => !BASE_COLLABORATOR_COLUMNS.includes(column)).map((column) => [column, ""]))
+  };
+  const { error } = await supabaseClient.from("collaborators").insert(collaboratorToCloud(row));
+  if (error) {
+    console.error(error);
+    toast(error.code === "23505" ? "Esa nómina ya existe" : "No se pudo agregar el profesor");
+    return;
+  }
+  collaboratorFilter = { coordinator: "todos", shirt: "todos", firstAid: "todos" };
+  addAudit("colaboradores", `Alta de ${nomina} - ${fullName}`);
+  await loadSupabaseCollaborators();
+  render();
+  toast("Profesor agregado y gráficas actualizadas");
+}
+
+async function addCollaboratorColumn() {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
+  const column = String(window.prompt("Nombre de la nueva columna:") || "").trim();
+  if (!column) return;
+  const existingColumn = knownCollaboratorColumns().find((item) => item.toLowerCase() === column.toLowerCase());
+  if (collaboratorColumns().some((item) => item.toLowerCase() === column.toLowerCase())) {
+    toast("Esa columna ya existe");
+    return;
+  }
+  if (existingColumn) {
+    const saved = await saveCollaboratorColumnOrder([...collaboratorColumns(), existingColumn]);
+    if (!saved) return;
+    addAudit("colaboradores", `Columna restaurada: ${existingColumn}`);
+    render();
+    toast("Columna restaurada al final");
+    return;
+  }
+  if (!cloudCollaborators.length) {
+    toast("Primero agrega o importa al menos un profesor");
+    return;
+  }
+  cloudCollaborators.forEach((row) => {
+    row[column] = "";
+  });
+  const payload = cloudCollaborators.map(collaboratorToCloud);
+  const { error } = await supabaseClient.from("collaborators").upsert(payload, { onConflict: "nomina" });
+  if (error) {
+    console.error(error);
+    await loadSupabaseCollaborators();
+    toast("No se pudo agregar la columna");
+    return;
+  }
+  const saved = await saveCollaboratorColumnOrder([...collaboratorColumns(), column]);
+  if (!saved) return;
+  addAudit("colaboradores", `Nueva columna: ${column}`);
+  await loadSupabaseCollaborators();
+  render();
+  toast("Columna agregada");
+}
+
+async function moveCollaboratorColumn(column, direction) {
+  if (!canEditArea("colaboradores")) return;
+  const columns = collaboratorColumns();
+  const index = columns.indexOf(column);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= columns.length) return;
+  [columns[index], columns[target]] = [columns[target], columns[index]];
+  const saved = await saveCollaboratorColumnOrder(columns);
+  if (!saved) return;
+  addAudit("colaboradores", `Columna ${column} movida ${direction < 0 ? "a la izquierda" : "a la derecha"}`);
+  render();
+}
+
+async function deleteCollaboratorColumn(column) {
+  if (!canEditArea("colaboradores")) return;
+  if (["Nomina", "Colaboradores"].includes(column)) {
+    toast("Nómina y colaborador son campos obligatorios");
+    return;
+  }
+  if (!window.confirm(`¿Quitar la columna "${column}" de la tabla?`)) return;
+  const nextColumns = collaboratorColumns().filter((item) => item !== column);
+  const isCustom = !BASE_COLLABORATOR_COLUMNS.includes(column);
+  if (isCustom && cloudCollaborators.length) {
+    cloudCollaborators.forEach((row) => {
+      delete row[column];
+    });
+    const { error } = await supabaseClient
+      .from("collaborators")
+      .upsert(cloudCollaborators.map(collaboratorToCloud), { onConflict: "nomina" });
+    if (error) {
+      console.error(error);
+      await loadSupabaseCollaborators();
+      toast("No se pudo eliminar la columna");
+      return;
+    }
+  }
+  const saved = await saveCollaboratorColumnOrder(nextColumns);
+  if (!saved) return;
+  addAudit("colaboradores", `Columna retirada: ${column}`);
+  render();
+  toast(isCustom ? "Columna eliminada" : "Columna ocultada sin borrar sus datos");
+}
+
+async function deleteCollaboratorRow(rowId) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
+  const row = cloudCollaborators.find((item) => item.__id === rowId);
+  if (!row) return;
+  if (!window.confirm(`¿Eliminar a ${row.Colaboradores || rowId}? Esta acción se guardará en la base.`)) return;
+  const { error } = await supabaseClient.from("collaborators").delete().eq("nomina", rowId);
+  if (error) {
+    console.error(error);
+    toast("No se pudo eliminar el registro");
+    return;
+  }
+  if (row.__photoPath) {
+    await supabaseClient.storage.from("collaborator-photos").remove([row.__photoPath]);
+  }
+  addAudit("colaboradores", `Baja de ${rowId} - ${row.Colaboradores || ""}`);
+  await loadSupabaseCollaborators();
+  render();
+  toast("Registro eliminado y gráficas actualizadas");
+}
+
+async function prepareCollaboratorPhoto(file) {
+  const bitmap = await createImageBitmap(file);
+  const maxSide = 900;
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext("2d");
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("No se pudo preparar la imagen")), "image/jpeg", 0.84);
+  });
+}
+
+async function uploadCollaboratorPhoto() {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
+  const nomina = $("#collaboratorPhotoNomina")?.value;
+  const file = $("#collaboratorPhotoFile")?.files?.[0];
+  if (!nomina || !file) {
+    toast("Selecciona un profesor y una imagen");
+    return;
+  }
+  if (!file.type.startsWith("image/")) {
+    toast("El archivo debe ser una imagen");
+    return;
+  }
+  if (file.size > 12 * 1024 * 1024) {
+    toast("La imagen supera el límite de 12 MB");
+    return;
+  }
+  const row = cloudCollaborators.find((item) => item.__id === nomina);
+  if (!row) return;
+  const button = $("#saveCollaboratorPhoto");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Subiendo...";
+  }
+  try {
+    const prepared = await prepareCollaboratorPhoto(file);
+    const path = `${nomina}/${Date.now()}.jpg`;
+    const upload = await supabaseClient.storage
+      .from("collaborator-photos")
+      .upload(path, prepared, { contentType: "image/jpeg", upsert: false });
+    if (upload.error) throw upload.error;
+    const update = await supabaseClient
+      .from("collaborators")
+      .update({ photo_path: path })
+      .eq("nomina", nomina);
+    if (update.error) {
+      await supabaseClient.storage.from("collaborator-photos").remove([path]);
+      throw update.error;
+    }
+    if (row.__photoPath) {
+      await supabaseClient.storage.from("collaborator-photos").remove([row.__photoPath]);
+    }
+    addAudit("colaboradores", `Foto actualizada para ${nomina}`);
+    photoUploaderOpen = false;
+    selectedPhotoNomina = "";
+    await loadSupabaseCollaborators();
+    render();
+    toast("Fotografía guardada en Supabase");
+  } catch (error) {
+    console.error(error);
+    toast("No se pudo guardar la fotografía");
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Guardar fotografía";
+    }
+  }
+}
+
+async function removeCollaboratorPhoto() {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
+  const nomina = $("#collaboratorPhotoNomina")?.value;
+  const row = cloudCollaborators.find((item) => item.__id === nomina);
+  if (!row?.__photoPath || !window.confirm(`¿Quitar la fotografía de ${row.Colaboradores}?`)) return;
+  const update = await supabaseClient.from("collaborators").update({ photo_path: null }).eq("nomina", nomina);
+  if (update.error) {
+    toast("No se pudo quitar la fotografía");
+    return;
+  }
+  await supabaseClient.storage.from("collaborator-photos").remove([row.__photoPath]);
+  addAudit("colaboradores", `Foto eliminada para ${nomina}`);
+  await loadSupabaseCollaborators();
+  render();
+  toast("Fotografía eliminada");
+}
+
+async function importCollaboratorsToCloud() {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
+  const sourceRows = recordsFor("Uniformes")
+    .filter((row) => String(row.Nomina || "").trim() && String(row.Colaboradores || "").trim())
+    .map((row) => collaboratorToCloud({ ...row, __id: row.Nomina }));
+  if (!sourceRows.length) {
+    toast("No encontré registros para importar");
+    return;
+  }
+  if (!window.confirm(`Se importarán ${sourceRows.length} profesores a la base central. ¿Continuar?`)) return;
+  const { error } = await supabaseClient.from("collaborators").upsert(sourceRows, { onConflict: "nomina" });
+  if (error) {
+    console.error(error);
+    toast("No se pudo completar la importación");
+    return;
+  }
+  addAudit("colaboradores", `Importación inicial de ${sourceRows.length} registros`);
+  await loadSupabaseCollaborators();
+  render();
+  toast(`${sourceRows.length} profesores guardados en Supabase`);
+}
+
+function exportCollaboratorBackup() {
+  const rows = collaboratorRows().map(({ __id, ...row }) => row);
+  const text = JSON.stringify({
+    exported_at: new Date().toISOString(),
+    total: rows.length,
+    collaborators: rows
+  }, null, 2);
+  const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `respaldo-colaboradores-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  addAudit("exportacion", "Respaldo JSON de colaboradores");
+  toast("Respaldo descargado");
+}
+
 async function fetchMyProfile() {
   const rpcResult = await supabaseClient.rpc("get_my_profile");
   if (!rpcResult.error && Array.isArray(rpcResult.data) && rpcResult.data[0]) {
@@ -494,7 +944,7 @@ async function loadSupabaseSession() {
   }
   saveSession(profileToSession(profile, authUser));
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
-  await loadSupabaseCaptures();
+  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators()]);
 }
 
 async function loginWithSupabase() {
@@ -550,7 +1000,7 @@ async function loginWithSupabase() {
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
   activeView = "dashboard";
-  await loadSupabaseCaptures();
+  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators()]);
   render();
   toast(`Sesion Supabase: ${currentUser.name}`);
 }
@@ -639,6 +1089,128 @@ function countBy(rows, key) {
   }, {});
 }
 
+function knownCollaboratorColumns() {
+  const custom = new Set();
+  collaboratorRows().forEach((row) => {
+    Object.keys(row).forEach((key) => {
+      if (!BASE_COLLABORATOR_COLUMNS.includes(key) && !key.startsWith("__") &&
+          !["Fecha cumpleaños", "Asistencia a gimnasio de colaboradores", "Contacto de emergencia", "Numero 1", "Contacto de emergencia 2", "Numero 2"].includes(key)) {
+        custom.add(key);
+      }
+    });
+  });
+  return [...BASE_COLLABORATOR_COLUMNS, ...custom];
+}
+
+function collaboratorColumns() {
+  const known = knownCollaboratorColumns();
+  if (!collaboratorColumnOrder.length) return known;
+  return collaboratorColumnOrder.filter((column) => known.includes(column));
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function collaboratorEditorControl(row, column, editable) {
+  const value = row[column] ?? "";
+  const disabled = editable ? "" : "disabled";
+  const common = `class="collab-cell" data-row-id="${escapeHtml(row.__id || row.Nomina)}" data-column="${escapeHtml(column)}" ${disabled}`;
+  if (["Playeras Joma", "Talla pants"].includes(column)) {
+    const sizes = ["", "XS", "S", "M", "L", "XL", "XXL"];
+    return `<select ${common}>${sizes.map((size) => `<option value="${size}" ${String(value) === size ? "selected" : ""}>${size || "Sin dato"}</option>`).join("")}</select>`;
+  }
+  if (column === "Genero") {
+    const options = ["", "Mujer", "Hombre", "No especificado"];
+    return `<select ${common}>${options.map((option) => `<option value="${option}" ${String(value) === option ? "selected" : ""}>${option || "Sin dato"}</option>`).join("")}</select>`;
+  }
+  if (column === "Primeros auxilios") {
+    const normalized = String(value).toLowerCase() === "true" ? "true" : String(value).toLowerCase() === "false" ? "false" : "";
+    return `<select ${common}><option value="" ${!normalized ? "selected" : ""}>Sin dato</option><option value="true" ${normalized === "true" ? "selected" : ""}>Sí</option><option value="false" ${normalized === "false" ? "selected" : ""}>No</option></select>`;
+  }
+  const type = column === "% de cursos" ? "number" : "text";
+  return `<input ${common} type="${type}" ${type === "number" ? 'min="0" max="100" step="1"' : ""} value="${escapeHtml(value)}" />`;
+}
+
+function collaboratorInitials(name) {
+  return String(name || "?")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0] || "")
+    .join("")
+    .toUpperCase();
+}
+
+function collaboratorAvatar(row, editable) {
+  const label = row.__photoUrl
+    ? `<img src="${escapeHtml(row.__photoUrl)}" alt="Foto de ${escapeHtml(row.Colaboradores)}" />`
+    : `<span>${escapeHtml(collaboratorInitials(row.Colaboradores))}</span>`;
+  return `
+    <button class="collaborator-avatar ${row.__photoUrl ? "has-photo" : ""}" type="button"
+      data-photo-row="${escapeHtml(row.__id || row.Nomina)}" ${editable ? "" : "disabled"}
+      title="${editable ? "Cargar o cambiar fotografía" : "Fotografía del colaborador"}">
+      ${label}
+    </button>
+  `;
+}
+
+function renderCollaboratorPhotoUploader(rows, editable) {
+  if (!photoUploaderOpen || !editable) return "";
+  const selected = rows.find((row) => row.__id === selectedPhotoNomina) || rows[0];
+  if (!selected) return "";
+  selectedPhotoNomina = selected.__id;
+  return `
+    <section class="photo-uploader-panel" aria-label="Cargar fotografía de colaborador">
+      <div class="photo-uploader-preview">
+        ${selected.__photoUrl
+          ? `<img src="${escapeHtml(selected.__photoUrl)}" alt="Foto actual de ${escapeHtml(selected.Colaboradores)}" />`
+          : `<span>${escapeHtml(collaboratorInitials(selected.Colaboradores))}</span>`}
+      </div>
+      <div class="photo-uploader-fields">
+        <label>
+          Profesor
+          <select id="collaboratorPhotoNomina">
+            ${rows.map((row) => `<option value="${escapeHtml(row.__id)}" ${row.__id === selected.__id ? "selected" : ""}>${escapeHtml(row.Colaboradores)} · ${escapeHtml(row.Nomina)}</option>`).join("")}
+          </select>
+        </label>
+        <label>
+          Imagen
+          <input id="collaboratorPhotoFile" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" />
+        </label>
+        <p>La imagen se optimiza automáticamente y se guarda en el espacio privado de Supabase.</p>
+      </div>
+      <div class="photo-uploader-actions">
+        <button class="primary-btn" id="saveCollaboratorPhoto" type="button">Guardar fotografía</button>
+        ${selected.__photoPath ? `<button class="ghost-btn danger-text" id="removeCollaboratorPhoto" type="button">Quitar foto</button>` : ""}
+        <button class="ghost-btn" id="closeCollaboratorPhotoUploader" type="button">Cerrar</button>
+      </div>
+    </section>
+  `;
+}
+
+function collaboratorColumnHeader(column, index, columns, editable) {
+  if (!editable) return `<th>${escapeHtml(column)}</th>`;
+  const protectedColumn = ["Nomina", "Colaboradores"].includes(column);
+  return `
+    <th>
+      <div class="column-heading">
+        <span>${escapeHtml(column)}</span>
+        <div class="column-actions">
+          <button type="button" data-move-column="${escapeHtml(column)}" data-direction="-1" ${index === 0 ? "disabled" : ""} title="Mover a la izquierda" aria-label="Mover ${escapeHtml(column)} a la izquierda">←</button>
+          <button type="button" data-move-column="${escapeHtml(column)}" data-direction="1" ${index === columns.length - 1 ? "disabled" : ""} title="Mover a la derecha" aria-label="Mover ${escapeHtml(column)} a la derecha">→</button>
+          <button type="button" class="column-delete" data-delete-column="${escapeHtml(column)}" ${protectedColumn ? "disabled" : ""} title="${protectedColumn ? "Campo obligatorio" : "Eliminar columna"}" aria-label="Eliminar columna ${escapeHtml(column)}">×</button>
+        </div>
+      </div>
+    </th>
+  `;
+}
+
 function genderLabel(row) {
   const value = String(row["Genero"] || row["Género"] || "").trim().toLowerCase();
   if (value.startsWith("muj")) return "Mujer";
@@ -646,24 +1218,64 @@ function genderLabel(row) {
   return "Sin dato";
 }
 
-function shirtSizeByGender(rows) {
-  const order = ["XS", "S", "M", "L", "XL", "XXL"];
-  const bySize = rows.reduce((acc, row) => {
-    const size = row["Playeras Joma"] || "Sin dato";
+function groupedByGender(rows, key, preferredOrder = []) {
+  const grouped = rows.reduce((acc, row) => {
+    const label = row[key] || "Sin dato";
+    const normalizedLabel = String(label).trim().toLocaleLowerCase("es");
     const gender = genderLabel(row);
-    if (!acc[size]) acc[size] = { label: size, Mujer: 0, Hombre: 0, "Sin dato": 0, total: 0 };
-    acc[size][gender] += 1;
-    acc[size].total += 1;
+    if (!acc[normalizedLabel]) acc[normalizedLabel] = { label, Mujer: 0, Hombre: 0, "Sin dato": 0, total: 0 };
+    acc[normalizedLabel][gender] += 1;
+    acc[normalizedLabel].total += 1;
     return acc;
   }, {});
-  return Object.values(bySize).sort((a, b) => {
+  return Object.values(grouped).sort((a, b) => {
     if (b.total !== a.total) return b.total - a.total;
-    return order.indexOf(a.label) - order.indexOf(b.label);
+    const aOrder = preferredOrder.indexOf(a.label);
+    const bOrder = preferredOrder.indexOf(b.label);
+    if (aOrder >= 0 || bOrder >= 0) return (aOrder < 0 ? 999 : aOrder) - (bOrder < 0 ? 999 : bOrder);
+    return String(a.label).localeCompare(String(b.label), "es");
   });
 }
 
+function renderGenderBars(rows, palette = "shirt") {
+  const max = Math.max(...rows.map((row) => row.total), 1);
+  return rows.map((row) => `
+    <div class="bar-row gender-row ${palette}-palette">
+      <span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span>
+      <div>
+        <div class="bar-track gender-track">
+          <div class="bar-fill segmented-fill" style="width:${Math.round(row.total / max * 100)}%">
+            ${row.Mujer ? `<span class="segment women" style="width:${Math.round(row.Mujer / row.total * 100)}%" title="Mujeres: ${row.Mujer}"></span>` : ""}
+            ${row.Hombre ? `<span class="segment men" style="width:${Math.round(row.Hombre / row.total * 100)}%" title="Hombres: ${row.Hombre}"></span>` : ""}
+            ${row["Sin dato"] ? `<span class="segment unknown" style="width:${Math.round(row["Sin dato"] / row.total * 100)}%" title="Sin dato: ${row["Sin dato"]}"></span>` : ""}
+          </div>
+        </div>
+        <div class="gender-breakdown">
+          <span>Mujeres ${row.Mujer}</span>
+          <span>Hombres ${row.Hombre}</span>
+          ${row["Sin dato"] ? `<span>Sin dato ${row["Sin dato"]}</span>` : ""}
+        </div>
+      </div>
+      <strong>${row.total}</strong>
+    </div>
+  `).join("");
+}
+
+function genderLegend(palette = "shirt") {
+  return `
+    <div class="gender-legend ${palette}-palette" aria-label="Leyenda por género">
+      <span><i class="legend-dot women"></i>Mujeres</span>
+      <span><i class="legend-dot men"></i>Hombres</span>
+      <span><i class="legend-dot unknown"></i>Sin dato</span>
+    </div>
+  `;
+}
+
 function collaboratorRows() {
-  return recordsFor("Uniformes");
+  const rows = currentUser?.auth === "supabase" && collaboratorsCloudLoaded
+    ? cloudCollaborators
+    : recordsFor("Uniformes").filter((row) => String(row.Nomina || row.Colaboradores || "").trim());
+  return [...rows].sort((a, b) => String(a.Colaboradores || "").localeCompare(String(b.Colaboradores || ""), "es"));
 }
 
 function contractRows() {
@@ -1253,17 +1865,16 @@ function renderCollaboratorsDashboard() {
   }
   const rows = filteredCollaborators();
   const metrics = collaboratorMetrics();
-  const shirtSizes = countBy(rows, "Playeras Joma");
-  const shirtGenderRows = shirtSizeByGender(rows);
-  const pantSizes = countBy(rows, "Talla pants");
-  const coordinators = countBy(rows, "Coordinador");
+  const sizeOrder = ["XS", "CH", "S", "M", "L", "XL", "XXL", "Sin dato"];
+  const shirtGenderRows = groupedByGender(rows, "Playeras Joma", sizeOrder);
+  const pantGenderRows = groupedByGender(rows, "Talla pants", sizeOrder);
+  const coordinatorGenderRows = groupedByGender(rows, "Coordinador").slice(0, 10);
+  const columns = collaboratorColumns();
+  const editable = currentUser?.auth === "supabase" && canEditArea("colaboradores");
   const allRows = collaboratorRows();
   const coordinatorOptions = [...new Set(allRows.map((row) => row["Coordinador"]).filter(Boolean))].sort();
   const shirtOptions = [...new Set(allRows.map((row) => row["Playeras Joma"]).filter(Boolean))].sort();
-  const maxSize = Math.max(...shirtGenderRows.map((row) => row.total), 1);
-  const maxCoord = Math.max(...Object.values(coordinators), 1);
   return `
-    <div class="permission-strip">Este modulo usa la informacion completa autorizada del archivo Uniformes de Equipo RecSports 26.xlsx.</div>
     <section class="filters-band" aria-label="Filtros de colaboradores">
       <label>
         Coordinador
@@ -1292,62 +1903,29 @@ function renderCollaboratorsDashboard() {
         <input value="${rows.length} de ${allRows.length}" disabled />
       </label>
     </section>
-    <div class="kpi-grid">
-      <div class="kpi"><span>Colaboradores</span><strong>${metrics.collaborators}</strong><em>registros de uniformes</em></div>
-      <div class="kpi"><span>Primeros auxilios</span><strong>${metrics.firstAid}</strong><em>colaboradores marcados</em></div>
-      <div class="kpi"><span>Promedio cursos</span><strong>${metrics.courseAvg}%</strong><em>avance promedio</em></div>
-      <div class="kpi"><span>Contratos/layouts</span><strong>${metrics.contracts}</strong><em>AD26 + Verano26</em></div>
+    <div class="kpi-grid collaborator-kpi-strip">
+      <div class="kpi"><span>Colaboradores</span><strong>${metrics.collaborators}</strong><em>uniformes</em></div>
+      <div class="kpi"><span>Primeros auxilios</span><strong>${metrics.firstAid}</strong><em>registrados</em></div>
+      <div class="kpi"><span>Promedio cursos</span><strong>${metrics.courseAvg}%</strong><em>avance</em></div>
+      <div class="kpi"><span>Contratos</span><strong>${metrics.contracts}</strong><em>layouts</em></div>
     </div>
     <div class="charts-grid">
       <div class="chart-panel">
         <h3>Playeras Joma por talla</h3>
-        <div class="gender-legend" aria-label="Leyenda por genero">
-          <span><i class="legend-dot women"></i>Mujeres</span>
-          <span><i class="legend-dot men"></i>Hombres</span>
-          <span><i class="legend-dot unknown"></i>Sin dato</span>
-        </div>
-        ${shirtGenderRows.map((row) => `
-          <div class="bar-row gender-row">
-            <span>${row.label}</span>
-            <div>
-              <div class="bar-track gender-track">
-                <div class="bar-fill segmented-fill" style="width:${Math.round(row.total / maxSize * 100)}%">
-                  ${row.Mujer ? `<span class="segment women" style="width:${Math.round(row.Mujer / row.total * 100)}%" title="Mujeres: ${row.Mujer}"></span>` : ""}
-                  ${row.Hombre ? `<span class="segment men" style="width:${Math.round(row.Hombre / row.total * 100)}%" title="Hombres: ${row.Hombre}"></span>` : ""}
-                  ${row["Sin dato"] ? `<span class="segment unknown" style="width:${Math.round(row["Sin dato"] / row.total * 100)}%" title="Sin dato: ${row["Sin dato"]}"></span>` : ""}
-                </div>
-              </div>
-              <div class="gender-breakdown">
-                <span>M ${row.Mujer}</span>
-                <span>H ${row.Hombre}</span>
-                ${row["Sin dato"] ? `<span>Sin dato ${row["Sin dato"]}</span>` : ""}
-              </div>
-            </div>
-            <strong>${row.total}</strong>
-          </div>
-        `).join("")}
+        ${genderLegend("shirt")}
+        ${renderGenderBars(shirtGenderRows, "shirt")}
       </div>
       <div class="chart-panel">
         <h3>Colaboradores por coordinador</h3>
-        ${Object.entries(coordinators).slice(0, 8).map(([label, value]) => `
-          <div class="bar-row">
-            <span>${label}</span>
-            <div class="bar-track"><div class="bar-fill" style="width:${Math.round(value / maxCoord * 100)}%"></div></div>
-            <strong>${value}</strong>
-          </div>
-        `).join("")}
+        ${genderLegend("coordinator")}
+        ${renderGenderBars(coordinatorGenderRows, "coordinator")}
       </div>
     </div>
     <div class="charts-grid">
       <div class="chart-panel">
-        <h3>Talla pants</h3>
-        ${Object.entries(pantSizes).map(([label, value]) => `
-          <div class="bar-row">
-            <span>${label}</span>
-            <div class="bar-track"><div class="bar-fill" style="width:${Math.round(value / Math.max(...Object.values(pantSizes), 1) * 100)}%"></div></div>
-            <strong>${value}</strong>
-          </div>
-        `).join("")}
+        <h3>Pants por talla</h3>
+        ${genderLegend("pants")}
+        ${renderGenderBars(pantGenderRows, "pants")}
       </div>
       <div class="chart-panel">
         <h3>Operacion del modulo</h3>
@@ -1355,27 +1933,48 @@ function renderCollaboratorsDashboard() {
         <p class="hero-copy">Incluye pruebas fisicas, asistencia a gimnasio, historial de profesores, contactos de emergencia y layouts de contratacion.</p>
       </div>
     </div>
-    <div class="table-wrap">
-      <table>
+    ${currentUser?.auth === "supabase" && collaboratorsCloudLoaded && !cloudCollaborators.length ? `
+      <div class="permission-strip import-collaborators-callout">
+        La tabla central está vacía. Importa una sola vez los registros actuales del archivo Uniformes.
+        <button class="primary-btn inline-action" id="importCollaboratorsToCloud" type="button">Importar datos iniciales</button>
+      </div>
+    ` : ""}
+    <div class="collaborator-table-header">
+      <div>
+        <p class="eyebrow">Archivo máster</p>
+        <h3>Profesores y colaboradores</h3>
+        <span class="editor-status">${editable ? "Edita cualquier celda y presiona Enter. El orden y las columnas también se guardan en línea." : "Modo consulta."}</span>
+      </div>
+      <div class="table-actions">
+        <button class="primary-btn" id="openCollaboratorPhotoUploader" type="button" ${editable ? "" : "disabled"}>Cargar imágenes</button>
+        <button class="ghost-btn" id="exportCollaboratorBackup" type="button">Exportar respaldo</button>
+      </div>
+    </div>
+    ${renderCollaboratorPhotoUploader(allRows, editable)}
+    <div class="table-wrap collaborator-editor-wrap">
+      <table class="collaborator-editor">
         <thead>
-          <tr><th>Nomina</th><th>Colaborador</th><th>Puesto</th><th>Coordinador</th><th>% cursos</th><th>Playera</th><th>Pants</th><th>Correo</th><th>Genero</th><th>Primeros auxilios</th></tr>
+          <tr><th class="photo-heading">Foto</th>${columns.map((column, index) => collaboratorColumnHeader(column, index, columns, editable)).join("")}<th class="row-actions-heading">Fila</th></tr>
         </thead>
         <tbody>
-          ${rows.slice(0, 35).map((row) => `
-            <tr>
-              <td>${row["Nomina"] || ""}</td>
-              <td>${row["Colaboradores"] || ""}</td>
-              <td>${row["Puesto"] || ""}</td>
-              <td>${row["Coordinador"] || ""}</td>
-              <td>${row["% de cursos"] || ""}</td>
-              <td>${row["Playeras Joma"] || ""}</td>
-              <td>${row["Talla pants"] || ""}</td>
-              <td>${row["correo institucional"] || ""}</td>
-              <td>${row["Genero"] || ""}</td>
-              <td>${row["Primeros auxilios"] || ""}</td>
+          ${rows.map((row) => `
+            <tr data-row-id="${escapeHtml(row.__id || row.Nomina)}">
+              <td class="photo-cell">${collaboratorAvatar(row, editable)}</td>
+              ${columns.map((column) => `<td>${collaboratorEditorControl(row, column, editable)}</td>`).join("")}
+              <td class="row-actions-cell"><button class="delete-row-btn" data-delete-row="${escapeHtml(row.__id || row.Nomina)}" type="button" ${editable ? "" : "disabled"} title="Eliminar fila">×</button></td>
             </tr>
-          `).join("")}
+          `).join("") || `<tr><td colspan="${columns.length + 2}">No hay registros con los filtros seleccionados.</td></tr>`}
         </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="${columns.length + 2}">
+              <div class="table-footer-actions">
+                <button class="primary-btn" id="addCollaboratorRow" type="button" ${editable ? "" : "disabled"}>+ Agregar profesor</button>
+                <button class="ghost-btn" id="addCollaboratorColumn" type="button" ${editable ? "" : "disabled"}>+ Agregar columna al final</button>
+              </div>
+            </td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   `;
@@ -1577,6 +2176,43 @@ function render() {
     collaboratorFilter[event.target.dataset.filter] = event.target.value;
     render();
   }));
+  $$(".collab-cell").forEach((control) => control.addEventListener("change", (event) => {
+    updateCollaboratorCell(event.target.dataset.rowId, event.target.dataset.column, event.target.value);
+  }));
+  $$(".collab-cell").forEach((control) => control.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    event.target.blur();
+  }));
+  $("#addCollaboratorRow")?.addEventListener("click", addCollaboratorRow);
+  $("#addCollaboratorColumn")?.addEventListener("click", addCollaboratorColumn);
+  $("#exportCollaboratorBackup")?.addEventListener("click", exportCollaboratorBackup);
+  $("#openCollaboratorPhotoUploader")?.addEventListener("click", () => {
+    photoUploaderOpen = true;
+    selectedPhotoNomina = selectedPhotoNomina || collaboratorRows()[0]?.__id || "";
+    render();
+  });
+  $("#closeCollaboratorPhotoUploader")?.addEventListener("click", () => {
+    photoUploaderOpen = false;
+    render();
+  });
+  $("#collaboratorPhotoNomina")?.addEventListener("change", (event) => {
+    selectedPhotoNomina = event.target.value;
+    render();
+  });
+  $("#saveCollaboratorPhoto")?.addEventListener("click", uploadCollaboratorPhoto);
+  $("#removeCollaboratorPhoto")?.addEventListener("click", removeCollaboratorPhoto);
+  $$("[data-photo-row]").forEach((button) => button.addEventListener("click", () => {
+    selectedPhotoNomina = button.dataset.photoRow;
+    photoUploaderOpen = true;
+    render();
+  }));
+  $("#importCollaboratorsToCloud")?.addEventListener("click", importCollaboratorsToCloud);
+  $$("[data-delete-row]").forEach((button) => button.addEventListener("click", () => deleteCollaboratorRow(button.dataset.deleteRow)));
+  $$("[data-move-column]").forEach((button) => button.addEventListener("click", () => {
+    moveCollaboratorColumn(button.dataset.moveColumn, Number(button.dataset.direction));
+  }));
+  $$("[data-delete-column]").forEach((button) => button.addEventListener("click", () => deleteCollaboratorColumn(button.dataset.deleteColumn)));
   $$(".report-download").forEach((button) => button.addEventListener("click", () => downloadCsv(button.dataset.report || "reporte")));
 }
 
@@ -1688,7 +2324,7 @@ function downloadBlob(text, filename) {
 
 function downloadUniformesCsv(name = "colaboradores") {
   const rows = filteredCollaborators();
-  const headers = ["Nomina", "Colaboradores", "Puesto", "Coordinador", "% de cursos", "Playeras Joma", "Talla pants", "correo institucional", "Fecha cumpleaños", "Genero", "Primeros auxilios", "Asistencia a gimnasio de colaboradores", "Contacto de emergencia", "Numero 1", "Numero 2"];
+  const headers = collaboratorColumns();
   const csv = [
     headers.join(","),
     ...rows.map((row) => headers.map((key) => csvEscape(row[key])).join(","))
@@ -1824,6 +2460,10 @@ $("#logoutButton").addEventListener("click", () => {
   if (currentUser?.auth === "supabase") {
     supabaseClient?.auth.signOut();
     cloudCaptures = [];
+    cloudCollaborators = [];
+    collaboratorsCloudLoaded = false;
+    collaboratorColumnOrder = [];
+    collaboratorSettingsLoaded = false;
     cloudStatus = "Supabase listo";
   }
   clearSession();
