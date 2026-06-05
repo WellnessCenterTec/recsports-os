@@ -134,6 +134,28 @@ body {
   background: var(--line);
 }
 
+.login-feedback {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.login-feedback[data-state="loading"] {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #075985;
+}
+
+.login-feedback[data-state="error"] {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
 .session-pill {
   display: inline-flex;
   align-items: center;

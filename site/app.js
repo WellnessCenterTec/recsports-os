@@ -485,7 +485,15 @@ async function loadSupabaseSession() {
 }
 
 async function loginWithSupabase() {
+  const feedback = $("#supabaseLoginFeedback");
+  const button = $("#supabaseLoginButton");
+  const setFeedback = (message, state = "") => {
+    if (!feedback) return;
+    feedback.textContent = message;
+    feedback.dataset.state = state;
+  };
   if (!supabaseClient) {
+    setFeedback("Supabase aun no esta configurado en esta publicacion.", "error");
     toast("Supabase aun no esta configurado en esta publicacion");
     return;
   }
@@ -493,15 +501,27 @@ async function loginWithSupabase() {
   const email = String(form.get("email") || "").trim();
   const password = String(form.get("password") || "");
   if (!email || !password) {
+    setFeedback("Escribe correo y contrasena para entrar.", "error");
     toast("Escribe correo y contrasena");
     return;
   }
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Validando acceso...";
+  }
+  setFeedback("Validando usuario en Supabase...", "loading");
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if (error) {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Entrar con Supabase";
+    }
+    setFeedback(error.message || "No pude iniciar sesion. Revisa correo y contrasena.", "error");
     toast("No pude iniciar sesion con Supabase");
     return;
   }
   const authUser = data?.user;
+  setFeedback("Acceso correcto. Revisando permisos RecSports...", "loading");
   const { data: profile, error: profileError } = await supabaseClient
     .from("app_profiles")
     .select("id, email, display_name, role, area_key, active")
@@ -509,6 +529,11 @@ async function loginWithSupabase() {
     .single();
   if (profileError || !profile?.active) {
     await supabaseClient.auth.signOut();
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Entrar con Supabase";
+    }
+    setFeedback("El usuario existe, pero falta permiso en RecSports OS.", "error");
     toast("El usuario existe, pero falta permiso en RecSports OS");
     return;
   }
@@ -761,6 +786,7 @@ function renderLogin() {
             <input name="password" type="password" placeholder="Contrasena de Supabase" />
           </label>
           <button class="primary-btn" type="button" id="supabaseLoginButton" ${supabaseClient ? "" : "disabled"}>Entrar con Supabase</button>
+          <p class="login-feedback" id="supabaseLoginFeedback">${supabaseClient ? "Listo para validar tu cuenta Supabase." : "Supabase no esta disponible en esta publicacion."}</p>
           <div class="login-divider">Modo demo</div>
           <p class="eyebrow">Sesión de prueba</p>
           <h2>Selecciona un perfil</h2>
