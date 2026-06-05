@@ -6,6 +6,11 @@ const env = {
   SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 };
 
+if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+  console.log("Supabase env vars missing; keeping existing site/env.js");
+  process.exit(0);
+}
+
 const output = `window.RECSPORTS_ENV = ${JSON.stringify(env, null, 2)};\n`;
 fs.writeFileSync(path.join(__dirname, "..", "site", "env.js"), output, "utf8");
 console.log("Generated site/env.js");
