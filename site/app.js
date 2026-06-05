@@ -1128,6 +1128,8 @@ function renderReports(area) {
 }
 
 function renderSystemMap() {
+  const systemMap = $("#systemMap");
+  if (!systemMap) return;
   const nodes = [
     ["Base de datos", "PostgreSQL en Supabase. Tablas: alumnos_minimos, participaciones, eventos, clases, torneos, accesos, compras, presupuesto, auditoria."],
     ["Autenticacion", "Login por coordinador. Direccion ve todo; coordinadores solo capturan y consultan su area."],
@@ -1135,7 +1137,7 @@ function renderSystemMap() {
     ["Exportacion", "PDF ejecutivo, Excel por area, reportes programados y bitacora de cambios."],
     ["Privacidad", "Sin nombres, correos, telefonos ni historial clinico. La matricula es el identificador operativo."]
   ];
-  $("#systemMap").innerHTML = nodes.map(([title, text]) => `<div class="map-node"><strong>${title}</strong><span>${text}</span></div>`).join("") + `
+  systemMap.innerHTML = nodes.map(([title, text]) => `<div class="map-node"><strong>${title}</strong><span>${text}</span></div>`).join("") + `
     <div class="map-node">
       <strong>Documentos del proyecto</strong>
       <a href="./propuesta-sistema.md" target="_blank">Abrir propuesta funcional</a>

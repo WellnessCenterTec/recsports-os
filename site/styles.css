@@ -433,12 +433,11 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 
 .view-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
 }
 
-.main-panel, .side-panel {
+.main-panel {
   background: rgba(255,255,255,.72);
   border: 1px solid var(--line);
   border-radius: 8px;
