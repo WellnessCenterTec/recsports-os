@@ -90,16 +90,6 @@ const areas = [
     reports: ["Directorio de colaboradores", "Reporte de uniformes", "Pruebas fisicas", "Layouts de contratacion"]
   },
   {
-    id: "evaluaciones",
-    name: "Evaluaciones Físicas",
-    tone: "green",
-    source: "Formación Deportiva histórico y capturas nuevas de WellSync",
-    capture: ["Código general", "Colaborador", "Periodo", "Tipo de evaluación", "Disciplina", "Siete pruebas físicas", "Observaciones"],
-    indicators: ["Evaluaciones realizadas", "Colaboradores únicos", "Iniciales vs finales", "Evolución por colaborador", "Promedios por prueba", "Históricos pendientes"],
-    charts: ["Comparativo inicial y final", "Tendencia por disciplina", "Tendencia por colaborador", "Resultados por semestre"],
-    reports: ["Historial de evaluaciones", "Comparativo inicial y final", "Resultados por colaborador"]
-  },
-  {
     id: "compras",
     name: "Compras y Presupuesto",
     tone: "gold",
@@ -1794,7 +1784,6 @@ function renderExecutiveKpis() {
 
 function renderDashboard(area) {
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
-  if (area.id === "evaluaciones") return renderPhysicalEvaluationsDashboard();
   if (area.id === "configuracion") return renderConfigurationDashboard();
   const data = filteredStudents();
   const metrics = metricSet(data);
@@ -2307,7 +2296,6 @@ function renderCollaboratorsDashboard() {
 function renderCapture(area) {
   const selected = area.id === "general" ? areas.find((item) => item.id === currentUser?.area) || areas[1] : area;
   if (selected.id === "colaboradores") return renderCollaboratorsCapture(selected);
-  if (selected.id === "evaluaciones") return renderPhysicalEvaluationsCapture();
   if (selected.id === "configuracion") return renderConfigurationCapture();
   const editable = canEditArea(selected.id);
   return `
@@ -2500,8 +2488,19 @@ function render() {
   renderExecutiveKpis();
   renderSystemMap();
   $("#currentTitle").textContent = area.name;
+  const evaluationsTab = $("#evaluationsViewButton");
+  if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
+  if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
-  $("#contentArea").innerHTML = activeView === "dashboard" ? renderDashboard(area) : activeView === "capture" ? renderCapture(area) : activeView === "reports" ? renderReports(area) : renderBlueprint(area);
+  $("#contentArea").innerHTML = activeView === "dashboard"
+    ? renderDashboard(area)
+    : activeView === "capture"
+      ? renderCapture(area)
+      : activeView === "reports"
+        ? renderReports(area)
+        : activeView === "evaluations"
+          ? renderPhysicalEvaluationsDashboard()
+          : renderBlueprint(area);
   $$("[data-jump]").forEach((button) => button.addEventListener("click", () => {
     activeArea = button.dataset.jump;
     activeView = "dashboard";
