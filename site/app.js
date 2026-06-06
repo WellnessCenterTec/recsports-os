@@ -354,7 +354,8 @@ let physicalEvaluationFilter = {
   discipline: "todos",
   collaborator: "todos",
   gender: "todos",
-  classification: "todos"
+  classification: "todos",
+  test: "cooper_12m"
 };
 let collaboratorColumnOrder = [];
 let collaboratorSettingsLoaded = false;
@@ -1441,6 +1442,16 @@ const PHYSICAL_TEST_LABELS = {
   remo_suspendido: "Remo suspendido"
 };
 
+const PHYSICAL_TEST_UNITS = {
+  cooper_12m: "km",
+  abdominales: "repeticiones",
+  lagartijas: "repeticiones",
+  saltos_cuerda: "repeticiones",
+  wall_ball: "repeticiones",
+  remo_distancia: "metros",
+  remo_suspendido: "repeticiones"
+};
+
 function physicalFilterOptions(key) {
   return [...new Set(physicalEvaluations.map((row) => String(row[key] || "").trim()).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, "es"));
@@ -1469,9 +1480,59 @@ function physicalResult(row, testKey) {
 function physicalAverage(rows, testKey, stage = "todos") {
   const values = rows
     .filter((row) => stage === "todos" || row.evaluation_stage === stage)
-    .map((row) => Number(physicalResult(row, testKey)?.numeric_value))
-    .filter((value) => Number.isFinite(value));
+    .map((row) => physicalResult(row, testKey)?.numeric_value)
+    .filter((value) => value !== null && value !== undefined && value !== "")
+    .map(Number)
+    .filter(Number.isFinite);
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
+function physicalTestStats(rows, testKey) {
+  const values = rows
+    .map((row) => physicalResult(row, testKey)?.numeric_value)
+    .filter((value) => value !== null && value !== undefined && value !== "")
+    .map(Number)
+    .filter(Number.isFinite);
+  return {
+    count: values.length,
+    average: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null,
+    min: values.length ? Math.min(...values) : null,
+    max: values.length ? Math.max(...values) : null
+  };
+}
+
+function physicalResultDisplay(row, testKey) {
+  const result = physicalResult(row, testKey);
+  if (!result) return "—";
+  if (result.numeric_value !== null && result.numeric_value !== undefined && result.numeric_value !== "") {
+    return `${Number(result.numeric_value).toLocaleString("es-MX", { maximumFractionDigits: 2 })}`;
+  }
+  if (result.raw_value) return result.raw_value;
+  return {
+    lesion: "Lesión",
+    contraindicacion: "Contraindicación",
+    otro: "Otro motivo",
+    no_realizada: "No realizada"
+  }[result.result_status] || "—";
+}
+
+function physicalTimeline(rows, testKey) {
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const result = physicalResult(row, testKey);
+    if (result?.numeric_value === null || result?.numeric_value === undefined || result?.numeric_value === "") return;
+    const value = Number(result.numeric_value);
+    if (!Number.isFinite(value) || !row.evaluated_at) return;
+    const dateKey = new Date(row.evaluated_at).toISOString().slice(0, 10);
+    const item = grouped.get(dateKey) || { date: dateKey, total: 0, count: 0 };
+    item.total += value;
+    item.count += 1;
+    grouped.set(dateKey, item);
+  });
+  return [...grouped.values()]
+    .map((item) => ({ date: item.date, average: item.total / item.count, count: item.count }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-14);
 }
 
 function physicalStatusLabel(value) {
@@ -1489,19 +1550,6 @@ function renderPhysicalEvaluationsDashboard() {
   const initial = rows.filter((row) => row.evaluation_stage === "inicial").length;
   const final = rows.filter((row) => row.evaluation_stage === "final").length;
   const pending = rows.filter((row) => row.classification_status === "pendiente").length;
-  const disciplineCounts = Object.entries(rows.reduce((acc, row) => {
-    const key = row.discipline || "Sin clasificar";
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {})).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  const maxDiscipline = Math.max(...disciplineCounts.map(([, count]) => count), 1);
-  const stages = [
-    ["Inicial", initial],
-    ["Seguimiento", rows.filter((row) => row.evaluation_stage === "seguimiento").length],
-    ["Final", final],
-    ["Sin clasificar", rows.filter((row) => row.evaluation_stage === "sin_clasificar").length]
-  ];
-  const maxStage = Math.max(...stages.map(([, count]) => count), 1);
   const periodOptions = [...new Set(physicalEvaluations.map((row) => row.period_key || row.semester_label || "Sin clasificar"))].sort();
   const disciplineOptions = [...new Set(physicalEvaluations.map((row) => row.discipline || "Sin clasificar"))].sort();
   const collaboratorOptions = [...new Map(physicalEvaluations.map((row) => [
@@ -1509,11 +1557,17 @@ function renderPhysicalEvaluationsDashboard() {
     row.captured_name || row.collaborator_nomina
   ])).entries()].sort((a, b) => a[1].localeCompare(b[1], "es"));
   const comparisonRows = Object.keys(PHYSICAL_TEST_LABELS).map((testKey) => {
+    const stats = physicalTestStats(rows, testKey);
     const initialAverage = physicalAverage(rows, testKey, "inicial");
     const finalAverage = physicalAverage(rows, testKey, "final");
-    const delta = initialAverage !== null && finalAverage !== null ? finalAverage - initialAverage : null;
-    return { testKey, initialAverage, finalAverage, delta };
+    return { testKey, stats, initialAverage, finalAverage };
   });
+  const coverageMax = Math.max(...comparisonRows.map((row) => row.stats.count), 1);
+  const selectedTest = PHYSICAL_TEST_LABELS[physicalEvaluationFilter.test]
+    ? physicalEvaluationFilter.test
+    : "cooper_12m";
+  const timeline = physicalTimeline(rows, selectedTest);
+  const timelineMax = Math.max(...timeline.map((item) => item.average), 1);
   const noData = !physicalEvaluationsLoaded
     ? `<div class="permission-strip">Activa el esquema de Evaluaciones Físicas en Supabase para mostrar información real.</div>`
     : "";
@@ -1568,6 +1622,11 @@ function renderPhysicalEvaluationsDashboard() {
           <option value="pendiente" ${physicalEvaluationFilter.classification === "pendiente" ? "selected" : ""}>Pendientes</option>
         </select>
       </label>
+      <label>Prueba para evolución
+        <select class="physical-filter" data-filter="test">
+          ${Object.entries(PHYSICAL_TEST_LABELS).map(([value, label]) => `<option value="${value}" ${selectedTest === value ? "selected" : ""}>${label}</option>`).join("")}
+        </select>
+      </label>
     </div>
     <div class="kpi-grid physical-kpi-grid">
       <div class="kpi"><span>Evaluaciones</span><strong>${rows.length}</strong><em>registros filtrados</em></div>
@@ -1577,36 +1636,43 @@ function renderPhysicalEvaluationsDashboard() {
     </div>
     <div class="charts-grid">
       <div class="chart-panel">
-        <h3>Evaluaciones por disciplina</h3>
-        ${disciplineCounts.map(([label, count]) => `
+        <h3>Resultados históricos disponibles</h3>
+        <p class="hero-copy">Cantidad de resultados numéricos conservados por prueba.</p>
+        ${comparisonRows.map((row) => `
           <div class="bar-row">
-            <span>${escapeHtml(label)}</span>
-            <div class="bar-track"><div class="bar-fill" style="width:${Math.round(count / maxDiscipline * 100)}%"></div></div>
-            <strong>${count}</strong>
-          </div>
-        `).join("") || "<p class='hero-copy'>Aún no hay registros para estos filtros.</p>"}
-      </div>
-      <div class="chart-panel">
-        <h3>Etapa de evaluación</h3>
-        ${stages.map(([label, count]) => `
-          <div class="bar-row compact-bar-row">
-            <span>${label}</span>
-            <div class="bar-track"><div class="bar-fill physical-stage-bar" style="width:${Math.round(count / maxStage * 100)}%"></div></div>
-            <strong>${count}</strong>
+            <span>${PHYSICAL_TEST_LABELS[row.testKey]}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.round(row.stats.count / coverageMax * 100)}%"></div></div>
+            <strong>${row.stats.count}</strong>
           </div>
         `).join("")}
+      </div>
+      <div class="chart-panel">
+        <h3>Evolución: ${PHYSICAL_TEST_LABELS[selectedTest]}</h3>
+        <p class="hero-copy">Promedio por fecha en ${PHYSICAL_TEST_UNITS[selectedTest]}.</p>
+        <div class="physical-timeline">
+          ${timeline.map((item) => `
+            <div class="physical-timeline-row">
+              <span>${new Date(`${item.date}T12:00:00`).toLocaleDateString("es-MX", { year: "2-digit", month: "short" })}</span>
+              <div class="bar-track"><div class="bar-fill physical-stage-bar" style="width:${Math.max(3, Math.round(item.average / timelineMax * 100))}%"></div></div>
+              <strong>${item.average.toFixed(1)}</strong>
+            </div>
+          `).join("") || "<p class='hero-copy'>Esta prueba todavía no tiene valores numéricos clasificables.</p>"}
+        </div>
       </div>
     </div>
     <div class="table-wrap physical-comparison-table">
       <table>
-        <thead><tr><th>Prueba</th><th>Promedio inicial</th><th>Promedio final</th><th>Cambio</th></tr></thead>
+        <thead><tr><th>Prueba</th><th>Promedio histórico</th><th>Mínimo</th><th>Máximo</th><th>Resultados</th><th>Inicial</th><th>Final</th></tr></thead>
         <tbody>
           ${comparisonRows.map((row) => `
             <tr>
-              <td>${PHYSICAL_TEST_LABELS[row.testKey]}</td>
-              <td>${row.initialAverage === null ? "Sin datos" : row.initialAverage.toFixed(1)}</td>
-              <td>${row.finalAverage === null ? "Sin datos" : row.finalAverage.toFixed(1)}</td>
-              <td class="${row.delta !== null && row.delta >= 0 ? "positive-value" : ""}">${row.delta === null ? "Pendiente" : `${row.delta >= 0 ? "+" : ""}${row.delta.toFixed(1)}`}</td>
+              <td>${PHYSICAL_TEST_LABELS[row.testKey]} <small>${PHYSICAL_TEST_UNITS[row.testKey]}</small></td>
+              <td><strong>${row.stats.average === null ? "Sin datos" : row.stats.average.toFixed(1)}</strong></td>
+              <td>${row.stats.min === null ? "—" : row.stats.min.toFixed(1)}</td>
+              <td>${row.stats.max === null ? "—" : row.stats.max.toFixed(1)}</td>
+              <td>${row.stats.count}</td>
+              <td>${row.initialAverage === null ? "Pendiente" : row.initialAverage.toFixed(1)}</td>
+              <td>${row.finalAverage === null ? "Pendiente" : row.finalAverage.toFixed(1)}</td>
             </tr>
           `).join("")}
         </tbody>
@@ -1614,26 +1680,32 @@ function renderPhysicalEvaluationsDashboard() {
     </div>
     <div class="physical-dashboard-actions physical-history-heading">
       <div>
-        <p class="eyebrow">Historial</p>
-        <h3>Últimas evaluaciones</h3>
+        <p class="eyebrow">Historial detallado</p>
+        <h3>Resultados de cada evaluación</h3>
+        <p class="hero-copy">Los valores de remo históricos se muestran tal como estaban escritos porque mezclaban calorías y metros.</p>
       </div>
       <button class="ghost-btn" id="exportPhysicalEvaluations" type="button">Exportar Excel</button>
     </div>
-    <div class="table-wrap">
+    <div class="table-wrap physical-history-table">
       <table>
-        <thead><tr><th>Fecha</th><th>Colaborador</th><th>Periodo</th><th>Tipo</th><th>Disciplina</th><th>Origen</th><th>Estado</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Fecha</th><th>Colaborador</th>
+            ${Object.values(PHYSICAL_TEST_LABELS).map((label) => `<th>${label}</th>`).join("")}
+            <th>Periodo</th><th>Tipo</th><th>Estado</th>
+          </tr>
+        </thead>
         <tbody>
-          ${rows.slice(0, 80).map((row) => `
+          ${rows.slice(0, 169).map((row) => `
             <tr>
               <td>${row.evaluated_at ? new Date(row.evaluated_at).toLocaleDateString("es-MX") : "Sin fecha"}</td>
               <td>${escapeHtml(row.captured_name || row.collaborator_nomina || "Sin identificar")}</td>
+              ${Object.keys(PHYSICAL_TEST_LABELS).map((testKey) => `<td>${escapeHtml(physicalResultDisplay(row, testKey))}</td>`).join("")}
               <td>${escapeHtml(row.period_key || row.semester_label || "Pendiente")}</td>
               <td>${physicalStatusLabel(row.evaluation_stage)}</td>
-              <td>${escapeHtml(row.discipline || "Pendiente")}</td>
-              <td>${row.source === "historical_excel" ? "Histórico Excel" : "WellSync"}</td>
               <td><span class="physical-status ${row.classification_status === "pendiente" ? "pending" : "ready"}">${row.classification_status === "pendiente" ? "Pendiente" : "Clasificada"}</span></td>
             </tr>
-          `).join("") || '<tr><td colspan="7">No hay evaluaciones para estos filtros.</td></tr>'}
+          `).join("") || '<tr><td colspan="12">No hay evaluaciones para estos filtros.</td></tr>'}
         </tbody>
       </table>
     </div>

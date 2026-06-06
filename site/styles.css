@@ -631,6 +631,52 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   margin-top: 12px;
 }
 
+.physical-comparison-table small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.physical-timeline {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.physical-timeline-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 50px;
+  gap: 9px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.physical-timeline-row strong {
+  color: var(--ink);
+  text-align: right;
+}
+
+.physical-history-table {
+  max-height: 680px;
+}
+
+.physical-history-table table {
+  min-width: 1500px;
+}
+
+.physical-history-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.physical-history-table td:nth-child(n+3):nth-child(-n+9) {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .positive-value {
   color: var(--green);
   font-weight: 800;
