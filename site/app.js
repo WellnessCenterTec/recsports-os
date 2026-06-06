@@ -208,7 +208,7 @@ const supabaseClient = window.supabase && SUPABASE_ENV.SUPABASE_URL && SUPABASE_
   : null;
 const scheduleDays = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
 const scheduleHours = Array.from({ length: 16 }, (_, index) => `${String(6 + index).padStart(2, "0")}:00`);
-const knownInstallations = ["Fitness", "Ciclismo", "Yoga", "Taekwondo", "Croata", "Box", "Alberca", "Cancha 1", "Cancha 2", "Cancha 3", "Gimnasio", "Sala funcional", "Explanada", "Auditorio", "Cancha exterior"];
+const knownInstallations = ["Fitness", "Ciclismo", "Yoga", "Taekwondo", "Croata", "Box", "Alberca", "Cancha 1", "Cancha 2", "Cancha 3", "Gimnasio", "Sala funcional", "Explanada", "Auditorio", "Cancha exterior", "Wellness", "CrossFit", "Muro", "Sala Wellness"];
 const sampleOfficialSchedule = [
   { source: "official", professor: "Josue Fernando Silguero Urquiza", discipline: "Natacion", day: "Lunes", start: "07:00", end: "09:00", installation: "Alberca", frequency: "Semanal", group: "101", rowNumber: 2 },
   { source: "official", professor: "Carolina Esquivel Morales", discipline: "Yoga", day: "Martes", start: "09:00", end: "11:00", installation: "Yoga", frequency: "Semanal", group: "204", rowNumber: 3 },
@@ -426,7 +426,7 @@ function loadSchedules() {
       return {
         official: saved.official || [],
         booking: saved.booking || [],
-        errors: saved.errors || { official: [], booking: [] },
+        errors: { master: [], official: [], booking: [], ...(saved.errors || {}) },
         updatedAt: saved.updatedAt || null
       };
     }
@@ -436,7 +436,7 @@ function loadSchedules() {
   return {
     official: sampleOfficialSchedule,
     booking: sampleBookingSchedule,
-    errors: { official: [], booking: [] },
+    errors: { master: [], official: [], booking: [] },
     updatedAt: null
   };
 }
@@ -548,6 +548,147 @@ async function rowsFromScheduleFile(file) {
     const cells = line.split(separator);
     return headers.reduce((row, header, index) => ({ ...row, [header]: cells[index] || "" }), {});
   });
+}
+
+function daysFromFrequency(value) {
+  const clean = normalizeText(value).replace(/\s+/g, "");
+  if (!clean) return [];
+  const explicit = [
+    ["lunes", "Lunes"],
+    ["martes", "Martes"],
+    ["miercoles", "Miercoles"],
+    ["jueves", "Jueves"],
+    ["viernes", "Viernes"],
+    ["sabado", "Sabado"]
+  ];
+  const direct = explicit.filter(([key]) => clean.includes(key)).map(([, label]) => label);
+  if (direct.length) return Array.from(new Set(direct));
+  const matches = clean.match(/lu|ma|mi|ju|vi|sa/g) || [];
+  const map = { lu: "Lunes", ma: "Martes", mi: "Miercoles", ju: "Jueves", vi: "Viernes", sa: "Sabado" };
+  return Array.from(new Set(matches.map((token) => map[token]).filter(Boolean)));
+}
+
+function normalizeTimeToken(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/^(\d{1,2})(?::?(\d{2}))?/);
+  if (!match) return "";
+  return `${String(Number(match[1])).padStart(2, "0")}:${String(Number(match[2] || 0)).padStart(2, "0")}`;
+}
+
+function parseTimeRanges(value, fallbackStart, fallbackEnd) {
+  const lines = String(value || "").replace(/\r/g, "\n").split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  const ranges = lines.flatMap((line) => {
+    const matches = line.match(/\d{1,2}(?::?\d{2})?/g) || [];
+    if (matches.length >= 2) return [{ start: normalizeTimeToken(matches[0]), end: normalizeTimeToken(matches[1]) }];
+    return [];
+  });
+  if (ranges.length) return ranges;
+  if (fallbackStart || fallbackEnd) return [{ start: normalizeTimeToken(fallbackStart), end: normalizeTimeToken(fallbackEnd) }];
+  return [];
+}
+
+function parseScheduleRows(rows, source) {
+  const errors = [];
+  const validRows = [];
+  const required = source === "official"
+    ? [["Profesor", "NOMBRE_DOCENTE"], ["Disciplina", "NOMBRE_ASIGNATURA"], ["Dia", "Dia", "LUN", "Frecuencia"], ["Hora inicio", "Inicio", "HORA_INICIO"], ["Hora fin", "Fin", "HORA_FIN"], ["Instalacion", "Instalacion", "Lugar", " ", "__EMPTY"]]
+    : [["Profesor"], ["Actividad", "Disciplina"], ["Dia", "Dia", "Frecuencia"], ["Hora inicio", "Inicio", "Horario"], ["Instalacion", "Instalacion", "Lugar"]];
+  const headers = Object.keys(rows[0] || {}).map(normalizeText);
+  required.forEach((group) => {
+    if (!group.some((name) => headers.includes(normalizeText(name)))) {
+      errors.push({ row: 1, message: `Falta columna requerida: ${group[0]}` });
+    }
+  });
+  rows.forEach((raw, index) => {
+    const professor = String(pickColumn(raw, ["Profesor", "Professor", "Docente", "NOMBRE_DOCENTE"]) || "").trim();
+    const discipline = String(pickColumn(raw, source === "official" ? ["Disciplina", "Actividad", "NOMBRE_ASIGNATURA"] : ["Actividad", "Disciplina"]) || "").trim();
+    const frequencyValue = pickColumn(raw, ["Dia", "Día", "Day", "Frecuencia", "Frequency", "LUN"]);
+    const days = daysFromFrequency(frequencyValue);
+    const timeRanges = parseTimeRanges(
+      pickColumn(raw, ["Horario"]),
+      pickColumn(raw, ["Hora inicio", "Inicio", "Start", "Hora inicial", "HORA_INICIO"]),
+      pickColumn(raw, ["Hora fin", "Fin", "End", "Hora final", "HORA_FIN"])
+    );
+    const installation = String(pickColumn(raw, ["Instalacion", "Instalación", "Espacio", "Cancha", "Salon", "Salón", "Lugar", " ", "__EMPTY"]) || raw[" "] || raw.__EMPTY || "").trim();
+    const frequency = String(frequencyValue || "Semanal").trim();
+    const group = String(pickColumn(raw, ["Grupo", "Group", "ETIQUETA_GRUPO"]) || "").trim();
+    const rowErrors = [];
+    if (!professor) rowErrors.push("Profesor vacio");
+    if (!discipline) rowErrors.push(source === "official" ? "Disciplina vacia" : "Actividad vacia");
+    if (!days.length) rowErrors.push("Dia o frecuencia invalida");
+    if (!timeRanges.length) rowErrors.push("Horario invalido");
+    if (!installation) rowErrors.push("Instalacion vacia");
+    if (rowErrors.length) {
+      errors.push({ row: index + 2, message: rowErrors.join("; ") });
+      return;
+    }
+    if (installation && !knownInstallations.map(normalizeText).includes(normalizeText(installation))) {
+      errors.push({ row: index + 2, message: `Instalacion no registrada en catalogo: ${installation}` });
+    }
+    days.forEach((day) => {
+      timeRanges.forEach((range, rangeIndex) => {
+        const start = minutesToTime(timeToMinutes(range.start));
+        const end = minutesToTime(timeToMinutes(range.end));
+        if (!Number.isFinite(timeToMinutes(start)) || !Number.isFinite(timeToMinutes(end)) || timeToMinutes(end) <= timeToMinutes(start)) {
+          errors.push({ row: index + 2, message: `Horario invalido: ${range.start || ""}-${range.end || ""}` });
+          return;
+        }
+        validRows.push({ id: `${source}-${Date.now()}-${index}-${day}-${rangeIndex}`, source, professor, discipline, day, start, end, installation, frequency, group, rowNumber: index + 2 });
+      });
+    });
+  });
+  return { validRows, errors };
+}
+
+function findWorkbookSheet(workbook, targetName) {
+  const target = normalizeText(targetName);
+  const name = workbook.SheetNames.find((sheetName) => normalizeText(sheetName) === target);
+  return name || workbook.SheetNames.find((sheetName) => normalizeText(sheetName).includes(target));
+}
+
+function bookingGridToRows(sheet) {
+  const grid = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  const periodRow = grid[0] || [];
+  const headerRow = grid[1] || [];
+  const starts = headerRow.reduce((acc, value, index) => {
+    if (normalizeText(value) === "disciplina") acc.push(index);
+    return acc;
+  }, []);
+  return starts.flatMap((start) => {
+    const headers = headerRow.slice(start, start + 8).map((value) => String(value || "").trim());
+    const period = String(periodRow[start] || "").trim();
+    return grid.slice(2).map((row, rowIndex) => {
+      const record = headers.reduce((acc, header, offset) => ({ ...acc, [header || `campo_${offset}`]: row[start + offset] || "" }), {});
+      record.Periodo = period;
+      record.__rowNumber = rowIndex + 3;
+      return record;
+    }).filter((record) => String(record.Disciplina || record.Actividad || record.Horario || record.Profesor || "").trim());
+  });
+}
+
+async function schedulesFromMasterWorkbook(file) {
+  if (!window.XLSX) throw new Error("No esta disponible el lector de Excel");
+  const buffer = await file.arrayBuffer();
+  const workbook = window.XLSX.read(buffer, { type: "array" });
+  const officialName = findWorkbookSheet(workbook, "programacion clases");
+  const bookingName = findWorkbookSheet(workbook, "booking ofertados");
+  const masterErrors = [];
+  if (!officialName) masterErrors.push({ row: 0, message: 'No encontre la hoja "programacion clases"' });
+  if (!bookingName) masterErrors.push({ row: 0, message: 'No encontre la hoja "booking ofertados"' });
+  const officialRows = officialName ? window.XLSX.utils.sheet_to_json(workbook.Sheets[officialName], { defval: "" }) : [];
+  const bookingRows = bookingName ? bookingGridToRows(workbook.Sheets[bookingName]) : [];
+  const official = parseScheduleRows(officialRows, "official");
+  const booking = parseScheduleRows(bookingRows, "booking");
+  return {
+    official: official.validRows,
+    booking: booking.validRows,
+    errors: {
+      master: masterErrors,
+      official: official.errors,
+      booking: booking.errors
+    },
+    sheetNames: { official: officialName, booking: bookingName }
+  };
 }
 
 function overlap(a, b) {
@@ -3041,6 +3182,7 @@ function renderSchedules(area) {
       <span>${rows.length} eventos · ${conflicts.length} conflictos</span>
     </div>
     <section class="schedule-upload-grid">
+      ${renderMasterScheduleUploader(rows.length, scheduleState.errors.master)}
       ${renderScheduleUploader("official", "Subir Programacion Oficial", totalOfficial, scheduleState.errors.official)}
       ${renderScheduleUploader("booking", "Subir Booking", totalBooking, scheduleState.errors.booking)}
     </section>
@@ -3059,14 +3201,37 @@ function renderSchedules(area) {
   `;
 }
 
+function renderMasterScheduleUploader(count, errors) {
+  return `
+    <article class="schedule-upload-card master-schedule-card">
+      <div>
+        <p class="eyebrow">fuente principal</p>
+        <h3>Subir archivo maestro de Indicadores</h3>
+        <p>WellSync lee automaticamente las hojas "Programacion Clases" y "Booking ofertados", consolida ambas y actualiza el Calendario Maestro. No se editan horarios dentro de la plataforma.</p>
+      </div>
+      <label class="file-button">
+        Subir archivo maestro
+        <input type="file" accept=".xlsx,.xls" data-schedule-upload="master" />
+      </label>
+      <strong>${count} eventos consolidados</strong>
+      ${errors?.length ? `
+        <details class="schedule-errors" open>
+          <summary>${errors.length} errores del archivo maestro</summary>
+          ${errors.slice(0, 8).map((error) => `<p>${error.message}</p>`).join("")}
+        </details>
+      ` : `<span class="schedule-ok">Hojas requeridas listas o datos demo activos</span>`}
+    </article>
+  `;
+}
+
 function renderScheduleUploader(type, title, count, errors) {
   const sourceLabel = type === "official" ? "clases oficiales" : "booking";
   return `
     <article class="schedule-upload-card">
       <div>
-        <p class="eyebrow">${sourceLabel}</p>
+        <p class="eyebrow">respaldo manual · ${sourceLabel}</p>
         <h3>${title}</h3>
-        <p>Columnas requeridas: Profesor, ${type === "official" ? "Disciplina" : "Actividad"}, Dia, Hora inicio, Hora fin, Instalacion. Frecuencia y Grupo son opcionales.</p>
+        <p>Usar solo si el archivo maestro no trae esta hoja o si se quiere actualizar esta fuente manualmente. Columnas: Profesor, ${type === "official" ? "Disciplina" : "Actividad"}, Dia/Frecuencia, horario e Instalacion.</p>
       </div>
       <label class="file-button">
         ${title}
@@ -3467,10 +3632,25 @@ async function handleScheduleUpload(event) {
   const type = event.target.dataset.scheduleUpload;
   if (!file || !type) return;
   try {
+    if (type === "master") {
+      const parsed = await schedulesFromMasterWorkbook(file);
+      scheduleState.official = parsed.official;
+      scheduleState.booking = parsed.booking;
+      scheduleState.errors = parsed.errors;
+      scheduleState.sourceMode = "master";
+      scheduleState.updatedAt = new Date().toISOString();
+      saveSchedules();
+      addAudit("horarios", `${file.name}: maestro con ${parsed.official.length} clases oficiales y ${parsed.booking.length} booking`);
+      render();
+      toast("Archivo maestro consolidado en Horarios");
+      return;
+    }
     const rows = await rowsFromScheduleFile(file);
     const parsed = parseScheduleRows(rows, type);
     scheduleState[type] = parsed.validRows;
+    scheduleState.errors.master = [];
     scheduleState.errors[type] = parsed.errors;
+    scheduleState.sourceMode = "manual";
     scheduleState.updatedAt = new Date().toISOString();
     saveSchedules();
     addAudit("horarios", `${file.name}: ${parsed.validRows.length} registros validos, ${parsed.errors.length} errores`);
@@ -3478,7 +3658,11 @@ async function handleScheduleUpload(event) {
     toast(`${type === "official" ? "Programacion Oficial" : "Booking"} cargado`);
   } catch (error) {
     console.error(error);
-    scheduleState.errors[type] = [{ row: 0, message: "No pude leer el archivo. Usa Excel o CSV con encabezados." }];
+    if (type === "master") {
+      scheduleState.errors.master = [{ row: 0, message: "No pude leer el archivo maestro. Usa el Excel de Indicadores con las hojas Programacion Clases y Booking ofertados." }];
+    } else {
+      scheduleState.errors[type] = [{ row: 0, message: "No pude leer el archivo. Usa Excel o CSV con encabezados." }];
+    }
     saveSchedules();
     render();
     toast("No pude procesar el archivo de horarios");

@@ -1147,6 +1147,12 @@ textarea { min-height: 76px; resize: vertical; }
   gap: 12px;
 }
 
+.master-schedule-card {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #ffffff 0%, #eef8f7 100%);
+  border-top: 5px solid var(--teal);
+}
+
 .schedule-upload-card p {
   color: var(--muted);
   font-size: 13px;
