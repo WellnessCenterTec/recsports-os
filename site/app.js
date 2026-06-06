@@ -532,17 +532,28 @@ function relationMatchesDiscipline(relation, discipline) {
   return relationKey && disciplineKey && (relationKey === disciplineKey || disciplineKey.includes(relationKey) || relationKey.includes(disciplineKey));
 }
 
+function relationMatchesCode(relation, value) {
+  const cleanCode = normalizeText(relation.code);
+  const cleanValue = normalizeText(value);
+  return cleanCode && cleanValue && (cleanValue === cleanCode || cleanValue.startsWith(cleanCode) || cleanValue.includes(` ${cleanCode}`));
+}
+
 function resolveInstallationForDiscipline(discipline, rawInstallation = "") {
   const cleanInstallation = String(rawInstallation || "").trim();
   const matches = disciplineInstallationRelations.filter((relation) => relationMatchesDiscipline(relation, discipline));
+  if (cleanInstallation) {
+    const codeMatches = disciplineInstallationRelations.filter((relation) => relationMatchesCode(relation, cleanInstallation));
+    const uniqueByCode = Array.from(new Set(codeMatches.map((relation) => relation.installation)));
+    if (uniqueByCode.length === 1) {
+      return { installation: uniqueByCode[0], note: `Codigo ${cleanInstallation} convertido a ${uniqueByCode[0]}` };
+    }
+  }
   if (!matches.length) return { installation: cleanInstallation, note: "" };
   if (cleanInstallation) {
-    const byCode = matches.find((relation) => normalizeText(relation.code) === normalizeText(cleanInstallation));
+    const byCode = matches.find((relation) => relationMatchesCode(relation, cleanInstallation));
     if (byCode) return { installation: byCode.installation, note: `Codigo ${cleanInstallation} convertido a ${byCode.installation}` };
     const byName = matches.find((relation) => normalizeText(relation.installation) === normalizeText(cleanInstallation));
     if (byName) return { installation: byName.installation, note: "" };
-    const globalCode = disciplineInstallationRelations.find((relation) => normalizeText(relation.code) === normalizeText(cleanInstallation));
-    if (globalCode) return { installation: globalCode.installation, note: `Codigo ${cleanInstallation} convertido a ${globalCode.installation}` };
     return { installation: cleanInstallation, note: "" };
   }
   const uniqueInstallations = Array.from(new Set(matches.map((relation) => relation.installation)));
@@ -553,7 +564,23 @@ function resolveInstallationForDiscipline(discipline, rawInstallation = "") {
 }
 
 function timeToMinutes(value) {
-  const match = String(value || "").trim().match(/^(\d{1,2})(?::(\d{2}))?/);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.getHours() * 60 + value.getMinutes();
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const dayFraction = value >= 1 ? value % 1 : value;
+    if (dayFraction >= 0 && dayFraction < 1) {
+      return Math.round(dayFraction * 24 * 60);
+    }
+  }
+  const text = String(value || "").trim();
+  const compact = text.match(/^(\d{1,2})(\d{2})$/);
+  if (compact) {
+    const compactHours = Number(compact[1]);
+    const compactMinutes = Number(compact[2]);
+    if (compactHours >= 0 && compactHours <= 23 && compactMinutes >= 0 && compactMinutes <= 59) return compactHours * 60 + compactMinutes;
+  }
+  const match = text.match(/^(\d{1,2})(?::(\d{2}))?/);
   if (!match) return NaN;
   const hours = Number(match[1]);
   const minutes = Number(match[2] || 0);
@@ -650,6 +677,8 @@ function daysFromFrequency(value) {
 }
 
 function normalizeTimeToken(value) {
+  const minutes = timeToMinutes(value);
+  if (Number.isFinite(minutes)) return minutesToTime(minutes);
   const text = String(value || "").trim();
   const match = text.match(/^(\d{1,2})(?::?(\d{2}))?/);
   if (!match) return "";
