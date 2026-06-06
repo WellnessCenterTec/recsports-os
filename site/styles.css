@@ -2128,6 +2128,16 @@ th { color: var(--muted); background: #f7faf9; }
   min-width: 160px;
 }
 
+.photo-status-strip {
+  margin: 10px 0;
+}
+
+.photo-status-strip.warning {
+  background: #fff8e8;
+  border-color: rgba(240, 179, 35, .45);
+  color: var(--ink);
+}
+
 .danger-text {
   color: var(--red);
 }

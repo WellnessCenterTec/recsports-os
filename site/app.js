@@ -2125,6 +2125,22 @@ function collaboratorRows() {
   return [...rows].sort((a, b) => String(a.Colaboradores || "").localeCompare(String(b.Colaboradores || ""), "es"));
 }
 
+function renderCollaboratorPhotoStatus(rows) {
+  const photoCount = rows.filter((row) => row.__photoUrl).length;
+  if (photoCount) {
+    return `<div class="permission-strip photo-status-strip">Fotos cargadas desde Supabase: ${photoCount} de ${rows.length} colaboradores.</div>`;
+  }
+  if (currentUser?.auth === "supabase") {
+    return `<div class="permission-strip photo-status-strip">Supabase activo, pero no encontré fotos vinculadas en estos registros. Revisa que cada colaborador tenga photo_path guardado.</div>`;
+  }
+  return `
+    <div class="permission-strip photo-status-strip warning">
+      Estás en modo consulta/demo. Las fotos viven en Supabase y no se cargan desde el archivo local de Uniformes.
+      <button class="ghost-btn inline-action" id="refreshSupabaseSession" type="button">Revisar sesión Supabase</button>
+    </div>
+  `;
+}
+
 function contractRows() {
   return [...recordsFor("layAd26"), ...recordsFor("Verano26")];
 }
@@ -3267,6 +3283,7 @@ function renderCollaboratorsDashboard() {
         <button class="ghost-btn" id="exportCollaboratorBackup" type="button">Exportar respaldo</button>
       </div>
     </div>
+    ${renderCollaboratorPhotoStatus(rows)}
     ${renderCollaboratorPhotoUploader(allRows, editable)}
     <div class="table-wrap collaborator-editor-wrap">
       <table class="collaborator-editor">
@@ -4023,6 +4040,11 @@ function render() {
     render();
   }));
   $("#importCollaboratorsToCloud")?.addEventListener("click", importCollaboratorsToCloud);
+  $("#refreshSupabaseSession")?.addEventListener("click", async () => {
+    await loadSupabaseSession();
+    render();
+    toast(currentUser?.auth === "supabase" ? "Sesion Supabase recuperada" : "No hay sesion Supabase activa");
+  });
   $$(".physical-filter").forEach((select) => select.addEventListener("input", (event) => {
     physicalEvaluationFilter[event.target.dataset.filter] = event.target.value;
     render();
