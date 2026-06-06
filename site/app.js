@@ -386,7 +386,7 @@ let activeArea = "general";
 let activeView = "dashboard";
 let localCaptures = loadCaptures();
 let scheduleState = loadSchedules();
-let scheduleFilters = { professor: "todos", day: "todos", discipline: "todos", installation: "todos", mode: "professors", timeDay: "Lunes", time: "09:00", reportProfessor: "todos" };
+let scheduleFilters = { period: "PMT1", professor: "todos", day: "todos", discipline: "todos", installation: "todos", mode: "professors", timeDay: "Lunes", time: "09:00", reportProfessor: "todos" };
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
 let activeTheme = localStorage.getItem(THEME_KEY) || "tec";
@@ -500,16 +500,31 @@ function scheduleMasterRows() {
     .sort((a, b) => scheduleDays.indexOf(a.day) - scheduleDays.indexOf(b.day) || timeToMinutes(a.start) - timeToMinutes(b.start));
 }
 
+function schedulePeriod(row) {
+  const source = `${row.period || ""} ${row.discipline || ""} ${row.group || ""}`;
+  const clean = normalizeText(source);
+  const match = clean.match(/\bpmt\s*(\d)\b/) || clean.match(/\bperiodo\s*(\d)\b/);
+  return match ? `PMT${match[1]}` : "Sin periodo";
+}
+
+function calendarScheduleRows(rows = scheduleMasterRows()) {
+  return rows.filter((row) => scheduleFilters.period === "todos" || schedulePeriod(row) === scheduleFilters.period);
+}
+
+function schedulePeriods(rows = scheduleMasterRows()) {
+  return Array.from(new Set(rows.map(schedulePeriod).filter((period) => period !== "Sin periodo"))).sort();
+}
+
 function scheduleProfessors() {
-  return Array.from(new Set(scheduleMasterRows().map((row) => row.professor).filter(Boolean))).sort();
+  return Array.from(new Set(calendarScheduleRows().map((row) => row.professor).filter(Boolean))).sort();
 }
 
 function scheduleDisciplines() {
-  return Array.from(new Set(scheduleMasterRows().map((row) => row.discipline).filter(Boolean))).sort();
+  return Array.from(new Set(calendarScheduleRows().map((row) => row.discipline).filter(Boolean))).sort();
 }
 
 function scheduleInstallations() {
-  return Array.from(new Set([...knownInstallations, ...scheduleMasterRows().map((row) => row.installation).filter(Boolean)])).sort();
+  return Array.from(new Set([...knownInstallations, ...calendarScheduleRows().map((row) => row.installation).filter(Boolean)])).sort();
 }
 
 function normalizeText(value) {
@@ -624,6 +639,7 @@ function parseScheduleRows(rows, source) {
     const installation = resolvedInstallation.installation;
     const frequency = String(pickColumn(raw, ["Frecuencia", "Frequency"]) || "Semanal").trim();
     const group = String(pickColumn(raw, ["Grupo", "Group"]) || "").trim();
+    const period = String(pickColumn(raw, ["Periodo", "Period", "PMT"]) || "").trim();
     const rowErrors = [];
     if (!professor) rowErrors.push("Profesor vacio");
     if (!discipline) rowErrors.push(source === "official" ? "Disciplina vacia" : "Actividad vacia");
@@ -635,7 +651,7 @@ function parseScheduleRows(rows, source) {
       errors.push({ row: index + 2, message: rowErrors.join("; ") });
       return;
     }
-    validRows.push({ id: `${source}-${Date.now()}-${index}`, source, professor, discipline, day, start, end, installation, installationCode: rawInstallation, frequency, group, rowNumber: index + 2 });
+    validRows.push({ id: `${source}-${Date.now()}-${index}`, source, professor, discipline, day, start, end, installation, installationCode: rawInstallation, frequency, group, period, rowNumber: index + 2 });
   });
   return { validRows, errors };
 }
@@ -724,6 +740,7 @@ function parseScheduleRows(rows, source) {
     const installation = resolvedInstallation.installation;
     const frequency = String(frequencyValue || "Semanal").trim();
     const group = String(pickColumn(raw, ["Grupo", "Group", "ETIQUETA_GRUPO"]) || "").trim();
+    const period = String(pickColumn(raw, ["Periodo", "Period", "PMT"]) || "").trim();
     const rowErrors = [];
     if (!professor) rowErrors.push("Profesor vacio");
     if (!discipline) rowErrors.push(source === "official" ? "Disciplina vacia" : "Actividad vacia");
@@ -745,7 +762,7 @@ function parseScheduleRows(rows, source) {
           errors.push({ row: index + 2, message: `Horario invalido: ${range.start || ""}-${range.end || ""}` });
           return;
         }
-        validRows.push({ id: `${source}-${Date.now()}-${index}-${day}-${rangeIndex}`, source, professor, discipline, day, start, end, installation, installationCode: rawInstallation, frequency, group, rowNumber: index + 2 });
+        validRows.push({ id: `${source}-${Date.now()}-${index}-${day}-${rangeIndex}`, source, professor, discipline, day, start, end, installation, installationCode: rawInstallation, frequency, group, period, rowNumber: index + 2 });
       });
     });
   });
@@ -808,7 +825,7 @@ function overlap(a, b) {
 }
 
 function scheduleConflicts() {
-  const rows = scheduleMasterRows();
+  const rows = calendarScheduleRows();
   const conflicts = [];
   rows.forEach((row, index) => {
     rows.slice(index + 1).forEach((other) => {
@@ -825,7 +842,7 @@ function scheduleConflicts() {
 }
 
 function filteredScheduleRows() {
-  return scheduleMasterRows().filter((row) => {
+  return calendarScheduleRows().filter((row) => {
     const professorMatch = scheduleFilters.professor === "todos" || row.professor === scheduleFilters.professor;
     const dayMatch = scheduleFilters.day === "todos" || row.day === scheduleFilters.day;
     const disciplineMatch = scheduleFilters.discipline === "todos" || row.discipline === scheduleFilters.discipline;
@@ -841,7 +858,7 @@ function professorColor(name) {
 }
 
 function simulatorBaseRows() {
-  return scheduleMasterRows().map((row, index) => ({
+  return calendarScheduleRows().map((row, index) => ({
     ...row,
     simId: `sim-${row.id || index}`,
     originalId: row.id || "",
@@ -854,6 +871,10 @@ function simulatorRows() {
   return rows
     .map((row, index) => ({ ...row, simId: row.simId || `sim-row-${index}` }))
     .sort((a, b) => scheduleDays.indexOf(a.day) - scheduleDays.indexOf(b.day) || timeToMinutes(a.start) - timeToMinutes(b.start));
+}
+
+function simulatorPeriodRows(rows = simulatorRows()) {
+  return rows.filter((row) => scheduleFilters.period === "todos" || schedulePeriod(row) === scheduleFilters.period);
 }
 
 function ensureSimulatorDraft() {
@@ -881,7 +902,7 @@ function resetSimulatorFromMaster() {
 }
 
 function selectedSimulatorRow() {
-  const rows = simulatorRows();
+  const rows = simulatorPeriodRows();
   const selected = rows.find((row) => row.simId === simulatorFilters.selectedId);
   return selected || rows[0] || null;
 }
@@ -959,7 +980,7 @@ function simulatorSuggestions(rows = simulatorRows()) {
 }
 
 function filteredSimulatorRows() {
-  return simulatorRows().filter((row) => {
+  return simulatorPeriodRows().filter((row) => {
     const dayMatch = simulatorFilters.day === "todos" || row.day === simulatorFilters.day;
     const professorMatch = simulatorFilters.professor === "todos" || row.professor === simulatorFilters.professor;
     const installationMatch = simulatorFilters.installation === "todos" || row.installation === simulatorFilters.installation;
@@ -969,11 +990,12 @@ function filteredSimulatorRows() {
 
 function simulatorAvailabilityAt(day, time) {
   const minute = timeToMinutes(time);
-  const busyRows = simulatorRows().filter((row) => row.day === day && timeToMinutes(row.start) <= minute && timeToMinutes(row.end) > minute);
+  const rows = simulatorPeriodRows();
+  const busyRows = rows.filter((row) => row.day === day && timeToMinutes(row.start) <= minute && timeToMinutes(row.end) > minute);
   const busyProfessors = new Set(busyRows.map((row) => row.professor));
   const busyInstallations = new Set(busyRows.map((row) => row.installation));
-  const professors = Array.from(new Set(simulatorRows().map((row) => row.professor).filter(Boolean))).sort();
-  const installations = Array.from(new Set([...knownInstallations, ...simulatorRows().map((row) => row.installation).filter(Boolean)])).sort();
+  const professors = Array.from(new Set(rows.map((row) => row.professor).filter(Boolean))).sort();
+  const installations = Array.from(new Set([...knownInstallations, ...rows.map((row) => row.installation).filter(Boolean)])).sort();
   return {
     freeProfessors: professors.filter((name) => !busyProfessors.has(name)),
     busyProfessors: professors.filter((name) => busyProfessors.has(name)),
@@ -3557,8 +3579,10 @@ function renderScheduleFilters(kind = "professors") {
   const professors = scheduleProfessors();
   const disciplines = scheduleDisciplines();
   const installations = scheduleInstallations();
+  const periods = schedulePeriods();
   return `
     <div class="schedule-filter-row">
+      <label>Periodo<select class="schedule-filter" data-filter="period"><option value="todos">Todos</option>${periods.map((value) => `<option ${scheduleFilters.period === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
       ${kind !== "installations" ? `<label>Profesor<select class="schedule-filter" data-filter="professor"><option value="todos">Todos</option>${professors.map((value) => `<option ${scheduleFilters.professor === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>` : ""}
       <label>Dia<select class="schedule-filter" data-filter="day"><option value="todos">Todos</option>${scheduleDays.map((value) => `<option ${scheduleFilters.day === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
       ${kind !== "installations" ? `<label>Disciplina<select class="schedule-filter" data-filter="discipline"><option value="todos">Todas</option>${disciplines.map((value) => `<option ${scheduleFilters.discipline === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>` : ""}
@@ -3627,7 +3651,7 @@ function renderScheduleBlock(row, mode) {
 function renderAvailabilityView() {
   const day = scheduleFilters.timeDay;
   const minute = timeToMinutes(scheduleFilters.time);
-  const rows = scheduleMasterRows().filter((row) => row.day === day && timeToMinutes(row.start) <= minute && timeToMinutes(row.end) > minute);
+  const rows = calendarScheduleRows().filter((row) => row.day === day && timeToMinutes(row.start) <= minute && timeToMinutes(row.end) > minute);
   const busyProfessors = new Set(rows.map((row) => row.professor));
   const busyInstallations = new Set(rows.map((row) => row.installation));
   const professors = scheduleProfessors();
@@ -3684,7 +3708,7 @@ function renderConflictView() {
 }
 
 function professorOperationalSummary(professor) {
-  const rows = scheduleMasterRows().filter((row) => row.professor === professor);
+  const rows = calendarScheduleRows().filter((row) => row.professor === professor);
   const officialHours = rows.filter((row) => row.source === "official").reduce((sum, row) => sum + (timeToMinutes(row.end) - timeToMinutes(row.start)) / 60, 0);
   const bookingHours = rows.filter((row) => row.source === "booking").reduce((sum, row) => sum + (timeToMinutes(row.end) - timeToMinutes(row.start)) / 60, 0);
   const byDay = scheduleDays.map((day) => rows.filter((row) => row.day === day)).filter((items) => items.length);
@@ -3702,7 +3726,7 @@ function professorOperationalSummary(professor) {
 function renderProfessorReportView() {
   const professors = scheduleProfessors();
   const professor = scheduleFilters.reportProfessor === "todos" ? professors[0] : scheduleFilters.reportProfessor;
-  const rows = scheduleMasterRows().filter((row) => row.professor === professor);
+  const rows = calendarScheduleRows().filter((row) => row.professor === professor);
   const summary = professorOperationalSummary(professor);
   return `
     <section class="schedule-panel">
@@ -3734,7 +3758,8 @@ function renderProfessorReportView() {
 
 function renderScheduleSimulatorView() {
   const rows = filteredSimulatorRows();
-  const allRows = simulatorRows();
+  const allRows = simulatorPeriodRows();
+  const periods = schedulePeriods();
   const conflicts = simulatorConflicts(allRows);
   const suggestions = simulatorSuggestions(allRows);
   const changed = allRows.filter((row) => row.draftChanged).length;
@@ -3757,6 +3782,7 @@ function renderScheduleSimulatorView() {
         <span>${allRows.length} actividades · ${changed} cambios · ${conflicts.length} alertas</span>
       </div>
       <div class="schedule-filter-row simulator-filter-row">
+        <label>Periodo<select class="schedule-filter" data-filter="period"><option value="todos">Todos</option>${periods.map((value) => `<option ${scheduleFilters.period === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
         <label>Profesor<select class="simulator-filter" data-filter="professor"><option value="todos">Todos</option>${Array.from(new Set(allRows.map((row) => row.professor).filter(Boolean))).sort().map((value) => `<option ${simulatorFilters.professor === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
         <label>Dia<select class="simulator-filter" data-filter="day"><option value="todos">Todos</option>${scheduleDays.map((value) => `<option ${simulatorFilters.day === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
         <label>Instalacion<select class="simulator-filter" data-filter="installation"><option value="todos">Todas</option>${Array.from(new Set([...knownInstallations, ...allRows.map((row) => row.installation).filter(Boolean)])).sort().map((value) => `<option ${simulatorFilters.installation === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
@@ -3817,7 +3843,7 @@ function renderSimulatorEditor(row) {
       </aside>
     `;
   }
-  const rows = simulatorRows();
+  const rows = simulatorPeriodRows();
   const professors = Array.from(new Set(rows.map((item) => item.professor).filter(Boolean))).sort();
   const installations = Array.from(new Set([...knownInstallations, ...rows.map((item) => item.installation).filter(Boolean)])).sort();
   return `
@@ -3890,7 +3916,7 @@ function renderSimulatorOptimization(rows, suggestions) {
 
 function renderSimulatorAvailability() {
   const availability = simulatorAvailabilityAt(simulatorFilters.availabilityDay, simulatorFilters.availabilityTime);
-  const rows = simulatorRows();
+  const rows = simulatorPeriodRows();
   const installations = Array.from(new Set([...knownInstallations, ...rows.map((row) => row.installation).filter(Boolean)])).sort();
   const selectedInstallation = simulatorFilters.installationView === "todos" ? installations[0] : simulatorFilters.installationView;
   const installationRows = rows.filter((row) => row.installation === selectedInstallation);
@@ -4114,7 +4140,17 @@ function render() {
     render();
   }));
   $$(".schedule-filter").forEach((input) => input.addEventListener("input", (event) => {
-    scheduleFilters[event.target.dataset.filter] = event.target.value;
+    const filter = event.target.dataset.filter;
+    scheduleFilters[filter] = event.target.value;
+    if (filter === "period") {
+      scheduleFilters.professor = "todos";
+      scheduleFilters.discipline = "todos";
+      scheduleFilters.installation = "todos";
+      scheduleFilters.reportProfessor = "todos";
+      simulatorFilters.professor = "todos";
+      simulatorFilters.installation = "todos";
+      simulatorFilters.selectedId = "";
+    }
     render();
   }));
   $$("[data-schedule-upload]").forEach((input) => input.addEventListener("change", handleScheduleUpload));
@@ -4233,7 +4269,7 @@ function downloadProfessorSchedule(type) {
     return;
   }
   const professor = scheduleFilters.reportProfessor === "todos" ? scheduleProfessors()[0] : scheduleFilters.reportProfessor;
-  const rows = scheduleMasterRows().filter((row) => row.professor === professor);
+  const rows = calendarScheduleRows().filter((row) => row.professor === professor);
   downloadBlob(scheduleSvg(professor, rows), `horario-${(professor || "profesor").toLowerCase().replaceAll(" ", "-")}.svg`, "image/svg+xml");
   addAudit("horarios", "Descarga de horario individual");
   toast("Horario individual descargado");
