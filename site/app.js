@@ -188,6 +188,7 @@ const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
 const UNIFORMES_DATA_URL = "./uniformes-data.json";
+const CLASS_GRADES_DATA_URL = "./class-grades-data.json";
 const BASE_COLLABORATOR_COLUMNS = [
   "Nomina",
   "Colaboradores",
@@ -348,6 +349,20 @@ let cloudCollaborators = [];
 let collaboratorsCloudLoaded = false;
 let physicalEvaluations = [];
 let physicalEvaluationsLoaded = false;
+let classGradeSeedRows = [];
+let classGrades = [];
+let classGradesLoaded = false;
+let classGradesAvailable = true;
+let classGradesImporting = false;
+let classGradePage = 1;
+let classGradeFilter = {
+  search: "",
+  period: "todos",
+  teacher: "todos",
+  subject: "todos",
+  career: "todos",
+  status: "todos"
+};
 let physicalEvaluationFilter = {
   period: "todos",
   stage: "todos",
@@ -605,6 +620,165 @@ async function loadPhysicalEvaluations() {
   }
   physicalEvaluations = data || [];
   physicalEvaluationsLoaded = true;
+}
+
+async function loadClassGradeSeedData() {
+  if (classGradeSeedRows.length) return classGradeSeedRows;
+  try {
+    const response = await fetch(CLASS_GRADES_DATA_URL);
+    if (!response.ok) throw new Error("No se encontró la base inicial de calificaciones");
+    classGradeSeedRows = await response.json();
+  } catch (error) {
+    console.error(error);
+    classGradeSeedRows = [];
+  }
+  return classGradeSeedRows;
+}
+
+function classGradeFromCloud(row) {
+  return {
+    record_key: row.record_key,
+    matricula: row.matricula || "",
+    subject_code: row.subject_code || "",
+    subject_name: row.subject_name || "",
+    crn: row.crn || "",
+    group_number: row.group_number || "",
+    teacher_name: row.teacher_name || "",
+    career_code: row.career_code || "",
+    semester_label: row.semester_label || "",
+    period_label: row.period_label || "",
+    grade: row.grade_text || "",
+    source_row: row.source_row || null,
+    updated_at: row.updated_at || ""
+  };
+}
+
+function classGradeToCloud(row) {
+  return {
+    record_key: row.record_key,
+    matricula: row.matricula,
+    subject_code: row.subject_code || null,
+    subject_name: row.subject_name,
+    crn: row.crn || null,
+    group_number: row.group_number || null,
+    teacher_name: row.teacher_name || null,
+    career_code: row.career_code || null,
+    semester_label: row.semester_label || null,
+    period_label: row.period_label || null,
+    grade_text: row.grade || null,
+    source_name: "CD Lista de Alumnos",
+    source_row: row.source_row || null,
+    updated_by: currentUser?.id || null
+  };
+}
+
+async function importInitialClassGrades() {
+  if (
+    classGradesImporting ||
+    !supabaseClient ||
+    currentUser?.auth !== "supabase" ||
+    !canEditArea("clases")
+  ) return;
+  const seedRows = await loadClassGradeSeedData();
+  if (!seedRows.length) return;
+  classGradesImporting = true;
+  render();
+  toast("Cargando historial inicial de calificaciones");
+  try {
+    const chunkSize = 400;
+    for (let index = 0; index < seedRows.length; index += chunkSize) {
+      const payload = seedRows.slice(index, index + chunkSize).map(classGradeToCloud);
+      const { error } = await supabaseClient
+        .from("class_grades")
+        .upsert(payload, { onConflict: "record_key" });
+      if (error) throw error;
+    }
+    classGrades = seedRows.map((row) => ({ ...row }));
+    classGradesLoaded = true;
+    classGradesAvailable = true;
+    addAudit("importacion", `${seedRows.length} registros de CD Lista de Alumnos`);
+    toast("Historial de calificaciones cargado");
+  } catch (error) {
+    console.error(error);
+    classGradesAvailable = false;
+    toast(`No se pudo importar: ${supabaseErrorDetail(error) || "revisa el código SQL"}`);
+  } finally {
+    classGradesImporting = false;
+    render();
+  }
+}
+
+async function loadClassGrades() {
+  await loadClassGradeSeedData();
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const loadedRows = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabaseClient
+      .from("class_grades")
+      .select("*")
+      .order("teacher_name", { ascending: true })
+      .order("subject_name", { ascending: true })
+      .order("matricula", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) {
+      classGradesAvailable = false;
+      classGradesLoaded = false;
+      console.error(error);
+      return;
+    }
+    loadedRows.push(...(data || []).map(classGradeFromCloud));
+    if (!data || data.length < pageSize) break;
+  }
+  classGradesAvailable = true;
+  classGrades = loadedRows;
+  classGradesLoaded = true;
+  if (!classGrades.length) await importInitialClassGrades();
+}
+
+function allClassGradeRows() {
+  return classGradesLoaded && classGrades.length ? classGrades : classGradeSeedRows;
+}
+
+function normalizeClassGrade(value) {
+  const normalized = String(value ?? "").trim().toUpperCase().replace(",", ".");
+  if (!normalized) return "";
+  if (["BAJA", "NP"].includes(normalized)) return normalized;
+  const number = Number(normalized);
+  if (!Number.isFinite(number) || number < 0 || number > 100) return null;
+  return Number.isInteger(number) ? String(number) : String(Math.round(number * 100) / 100);
+}
+
+async function updateClassGrade(recordKey, rawValue) {
+  const grade = normalizeClassGrade(rawValue);
+  if (grade === null) {
+    toast("Usa una calificación de 0 a 100, BAJA, NP o deja vacío");
+    render();
+    return;
+  }
+  const row = allClassGradeRows().find((item) => item.record_key === recordKey);
+  if (!row) return;
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("clases")) {
+    toast("Ingresa con Supabase para guardar calificaciones");
+    render();
+    return;
+  }
+  const previous = row.grade;
+  row.grade = grade;
+  const { error } = await supabaseClient
+    .from("class_grades")
+    .upsert(classGradeToCloud(row), { onConflict: "record_key" });
+  if (error) {
+    row.grade = previous;
+    toast(`No se guardó: ${supabaseErrorDetail(error) || "revisa permisos"}`);
+    render();
+    return;
+  }
+  if (!classGradesLoaded) classGrades = classGradeSeedRows.map((item) => ({ ...item }));
+  classGradesLoaded = true;
+  addAudit("calificacion", `${row.matricula} · ${row.subject_name}: ${grade || "pendiente"}`);
+  render();
+  toast("Calificación guardada");
 }
 
 async function changePhysicalAccessCode() {
@@ -1038,7 +1212,7 @@ async function loadSupabaseSession() {
   }
   saveSession(profileToSession(profile, authUser));
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
-  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations()]);
+  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades()]);
 }
 
 async function loginWithSupabase() {
@@ -1094,7 +1268,7 @@ async function loginWithSupabase() {
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
   activeView = "dashboard";
-  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations()]);
+  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades()]);
   render();
   toast(`Sesion Supabase: ${currentUser.name}`);
 }
@@ -1750,15 +1924,31 @@ function metricSet(data = filteredStudents()) {
 
 function renderNav() {
   const allowed = visibleAreas();
+  const areaIcons = {
+    general: "layout-dashboard",
+    clases: "clipboard-list",
+    gimnasio: "dumbbell",
+    intramuros: "trophy",
+    vivencia: "calendar-days",
+    comunicacion: "megaphone",
+    representativos: "medal",
+    gamer: "gamepad-2",
+    colaboradores: "users",
+    compras: "wallet-cards",
+    configuracion: "settings"
+  };
   if (!allowed.some((area) => area.id === activeArea)) {
     activeArea = currentUser?.area || "general";
   }
   $("#areaNav").innerHTML = allowed.map((area) => `
     <button class="nav-item ${area.id === activeArea ? "active" : ""}" data-area="${area.id}">
       <span>${area.name}</span>
-      <small>${area.id === "general" ? "Dir." : "Área"}</small>
+      <span class="nav-area-icon" title="${area.name}" aria-label="${area.name}">
+        <i data-lucide="${areaIcons[area.id] || "circle"}" aria-hidden="true"></i>
+      </span>
     </button>
   `).join("");
+  window.lucide?.createIcons();
   $$(".nav-item").forEach((button) => button.addEventListener("click", () => {
     activeArea = button.dataset.area;
     activeView = "dashboard";
@@ -2015,6 +2205,169 @@ function renderClassTeacherPerformance() {
             </div>
           </article>
         `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function classGradeStatus(row) {
+  const value = String(row.grade || "").trim().toUpperCase();
+  if (!value) return "pendiente";
+  if (value === "BAJA") return "baja";
+  if (value === "NP") return "np";
+  return "capturada";
+}
+
+function filteredClassGrades() {
+  const search = classGradeFilter.search.trim().toLowerCase();
+  return allClassGradeRows()
+    .filter((row) => classGradeFilter.period === "todos" || row.period_label === classGradeFilter.period)
+    .filter((row) => classGradeFilter.teacher === "todos" || row.teacher_name === classGradeFilter.teacher)
+    .filter((row) => classGradeFilter.subject === "todos" || row.subject_name === classGradeFilter.subject)
+    .filter((row) => classGradeFilter.career === "todos" || row.career_code === classGradeFilter.career)
+    .filter((row) => classGradeFilter.status === "todos" || classGradeStatus(row) === classGradeFilter.status)
+    .filter((row) => !search || [
+      row.matricula,
+      row.subject_name,
+      row.teacher_name,
+      row.career_code,
+      row.crn,
+      row.group_number
+    ].some((value) => String(value || "").toLowerCase().includes(search)))
+    .sort((a, b) =>
+      String(a.subject_name).localeCompare(String(b.subject_name), "es") ||
+      String(a.teacher_name).localeCompare(String(b.teacher_name), "es") ||
+      String(a.matricula).localeCompare(String(b.matricula), "es")
+    );
+}
+
+function classGradeOptions(key) {
+  return [...new Set(allClassGradeRows().map((row) => row[key]).filter(Boolean))]
+    .sort((a, b) => String(a).localeCompare(String(b), "es"));
+}
+
+function renderClassGrades() {
+  const rows = filteredClassGrades();
+  const totalRows = allClassGradeRows();
+  const pageSize = 100;
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  classGradePage = Math.min(classGradePage, pageCount);
+  const pageRows = rows.slice((classGradePage - 1) * pageSize, classGradePage * pageSize);
+  const captured = totalRows.filter((row) => classGradeStatus(row) === "capturada").length;
+  const bajas = totalRows.filter((row) => classGradeStatus(row) === "baja").length;
+  const pending = totalRows.filter((row) => classGradeStatus(row) === "pendiente").length;
+  const editable = currentUser?.auth === "supabase" && canEditArea("clases") && classGradesAvailable;
+  const periods = classGradeOptions("period_label");
+  const teachers = classGradeOptions("teacher_name");
+  const subjects = classGradeOptions("subject_name");
+  const careersList = classGradeOptions("career_code");
+  return `
+    <section class="class-grades-module">
+      <div class="section-title compact">
+        <div>
+          <p class="eyebrow">CD Lista de Alumnos</p>
+          <h2>Registro de calificaciones</h2>
+        </div>
+        <button class="ghost-btn" type="button" id="exportClassGrades">Exportar Excel</button>
+      </div>
+      ${!classGradesAvailable ? `
+        <div class="permission-strip grade-warning">
+          La lista histórica está visible, pero falta activar la tabla de calificaciones en Supabase para poder guardar cambios.
+        </div>
+      ` : ""}
+      ${classGradesImporting ? `
+        <div class="permission-strip">Cargando los 7,939 registros históricos en la base central. Esta operación se realiza una sola vez.</div>
+      ` : ""}
+      <div class="class-grade-kpis">
+        <article class="kpi"><span>Registros</span><strong>${totalRows.length.toLocaleString("es-MX")}</strong><em>CD Lista de Alumnos</em></article>
+        <article class="kpi"><span>Calificaciones</span><strong>${captured.toLocaleString("es-MX")}</strong><em>capturadas</em></article>
+        <article class="kpi"><span>Bajas</span><strong>${bajas.toLocaleString("es-MX")}</strong><em>registradas</em></article>
+        <article class="kpi"><span>Pendientes</span><strong>${pending.toLocaleString("es-MX")}</strong><em>por capturar</em></article>
+      </div>
+      <div class="class-grade-filters">
+        <label>Buscar
+          <input class="class-grade-filter" data-filter="search" value="${escapeHtml(classGradeFilter.search)}" placeholder="Matrícula, materia o profesor" />
+        </label>
+        <label>Periodo
+          <select class="class-grade-filter" data-filter="period">
+            <option value="todos">Todos</option>
+            ${periods.map((value) => `<option value="${escapeHtml(value)}" ${classGradeFilter.period === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Profesor
+          <select class="class-grade-filter" data-filter="teacher">
+            <option value="todos">Todos</option>
+            ${teachers.map((value) => `<option value="${escapeHtml(value)}" ${classGradeFilter.teacher === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Materia
+          <select class="class-grade-filter" data-filter="subject">
+            <option value="todos">Todas</option>
+            ${subjects.map((value) => `<option value="${escapeHtml(value)}" ${classGradeFilter.subject === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Carrera
+          <select class="class-grade-filter" data-filter="career">
+            <option value="todos">Todas</option>
+            ${careersList.map((value) => `<option value="${escapeHtml(value)}" ${classGradeFilter.career === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Estado
+          <select class="class-grade-filter" data-filter="status">
+            <option value="todos">Todos</option>
+            <option value="capturada" ${classGradeFilter.status === "capturada" ? "selected" : ""}>Capturadas</option>
+            <option value="pendiente" ${classGradeFilter.status === "pendiente" ? "selected" : ""}>Pendientes</option>
+            <option value="baja" ${classGradeFilter.status === "baja" ? "selected" : ""}>Bajas</option>
+            <option value="np" ${classGradeFilter.status === "np" ? "selected" : ""}>NP</option>
+          </select>
+        </label>
+      </div>
+      <div class="class-grade-table-header">
+        <span><strong>${rows.length.toLocaleString("es-MX")}</strong> registros filtrados</span>
+        <span>${editable ? "Edita la calificación y presiona Enter para guardar." : "Vista de consulta."}</span>
+      </div>
+      <div class="table-wrap class-grade-table-wrap">
+        <table class="class-grade-table">
+          <thead>
+            <tr>
+              <th>Matrícula</th>
+              <th>Materia</th>
+              <th>CRN / Grupo</th>
+              <th>Profesor</th>
+              <th>Carrera</th>
+              <th>Periodo</th>
+              <th>Calificación</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${pageRows.map((row) => `
+              <tr>
+                <td><strong>${escapeHtml(row.matricula)}</strong></td>
+                <td><span class="grade-subject">${escapeHtml(row.subject_name)}</span><small>${escapeHtml(row.subject_code)}</small></td>
+                <td>${escapeHtml(row.crn)} / ${escapeHtml(row.group_number)}</td>
+                <td>${escapeHtml(row.teacher_name)}</td>
+                <td>${escapeHtml(row.career_code)}</td>
+                <td>${escapeHtml(row.period_label)}</td>
+                <td>
+                  <input
+                    class="grade-input grade-${classGradeStatus(row)}"
+                    data-grade-key="${escapeHtml(row.record_key)}"
+                    value="${escapeHtml(row.grade)}"
+                    inputmode="decimal"
+                    aria-label="Calificación de ${escapeHtml(row.matricula)}"
+                    placeholder="Pendiente"
+                    ${editable ? "" : "disabled"}
+                  />
+                </td>
+              </tr>
+            `).join("") || `<tr><td colspan="7">No hay registros para estos filtros.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+      <div class="class-grade-pagination">
+        <button type="button" class="ghost-btn" data-grade-page="${classGradePage - 1}" ${classGradePage <= 1 ? "disabled" : ""} aria-label="Página anterior">←</button>
+        <span>Página ${classGradePage} de ${pageCount}</span>
+        <button type="button" class="ghost-btn" data-grade-page="${classGradePage + 1}" ${classGradePage >= pageCount ? "disabled" : ""} aria-label="Página siguiente">→</button>
       </div>
     </section>
   `;
@@ -2561,8 +2914,11 @@ function render() {
   renderSystemMap();
   $("#currentTitle").textContent = area.name;
   const evaluationsTab = $("#evaluationsViewButton");
+  const gradesTab = $("#gradesViewButton");
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
+  if (gradesTab) gradesTab.hidden = activeArea !== "clases";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
+  if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
   $("#contentArea").innerHTML = activeView === "dashboard"
     ? renderDashboard(area)
@@ -2570,9 +2926,11 @@ function render() {
       ? renderCapture(area)
       : activeView === "reports"
         ? renderReports(area)
-        : activeView === "evaluations"
-          ? renderPhysicalEvaluationsDashboard()
-          : renderBlueprint(area);
+        : activeView === "grades"
+          ? renderClassGrades()
+          : activeView === "evaluations"
+            ? renderPhysicalEvaluationsDashboard()
+            : renderBlueprint(area);
   $$("[data-jump]").forEach((button) => button.addEventListener("click", () => {
     activeArea = button.dataset.jump;
     activeView = "dashboard";
@@ -2638,6 +2996,24 @@ function render() {
   });
   $("#savePhysicalAccessCode")?.addEventListener("click", changePhysicalAccessCode);
   $("#exportPhysicalEvaluations")?.addEventListener("click", () => downloadPhysicalEvaluationsCsv());
+  $$(".class-grade-filter").forEach((control) => control.addEventListener("change", (event) => {
+    classGradeFilter[event.target.dataset.filter] = event.target.value;
+    classGradePage = 1;
+    render();
+  }));
+  $$(".grade-input").forEach((control) => control.addEventListener("change", (event) => {
+    updateClassGrade(event.target.dataset.gradeKey, event.target.value);
+  }));
+  $$(".grade-input").forEach((control) => control.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    event.target.blur();
+  }));
+  $$("[data-grade-page]").forEach((button) => button.addEventListener("click", () => {
+    classGradePage = Number(button.dataset.gradePage);
+    render();
+  }));
+  $("#exportClassGrades")?.addEventListener("click", downloadClassGradesCsv);
   $$("[data-delete-row]").forEach((button) => button.addEventListener("click", () => deleteCollaboratorRow(button.dataset.deleteRow)));
   $$("[data-move-column]").forEach((button) => button.addEventListener("click", () => {
     moveCollaboratorColumn(button.dataset.moveColumn, Number(button.dataset.direction));
@@ -2776,6 +3152,31 @@ function downloadPhysicalEvaluationsCsv() {
   downloadBlob(csv, `evaluaciones-fisicas-${new Date().toISOString().slice(0, 10)}.csv`);
   addAudit("exportacion", "Evaluaciones físicas");
   toast("Evaluaciones exportadas");
+}
+
+function downloadClassGradesCsv() {
+  const headers = [
+    "matricula", "clave_materia", "materia", "crn", "grupo",
+    "profesor", "carrera", "semestre", "periodo", "calificacion"
+  ];
+  const csv = [
+    headers.map(csvEscape).join(","),
+    ...filteredClassGrades().map((row) => [
+      row.matricula,
+      row.subject_code,
+      row.subject_name,
+      row.crn,
+      row.group_number,
+      row.teacher_name,
+      row.career_code,
+      row.semester_label,
+      row.period_label,
+      row.grade
+    ].map(csvEscape).join(","))
+  ].join("\n");
+  downloadBlob(csv, `calificaciones-clases-${new Date().toISOString().slice(0, 10)}.csv`);
+  addAudit("exportacion", "Registro de calificaciones de Clases Deportivas");
+  toast("Calificaciones exportadas");
 }
 
 function downloadBlob(text, filename) {
@@ -2931,6 +3332,8 @@ $("#logoutButton").addEventListener("click", () => {
     cloudCollaborators = [];
     physicalEvaluations = [];
     physicalEvaluationsLoaded = false;
+    classGrades = [];
+    classGradesLoaded = false;
     collaboratorsCloudLoaded = false;
     collaboratorColumnOrder = [];
     collaboratorSettingsLoaded = false;
@@ -2952,3 +3355,4 @@ document.addEventListener("mock-config-save", () => {
 });
 
 loadUniformesData();
+loadClassGradeSeedData().then(() => render());
