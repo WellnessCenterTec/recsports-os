@@ -966,6 +966,10 @@ function saveSession(user) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
 }
 
+function setSessionForView(user) {
+  currentUser = user;
+}
+
 function clearSession() {
   currentUser = null;
   localStorage.removeItem(SESSION_KEY);
@@ -986,9 +990,15 @@ function saveAuditLog() {
 function applyUrlState() {
   const params = new URLSearchParams(window.location.search);
   const demoUserId = params.get("demo");
+  if (!window.location.search && currentUser?.auth !== "supabase" && currentUser?.id !== "dir") {
+    saveSession(demoUsers[0]);
+    activeArea = "general";
+    activeView = "dashboard";
+    return;
+  }
   if (demoUserId) {
     const user = demoUsers.find((item) => item.id === demoUserId);
-    if (user) saveSession(user);
+    if (user) setSessionForView(user);
   }
   const area = params.get("area");
   const view = params.get("view");
