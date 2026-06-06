@@ -3408,9 +3408,15 @@ function renderSchedules(area) {
     </div>
     <section class="schedule-upload-grid">
       ${renderMasterScheduleUploader(rows.length, scheduleState.errors.master)}
-      ${renderScheduleUploader("official", "Subir Programacion Oficial", totalOfficial, scheduleState.errors.official)}
-      ${renderScheduleUploader("booking", "Subir Booking", totalBooking, scheduleState.errors.booking)}
     </section>
+    <details class="advanced-upload-panel">
+      <summary>Opciones avanzadas de carga</summary>
+      <p>Usa estos botones solo como respaldo si el archivo maestro no trae alguna hoja o si necesitas actualizar una fuente manualmente.</p>
+      <div class="schedule-upload-grid advanced-upload-grid">
+        ${renderScheduleUploader("official", "Subir Programacion Oficial", totalOfficial, scheduleState.errors.official)}
+        ${renderScheduleUploader("booking", "Subir Booking", totalBooking, scheduleState.errors.booking)}
+      </div>
+    </details>
     <section class="schedule-tabs">
       ${["professors", "installations", "availability", "conflicts", "report", "simulator"].map((mode) => `
         <button class="${scheduleFilters.mode === mode ? "active" : ""}" data-schedule-mode="${mode}">

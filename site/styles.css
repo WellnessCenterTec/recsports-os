@@ -1153,6 +1153,30 @@ textarea { min-height: 76px; resize: vertical; }
   border-top: 5px solid var(--teal);
 }
 
+.advanced-upload-panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+}
+
+.advanced-upload-panel summary {
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.advanced-upload-panel > p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 10px 0;
+}
+
+.advanced-upload-grid {
+  margin-bottom: 0;
+}
+
 .schedule-upload-card p {
   color: var(--muted);
   font-size: 13px;
