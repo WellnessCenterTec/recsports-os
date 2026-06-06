@@ -983,6 +983,23 @@ function saveAuditLog() {
   localStorage.setItem(AUDIT_KEY, JSON.stringify(auditLog));
 }
 
+function applyUrlState() {
+  const params = new URLSearchParams(window.location.search);
+  const demoUserId = params.get("demo");
+  if (demoUserId) {
+    const user = demoUsers.find((item) => item.id === demoUserId);
+    if (user) saveSession(user);
+  }
+  const area = params.get("area");
+  const view = params.get("view");
+  const scheduleMode = params.get("schedule");
+  if (area && areas.some((item) => item.id === area)) activeArea = area;
+  if (view && ["dashboard", "grades", "capture", "schedules", "reports", "evaluations", "blueprint"].includes(view)) activeView = view;
+  if (scheduleMode && ["professors", "installations", "availability", "conflicts", "report", "simulator"].includes(scheduleMode)) {
+    scheduleFilters.mode = scheduleMode;
+  }
+}
+
 function addAudit(action, detail = "") {
   const entry = {
     at: new Date().toISOString(),
@@ -4511,8 +4528,12 @@ function renderBlueprint(area) {
 }
 
 renderCareers();
+applyUrlState();
 render();
-loadSupabaseSession().then(() => render());
+loadSupabaseSession().then(() => {
+  applyUrlState();
+  render();
+});
 
 $$(".segmented button").forEach((button) => button.addEventListener("click", () => {
   activeView = button.dataset.view;
