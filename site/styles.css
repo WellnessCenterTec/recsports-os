@@ -1355,6 +1355,183 @@ textarea { min-height: 76px; resize: vertical; }
   margin-top: 12px;
 }
 
+.simulator-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.simulator-note {
+  margin: 0;
+}
+
+.simulator-actions,
+.simulator-nudge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.simulator-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 14px;
+  align-items: start;
+}
+
+.simulator-calendar {
+  max-height: 760px;
+  overflow: auto;
+}
+
+.simulator-block {
+  border: 0;
+  cursor: grab;
+  text-align: left;
+  width: 100%;
+}
+
+.simulator-block:active {
+  cursor: grabbing;
+}
+
+.simulator-block.active {
+  outline: 3px solid rgba(255, 190, 45, .92);
+  outline-offset: 2px;
+}
+
+.simulator-editor,
+.simulator-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.simulator-editor {
+  display: grid;
+  gap: 12px;
+  position: sticky;
+  top: 12px;
+}
+
+.simulator-editor h3,
+.simulator-card h3 {
+  margin: 4px 0 10px;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.simulator-lower-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, .8fr) minmax(360px, 1.2fr) minmax(300px, 1fr);
+  gap: 12px;
+}
+
+.simulator-alert-list {
+  display: grid;
+  gap: 8px;
+}
+
+.simulator-alert-list p {
+  background: #fff6f6;
+  border: 1px solid rgba(179, 58, 58, .24);
+  border-radius: 8px;
+  color: var(--red);
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 10px;
+}
+
+.simulator-alert-list .ok-text {
+  background: #f0fbf6;
+  border-color: rgba(0, 133, 102, .22);
+  color: var(--green);
+}
+
+.simulator-alert-list span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.simulator-summary-table {
+  display: grid;
+  gap: 8px;
+}
+
+.simulator-summary-table div {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: minmax(140px, 1.5fr) repeat(4, minmax(70px, 1fr));
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.simulator-summary-table span,
+.simulator-summary-table em,
+.availability-mini p,
+.installation-mini-list span {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.simulator-summary-table em {
+  color: var(--teal);
+  font-weight: 900;
+  text-align: right;
+}
+
+.simulator-suggestions {
+  background: #f8fbfb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px;
+}
+
+.simulator-suggestions p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.availability-mini {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0 12px;
+}
+
+.availability-mini strong {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.availability-mini p {
+  margin: 0 0 6px;
+}
+
+.installation-mini-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.installation-mini-list span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 9px;
+}
+
 .blueprint-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0,1fr));
@@ -2094,7 +2271,9 @@ th { color: var(--muted); background: #f7faf9; }
 @media (max-width: 760px) {
   .workspace, .sidebar { padding: 14px; }
   .topbar, .top-actions, .section-title, .report-row, .permission-strip, .collaborator-table-header { flex-direction: column; align-items: stretch; }
-  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item { grid-template-columns: 1fr; }
+  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div { grid-template-columns: 1fr; }
+  .simulator-editor { position: static; }
+  .simulator-actions { justify-content: flex-start; }
   .hero-dashboard { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
   .hero-kpis { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero-kpis .kpi:nth-child(3) { border-left: 0; }

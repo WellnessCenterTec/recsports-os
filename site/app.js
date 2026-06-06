@@ -185,6 +185,7 @@ const levels = ["Profesional", "Posgrado"];
 const activities = ["clases", "gimnasio", "intramuros", "vivencia", "representativos", "gamer"];
 const STORAGE_KEY = "recsports_os_local_captures";
 const SCHEDULE_KEY = "recsports_os_class_schedules";
+const SIMULATOR_KEY = "recsports_os_schedule_simulator";
 const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
@@ -360,6 +361,8 @@ let activeView = "dashboard";
 let localCaptures = loadCaptures();
 let scheduleState = loadSchedules();
 let scheduleFilters = { professor: "todos", day: "todos", discipline: "todos", installation: "todos", mode: "professors", timeDay: "Lunes", time: "09:00", reportProfessor: "todos" };
+let simulatorState = loadSimulator();
+let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
 let activeTheme = localStorage.getItem(THEME_KEY) || "tec";
 let currentUser = loadSession();
 let cloudCaptures = [];
@@ -443,6 +446,26 @@ function loadSchedules() {
 
 function saveSchedules() {
   localStorage.setItem(SCHEDULE_KEY, JSON.stringify(scheduleState));
+}
+
+function loadSimulator() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SIMULATOR_KEY) || "null");
+    if (Array.isArray(saved?.rows)) {
+      return {
+        rows: saved.rows,
+        scenarioName: saved.scenarioName || "Escenario base",
+        updatedAt: saved.updatedAt || null
+      };
+    }
+  } catch {
+    // Continue with a fresh draft.
+  }
+  return { rows: [], scenarioName: "Escenario base", updatedAt: null };
+}
+
+function saveSimulator() {
+  localStorage.setItem(SIMULATOR_KEY, JSON.stringify(simulatorState));
 }
 
 function scheduleMasterRows() {
@@ -726,6 +749,148 @@ function professorColor(name) {
   const palette = ["#006a8e", "#b33a3a", "#008566", "#8a5d00", "#5551a6", "#0f766e", "#a8552a", "#2563eb"];
   const index = normalizeText(name).split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) % palette.length;
   return palette[index];
+}
+
+function simulatorBaseRows() {
+  return scheduleMasterRows().map((row, index) => ({
+    ...row,
+    simId: `sim-${row.id || index}`,
+    originalId: row.id || "",
+    draftChanged: false
+  }));
+}
+
+function simulatorRows() {
+  const rows = simulatorState.rows.length ? simulatorState.rows : simulatorBaseRows();
+  return rows
+    .map((row, index) => ({ ...row, simId: row.simId || `sim-row-${index}` }))
+    .sort((a, b) => scheduleDays.indexOf(a.day) - scheduleDays.indexOf(b.day) || timeToMinutes(a.start) - timeToMinutes(b.start));
+}
+
+function ensureSimulatorDraft() {
+  if (!simulatorState.rows.length) {
+    simulatorState = {
+      rows: simulatorBaseRows(),
+      scenarioName: simulatorState.scenarioName || "Escenario base",
+      updatedAt: new Date().toISOString()
+    };
+    saveSimulator();
+  }
+}
+
+function resetSimulatorFromMaster() {
+  simulatorState = {
+    rows: simulatorBaseRows(),
+    scenarioName: "Escenario desde Calendario Maestro",
+    updatedAt: new Date().toISOString()
+  };
+  simulatorFilters.selectedId = simulatorState.rows[0]?.simId || "";
+  saveSimulator();
+  addAudit("simulador horarios", "Borrador reiniciado desde Calendario Maestro");
+  render();
+  toast("Simulador reiniciado desde el calendario maestro");
+}
+
+function selectedSimulatorRow() {
+  const rows = simulatorRows();
+  const selected = rows.find((row) => row.simId === simulatorFilters.selectedId);
+  return selected || rows[0] || null;
+}
+
+function updateSimulatorRow(id, patch) {
+  ensureSimulatorDraft();
+  simulatorState.rows = simulatorState.rows.map((row) => (
+    row.simId === id ? { ...row, ...patch, draftChanged: true } : row
+  ));
+  simulatorState.updatedAt = new Date().toISOString();
+  saveSimulator();
+}
+
+function moveSimulatorRow(id, minutes) {
+  const row = simulatorRows().find((item) => item.simId === id);
+  if (!row) return;
+  const start = Math.max(360, Math.min(1260, timeToMinutes(row.start) + minutes));
+  const duration = Math.max(30, timeToMinutes(row.end) - timeToMinutes(row.start));
+  updateSimulatorRow(id, { start: minutesToTime(start), end: minutesToTime(Math.min(1320, start + duration)) });
+  render();
+}
+
+function dayOffset(currentDay, offset) {
+  const currentIndex = scheduleDays.indexOf(currentDay);
+  const next = Math.max(0, Math.min(scheduleDays.length - 1, currentIndex + offset));
+  return scheduleDays[next] || currentDay;
+}
+
+function simulatorConflicts(rows = simulatorRows()) {
+  const conflicts = [];
+  rows.forEach((row, index) => {
+    rows.slice(index + 1).forEach((other) => {
+      if (!overlap(row, other)) return;
+      if (normalizeText(row.professor) && normalizeText(row.professor) === normalizeText(other.professor)) {
+        conflicts.push({ type: "professor", title: "Conflicto de profesor", label: row.professor, day: row.day, a: row, b: other });
+      }
+      if (normalizeText(row.installation) && normalizeText(row.installation) === normalizeText(other.installation)) {
+        conflicts.push({ type: "installation", title: "Conflicto de instalacion", label: row.installation, day: row.day, a: row, b: other });
+      }
+    });
+  });
+  return conflicts;
+}
+
+function rowsForOperationalSummary(rows, professor) {
+  const professorRows = rows.filter((row) => row.professor === professor);
+  const officialHours = professorRows.filter((row) => row.source === "official").reduce((sum, row) => sum + (timeToMinutes(row.end) - timeToMinutes(row.start)) / 60, 0);
+  const bookingHours = professorRows.filter((row) => row.source === "booking").reduce((sum, row) => sum + (timeToMinutes(row.end) - timeToMinutes(row.start)) / 60, 0);
+  const byDay = scheduleDays.map((day) => professorRows.filter((row) => row.day === day)).filter((items) => items.length);
+  const campusHours = byDay.reduce((sum, items) => {
+    const starts = items.map((row) => timeToMinutes(row.start));
+    const ends = items.map((row) => timeToMinutes(row.end));
+    return sum + (Math.max(...ends) - Math.min(...starts)) / 60;
+  }, 0);
+  const totalHours = officialHours + bookingHours;
+  const deadTime = Math.max(0, campusHours - totalHours);
+  const efficiency = campusHours ? Math.round((totalHours / campusHours) * 100) : 0;
+  return { officialHours, bookingHours, totalHours, deadTime, campusHours, efficiency };
+}
+
+function simulatorSuggestions(rows = simulatorRows()) {
+  const professors = Array.from(new Set(rows.map((row) => row.professor).filter(Boolean))).sort();
+  return professors.flatMap((professor) => {
+    const items = rows.filter((row) => row.professor === professor);
+    return scheduleDays.flatMap((day) => {
+      const dayRows = items.filter((row) => row.day === day).sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+      return dayRows.slice(0, -1).map((row, index) => {
+        const next = dayRows[index + 1];
+        const gap = (timeToMinutes(next.start) - timeToMinutes(row.end)) / 60;
+        if (gap < 2) return null;
+        return `Oportunidad detectada: mover clase de las ${next.start} a las ${row.end} para reducir tiempo muerto de ${professor}.`;
+      }).filter(Boolean);
+    });
+  }).slice(0, 8);
+}
+
+function filteredSimulatorRows() {
+  return simulatorRows().filter((row) => {
+    const dayMatch = simulatorFilters.day === "todos" || row.day === simulatorFilters.day;
+    const professorMatch = simulatorFilters.professor === "todos" || row.professor === simulatorFilters.professor;
+    const installationMatch = simulatorFilters.installation === "todos" || row.installation === simulatorFilters.installation;
+    return dayMatch && professorMatch && installationMatch;
+  });
+}
+
+function simulatorAvailabilityAt(day, time) {
+  const minute = timeToMinutes(time);
+  const busyRows = simulatorRows().filter((row) => row.day === day && timeToMinutes(row.start) <= minute && timeToMinutes(row.end) > minute);
+  const busyProfessors = new Set(busyRows.map((row) => row.professor));
+  const busyInstallations = new Set(busyRows.map((row) => row.installation));
+  const professors = Array.from(new Set(simulatorRows().map((row) => row.professor).filter(Boolean))).sort();
+  const installations = Array.from(new Set([...knownInstallations, ...simulatorRows().map((row) => row.installation).filter(Boolean)])).sort();
+  return {
+    freeProfessors: professors.filter((name) => !busyProfessors.has(name)),
+    busyProfessors: professors.filter((name) => busyProfessors.has(name)),
+    freeInstallations: installations.filter((name) => !busyInstallations.has(name)),
+    busyInstallations: installations.filter((name) => busyInstallations.has(name))
+  };
 }
 
 function loadSession() {
@@ -3187,9 +3352,9 @@ function renderSchedules(area) {
       ${renderScheduleUploader("booking", "Subir Booking", totalBooking, scheduleState.errors.booking)}
     </section>
     <section class="schedule-tabs">
-      ${["professors", "installations", "availability", "conflicts", "report"].map((mode) => `
+      ${["professors", "installations", "availability", "conflicts", "report", "simulator"].map((mode) => `
         <button class="${scheduleFilters.mode === mode ? "active" : ""}" data-schedule-mode="${mode}">
-          ${mode === "professors" ? "Profesores" : mode === "installations" ? "Instalaciones" : mode === "availability" ? "Disponibilidad" : mode === "conflicts" ? "Conflictos" : "Reporte profesor"}
+          ${mode === "professors" ? "Profesores" : mode === "installations" ? "Instalaciones" : mode === "availability" ? "Disponibilidad" : mode === "conflicts" ? "Conflictos" : mode === "report" ? "Reporte profesor" : "Simulador"}
         </button>
       `).join("")}
     </section>
@@ -3198,6 +3363,7 @@ function renderSchedules(area) {
     ${scheduleFilters.mode === "availability" ? renderAvailabilityView() : ""}
     ${scheduleFilters.mode === "conflicts" ? renderConflictView() : ""}
     ${scheduleFilters.mode === "report" ? renderProfessorReportView() : ""}
+    ${scheduleFilters.mode === "simulator" ? renderScheduleSimulatorView() : ""}
   `;
 }
 
@@ -3427,6 +3593,190 @@ function renderProfessorReportView() {
   `;
 }
 
+function renderScheduleSimulatorView() {
+  const rows = filteredSimulatorRows();
+  const allRows = simulatorRows();
+  const conflicts = simulatorConflicts(allRows);
+  const suggestions = simulatorSuggestions(allRows);
+  const changed = allRows.filter((row) => row.draftChanged).length;
+  const selected = selectedSimulatorRow();
+  return `
+    <section class="schedule-panel simulator-panel">
+      <div class="section-title compact">
+        <div>
+          <p class="eyebrow">Simulador de horarios</p>
+          <h2>Programacion propuesta</h2>
+        </div>
+        <div class="simulator-actions">
+          <button class="ghost-btn" id="resetSimulator">Reiniciar desde Calendario Maestro</button>
+          <button class="ghost-btn" data-simulator-export="csv">Exportar Programacion Propuesta CSV</button>
+          <button class="primary-btn" data-simulator-export="xlsx">Exportar Programacion Propuesta Excel</button>
+        </div>
+      </div>
+      <div class="permission-strip simulator-note">
+        <span>Entorno de prueba: mover aqui no modifica Programacion Clases ni Booking ofertados.</span>
+        <span>${allRows.length} actividades · ${changed} cambios · ${conflicts.length} alertas</span>
+      </div>
+      <div class="schedule-filter-row simulator-filter-row">
+        <label>Profesor<select class="simulator-filter" data-filter="professor"><option value="todos">Todos</option>${Array.from(new Set(allRows.map((row) => row.professor).filter(Boolean))).sort().map((value) => `<option ${simulatorFilters.professor === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
+        <label>Dia<select class="simulator-filter" data-filter="day"><option value="todos">Todos</option>${scheduleDays.map((value) => `<option ${simulatorFilters.day === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
+        <label>Instalacion<select class="simulator-filter" data-filter="installation"><option value="todos">Todas</option>${Array.from(new Set([...knownInstallations, ...allRows.map((row) => row.installation).filter(Boolean)])).sort().map((value) => `<option ${simulatorFilters.installation === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
+        <label>Escenario<input class="simulator-field" data-field="scenarioName" value="${simulatorState.scenarioName || "Escenario base"}" /></label>
+      </div>
+      <div class="simulator-workspace">
+        <div>
+          ${renderSimulatorCalendar(rows)}
+        </div>
+        ${renderSimulatorEditor(selected)}
+      </div>
+      <div class="simulator-lower-grid">
+        ${renderSimulatorValidation(conflicts)}
+        ${renderSimulatorOptimization(allRows, suggestions)}
+        ${renderSimulatorAvailability()}
+      </div>
+    </section>
+  `;
+}
+
+function renderSimulatorCalendar(rows) {
+  return `
+    <div class="weekly-calendar simulator-calendar">
+      <div class="calendar-head time-col">Hora</div>
+      ${scheduleDays.map((day) => `<div class="calendar-head">${day}</div>`).join("")}
+      ${scheduleHours.map((hour) => `
+        <div class="calendar-time">${hour}</div>
+        ${scheduleDays.map((day) => {
+          const hourStart = timeToMinutes(hour);
+          const events = rows.filter((row) => row.day === day && timeToMinutes(row.start) < hourStart + 60 && timeToMinutes(row.end) > hourStart);
+          return `<div class="calendar-cell simulator-cell" data-sim-day="${day}" data-sim-hour="${hour}">${events.map((row) => renderSimulatorBlock(row)).join("")}</div>`;
+        }).join("")}
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderSimulatorBlock(row) {
+  const color = professorColor(row.professor);
+  const background = row.source === "booking" ? `${color}61` : color;
+  const opacity = row.source === "booking" ? ".38" : "1";
+  const active = selectedSimulatorRow()?.simId === row.simId ? "active" : "";
+  return `
+    <button class="schedule-block simulator-block ${active}" draggable="true" data-sim-select="${row.simId}" data-sim-drag="${row.simId}" style="--schedule-color:${color}; background:${background}; opacity:${opacity}">
+      <strong>${row.discipline}</strong>
+      <span>${row.professor}</span>
+      <em>${row.start}-${row.end} · ${row.installation}</em>
+    </button>
+  `;
+}
+
+function renderSimulatorEditor(row) {
+  if (!row) {
+    return `
+      <aside class="simulator-editor">
+        <h3>Actividad seleccionada</h3>
+        <p class="muted">Carga el archivo maestro o reinicia el simulador para generar el borrador.</p>
+      </aside>
+    `;
+  }
+  const rows = simulatorRows();
+  const professors = Array.from(new Set(rows.map((item) => item.professor).filter(Boolean))).sort();
+  const installations = Array.from(new Set([...knownInstallations, ...rows.map((item) => item.installation).filter(Boolean)])).sort();
+  return `
+    <aside class="simulator-editor">
+      <div>
+        <p class="eyebrow">Editar borrador</p>
+        <h3>${row.discipline}</h3>
+        <span class="session-pill">${row.source === "booking" ? "Booking transparente" : "Clase oficial solida"}</span>
+      </div>
+      <label>Disciplina<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="discipline" value="${row.discipline}" /></label>
+      <label>Profesor<input class="simulator-row-field" list="simProfessorList" data-sim-id="${row.simId}" data-field="professor" value="${row.professor}" /></label>
+      <datalist id="simProfessorList">${professors.map((name) => `<option value="${name}"></option>`).join("")}</datalist>
+      <label>Instalacion<input class="simulator-row-field" list="simInstallationList" data-sim-id="${row.simId}" data-field="installation" value="${row.installation}" /></label>
+      <datalist id="simInstallationList">${installations.map((name) => `<option value="${name}"></option>`).join("")}</datalist>
+      <label>Dia<select class="simulator-row-field" data-sim-id="${row.simId}" data-field="day">${scheduleDays.map((day) => `<option ${row.day === day ? "selected" : ""}>${day}</option>`).join("")}</select></label>
+      <div class="two-col">
+        <label>Inicio<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="start" type="time" value="${row.start}" /></label>
+        <label>Fin<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="end" type="time" value="${row.end}" /></label>
+      </div>
+      <label>Frecuencia<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="frequency" value="${row.frequency || "Semanal"}" /></label>
+      <div class="simulator-nudge-row">
+        <button class="ghost-btn" data-sim-day-move="-1" data-sim-id="${row.simId}">Dia anterior</button>
+        <button class="ghost-btn" data-sim-move="-30" data-sim-id="${row.simId}">-30 min</button>
+        <button class="ghost-btn" data-sim-move="30" data-sim-id="${row.simId}">+30 min</button>
+        <button class="ghost-btn" data-sim-day-move="1" data-sim-id="${row.simId}">Dia siguiente</button>
+      </div>
+    </aside>
+  `;
+}
+
+function renderSimulatorValidation(conflicts) {
+  const professorConflicts = conflicts.filter((conflict) => conflict.type === "professor");
+  const installationConflicts = conflicts.filter((conflict) => conflict.type === "installation");
+  return `
+    <article class="simulator-card">
+      <p class="eyebrow">Validacion en tiempo real</p>
+      <h3>Conflictos</h3>
+      <div class="simulator-alert-list">
+        ${professorConflicts.length ? professorConflicts.slice(0, 6).map((conflict) => `<p><strong>🔴 Conflicto de profesor</strong><span>${conflict.label} · ${conflict.day} · ${conflict.a.start}-${conflict.a.end}</span></p>`).join("") : `<p class="ok-text"><strong>Sin conflicto de profesor</strong><span>Los profesores no se traslapan.</span></p>`}
+        ${installationConflicts.length ? installationConflicts.slice(0, 6).map((conflict) => `<p><strong>🔴 Conflicto de instalacion</strong><span>${conflict.label} · ${conflict.day} · ${conflict.a.start}-${conflict.a.end}</span></p>`).join("") : `<p class="ok-text"><strong>Sin conflicto de instalacion</strong><span>Las instalaciones no se traslapan.</span></p>`}
+      </div>
+    </article>
+  `;
+}
+
+function renderSimulatorOptimization(rows, suggestions) {
+  const professors = Array.from(new Set(rows.map((row) => row.professor).filter(Boolean))).sort();
+  const summaries = professors.map((professor) => ({ professor, ...rowsForOperationalSummary(rows, professor) })).sort((a, b) => b.deadTime - a.deadTime).slice(0, 8);
+  return `
+    <article class="simulator-card">
+      <p class="eyebrow">Modo optimizacion</p>
+      <h3>Eficiencia por profesor</h3>
+      <div class="simulator-summary-table">
+        ${summaries.map((summary) => `
+          <div>
+            <strong>${summary.professor}</strong>
+            <span>${summary.totalHours.toFixed(1)} h clase</span>
+            <span>${summary.campusHours.toFixed(1)} h campus</span>
+            <span>${summary.deadTime.toFixed(1)} h muerto</span>
+            <em>${summary.efficiency}%</em>
+          </div>
+        `).join("") || `<p class="muted">Sin profesores para analizar.</p>`}
+      </div>
+      <div class="simulator-suggestions">
+        ${suggestions.length ? suggestions.map((item) => `<p>${item}</p>`).join("") : `<p>No hay huecos grandes detectados en este escenario.</p>`}
+      </div>
+    </article>
+  `;
+}
+
+function renderSimulatorAvailability() {
+  const availability = simulatorAvailabilityAt(simulatorFilters.availabilityDay, simulatorFilters.availabilityTime);
+  const rows = simulatorRows();
+  const installations = Array.from(new Set([...knownInstallations, ...rows.map((row) => row.installation).filter(Boolean)])).sort();
+  const selectedInstallation = simulatorFilters.installationView === "todos" ? installations[0] : simulatorFilters.installationView;
+  const installationRows = rows.filter((row) => row.installation === selectedInstallation);
+  return `
+    <article class="simulator-card">
+      <p class="eyebrow">Disponibilidad</p>
+      <h3>Profesores e instalaciones</h3>
+      <div class="two-col">
+        <label>Dia<select class="simulator-filter" data-filter="availabilityDay">${scheduleDays.map((day) => `<option ${simulatorFilters.availabilityDay === day ? "selected" : ""}>${day}</option>`).join("")}</select></label>
+        <label>Hora<input class="simulator-filter" data-filter="availabilityTime" type="time" value="${simulatorFilters.availabilityTime}" /></label>
+      </div>
+      <div class="availability-mini">
+        <strong>Profesores libres</strong><p>${availability.freeProfessors.slice(0, 8).join(", ") || "Sin libres"}</p>
+        <strong>Profesores ocupados</strong><p>${availability.busyProfessors.slice(0, 8).join(", ") || "Sin ocupados"}</p>
+        <strong>Instalaciones libres</strong><p>${availability.freeInstallations.slice(0, 8).join(", ") || "Sin libres"}</p>
+        <strong>Instalaciones ocupadas</strong><p>${availability.busyInstallations.slice(0, 8).join(", ") || "Sin ocupadas"}</p>
+      </div>
+      <label>Vista por instalacion<select class="simulator-filter" data-filter="installationView">${installations.map((name) => `<option ${selectedInstallation === name ? "selected" : ""}>${name}</option>`).join("")}</select></label>
+      <div class="installation-mini-list">
+        ${installationRows.slice(0, 10).map((row) => `<span>${row.day} ${row.start}-${row.end} · ${row.professor}</span>`).join("") || `<span>Sin ocupacion en ${selectedInstallation || "esta instalacion"}</span>`}
+      </div>
+    </article>
+  `;
+}
+
 function renderReports(area) {
   const selected = area.id === "general" ? areas[0] : area;
   return `
@@ -3625,6 +3975,62 @@ function render() {
   }));
   $$("[data-schedule-upload]").forEach((input) => input.addEventListener("change", handleScheduleUpload));
   $$(".schedule-download").forEach((button) => button.addEventListener("click", () => downloadProfessorSchedule(button.dataset.download)));
+  $$(".simulator-filter").forEach((input) => input.addEventListener("input", (event) => {
+    simulatorFilters[event.target.dataset.filter] = event.target.value;
+    render();
+  }));
+  $$(".simulator-field").forEach((input) => input.addEventListener("change", (event) => {
+    if (event.target.dataset.field === "scenarioName") {
+      simulatorState.scenarioName = event.target.value || "Escenario base";
+      simulatorState.updatedAt = new Date().toISOString();
+      saveSimulator();
+      toast("Nombre del escenario actualizado");
+    }
+  }));
+  $$("[data-sim-select]").forEach((button) => button.addEventListener("click", () => {
+    simulatorFilters.selectedId = button.dataset.simSelect;
+    render();
+  }));
+  $$(".simulator-row-field").forEach((input) => input.addEventListener("change", (event) => {
+    updateSimulatorRow(event.target.dataset.simId, { [event.target.dataset.field]: event.target.value });
+    simulatorFilters.selectedId = event.target.dataset.simId;
+    render();
+  }));
+  $$("[data-sim-move]").forEach((button) => button.addEventListener("click", () => {
+    simulatorFilters.selectedId = button.dataset.simId;
+    moveSimulatorRow(button.dataset.simId, Number(button.dataset.simMove));
+  }));
+  $$("[data-sim-day-move]").forEach((button) => button.addEventListener("click", () => {
+    const row = simulatorRows().find((item) => item.simId === button.dataset.simId);
+    if (!row) return;
+    simulatorFilters.selectedId = row.simId;
+    updateSimulatorRow(row.simId, { day: dayOffset(row.day, Number(button.dataset.simDayMove)) });
+    render();
+  }));
+  $$("[data-sim-drag]").forEach((block) => block.addEventListener("dragstart", (event) => {
+    event.dataTransfer.setData("text/plain", block.dataset.simDrag);
+    simulatorFilters.selectedId = block.dataset.simDrag;
+  }));
+  $$(".simulator-cell").forEach((cell) => {
+    cell.addEventListener("dragover", (event) => event.preventDefault());
+    cell.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const simId = event.dataTransfer.getData("text/plain");
+      const row = simulatorRows().find((item) => item.simId === simId);
+      if (!row) return;
+      const start = timeToMinutes(cell.dataset.simHour);
+      const duration = Math.max(30, timeToMinutes(row.end) - timeToMinutes(row.start));
+      simulatorFilters.selectedId = simId;
+      updateSimulatorRow(simId, {
+        day: cell.dataset.simDay,
+        start: minutesToTime(start),
+        end: minutesToTime(Math.min(1320, start + duration))
+      });
+      render();
+    });
+  });
+  $("#resetSimulator")?.addEventListener("click", resetSimulatorFromMaster);
+  $$("[data-simulator-export]").forEach((button) => button.addEventListener("click", () => exportSimulatorProposal(button.dataset.simulatorExport)));
 }
 
 async function handleScheduleUpload(event) {
@@ -3640,6 +4046,8 @@ async function handleScheduleUpload(event) {
       scheduleState.sourceMode = "master";
       scheduleState.updatedAt = new Date().toISOString();
       saveSchedules();
+      simulatorState = { rows: simulatorBaseRows(), scenarioName: "Escenario desde Calendario Maestro", updatedAt: new Date().toISOString() };
+      saveSimulator();
       addAudit("horarios", `${file.name}: maestro con ${parsed.official.length} clases oficiales y ${parsed.booking.length} booking`);
       render();
       toast("Archivo maestro consolidado en Horarios");
@@ -3653,6 +4061,8 @@ async function handleScheduleUpload(event) {
     scheduleState.sourceMode = "manual";
     scheduleState.updatedAt = new Date().toISOString();
     saveSchedules();
+    simulatorState = { rows: simulatorBaseRows(), scenarioName: "Escenario desde Calendario Maestro", updatedAt: new Date().toISOString() };
+    saveSimulator();
     addAudit("horarios", `${file.name}: ${parsed.validRows.length} registros validos, ${parsed.errors.length} errores`);
     render();
     toast(`${type === "official" ? "Programacion Oficial" : "Booking"} cargado`);
@@ -3683,6 +4093,48 @@ function downloadProfessorSchedule(type) {
   downloadBlob(scheduleSvg(professor, rows), `horario-${(professor || "profesor").toLowerCase().replaceAll(" ", "-")}.svg`, "image/svg+xml");
   addAudit("horarios", "Descarga de horario individual");
   toast("Horario individual descargado");
+}
+
+function simulatorExportRows() {
+  return simulatorRows().map((row) => ({
+    escenario: simulatorState.scenarioName || "Escenario base",
+    tipo: row.source === "booking" ? "Booking" : "Clase Oficial",
+    profesor: row.professor,
+    disciplina: row.discipline,
+    dia: row.day,
+    hora_inicio: row.start,
+    hora_fin: row.end,
+    instalacion: row.installation,
+    frecuencia: row.frequency || "Semanal",
+    grupo: row.group || "",
+    cambio_en_simulador: row.draftChanged ? "Si" : "No"
+  }));
+}
+
+function exportSimulatorProposal(format) {
+  const rows = simulatorExportRows();
+  if (!rows.length) {
+    toast("No hay programacion propuesta para exportar");
+    return;
+  }
+  const filenameBase = `programacion-propuesta-${new Date().toISOString().slice(0, 10)}`;
+  if (format === "xlsx" && window.XLSX) {
+    const workbook = window.XLSX.utils.book_new();
+    const worksheet = window.XLSX.utils.json_to_sheet(rows);
+    window.XLSX.utils.book_append_sheet(workbook, worksheet, "Programacion propuesta");
+    window.XLSX.writeFile(workbook, `${filenameBase}.xlsx`);
+    addAudit("simulador horarios", "Exportacion Excel de programacion propuesta");
+    toast("Programacion propuesta exportada en Excel");
+    return;
+  }
+  const headers = Object.keys(rows[0]);
+  const csv = [
+    headers.map(csvEscape).join(","),
+    ...rows.map((row) => headers.map((key) => csvEscape(row[key])).join(","))
+  ].join("\n");
+  downloadBlob(csv, `${filenameBase}.csv`);
+  addAudit("simulador horarios", "Exportacion CSV de programacion propuesta");
+  toast("Programacion propuesta exportada en CSV");
 }
 
 function escapeSvg(value) {
