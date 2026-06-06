@@ -209,7 +209,33 @@ const supabaseClient = window.supabase && SUPABASE_ENV.SUPABASE_URL && SUPABASE_
   : null;
 const scheduleDays = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
 const scheduleHours = Array.from({ length: 16 }, (_, index) => `${String(6 + index).padStart(2, "0")}:00`);
-const knownInstallations = ["Fitness", "Ciclismo", "Yoga", "Taekwondo", "Croata", "Box", "Alberca", "Cancha 1", "Cancha 2", "Cancha 3", "Gimnasio", "Sala funcional", "Explanada", "Auditorio", "Cancha exterior", "Wellness", "CrossFit", "Muro", "Sala Wellness"];
+const disciplineInstallationRelations = [
+  ["Acondicionamiento fisico PMT1", "106-W-1", "Sala Fitness"],
+  ["Basquetbol femenil PMT1", "101", "Arena Wellness 2"],
+  ["Basquetbol varonil PMT1", "101", "Arena Wellness 2"],
+  ["Body Pump PMT1", "106-W-1", "Sala Fitness"],
+  ["Box PMT1", "106-W-2", "Artes Marciales"],
+  ["Ciclismo indoor PMT1", "210-B", "Sala de Spinning"],
+  ["Cross Training PMT1", "106-H", "Sala CrossFit"],
+  ["Escalada deportiva PMT1", "MURO", "Muro de Escalada"],
+  ["GAP Gluteo Abdomen y Pierna PMT1", "106-W-1", "Sala Fitness"],
+  ["HIIT PMT1", "106-W-1", "Sala Fitness"],
+  ["Futbol rapido varonil PMT1", "CDB1", "Cancha de Soccer"],
+  ["Futbol soccer femenil PMT1", "CDB1", "Cancha de Soccer"],
+  ["Futbol soccer varonil PMT1", "CDB1", "Cancha de Soccer"],
+  ["Natacion PMT1", "106-S", "Alberca"],
+  ["Pilates PMT1", "106-W-1", "Sala Fitness"],
+  ["Tenis PMT1", "CDB2", "Canchas de Tenis"],
+  ["Voleibol femenil PMT1", "101", "Arena Wellness 2"],
+  ["Voleibol varonil PMT1", "101", "Arena Wellness 2"],
+  ["Yoga PMT1", "107", "Sala Yoga"],
+  ["Yoga PMT1", "SALA-LIFE", "Sala Multiusos EMIS"]
+].map(([discipline, code, installation]) => ({ discipline, code, installation }));
+const knownInstallations = Array.from(new Set([
+  "Fitness", "Ciclismo", "Yoga", "Taekwondo", "Croata", "Box", "Alberca", "Cancha 1", "Cancha 2", "Cancha 3",
+  "Gimnasio", "Sala funcional", "Explanada", "Auditorio", "Cancha exterior", "Wellness", "CrossFit", "Muro", "Sala Wellness",
+  ...disciplineInstallationRelations.map((relation) => relation.installation)
+])).sort();
 const sampleOfficialSchedule = [
   { source: "official", professor: "Josue Fernando Silguero Urquiza", discipline: "Natacion", day: "Lunes", start: "07:00", end: "09:00", installation: "Alberca", frequency: "Semanal", group: "101", rowNumber: 2 },
   { source: "official", professor: "Carolina Esquivel Morales", discipline: "Yoga", day: "Martes", start: "09:00", end: "11:00", installation: "Yoga", frequency: "Semanal", group: "204", rowNumber: 3 },
@@ -496,6 +522,36 @@ function normalizeDay(value) {
   return found || "";
 }
 
+function normalizeDisciplineKey(value) {
+  return normalizeText(value).replace(/\bpmt\s*\d+\b/g, "").replace(/\s+/g, " ").trim();
+}
+
+function relationMatchesDiscipline(relation, discipline) {
+  const relationKey = normalizeDisciplineKey(relation.discipline);
+  const disciplineKey = normalizeDisciplineKey(discipline);
+  return relationKey && disciplineKey && (relationKey === disciplineKey || disciplineKey.includes(relationKey) || relationKey.includes(disciplineKey));
+}
+
+function resolveInstallationForDiscipline(discipline, rawInstallation = "") {
+  const cleanInstallation = String(rawInstallation || "").trim();
+  const matches = disciplineInstallationRelations.filter((relation) => relationMatchesDiscipline(relation, discipline));
+  if (!matches.length) return { installation: cleanInstallation, note: "" };
+  if (cleanInstallation) {
+    const byCode = matches.find((relation) => normalizeText(relation.code) === normalizeText(cleanInstallation));
+    if (byCode) return { installation: byCode.installation, note: `Codigo ${cleanInstallation} convertido a ${byCode.installation}` };
+    const byName = matches.find((relation) => normalizeText(relation.installation) === normalizeText(cleanInstallation));
+    if (byName) return { installation: byName.installation, note: "" };
+    const globalCode = disciplineInstallationRelations.find((relation) => normalizeText(relation.code) === normalizeText(cleanInstallation));
+    if (globalCode) return { installation: globalCode.installation, note: `Codigo ${cleanInstallation} convertido a ${globalCode.installation}` };
+    return { installation: cleanInstallation, note: "" };
+  }
+  const uniqueInstallations = Array.from(new Set(matches.map((relation) => relation.installation)));
+  if (uniqueInstallations.length === 1) {
+    return { installation: uniqueInstallations[0], note: `Instalacion asignada por relacion de disciplina: ${uniqueInstallations[0]}` };
+  }
+  return { installation: "", note: `Disciplina con mas de una instalacion posible: ${matches.map((relation) => `${relation.code} ${relation.installation}`).join(" / ")}` };
+}
+
 function timeToMinutes(value) {
   const match = String(value || "").trim().match(/^(\d{1,2})(?::(\d{2}))?/);
   if (!match) return NaN;
@@ -522,8 +578,8 @@ function parseScheduleRows(rows, source) {
   const errors = [];
   const validRows = [];
   const required = source === "official"
-    ? [["Profesor"], ["Disciplina"], ["Dia", "Día"], ["Hora inicio", "Inicio"], ["Hora fin", "Fin"], ["Instalacion", "Instalación"]]
-    : [["Profesor"], ["Actividad", "Disciplina"], ["Dia", "Día"], ["Hora inicio", "Inicio"], ["Hora fin", "Fin"], ["Instalacion", "Instalación"]];
+    ? [["Profesor"], ["Disciplina"], ["Dia", "Día"], ["Hora inicio", "Inicio"], ["Hora fin", "Fin"]]
+    : [["Profesor"], ["Actividad", "Disciplina"], ["Dia", "Día"], ["Hora inicio", "Inicio"], ["Hora fin", "Fin"]];
   const headers = Object.keys(rows[0] || {}).map(normalizeText);
   required.forEach((group) => {
     if (!group.some((name) => headers.includes(normalizeText(name)))) {
@@ -536,7 +592,9 @@ function parseScheduleRows(rows, source) {
     const day = normalizeDay(pickColumn(raw, ["Dia", "Día", "Day"]));
     const start = minutesToTime(timeToMinutes(pickColumn(raw, ["Hora inicio", "Inicio", "Start", "Hora inicial"])));
     const end = minutesToTime(timeToMinutes(pickColumn(raw, ["Hora fin", "Fin", "End", "Hora final"])));
-    const installation = String(pickColumn(raw, ["Instalacion", "Instalación", "Espacio", "Cancha", "Salon", "Salón"]) || "").trim();
+    const rawInstallation = String(pickColumn(raw, ["Instalacion", "Instalación", "Espacio", "Cancha", "Salon", "Salón", "Codigo", "Código", "Codigo instalacion", "Código instalación"]) || "").trim();
+    const resolvedInstallation = resolveInstallationForDiscipline(discipline, rawInstallation);
+    const installation = resolvedInstallation.installation;
     const frequency = String(pickColumn(raw, ["Frecuencia", "Frequency"]) || "Semanal").trim();
     const group = String(pickColumn(raw, ["Grupo", "Group"]) || "").trim();
     const rowErrors = [];
@@ -544,13 +602,13 @@ function parseScheduleRows(rows, source) {
     if (!discipline) rowErrors.push(source === "official" ? "Disciplina vacia" : "Actividad vacia");
     if (!day) rowErrors.push("Dia invalido");
     if (!Number.isFinite(timeToMinutes(start)) || !Number.isFinite(timeToMinutes(end)) || timeToMinutes(end) <= timeToMinutes(start)) rowErrors.push("Horario invalido");
-    if (!installation) rowErrors.push("Instalacion vacia");
+    if (!installation) rowErrors.push(resolvedInstallation.note || "Instalacion vacia");
     if (installation && !knownInstallations.map(normalizeText).includes(normalizeText(installation))) rowErrors.push(`Instalacion no registrada: ${installation}`);
     if (rowErrors.length) {
       errors.push({ row: index + 2, message: rowErrors.join("; ") });
       return;
     }
-    validRows.push({ id: `${source}-${Date.now()}-${index}`, source, professor, discipline, day, start, end, installation, frequency, group, rowNumber: index + 2 });
+    validRows.push({ id: `${source}-${Date.now()}-${index}`, source, professor, discipline, day, start, end, installation, installationCode: rawInstallation, frequency, group, rowNumber: index + 2 });
   });
   return { validRows, errors };
 }
@@ -614,8 +672,8 @@ function parseScheduleRows(rows, source) {
   const errors = [];
   const validRows = [];
   const required = source === "official"
-    ? [["Profesor", "NOMBRE_DOCENTE"], ["Disciplina", "NOMBRE_ASIGNATURA"], ["Dia", "Dia", "LUN", "Frecuencia"], ["Hora inicio", "Inicio", "HORA_INICIO"], ["Hora fin", "Fin", "HORA_FIN"], ["Instalacion", "Instalacion", "Lugar", " ", "__EMPTY"]]
-    : [["Profesor"], ["Actividad", "Disciplina"], ["Dia", "Dia", "Frecuencia"], ["Hora inicio", "Inicio", "Horario"], ["Instalacion", "Instalacion", "Lugar"]];
+    ? [["Profesor", "NOMBRE_DOCENTE"], ["Disciplina", "NOMBRE_ASIGNATURA"], ["Dia", "Dia", "LUN", "Frecuencia"], ["Hora inicio", "Inicio", "HORA_INICIO"], ["Hora fin", "Fin", "HORA_FIN"]]
+    : [["Profesor"], ["Actividad", "Disciplina"], ["Dia", "Dia", "Frecuencia"], ["Hora inicio", "Inicio", "Horario"]];
   const headers = Object.keys(rows[0] || {}).map(normalizeText);
   required.forEach((group) => {
     if (!group.some((name) => headers.includes(normalizeText(name)))) {
@@ -632,7 +690,9 @@ function parseScheduleRows(rows, source) {
       pickColumn(raw, ["Hora inicio", "Inicio", "Start", "Hora inicial", "HORA_INICIO"]),
       pickColumn(raw, ["Hora fin", "Fin", "End", "Hora final", "HORA_FIN"])
     );
-    const installation = String(pickColumn(raw, ["Instalacion", "Instalación", "Espacio", "Cancha", "Salon", "Salón", "Lugar", " ", "__EMPTY"]) || raw[" "] || raw.__EMPTY || "").trim();
+    const rawInstallation = String(pickColumn(raw, ["Instalacion", "Instalación", "Espacio", "Cancha", "Salon", "Salón", "Lugar", " ", "__EMPTY", "Codigo", "Código", "Codigo instalacion", "Código instalación"]) || raw[" "] || raw.__EMPTY || "").trim();
+    const resolvedInstallation = resolveInstallationForDiscipline(discipline, rawInstallation);
+    const installation = resolvedInstallation.installation;
     const frequency = String(frequencyValue || "Semanal").trim();
     const group = String(pickColumn(raw, ["Grupo", "Group", "ETIQUETA_GRUPO"]) || "").trim();
     const rowErrors = [];
@@ -640,7 +700,7 @@ function parseScheduleRows(rows, source) {
     if (!discipline) rowErrors.push(source === "official" ? "Disciplina vacia" : "Actividad vacia");
     if (!days.length) rowErrors.push("Dia o frecuencia invalida");
     if (!timeRanges.length) rowErrors.push("Horario invalido");
-    if (!installation) rowErrors.push("Instalacion vacia");
+    if (!installation) rowErrors.push(resolvedInstallation.note || "Instalacion vacia");
     if (rowErrors.length) {
       errors.push({ row: index + 2, message: rowErrors.join("; ") });
       return;
@@ -656,7 +716,7 @@ function parseScheduleRows(rows, source) {
           errors.push({ row: index + 2, message: `Horario invalido: ${range.start || ""}-${range.end || ""}` });
           return;
         }
-        validRows.push({ id: `${source}-${Date.now()}-${index}-${day}-${rangeIndex}`, source, professor, discipline, day, start, end, installation, frequency, group, rowNumber: index + 2 });
+        validRows.push({ id: `${source}-${Date.now()}-${index}-${day}-${rangeIndex}`, source, professor, discipline, day, start, end, installation, installationCode: rawInstallation, frequency, group, rowNumber: index + 2 });
       });
     });
   });
