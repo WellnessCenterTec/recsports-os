@@ -1128,8 +1128,9 @@ async function loadSupabaseCaptures() {
     .order("created_at", { ascending: false })
     .limit(800);
   if (error) {
-    cloudStatus = "Supabase conectado, pendiente permisos";
-    toast("No pude leer capturas de Supabase todavia");
+    const detail = supabaseErrorDetail(error);
+    cloudStatus = `Supabase conectado, pendiente permisos${detail ? `: ${detail}` : ""}`;
+    toast(`No pude leer capturas de Supabase${detail ? `: ${detail}` : ""}`);
     return;
   }
   cloudCaptures = (data || []).map(participationFromCloud);
