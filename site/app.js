@@ -25,7 +25,7 @@ const areas = [
     tone: "gold",
     source: "Gym Indicadores, Gym Lista de Alumnos",
     capture: ["Matrícula", "Fecha de acceso", "Sede", "Tipo de servicio", "Periodo"],
-    indicators: ["Accesos diarios", "Accesos semanales", "Matrículas únicas", "Frecuencia promedio", "EMIS"],
+    indicators: ["Accesos diarios", "Accesos semanales", "Matrículas únicas", "Frecuencia promedio", "EMIS","Grafica de asistencia semanal"],
     charts: ["Trafico por dia", "Semanas con mayor uso", "Profesional vs Posgrado"],
     reports: ["Bitacora de accesos", "Reporte semanal de asistencia", "Export de usuarios unicos"]
   },
