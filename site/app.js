@@ -433,7 +433,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function allowedDataText() {
-  return "La captura operativa solo usa matrícula, género, carrera, semestre y nivel escolar. Los campos de salud, nombre, correo y teléfono quedan fuera del sistema.";
+  return "";
 }
 
 function loadCaptures() {
