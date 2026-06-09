@@ -2721,21 +2721,6 @@ function renderDashboard(area) {
       ${localCaptures.length ? '<button class="ghost-btn inline-action" id="clearLocal">Limpiar capturas locales</button>' : ""}
     </div>
     <section class="ops-summary" aria-label="Resumen operativo">
-      <article>
-        <span>Gobierno de datos</span>
-        <strong>Datos mínimos</strong>
-        <p>Alumnos identificados por matrícula y segmentación académica permitida.</p>
-      </article>
-      <article>
-        <span>Automatización</span>
-        <strong>Indicadores al guardar</strong>
-        <p>Registros, alumnos únicos, retención, participación y reportes se recalculan automáticamente.</p>
-      </article>
-      <article>
-        <span>Siguiente decisión</span>
-        <strong>Base de datos</strong>
-        <p>Conectar Supabase y activar permisos reales por coordinador.</p>
-      </article>
     </section>
     ${progressMarkup}
     ${alertsMarkup}
