@@ -1004,7 +1004,7 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 
 .teacher-row {
   display: grid;
-  grid-template-columns: minmax(220px, 360px) minmax(180px, 1fr) 82px;
+  grid-template-columns: minmax(220px, 360px) minmax(180px, 0.5fr) 82px;
   gap: 12px;
   align-items: center;
   border: 1px solid var(--line);
