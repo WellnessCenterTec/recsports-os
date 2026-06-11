@@ -345,6 +345,9 @@ let localCaptures = loadCaptures();
 let activeTheme = localStorage.getItem(THEME_KEY) || "tec";
 let currentUser = loadSession();
 let cloudCaptures = [];
+let cloudStudentDatabase = [];
+let studentDatabaseLoaded = false;
+let studentDatabaseImporting = false;
 let cloudCollaborators = [];
 let collaboratorsCloudLoaded = false;
 let physicalEvaluations = [];
@@ -488,6 +491,197 @@ function participationFromCloud(row) {
     createdAt: row.created_at,
     source: "supabase"
   };
+}
+
+function studentDatabaseFromCloud(row) {
+  return {
+    matricula: row.matricula || "",
+    genero: row.genero || "No especificado",
+    carrera: row.carrera || "Sin carrera",
+    semestre: Number(row.semestre || 1),
+    nivel: row.nivel_escolar || "Profesional",
+    gradoEscolar: row.grado_escolar || row.nivel_escolar || "",
+    area: "general",
+    registros: 0,
+    acreditado: true,
+    baja: false,
+    source: "base_alumnos",
+    importedAt: row.imported_at || ""
+  };
+}
+
+async function loadStudentDatabase() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const { data, error } = await supabaseClient
+    .from("Base de datos_alumnos")
+    .select("matricula, genero, carrera, semestre, nivel_escolar, grado_escolar, imported_at")
+    .order("matricula", { ascending: true })
+    .limit(12000);
+  if (error) {
+    studentDatabaseLoaded = false;
+    console.error(error);
+    const detail = supabaseErrorDetail(error);
+    toast(`No pude leer Base de datos_alumnos${detail ? `: ${detail}` : ""}`);
+    return;
+  }
+  cloudStudentDatabase = (data || []).map(studentDatabaseFromCloud);
+  studentDatabaseLoaded = true;
+}
+
+function studentFromDatabase(matricula) {
+  return cloudStudentDatabase.find((student) => student.matricula === matricula);
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let cell = "";
+  let row = [];
+  let inQuotes = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+    if (char === '"' && inQuotes && next === '"') {
+      cell += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") index += 1;
+      row.push(cell);
+      if (row.some((value) => String(value).trim())) rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+  row.push(cell);
+  if (row.some((value) => String(value).trim())) rows.push(row);
+  return rows;
+}
+
+function headerKey(value) {
+  return normalizeText(value).replace(/[^a-z0-9]+/g, "");
+}
+
+function normalizeStudentGender(value) {
+  const clean = normalizeText(value);
+  if (["f", "femenino", "mujer"].includes(clean)) return "Femenino";
+  if (["m", "masculino", "hombre"].includes(clean)) return "Masculino";
+  return "No especificado";
+}
+
+function normalizeStudentLevel(value) {
+  const clean = normalizeText(value);
+  return clean.includes("pos") || clean.includes("maestr") || clean.includes("doctor") ? "Posgrado" : "Profesional";
+}
+
+function parseStudentDatabaseCsv(text) {
+  const rows = parseCsv(text);
+  if (rows.length < 2) return { payload: [], minimalPayload: [], errors: [{ row: 1, message: "El CSV no tiene registros" }] };
+  const headers = rows[0].map(headerKey);
+  const columnFor = (aliases) => aliases.map(headerKey).map((alias) => headers.indexOf(alias)).find((index) => index >= 0);
+  const columns = {
+    matricula: columnFor(["matricula", "matrícula"]),
+    genero: columnFor(["genero", "género", "sexo"]),
+    carrera: columnFor(["carrera", "programa", "programa academico", "programa académico"]),
+    semestre: columnFor(["semestre"]),
+    nivel: columnFor(["nivel", "nivel escolar", "grado escolar", "grado", "escolaridad"]),
+    gradoEscolar: columnFor(["grado escolar", "grado", "nivel escolar"])
+  };
+  const required = [
+    ["matricula", "matricula"],
+    ["genero", "genero"],
+    ["carrera", "carrera"],
+    ["semestre", "semestre"],
+    ["nivel", "nivel o grado escolar"]
+  ];
+  const missing = required.filter(([key]) => columns[key] === undefined).map(([, label]) => label);
+  if (missing.length) {
+    return { payload: [], minimalPayload: [], errors: missing.map((name) => ({ row: 1, message: `Falta columna requerida: ${name}` })) };
+  }
+  const errors = [];
+  const seen = new Set();
+  const payload = [];
+  rows.slice(1).forEach((values, index) => {
+    const rowNumber = index + 2;
+    const matricula = String(values[columns.matricula] || "").trim().toUpperCase();
+    const carrera = String(values[columns.carrera] || "").trim();
+    const semestre = Number(String(values[columns.semestre] || "").trim());
+    const genero = normalizeStudentGender(values[columns.genero]);
+    const nivel_escolar = normalizeStudentLevel(values[columns.nivel]);
+    const grado_escolar = String(values[columns.gradoEscolar] || values[columns.nivel] || "").trim();
+    const rowErrors = [];
+    if (!/^A0[0-9]{6,8}$/.test(matricula)) rowErrors.push("matricula invalida");
+    if (!carrera) rowErrors.push("carrera vacia");
+    if (!Number.isInteger(semestre) || semestre < 1 || semestre > 12) rowErrors.push("semestre invalido");
+    if (seen.has(matricula)) rowErrors.push("matricula duplicada en el CSV");
+    if (rowErrors.length) {
+      errors.push({ row: rowNumber, message: rowErrors.join("; ") });
+      return;
+    }
+    seen.add(matricula);
+    payload.push({
+      matricula,
+      genero,
+      carrera,
+      semestre,
+      nivel_escolar,
+      grado_escolar,
+      source_name: "CSV alumnos",
+      imported_by: currentUser?.id || null
+    });
+  });
+  return {
+    payload,
+    minimalPayload: payload.map(({ matricula, genero, carrera, semestre, nivel_escolar }) => ({ matricula, genero, carrera, semestre, nivel_escolar })),
+    errors
+  };
+}
+
+async function replaceStudentDatabaseFromCsv(file) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !["admin", "direccion"].includes(currentUser.role)) {
+    toast("Necesitas entrar como Direccion para cargar la base de alumnos");
+    return;
+  }
+  studentDatabaseImporting = true;
+  render();
+  try {
+    const text = await file.text();
+    const { payload, minimalPayload, errors } = parseStudentDatabaseCsv(text);
+    if (errors.length) {
+      toast(`CSV con errores: fila ${errors[0].row}, ${errors[0].message}`);
+      return;
+    }
+    if (!payload.length) {
+      toast("El CSV no tiene alumnos validos");
+      return;
+    }
+    toast("Reemplazando Base de datos_alumnos en Supabase");
+    const deleteResult = await supabaseClient.from("Base de datos_alumnos").delete().neq("matricula", "__well_sync_keep_none__");
+    if (deleteResult.error) throw deleteResult.error;
+    const chunkSize = 500;
+    for (let index = 0; index < payload.length; index += chunkSize) {
+      const { error } = await supabaseClient.from("Base de datos_alumnos").insert(payload.slice(index, index + chunkSize));
+      if (error) throw error;
+    }
+    for (let index = 0; index < minimalPayload.length; index += chunkSize) {
+      const { error } = await supabaseClient.from("students_minimal").upsert(minimalPayload.slice(index, index + chunkSize), { onConflict: "matricula" });
+      if (error) throw error;
+    }
+    await loadStudentDatabase();
+    addAudit("importacion", `${payload.length} alumnos cargados en Base de datos_alumnos`);
+    toast(`${payload.length} alumnos cargados y disponibles para WellSync`);
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo cargar alumnos${supabaseErrorDetail(error) ? `: ${supabaseErrorDetail(error)}` : ""}`);
+  } finally {
+    studentDatabaseImporting = false;
+    render();
+  }
 }
 
 async function loadSupabaseCaptures() {
@@ -1212,7 +1406,7 @@ async function loadSupabaseSession() {
   }
   saveSession(profileToSession(profile, authUser));
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
-  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades()]);
+  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades()]);
 }
 
 async function loginWithSupabase() {
@@ -1268,19 +1462,20 @@ async function loginWithSupabase() {
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
   activeView = "dashboard";
-  await Promise.all([loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades()]);
+  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades()]);
   render();
   toast(`Sesion Supabase: ${currentUser.name}`);
 }
 
 async function saveCaptureToSupabase(row) {
   if (!supabaseClient || currentUser?.auth !== "supabase") return false;
+  const centralStudent = studentFromDatabase(row.matricula);
   const studentPayload = {
     matricula: row.matricula,
-    genero: row.genero,
-    carrera: row.carrera,
-    semestre: row.semestre,
-    nivel_escolar: row.nivel
+    genero: centralStudent?.genero || row.genero,
+    carrera: centralStudent?.carrera || row.carrera,
+    semestre: centralStudent?.semestre || row.semestre,
+    nivel_escolar: centralStudent?.nivel || row.nivel
   };
   const studentResult = await supabaseClient.from("students_minimal").upsert(studentPayload);
   if (studentResult.error) throw studentResult.error;
@@ -1320,6 +1515,15 @@ function canEditArea(areaId) {
 }
 
 function allParticipationRows() {
+  if (currentUser?.auth === "supabase" && studentDatabaseLoaded) {
+    const cloudWithStudentBase = cloudCaptures.map((row) => {
+      const student = studentFromDatabase(row.matricula);
+      return student ? { ...row, genero: student.genero, carrera: student.carrera, semestre: student.semestre, nivel: student.nivel } : row;
+    });
+    const capturedMatriculas = new Set(cloudWithStudentBase.map((row) => row.matricula));
+    const baseOnlyRows = cloudStudentDatabase.filter((student) => !capturedMatriculas.has(student.matricula));
+    return [...cloudWithStudentBase, ...baseOnlyRows, ...localCaptures];
+  }
   return [...cloudCaptures, ...localCaptures, ...students];
 }
 
@@ -2067,6 +2271,27 @@ function renderDashboard(area) {
 
   const alertsMarkup = area.id === "general" ? renderAlertCenter(true) : "";
   const progressMarkup = area.id === "general" ? renderProjectProgress() : "";
+  const studentDatabaseMarkup = area.id === "general" ? `
+    <section class="ops-summary student-database-loader" aria-label="Base de datos de alumnos">
+      <article>
+        <span>Fuente principal</span>
+        <strong>Base de datos_alumnos</strong>
+        <p>${studentDatabaseLoaded ? `${cloudStudentDatabase.length} alumnos cargados desde Supabase.` : "Pendiente de cargar o activar en Supabase."}</p>
+      </article>
+      <article>
+        <span>CSV autorizado</span>
+        <strong>Matrícula + datos académicos</strong>
+        <p>Columnas esperadas: matrícula, género, carrera, semestre y nivel o grado escolar.</p>
+      </article>
+      <article>
+        <span>Reemplazo total</span>
+        <strong>Carga controlada</strong>
+        <p>Cada archivo sustituye la base anterior y alimenta módulos que usan matrícula.</p>
+        <input id="studentDatabaseCsv" type="file" accept=".csv,text/csv" hidden />
+        <button class="primary-btn" id="uploadStudentDatabase" type="button" ${currentUser?.auth === "supabase" && ["admin", "direccion"].includes(currentUser.role) && !studentDatabaseImporting ? "" : "disabled"}>${studentDatabaseImporting ? "Cargando..." : "Cargar Base de Datos de Alumnos"}</button>
+      </article>
+    </section>
+  ` : "";
   const classTeachersMarkup = area.id === "clases" ? renderClassTeacherPerformance() : "";
   return `
     <div class="permission-strip">
@@ -2090,6 +2315,7 @@ function renderDashboard(area) {
         <p>Conectar Supabase y activar permisos reales por coordinador.</p>
       </article>
     </section>
+    ${studentDatabaseMarkup}
     ${progressMarkup}
     ${alertsMarkup}
     <div class="kpi-grid">
@@ -2943,6 +3169,13 @@ function render() {
     addAudit("limpieza", "Capturas locales eliminadas");
     render();
     toast("Capturas locales eliminadas");
+  });
+  $("#uploadStudentDatabase")?.addEventListener("click", () => $("#studentDatabaseCsv")?.click());
+  $("#studentDatabaseCsv")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await replaceStudentDatabaseFromCsv(file);
+    event.target.value = "";
   });
   $("#clearAudit")?.addEventListener("click", () => {
     auditLog = [];

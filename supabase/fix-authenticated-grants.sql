@@ -15,6 +15,7 @@ grant select on public.app_profiles to authenticated;
 grant select on public.system_catalogs to authenticated;
 
 grant select, insert, update on public.students_minimal to authenticated;
+grant select, insert, update, delete on public."Base de datos_alumnos" to authenticated;
 grant select, insert, update on public.participations to authenticated;
 
 grant select, insert, update on public.class_sections to authenticated;
