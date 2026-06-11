@@ -2914,21 +2914,23 @@ function render() {
   const evaluationsTab = $("#evaluationsViewButton");
   const gradesTab = $("#gradesViewButton");
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
-  if (gradesTab) gradesTab.hidden = activeArea !== "clases";
+  if (gradesTab) gradesTab.hidden = !["clases", "colaboradores"].includes(activeArea);
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
-  if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
+  if (activeView === "grades" && !["clases", "colaboradores"].includes(activeArea)) activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
   $("#contentArea").innerHTML = activeView === "dashboard"
     ? renderDashboard(area)
     : activeView === "capture"
       ? renderCapture(area)
-      : activeView === "reports"
-        ? renderReports(area)
-        : activeView === "grades"
-          ? renderClassGrades()
-          : activeView === "evaluations"
-            ? renderPhysicalEvaluationsDashboard()
-            : renderBlueprint(area);
+      : activeView === "schedules"
+        ? renderCapture(area)
+        : activeView === "reports"
+          ? renderReports(area)
+          : activeView === "grades"
+            ? renderClassGrades()
+            : activeView === "evaluations"
+              ? renderPhysicalEvaluationsDashboard()
+              : renderBlueprint(area);
   $$("[data-jump]").forEach((button) => button.addEventListener("click", () => {
     activeArea = button.dataset.jump;
     activeView = "dashboard";
