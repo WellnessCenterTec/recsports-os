@@ -25,7 +25,7 @@ const areas = [
     tone: "gold",
     source: "Gym Indicadores, Gym Lista de Alumnos",
     capture: ["Matrícula", "Fecha de acceso", "Sede", "Tipo de servicio", "Periodo"],
-    indicators: ["Accesos diarios", "Accesos semanales", "Matrículas únicas", "Frecuencia promedio", "EMIS","Grafica de asistencia semanal"],
+    indicators: ["Accesos diarios", "Accesos semanales", "Matrículas únicas", "Frecuencia promedio", "EMIS"],
     charts: ["Trafico por dia", "Semanas con mayor uso", "Profesional vs Posgrado"],
     reports: ["Bitacora de accesos", "Reporte semanal de asistencia", "Export de usuarios unicos"]
   },
@@ -184,8 +184,6 @@ const genders = ["Femenino", "Masculino", "No especificado"];
 const levels = ["Profesional", "Posgrado"];
 const activities = ["clases", "gimnasio", "intramuros", "vivencia", "representativos", "gamer"];
 const STORAGE_KEY = "recsports_os_local_captures";
-const SCHEDULE_KEY = "recsports_os_class_schedules";
-const SIMULATOR_KEY = "recsports_os_schedule_simulator";
 const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
@@ -207,47 +205,6 @@ const SUPABASE_ENV = window.RECSPORTS_ENV || {};
 const supabaseClient = window.supabase && SUPABASE_ENV.SUPABASE_URL && SUPABASE_ENV.SUPABASE_ANON_KEY
   ? window.supabase.createClient(SUPABASE_ENV.SUPABASE_URL, SUPABASE_ENV.SUPABASE_ANON_KEY)
   : null;
-const scheduleDays = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
-const scheduleHours = Array.from({ length: 16 }, (_, index) => `${String(6 + index).padStart(2, "0")}:00`);
-const disciplineInstallationRelations = [
-  ["Acondicionamiento fisico PMT1", "106-W-1", "Sala Fitness"],
-  ["Basquetbol femenil PMT1", "101", "Arena Wellness 2"],
-  ["Basquetbol varonil PMT1", "101", "Arena Wellness 2"],
-  ["Body Pump PMT1", "106-W-1", "Sala Fitness"],
-  ["Box PMT1", "106-W-2", "Artes Marciales"],
-  ["Ciclismo indoor PMT1", "210-B", "Sala de Spinning"],
-  ["Cross Training PMT1", "106-H", "Sala CrossFit"],
-  ["Escalada deportiva PMT1", "MURO", "Muro de Escalada"],
-  ["GAP Gluteo Abdomen y Pierna PMT1", "106-W-1", "Sala Fitness"],
-  ["HIIT PMT1", "106-W-1", "Sala Fitness"],
-  ["Futbol rapido varonil PMT1", "CDB1", "Cancha de Soccer"],
-  ["Futbol soccer femenil PMT1", "CDB1", "Cancha de Soccer"],
-  ["Futbol soccer varonil PMT1", "CDB1", "Cancha de Soccer"],
-  ["Natacion PMT1", "106-S", "Alberca"],
-  ["Pilates PMT1", "106-W-1", "Sala Fitness"],
-  ["Tenis PMT1", "CDB2", "Canchas de Tenis"],
-  ["Voleibol femenil PMT1", "101", "Arena Wellness 2"],
-  ["Voleibol varonil PMT1", "101", "Arena Wellness 2"],
-  ["Yoga PMT1", "107", "Sala Yoga"],
-  ["Yoga PMT1", "SALA-LIFE", "Sala Multiusos EMIS"]
-].map(([discipline, code, installation]) => ({ discipline, code, installation }));
-const knownInstallations = Array.from(new Set([
-  "Fitness", "Ciclismo", "Yoga", "Taekwondo", "Croata", "Box", "Alberca", "Cancha 1", "Cancha 2", "Cancha 3",
-  "Gimnasio", "Sala funcional", "Explanada", "Auditorio", "Cancha exterior", "Wellness", "CrossFit", "Muro", "Sala Wellness",
-  ...disciplineInstallationRelations.map((relation) => relation.installation)
-])).sort();
-const sampleOfficialSchedule = [
-  { source: "official", professor: "Josue Fernando Silguero Urquiza", discipline: "Natacion", day: "Lunes", start: "07:00", end: "09:00", installation: "Alberca", frequency: "Semanal", group: "101", rowNumber: 2 },
-  { source: "official", professor: "Carolina Esquivel Morales", discipline: "Yoga", day: "Martes", start: "09:00", end: "11:00", installation: "Yoga", frequency: "Semanal", group: "204", rowNumber: 3 },
-  { source: "official", professor: "Adrian Guadalupe Torres Sandoval", discipline: "Fitness", day: "Miercoles", start: "12:00", end: "14:00", installation: "Fitness", frequency: "Semanal", group: "305", rowNumber: 4 },
-  { source: "official", professor: "Perla Limon Moreno", discipline: "Ciclismo", day: "Jueves", start: "16:00", end: "18:00", installation: "Ciclismo", frequency: "Semanal", group: "107", rowNumber: 5 }
-];
-const sampleBookingSchedule = [
-  { source: "booking", professor: "Josue Fernando Silguero Urquiza", discipline: "Entrenamiento libre", day: "Lunes", start: "10:00", end: "12:00", installation: "Fitness", frequency: "Semanal", group: "", rowNumber: 2 },
-  { source: "booking", professor: "Carolina Esquivel Morales", discipline: "Sesion bienestar", day: "Martes", start: "11:00", end: "12:00", installation: "Yoga", frequency: "Semanal", group: "", rowNumber: 3 },
-  { source: "booking", professor: "Adrian Guadalupe Torres Sandoval", discipline: "Reserva equipo", day: "Miercoles", start: "13:00", end: "15:00", installation: "Fitness", frequency: "Semanal", group: "", rowNumber: 4 },
-  { source: "booking", professor: "Perla Limon Moreno", discipline: "Clase especial", day: "Sabado", start: "08:00", end: "10:00", installation: "Croata", frequency: "Semanal", group: "", rowNumber: 5 }
-];
 const submenus = ["Dashboard", "Captura", "Participantes", "Calendario", "Indicadores", "Reportes", "Configuración"];
 const roleMatrix = [
   ["Dirección Deportiva", "Todo el sistema", "Lectura global, descarga ejecutiva, aprobaciones y auditoría"],
@@ -385,10 +342,6 @@ const students = Array.from({ length: 180 }, (_, i) => ({
 let activeArea = "general";
 let activeView = "dashboard";
 let localCaptures = loadCaptures();
-let scheduleState = loadSchedules();
-let scheduleFilters = { period: "PMT1", professor: "todos", day: "todos", discipline: "todos", installation: "todos", mode: "professors", timeDay: "Lunes", time: "09:00", reportProfessor: "todos" };
-let simulatorState = loadSimulator();
-let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
 let activeTheme = localStorage.getItem(THEME_KEY) || "tec";
 let currentUser = loadSession();
 let cloudCaptures = [];
@@ -433,7 +386,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function allowedDataText() {
-  return "";
+  return "La captura operativa solo usa matrícula, género, carrera, semestre y nivel escolar. Los campos de salud, nombre, correo y teléfono quedan fuera del sistema.";
 }
 
 function loadCaptures() {
@@ -448,562 +401,6 @@ function saveCaptures() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(localCaptures));
 }
 
-function loadSchedules() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SCHEDULE_KEY) || "null");
-    if (saved?.official || saved?.booking) {
-      return {
-        official: saved.official || [],
-        booking: saved.booking || [],
-        errors: { master: [], official: [], booking: [], ...(saved.errors || {}) },
-        updatedAt: saved.updatedAt || null
-      };
-    }
-  } catch {
-    // Continue with demo data.
-  }
-  return {
-    official: sampleOfficialSchedule,
-    booking: sampleBookingSchedule,
-    errors: { master: [], official: [], booking: [] },
-    updatedAt: null
-  };
-}
-
-function saveSchedules() {
-  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(scheduleState));
-}
-
-function loadSimulator() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SIMULATOR_KEY) || "null");
-    if (Array.isArray(saved?.rows)) {
-      return {
-        rows: saved.rows,
-        scenarioName: saved.scenarioName || "Escenario base",
-        updatedAt: saved.updatedAt || null
-      };
-    }
-  } catch {
-    // Continue with a fresh draft.
-  }
-  return { rows: [], scenarioName: "Escenario base", updatedAt: null };
-}
-
-function saveSimulator() {
-  localStorage.setItem(SIMULATOR_KEY, JSON.stringify(simulatorState));
-}
-
-function scheduleMasterRows() {
-  return [...scheduleState.official, ...scheduleState.booking]
-    .map((row, index) => ({ ...row, id: row.id || `${row.source}-${index}` }))
-    .sort((a, b) => scheduleDays.indexOf(a.day) - scheduleDays.indexOf(b.day) || timeToMinutes(a.start) - timeToMinutes(b.start));
-}
-
-function schedulePeriod(row) {
-  const source = `${row.period || ""} ${row.discipline || ""} ${row.group || ""}`;
-  const clean = normalizeText(source);
-  const match = clean.match(/\bpmt\s*(\d)\b/) || clean.match(/\bperiodo\s*(\d)\b/);
-  return match ? `PMT${match[1]}` : "Sin periodo";
-}
-
-function calendarScheduleRows(rows = scheduleMasterRows()) {
-  return rows.filter((row) => scheduleFilters.period === "todos" || schedulePeriod(row) === scheduleFilters.period);
-}
-
-function schedulePeriods(rows = scheduleMasterRows()) {
-  return Array.from(new Set(rows.map(schedulePeriod).filter((period) => period !== "Sin periodo"))).sort();
-}
-
-function scheduleProfessors() {
-  return Array.from(new Set(calendarScheduleRows().map((row) => row.professor).filter(Boolean))).sort();
-}
-
-function scheduleDisciplines() {
-  return Array.from(new Set(calendarScheduleRows().map((row) => row.discipline).filter(Boolean))).sort();
-}
-
-function scheduleInstallations() {
-  return Array.from(new Set([...knownInstallations, ...calendarScheduleRows().map((row) => row.installation).filter(Boolean)])).sort();
-}
-
-function normalizeText(value) {
-  return String(value || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-
-function normalizeDay(value) {
-  const clean = normalizeText(value);
-  const found = scheduleDays.find((day) => normalizeText(day) === clean || normalizeText(day).slice(0, 3) === clean.slice(0, 3));
-  return found || "";
-}
-
-function normalizeDisciplineKey(value) {
-  return normalizeText(value).replace(/\bpmt\s*\d+\b/g, "").replace(/\s+/g, " ").trim();
-}
-
-function relationMatchesDiscipline(relation, discipline) {
-  const relationKey = normalizeDisciplineKey(relation.discipline);
-  const disciplineKey = normalizeDisciplineKey(discipline);
-  return relationKey && disciplineKey && (relationKey === disciplineKey || disciplineKey.includes(relationKey) || relationKey.includes(disciplineKey));
-}
-
-function relationMatchesCode(relation, value) {
-  const cleanCode = normalizeText(relation.code);
-  const cleanValue = normalizeText(value);
-  return cleanCode && cleanValue && (cleanValue === cleanCode || cleanValue.startsWith(cleanCode) || cleanValue.includes(` ${cleanCode}`));
-}
-
-function resolveInstallationForDiscipline(discipline, rawInstallation = "") {
-  const cleanInstallation = String(rawInstallation || "").trim();
-  const matches = disciplineInstallationRelations.filter((relation) => relationMatchesDiscipline(relation, discipline));
-  if (cleanInstallation) {
-    const codeMatches = disciplineInstallationRelations.filter((relation) => relationMatchesCode(relation, cleanInstallation));
-    const uniqueByCode = Array.from(new Set(codeMatches.map((relation) => relation.installation)));
-    if (uniqueByCode.length === 1) {
-      return { installation: uniqueByCode[0], note: `Codigo ${cleanInstallation} convertido a ${uniqueByCode[0]}` };
-    }
-  }
-  if (!matches.length) return { installation: cleanInstallation, note: "" };
-  if (cleanInstallation) {
-    const byCode = matches.find((relation) => relationMatchesCode(relation, cleanInstallation));
-    if (byCode) return { installation: byCode.installation, note: `Codigo ${cleanInstallation} convertido a ${byCode.installation}` };
-    const byName = matches.find((relation) => normalizeText(relation.installation) === normalizeText(cleanInstallation));
-    if (byName) return { installation: byName.installation, note: "" };
-    return { installation: cleanInstallation, note: "" };
-  }
-  const uniqueInstallations = Array.from(new Set(matches.map((relation) => relation.installation)));
-  if (uniqueInstallations.length === 1) {
-    return { installation: uniqueInstallations[0], note: `Instalacion asignada por relacion de disciplina: ${uniqueInstallations[0]}` };
-  }
-  return { installation: "", note: `Disciplina con mas de una instalacion posible: ${matches.map((relation) => `${relation.code} ${relation.installation}`).join(" / ")}` };
-}
-
-function timeToMinutes(value) {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.getHours() * 60 + value.getMinutes();
-  }
-  if (typeof value === "number" && Number.isFinite(value)) {
-    const dayFraction = value >= 1 ? value % 1 : value;
-    if (dayFraction >= 0 && dayFraction < 1) {
-      return Math.round(dayFraction * 24 * 60);
-    }
-  }
-  const text = String(value || "").trim();
-  const compact = text.match(/^(\d{1,2})(\d{2})$/);
-  if (compact) {
-    const compactHours = Number(compact[1]);
-    const compactMinutes = Number(compact[2]);
-    if (compactHours >= 0 && compactHours <= 23 && compactMinutes >= 0 && compactMinutes <= 59) return compactHours * 60 + compactMinutes;
-  }
-  const match = text.match(/^(\d{1,2})(?::(\d{2}))?/);
-  if (!match) return NaN;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2] || 0);
-  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return NaN;
-  return hours * 60 + minutes;
-}
-
-function minutesToTime(value) {
-  const hours = Math.floor(value / 60);
-  const minutes = value % 60;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-}
-
-function pickColumn(row, options) {
-  const keys = Object.keys(row || {});
-  const wanted = options.map(normalizeText);
-  const key = keys.find((candidate) => wanted.includes(normalizeText(candidate)));
-  return key ? row[key] : "";
-}
-
-function parseScheduleRows(rows, source) {
-  const errors = [];
-  const validRows = [];
-  const required = source === "official"
-    ? [["Profesor"], ["Disciplina"], ["Dia", "Día"], ["Hora inicio", "Inicio"], ["Hora fin", "Fin"]]
-    : [["Profesor"], ["Actividad", "Disciplina"], ["Dia", "Día"], ["Hora inicio", "Inicio"], ["Hora fin", "Fin"]];
-  const headers = Object.keys(rows[0] || {}).map(normalizeText);
-  required.forEach((group) => {
-    if (!group.some((name) => headers.includes(normalizeText(name)))) {
-      errors.push({ row: 1, message: `Falta columna requerida: ${group[0]}` });
-    }
-  });
-  rows.forEach((raw, index) => {
-    const professor = String(pickColumn(raw, ["Profesor", "Professor", "Docente"]) || "").trim();
-    const discipline = String(pickColumn(raw, source === "official" ? ["Disciplina", "Actividad"] : ["Actividad", "Disciplina"]) || "").trim();
-    const day = normalizeDay(pickColumn(raw, ["Dia", "Día", "Day"]));
-    const start = minutesToTime(timeToMinutes(pickColumn(raw, ["Hora inicio", "Inicio", "Start", "Hora inicial"])));
-    const end = minutesToTime(timeToMinutes(pickColumn(raw, ["Hora fin", "Fin", "End", "Hora final"])));
-    const rawInstallation = String(pickColumn(raw, ["Instalacion", "Instalación", "Espacio", "Cancha", "Salon", "Salón", "Codigo", "Código", "Codigo instalacion", "Código instalación"]) || "").trim();
-    const resolvedInstallation = resolveInstallationForDiscipline(discipline, rawInstallation);
-    const installation = resolvedInstallation.installation;
-    const frequency = String(pickColumn(raw, ["Frecuencia", "Frequency"]) || "Semanal").trim();
-    const group = String(pickColumn(raw, ["Grupo", "Group"]) || "").trim();
-    const period = String(pickColumn(raw, ["Periodo", "Period", "PMT"]) || "").trim();
-    const rowErrors = [];
-    if (!professor) rowErrors.push("Profesor vacio");
-    if (!discipline) rowErrors.push(source === "official" ? "Disciplina vacia" : "Actividad vacia");
-    if (!day) rowErrors.push("Dia invalido");
-    if (!Number.isFinite(timeToMinutes(start)) || !Number.isFinite(timeToMinutes(end)) || timeToMinutes(end) <= timeToMinutes(start)) rowErrors.push("Horario invalido");
-    if (!installation) rowErrors.push(resolvedInstallation.note || "Instalacion vacia");
-    if (installation && !knownInstallations.map(normalizeText).includes(normalizeText(installation))) rowErrors.push(`Instalacion no registrada: ${installation}`);
-    if (rowErrors.length) {
-      errors.push({ row: index + 2, message: rowErrors.join("; ") });
-      return;
-    }
-    validRows.push({ id: `${source}-${Date.now()}-${index}`, source, professor, discipline, day, start, end, installation, installationCode: rawInstallation, frequency, group, period, rowNumber: index + 2 });
-  });
-  return { validRows, errors };
-}
-
-async function rowsFromScheduleFile(file) {
-  const ext = file.name.split(".").pop().toLowerCase();
-  if (["xlsx", "xls"].includes(ext) && window.XLSX) {
-    const buffer = await file.arrayBuffer();
-    const workbook = window.XLSX.read(buffer, { type: "array" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    return window.XLSX.utils.sheet_to_json(sheet, { defval: "" });
-  }
-  const text = await file.text();
-  const lines = text.split(/\r?\n/).filter((line) => line.trim());
-  const separator = lines[0]?.includes(";") ? ";" : ",";
-  const headers = (lines.shift() || "").split(separator).map((value) => value.trim());
-  return lines.map((line) => {
-    const cells = line.split(separator);
-    return headers.reduce((row, header, index) => ({ ...row, [header]: cells[index] || "" }), {});
-  });
-}
-
-function daysFromFrequency(value) {
-  const clean = normalizeText(value).replace(/\s+/g, "");
-  if (!clean) return [];
-  const explicit = [
-    ["lunes", "Lunes"],
-    ["martes", "Martes"],
-    ["miercoles", "Miercoles"],
-    ["jueves", "Jueves"],
-    ["viernes", "Viernes"],
-    ["sabado", "Sabado"]
-  ];
-  const direct = explicit.filter(([key]) => clean.includes(key)).map(([, label]) => label);
-  if (direct.length) return Array.from(new Set(direct));
-  const matches = clean.match(/lu|ma|mi|ju|vi|sa/g) || [];
-  const map = { lu: "Lunes", ma: "Martes", mi: "Miercoles", ju: "Jueves", vi: "Viernes", sa: "Sabado" };
-  return Array.from(new Set(matches.map((token) => map[token]).filter(Boolean)));
-}
-
-function normalizeTimeToken(value) {
-  const minutes = timeToMinutes(value);
-  if (Number.isFinite(minutes)) return minutesToTime(minutes);
-  const text = String(value || "").trim();
-  const match = text.match(/^(\d{1,2})(?::?(\d{2}))?/);
-  if (!match) return "";
-  return `${String(Number(match[1])).padStart(2, "0")}:${String(Number(match[2] || 0)).padStart(2, "0")}`;
-}
-
-function parseTimeRanges(value, fallbackStart, fallbackEnd) {
-  const lines = String(value || "").replace(/\r/g, "\n").split(/\n+/).map((line) => line.trim()).filter(Boolean);
-  const ranges = lines.flatMap((line) => {
-    const matches = line.match(/\d{1,2}(?::?\d{2})?/g) || [];
-    if (matches.length >= 2) return [{ start: normalizeTimeToken(matches[0]), end: normalizeTimeToken(matches[1]) }];
-    return [];
-  });
-  if (ranges.length) return ranges;
-  if (fallbackStart || fallbackEnd) return [{ start: normalizeTimeToken(fallbackStart), end: normalizeTimeToken(fallbackEnd) }];
-  return [];
-}
-
-function parseScheduleRows(rows, source) {
-  const errors = [];
-  const validRows = [];
-  const required = source === "official"
-    ? [["Profesor", "NOMBRE_DOCENTE"], ["Disciplina", "NOMBRE_ASIGNATURA"], ["Dia", "Dia", "LUN", "Frecuencia"], ["Hora inicio", "Inicio", "HORA_INICIO"], ["Hora fin", "Fin", "HORA_FIN"]]
-    : [["Profesor"], ["Actividad", "Disciplina"], ["Dia", "Dia", "Frecuencia"], ["Hora inicio", "Inicio", "Horario"]];
-  const headers = Object.keys(rows[0] || {}).map(normalizeText);
-  required.forEach((group) => {
-    if (!group.some((name) => headers.includes(normalizeText(name)))) {
-      errors.push({ row: 1, message: `Falta columna requerida: ${group[0]}` });
-    }
-  });
-  rows.forEach((raw, index) => {
-    const professor = String(pickColumn(raw, ["Profesor", "Professor", "Docente", "NOMBRE_DOCENTE"]) || "").trim();
-    const discipline = String(pickColumn(raw, source === "official" ? ["Disciplina", "Actividad", "NOMBRE_ASIGNATURA"] : ["Actividad", "Disciplina"]) || "").trim();
-    const frequencyValue = pickColumn(raw, ["Dia", "Día", "Day", "Frecuencia", "Frequency", "LUN"]);
-    const days = daysFromFrequency(frequencyValue);
-    const timeRanges = parseTimeRanges(
-      pickColumn(raw, ["Horario"]),
-      pickColumn(raw, ["Hora inicio", "Inicio", "Start", "Hora inicial", "HORA_INICIO"]),
-      pickColumn(raw, ["Hora fin", "Fin", "End", "Hora final", "HORA_FIN"])
-    );
-    const rawInstallation = String(pickColumn(raw, ["Instalacion", "Instalación", "Espacio", "Cancha", "Salon", "Salón", "Lugar", " ", "__EMPTY", "Codigo", "Código", "Codigo instalacion", "Código instalación"]) || raw[" "] || raw.__EMPTY || "").trim();
-    const resolvedInstallation = resolveInstallationForDiscipline(discipline, rawInstallation);
-    const installation = resolvedInstallation.installation;
-    const frequency = String(frequencyValue || "Semanal").trim();
-    const group = String(pickColumn(raw, ["Grupo", "Group", "ETIQUETA_GRUPO"]) || "").trim();
-    const period = String(pickColumn(raw, ["Periodo", "Period", "PMT"]) || "").trim();
-    const rowErrors = [];
-    if (!professor) rowErrors.push("Profesor vacio");
-    if (!discipline) rowErrors.push(source === "official" ? "Disciplina vacia" : "Actividad vacia");
-    if (!days.length) rowErrors.push("Dia o frecuencia invalida");
-    if (!timeRanges.length) rowErrors.push("Horario invalido");
-    if (!installation) rowErrors.push(resolvedInstallation.note || "Instalacion vacia");
-    if (rowErrors.length) {
-      errors.push({ row: index + 2, message: rowErrors.join("; ") });
-      return;
-    }
-    if (installation && !knownInstallations.map(normalizeText).includes(normalizeText(installation))) {
-      errors.push({ row: index + 2, message: `Instalacion no registrada en catalogo: ${installation}` });
-    }
-    days.forEach((day) => {
-      timeRanges.forEach((range, rangeIndex) => {
-        const start = minutesToTime(timeToMinutes(range.start));
-        const end = minutesToTime(timeToMinutes(range.end));
-        if (!Number.isFinite(timeToMinutes(start)) || !Number.isFinite(timeToMinutes(end)) || timeToMinutes(end) <= timeToMinutes(start)) {
-          errors.push({ row: index + 2, message: `Horario invalido: ${range.start || ""}-${range.end || ""}` });
-          return;
-        }
-        validRows.push({ id: `${source}-${Date.now()}-${index}-${day}-${rangeIndex}`, source, professor, discipline, day, start, end, installation, installationCode: rawInstallation, frequency, group, period, rowNumber: index + 2 });
-      });
-    });
-  });
-  return { validRows, errors };
-}
-
-function findWorkbookSheet(workbook, targetName) {
-  const target = normalizeText(targetName);
-  const name = workbook.SheetNames.find((sheetName) => normalizeText(sheetName) === target);
-  return name || workbook.SheetNames.find((sheetName) => normalizeText(sheetName).includes(target));
-}
-
-function bookingGridToRows(sheet) {
-  const grid = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-  const periodRow = grid[0] || [];
-  const headerRow = grid[1] || [];
-  const starts = headerRow.reduce((acc, value, index) => {
-    if (normalizeText(value) === "disciplina") acc.push(index);
-    return acc;
-  }, []);
-  return starts.flatMap((start) => {
-    const headers = headerRow.slice(start, start + 8).map((value) => String(value || "").trim());
-    const period = String(periodRow[start] || "").trim();
-    return grid.slice(2).map((row, rowIndex) => {
-      const record = headers.reduce((acc, header, offset) => ({ ...acc, [header || `campo_${offset}`]: row[start + offset] || "" }), {});
-      record.Periodo = period;
-      record.__rowNumber = rowIndex + 3;
-      return record;
-    }).filter((record) => String(record.Disciplina || record.Actividad || record.Horario || record.Profesor || "").trim());
-  });
-}
-
-async function schedulesFromMasterWorkbook(file) {
-  if (!window.XLSX) throw new Error("No esta disponible el lector de Excel");
-  const buffer = await file.arrayBuffer();
-  const workbook = window.XLSX.read(buffer, { type: "array" });
-  const officialName = findWorkbookSheet(workbook, "programacion clases");
-  const bookingName = findWorkbookSheet(workbook, "booking ofertados");
-  const masterErrors = [];
-  if (!officialName) masterErrors.push({ row: 0, message: 'No encontre la hoja "programacion clases"' });
-  if (!bookingName) masterErrors.push({ row: 0, message: 'No encontre la hoja "booking ofertados"' });
-  const officialRows = officialName ? window.XLSX.utils.sheet_to_json(workbook.Sheets[officialName], { defval: "" }) : [];
-  const bookingRows = bookingName ? bookingGridToRows(workbook.Sheets[bookingName]) : [];
-  const official = parseScheduleRows(officialRows, "official");
-  const booking = parseScheduleRows(bookingRows, "booking");
-  return {
-    official: official.validRows,
-    booking: booking.validRows,
-    errors: {
-      master: masterErrors,
-      official: official.errors,
-      booking: booking.errors
-    },
-    sheetNames: { official: officialName, booking: bookingName }
-  };
-}
-
-function overlap(a, b) {
-  return a.day === b.day && timeToMinutes(a.start) < timeToMinutes(b.end) && timeToMinutes(b.start) < timeToMinutes(a.end);
-}
-
-function scheduleConflicts() {
-  const rows = calendarScheduleRows();
-  const conflicts = [];
-  rows.forEach((row, index) => {
-    rows.slice(index + 1).forEach((other) => {
-      if (!overlap(row, other)) return;
-      if (normalizeText(row.professor) === normalizeText(other.professor)) {
-        conflicts.push({ type: "Profesor", label: row.professor, day: row.day, time: `${row.start}-${row.end}`, a: row, b: other });
-      }
-      if (normalizeText(row.installation) === normalizeText(other.installation)) {
-        conflicts.push({ type: "Instalacion", label: row.installation, day: row.day, time: `${row.start}-${row.end}`, a: row, b: other });
-      }
-    });
-  });
-  return conflicts;
-}
-
-function filteredScheduleRows() {
-  return calendarScheduleRows().filter((row) => {
-    const professorMatch = scheduleFilters.professor === "todos" || row.professor === scheduleFilters.professor;
-    const dayMatch = scheduleFilters.day === "todos" || row.day === scheduleFilters.day;
-    const disciplineMatch = scheduleFilters.discipline === "todos" || row.discipline === scheduleFilters.discipline;
-    const installationMatch = scheduleFilters.installation === "todos" || row.installation === scheduleFilters.installation;
-    return professorMatch && dayMatch && disciplineMatch && installationMatch;
-  });
-}
-
-function professorColor(name) {
-  const palette = ["#006a8e", "#b33a3a", "#008566", "#8a5d00", "#5551a6", "#0f766e", "#a8552a", "#2563eb"];
-  const index = normalizeText(name).split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) % palette.length;
-  return palette[index];
-}
-
-function simulatorBaseRows() {
-  return calendarScheduleRows().map((row, index) => ({
-    ...row,
-    simId: `sim-${row.id || index}`,
-    originalId: row.id || "",
-    draftChanged: false
-  }));
-}
-
-function simulatorRows() {
-  const rows = simulatorState.rows.length ? simulatorState.rows : simulatorBaseRows();
-  return rows
-    .map((row, index) => ({ ...row, simId: row.simId || `sim-row-${index}` }))
-    .sort((a, b) => scheduleDays.indexOf(a.day) - scheduleDays.indexOf(b.day) || timeToMinutes(a.start) - timeToMinutes(b.start));
-}
-
-function simulatorPeriodRows(rows = simulatorRows()) {
-  return rows.filter((row) => scheduleFilters.period === "todos" || schedulePeriod(row) === scheduleFilters.period);
-}
-
-function ensureSimulatorDraft() {
-  if (!simulatorState.rows.length) {
-    simulatorState = {
-      rows: simulatorBaseRows(),
-      scenarioName: simulatorState.scenarioName || "Escenario base",
-      updatedAt: new Date().toISOString()
-    };
-    saveSimulator();
-  }
-}
-
-function resetSimulatorFromMaster() {
-  simulatorState = {
-    rows: simulatorBaseRows(),
-    scenarioName: "Escenario desde Calendario Maestro",
-    updatedAt: new Date().toISOString()
-  };
-  simulatorFilters.selectedId = simulatorState.rows[0]?.simId || "";
-  saveSimulator();
-  addAudit("simulador horarios", "Borrador reiniciado desde Calendario Maestro");
-  render();
-  toast("Simulador reiniciado desde el calendario maestro");
-}
-
-function selectedSimulatorRow() {
-  const rows = simulatorPeriodRows();
-  const selected = rows.find((row) => row.simId === simulatorFilters.selectedId);
-  return selected || rows[0] || null;
-}
-
-function updateSimulatorRow(id, patch) {
-  ensureSimulatorDraft();
-  simulatorState.rows = simulatorState.rows.map((row) => (
-    row.simId === id ? { ...row, ...patch, draftChanged: true } : row
-  ));
-  simulatorState.updatedAt = new Date().toISOString();
-  saveSimulator();
-}
-
-function moveSimulatorRow(id, minutes) {
-  const row = simulatorRows().find((item) => item.simId === id);
-  if (!row) return;
-  const start = Math.max(360, Math.min(1260, timeToMinutes(row.start) + minutes));
-  const duration = Math.max(30, timeToMinutes(row.end) - timeToMinutes(row.start));
-  updateSimulatorRow(id, { start: minutesToTime(start), end: minutesToTime(Math.min(1320, start + duration)) });
-  render();
-}
-
-function dayOffset(currentDay, offset) {
-  const currentIndex = scheduleDays.indexOf(currentDay);
-  const next = Math.max(0, Math.min(scheduleDays.length - 1, currentIndex + offset));
-  return scheduleDays[next] || currentDay;
-}
-
-function simulatorConflicts(rows = simulatorRows()) {
-  const conflicts = [];
-  rows.forEach((row, index) => {
-    rows.slice(index + 1).forEach((other) => {
-      if (!overlap(row, other)) return;
-      if (normalizeText(row.professor) && normalizeText(row.professor) === normalizeText(other.professor)) {
-        conflicts.push({ type: "professor", title: "Conflicto de profesor", label: row.professor, day: row.day, a: row, b: other });
-      }
-      if (normalizeText(row.installation) && normalizeText(row.installation) === normalizeText(other.installation)) {
-        conflicts.push({ type: "installation", title: "Conflicto de instalacion", label: row.installation, day: row.day, a: row, b: other });
-      }
-    });
-  });
-  return conflicts;
-}
-
-function rowsForOperationalSummary(rows, professor) {
-  const professorRows = rows.filter((row) => row.professor === professor);
-  const officialHours = professorRows.filter((row) => row.source === "official").reduce((sum, row) => sum + (timeToMinutes(row.end) - timeToMinutes(row.start)) / 60, 0);
-  const bookingHours = professorRows.filter((row) => row.source === "booking").reduce((sum, row) => sum + (timeToMinutes(row.end) - timeToMinutes(row.start)) / 60, 0);
-  const byDay = scheduleDays.map((day) => professorRows.filter((row) => row.day === day)).filter((items) => items.length);
-  const campusHours = byDay.reduce((sum, items) => {
-    const starts = items.map((row) => timeToMinutes(row.start));
-    const ends = items.map((row) => timeToMinutes(row.end));
-    return sum + (Math.max(...ends) - Math.min(...starts)) / 60;
-  }, 0);
-  const totalHours = officialHours + bookingHours;
-  const deadTime = Math.max(0, campusHours - totalHours);
-  const efficiency = campusHours ? Math.round((totalHours / campusHours) * 100) : 0;
-  return { officialHours, bookingHours, totalHours, deadTime, campusHours, efficiency };
-}
-
-function simulatorSuggestions(rows = simulatorRows()) {
-  const professors = Array.from(new Set(rows.map((row) => row.professor).filter(Boolean))).sort();
-  return professors.flatMap((professor) => {
-    const items = rows.filter((row) => row.professor === professor);
-    return scheduleDays.flatMap((day) => {
-      const dayRows = items.filter((row) => row.day === day).sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-      return dayRows.slice(0, -1).map((row, index) => {
-        const next = dayRows[index + 1];
-        const gap = (timeToMinutes(next.start) - timeToMinutes(row.end)) / 60;
-        if (gap < 2) return null;
-        return `Oportunidad detectada: mover clase de las ${next.start} a las ${row.end} para reducir tiempo muerto de ${professor}.`;
-      }).filter(Boolean);
-    });
-  }).slice(0, 8);
-}
-
-function filteredSimulatorRows() {
-  return simulatorPeriodRows().filter((row) => {
-    const dayMatch = simulatorFilters.day === "todos" || row.day === simulatorFilters.day;
-    const professorMatch = simulatorFilters.professor === "todos" || row.professor === simulatorFilters.professor;
-    const installationMatch = simulatorFilters.installation === "todos" || row.installation === simulatorFilters.installation;
-    return dayMatch && professorMatch && installationMatch;
-  });
-}
-
-function simulatorAvailabilityAt(day, time) {
-  const minute = timeToMinutes(time);
-  const rows = simulatorPeriodRows();
-  const busyRows = rows.filter((row) => row.day === day && timeToMinutes(row.start) <= minute && timeToMinutes(row.end) > minute);
-  const busyProfessors = new Set(busyRows.map((row) => row.professor));
-  const busyInstallations = new Set(busyRows.map((row) => row.installation));
-  const professors = Array.from(new Set(rows.map((row) => row.professor).filter(Boolean))).sort();
-  const installations = Array.from(new Set([...knownInstallations, ...rows.map((row) => row.installation).filter(Boolean)])).sort();
-  return {
-    freeProfessors: professors.filter((name) => !busyProfessors.has(name)),
-    busyProfessors: professors.filter((name) => busyProfessors.has(name)),
-    freeInstallations: installations.filter((name) => !busyInstallations.has(name)),
-    busyInstallations: installations.filter((name) => busyInstallations.has(name))
-  };
-}
-
 function loadSession() {
   try {
     return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
@@ -1015,10 +412,6 @@ function loadSession() {
 function saveSession(user) {
   currentUser = user;
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-}
-
-function setSessionForView(user) {
-  currentUser = user;
 }
 
 function clearSession() {
@@ -1036,29 +429,6 @@ function loadAuditLog() {
 
 function saveAuditLog() {
   localStorage.setItem(AUDIT_KEY, JSON.stringify(auditLog));
-}
-
-function applyUrlState() {
-  const params = new URLSearchParams(window.location.search);
-  const demoUserId = params.get("demo");
-  if (!window.location.search && currentUser?.auth !== "supabase" && currentUser?.id !== "dir") {
-    saveSession(demoUsers[0]);
-    activeArea = "general";
-    activeView = "dashboard";
-    return;
-  }
-  if (demoUserId) {
-    const user = demoUsers.find((item) => item.id === demoUserId);
-    if (user) setSessionForView(user);
-  }
-  const area = params.get("area");
-  const view = params.get("view");
-  const scheduleMode = params.get("schedule");
-  if (area && areas.some((item) => item.id === area)) activeArea = area;
-  if (view && ["dashboard", "grades", "capture", "schedules", "reports", "evaluations", "blueprint"].includes(view)) activeView = view;
-  if (scheduleMode && ["professors", "installations", "availability", "conflicts", "report", "simulator"].includes(scheduleMode)) {
-    scheduleFilters.mode = scheduleMode;
-  }
 }
 
 function addAudit(action, detail = "") {
@@ -1128,9 +498,8 @@ async function loadSupabaseCaptures() {
     .order("created_at", { ascending: false })
     .limit(800);
   if (error) {
-    const detail = supabaseErrorDetail(error);
-    cloudStatus = `Supabase conectado, pendiente permisos${detail ? `: ${detail}` : ""}`;
-    toast(`No pude leer capturas de Supabase${detail ? `: ${detail}` : ""}`);
+    cloudStatus = "Supabase conectado, pendiente permisos";
+    toast("No pude leer capturas de Supabase todavia");
     return;
   }
   cloudCaptures = (data || []).map(participationFromCloud);
@@ -2177,22 +1546,6 @@ function collaboratorRows() {
   return [...rows].sort((a, b) => String(a.Colaboradores || "").localeCompare(String(b.Colaboradores || ""), "es"));
 }
 
-function renderCollaboratorPhotoStatus(rows) {
-  const photoCount = rows.filter((row) => row.__photoUrl).length;
-  if (photoCount) {
-    return `<div class="permission-strip photo-status-strip">Fotos cargadas desde Supabase: ${photoCount} de ${rows.length} colaboradores.</div>`;
-  }
-  if (currentUser?.auth === "supabase") {
-    return `<div class="permission-strip photo-status-strip">Supabase activo, pero no encontré fotos vinculadas en estos registros. Revisa que cada colaborador tenga photo_path guardado.</div>`;
-  }
-  return `
-    <div class="permission-strip photo-status-strip warning">
-      Estás en modo consulta/demo. Las fotos viven en Supabase y no se cargan desde el archivo local de Uniformes.
-      <button class="ghost-btn inline-action" id="refreshSupabaseSession" type="button">Revisar sesión Supabase</button>
-    </div>
-  `;
-}
-
 function contractRows() {
   return [...recordsFor("layAd26"), ...recordsFor("Verano26")];
 }
@@ -2721,6 +2074,21 @@ function renderDashboard(area) {
       ${localCaptures.length ? '<button class="ghost-btn inline-action" id="clearLocal">Limpiar capturas locales</button>' : ""}
     </div>
     <section class="ops-summary" aria-label="Resumen operativo">
+      <article>
+        <span>Gobierno de datos</span>
+        <strong>Datos mínimos</strong>
+        <p>Alumnos identificados por matrícula y segmentación académica permitida.</p>
+      </article>
+      <article>
+        <span>Automatización</span>
+        <strong>Indicadores al guardar</strong>
+        <p>Registros, alumnos únicos, retención, participación y reportes se recalculan automáticamente.</p>
+      </article>
+      <article>
+        <span>Siguiente decisión</span>
+        <strong>Base de datos</strong>
+        <p>Conectar Supabase y activar permisos reales por coordinador.</p>
+      </article>
     </section>
     ${progressMarkup}
     ${alertsMarkup}
@@ -3279,7 +2647,7 @@ function renderCollaboratorsDashboard() {
       <div class="kpi"><span>Promedio cursos</span><strong>${metrics.courseAvg}%</strong><em>avance</em></div>
       <div class="kpi"><span>Contratos</span><strong>${metrics.contracts}</strong><em>layouts</em></div>
     </div>
-    <div class="charts-grid">
+    <div class="collaborator-charts-grid">
       <div class="chart-panel">
         <h3>Playeras Joma por talla</h3>
         ${genderLegend("shirt")}
@@ -3290,8 +2658,6 @@ function renderCollaboratorsDashboard() {
         ${genderLegend("coordinator")}
         ${renderGenderBars(coordinatorGenderRows, "coordinator")}
       </div>
-    </div>
-    <div class="charts-grid">
       <div class="chart-panel">
         <h3>Pants por talla</h3>
         ${genderLegend("pants")}
@@ -3320,7 +2686,6 @@ function renderCollaboratorsDashboard() {
         <button class="ghost-btn" id="exportCollaboratorBackup" type="button">Exportar respaldo</button>
       </div>
     </div>
-    ${renderCollaboratorPhotoStatus(rows)}
     ${renderCollaboratorPhotoUploader(allRows, editable)}
     <div class="table-wrap collaborator-editor-wrap">
       <table class="collaborator-editor">
@@ -3356,12 +2721,11 @@ function renderCapture(area) {
   if (selected.id === "colaboradores") return renderCollaboratorsCapture(selected);
   if (selected.id === "configuracion") return renderConfigurationCapture();
   const editable = canEditArea(selected.id);
-  const isClasses = selected.id === "clases";
   return `
-    <div class="permission-strip">Rol activo: ${currentUser?.name || "Sin sesion"}. ${editable ? (isClasses ? "Puedes registrar calificaciones o estatus de Clases Deportivas." : "Puedes capturar en este modulo.") : "Este perfil solo puede consultar esta vista."}</div>
+    <div class="permission-strip">Rol activo: ${currentUser?.name || "Sin sesion"}. ${editable ? "Puedes capturar en este modulo." : "Este perfil solo puede consultar esta vista."}</div>
     <div class="form-grid">
       <div class="form-panel">
-        <h3>${isClasses ? "Calificaciones y estatus" : `Formulario de captura: ${selected.name}`}</h3>
+        <h3>Formulario de captura: ${selected.name}</h3>
         <form id="captureForm">
           <label>Matrícula<input name="matricula" value="A0841027" pattern="A0[0-9]{6,8}" ${editable ? "" : "disabled"} /></label>
           <label>Género<select name="genero" ${editable ? "" : "disabled"}><option>Femenino</option><option>Masculino</option><option>No especificado</option></select></label>
@@ -3371,7 +2735,7 @@ function renderCapture(area) {
           <label>Periodo<select name="periodo" ${editable ? "" : "disabled"}><option>AD26</option><option>FJ26</option><option>IN26</option></select></label>
           <label class="full">Dato operativo del área<select name="operacion" ${editable ? "" : "disabled"}>${selected.capture.filter(x => !["Matricula","Matrícula","Genero","Género","Carrera","Semestre","Nivel escolar","Periodo"].includes(x)).map((x) => `<option>${x}</option>`).join("")}</select></label>
           <label class="full">Estatus<select name="estatus" ${editable ? "" : "disabled"}><option>Activo</option><option>Asistio</option><option>No asistio</option><option>Baja</option><option>Acreditado</option></select></label>
-          <button class="primary-btn full" type="button" id="saveMock" ${editable ? "" : "disabled"}>${isClasses ? "Guardar calificacion" : "Guardar captura"}</button>
+          <button class="primary-btn full" type="button" id="saveMock" ${editable ? "" : "disabled"}>Guardar captura</button>
         </form>
       </div>
       <div class="form-panel">
@@ -3468,466 +2832,6 @@ function renderCollaboratorsCapture(area) {
   `;
 }
 
-function renderSchedules(area) {
-  if (area.id !== "clases") {
-    return `
-      <div class="permission-strip">Horarios pertenece al modulo de Clases Deportivas. Selecciona Clases Deportivas en el menu lateral para ver calendario maestro, disponibilidad y conflictos.</div>
-      <div class="blueprint-card">
-        <h3>Modulo Horarios</h3>
-        <p>Este apartado consolida Programacion Oficial y Booking para visualizar profesores, instalaciones, disponibilidad, conflictos y reportes individuales. No edita archivos fuente.</p>
-      </div>
-    `;
-  }
-  const rows = scheduleMasterRows();
-  const conflicts = scheduleConflicts();
-  const totalOfficial = scheduleState.official.length;
-  const totalBooking = scheduleState.booking.length;
-  return `
-    <div class="permission-strip">
-      <span>Calendario Maestro: Programacion Oficial + Booking. Vista de solo lectura; cualquier cambio se realiza en el archivo fuente y se vuelve a cargar.</span>
-      <span>${rows.length} eventos · ${conflicts.length} conflictos</span>
-    </div>
-    <section class="schedule-upload-grid">
-      ${renderMasterScheduleUploader(rows.length, scheduleState.errors.master)}
-    </section>
-    <details class="advanced-upload-panel">
-      <summary>Opciones avanzadas de carga</summary>
-      <p>Usa estos botones solo como respaldo si el archivo maestro no trae alguna hoja o si necesitas actualizar una fuente manualmente.</p>
-      <div class="schedule-upload-grid advanced-upload-grid">
-        ${renderScheduleUploader("official", "Subir Programacion Oficial", totalOfficial, scheduleState.errors.official)}
-        ${renderScheduleUploader("booking", "Subir Booking", totalBooking, scheduleState.errors.booking)}
-      </div>
-    </details>
-    <section class="schedule-tabs">
-      ${["professors", "installations", "availability", "conflicts", "report", "simulator"].map((mode) => `
-        <button class="${scheduleFilters.mode === mode ? "active" : ""}" data-schedule-mode="${mode}">
-          ${mode === "professors" ? "Profesores" : mode === "installations" ? "Instalaciones" : mode === "availability" ? "Disponibilidad" : mode === "conflicts" ? "Conflictos" : mode === "report" ? "Reporte profesor" : "Simulador"}
-        </button>
-      `).join("")}
-    </section>
-    ${scheduleFilters.mode === "professors" ? renderProfessorScheduleView() : ""}
-    ${scheduleFilters.mode === "installations" ? renderInstallationScheduleView() : ""}
-    ${scheduleFilters.mode === "availability" ? renderAvailabilityView() : ""}
-    ${scheduleFilters.mode === "conflicts" ? renderConflictView() : ""}
-    ${scheduleFilters.mode === "report" ? renderProfessorReportView() : ""}
-    ${scheduleFilters.mode === "simulator" ? renderScheduleSimulatorView() : ""}
-  `;
-}
-
-function renderMasterScheduleUploader(count, errors) {
-  return `
-    <article class="schedule-upload-card master-schedule-card">
-      <div>
-        <p class="eyebrow">fuente principal</p>
-        <h3>Subir archivo maestro de Indicadores</h3>
-        <p>WellSync lee automaticamente las hojas "Programacion Clases" y "Booking ofertados", consolida ambas y actualiza el Calendario Maestro. No se editan horarios dentro de la plataforma.</p>
-      </div>
-      <label class="file-button">
-        Subir archivo maestro
-        <input type="file" accept=".xlsx,.xls" data-schedule-upload="master" />
-      </label>
-      <strong>${count} eventos consolidados</strong>
-      ${errors?.length ? `
-        <details class="schedule-errors" open>
-          <summary>${errors.length} errores del archivo maestro</summary>
-          ${errors.slice(0, 8).map((error) => `<p>${error.message}</p>`).join("")}
-        </details>
-      ` : `<span class="schedule-ok">Hojas requeridas listas o datos demo activos</span>`}
-    </article>
-  `;
-}
-
-function renderScheduleUploader(type, title, count, errors) {
-  const sourceLabel = type === "official" ? "clases oficiales" : "booking";
-  return `
-    <article class="schedule-upload-card">
-      <div>
-        <p class="eyebrow">respaldo manual · ${sourceLabel}</p>
-        <h3>${title}</h3>
-        <p>Usar solo si el archivo maestro no trae esta hoja o si se quiere actualizar esta fuente manualmente. Columnas: Profesor, ${type === "official" ? "Disciplina" : "Actividad"}, Dia/Frecuencia, horario e Instalacion.</p>
-      </div>
-      <label class="file-button">
-        ${title}
-        <input type="file" accept=".xlsx,.xls,.csv" data-schedule-upload="${type}" />
-      </label>
-      <strong>${count} registros validos</strong>
-      ${errors?.length ? `
-        <details class="schedule-errors" open>
-          <summary>${errors.length} errores detectados</summary>
-          ${errors.slice(0, 8).map((error) => `<p>Fila ${error.row}: ${error.message}</p>`).join("")}
-        </details>
-      ` : `<span class="schedule-ok">Sin errores activos</span>`}
-    </article>
-  `;
-}
-
-function renderScheduleFilters(kind = "professors") {
-  const professors = scheduleProfessors();
-  const disciplines = scheduleDisciplines();
-  const installations = scheduleInstallations();
-  const periods = schedulePeriods();
-  return `
-    <div class="schedule-filter-row">
-      <label>Periodo<select class="schedule-filter" data-filter="period"><option value="todos">Todos</option>${periods.map((value) => `<option ${scheduleFilters.period === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-      ${kind !== "installations" ? `<label>Profesor<select class="schedule-filter" data-filter="professor"><option value="todos">Todos</option>${professors.map((value) => `<option ${scheduleFilters.professor === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>` : ""}
-      <label>Dia<select class="schedule-filter" data-filter="day"><option value="todos">Todos</option>${scheduleDays.map((value) => `<option ${scheduleFilters.day === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-      ${kind !== "installations" ? `<label>Disciplina<select class="schedule-filter" data-filter="discipline"><option value="todos">Todas</option>${disciplines.map((value) => `<option ${scheduleFilters.discipline === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>` : ""}
-      <label>Instalacion<select class="schedule-filter" data-filter="installation"><option value="todos">Todas</option>${installations.map((value) => `<option ${scheduleFilters.installation === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-    </div>
-  `;
-}
-
-function renderProfessorScheduleView() {
-  return `
-    <section class="schedule-panel">
-      <div class="section-title compact">
-        <div><p class="eyebrow">Horarios de profesores</p><h2>Calendario semanal</h2></div>
-        <span class="session-pill">Solido = oficial · Transparente = booking</span>
-      </div>
-      ${renderScheduleFilters("professors")}
-      ${renderWeeklyCalendar(filteredScheduleRows(), "professor")}
-    </section>
-  `;
-}
-
-function renderInstallationScheduleView() {
-  return `
-    <section class="schedule-panel">
-      <div class="section-title compact">
-        <div><p class="eyebrow">Instalaciones</p><h2>Ocupacion por espacio</h2></div>
-        <span class="session-pill">Disponibilidad visual por dia</span>
-      </div>
-      ${renderScheduleFilters("installations")}
-      ${renderWeeklyCalendar(filteredScheduleRows(), "installation")}
-    </section>
-  `;
-}
-
-function renderWeeklyCalendar(rows, mode) {
-  return `
-    <div class="weekly-calendar">
-      <div class="calendar-head time-col">Hora</div>
-      ${scheduleDays.map((day) => `<div class="calendar-head">${day}</div>`).join("")}
-      ${scheduleHours.map((hour) => `
-        <div class="calendar-time">${hour}</div>
-        ${scheduleDays.map((day) => {
-          const hourStart = timeToMinutes(hour);
-          const events = rows.filter((row) => row.day === day && timeToMinutes(row.start) < hourStart + 60 && timeToMinutes(row.end) > hourStart);
-          return `<div class="calendar-cell">${events.map((row) => renderScheduleBlock(row, mode)).join("")}</div>`;
-        }).join("")}
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderScheduleBlock(row, mode) {
-  const color = professorColor(row.professor);
-  const opacity = row.source === "booking" ? ".38" : "1";
-  const background = row.source === "booking" ? `${color}61` : color;
-  const secondary = mode === "installation" ? row.professor : row.installation;
-  return `
-    <article class="schedule-block" style="--schedule-color:${color}; background:${background}; opacity:${opacity}">
-      <strong>${row.discipline}</strong>
-      <span>${secondary}</span>
-      <em>${row.start}-${row.end}</em>
-    </article>
-  `;
-}
-
-function renderAvailabilityView() {
-  const day = scheduleFilters.timeDay;
-  const minute = timeToMinutes(scheduleFilters.time);
-  const rows = calendarScheduleRows().filter((row) => row.day === day && timeToMinutes(row.start) <= minute && timeToMinutes(row.end) > minute);
-  const busyProfessors = new Set(rows.map((row) => row.professor));
-  const busyInstallations = new Set(rows.map((row) => row.installation));
-  const professors = scheduleProfessors();
-  const installations = scheduleInstallations();
-  return `
-    <section class="schedule-panel">
-      <div class="section-title compact">
-        <div><p class="eyebrow">Disponibilidad</p><h2>Buscar profesor o instalacion libre</h2></div>
-      </div>
-      <div class="schedule-filter-row">
-        <label>Dia<select class="schedule-filter" data-filter="timeDay">${scheduleDays.map((value) => `<option ${day === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-        <label>Hora<input class="schedule-filter" data-filter="time" type="time" value="${scheduleFilters.time}" /></label>
-      </div>
-      <div class="availability-grid">
-        ${renderAvailabilityCard("Profesores libres", professors.filter((name) => !busyProfessors.has(name)), "ok")}
-        ${renderAvailabilityCard("Profesores ocupados", professors.filter((name) => busyProfessors.has(name)), "busy")}
-        ${renderAvailabilityCard("Instalaciones libres", installations.filter((name) => !busyInstallations.has(name)), "ok")}
-        ${renderAvailabilityCard("Instalaciones ocupadas", installations.filter((name) => busyInstallations.has(name)), "busy")}
-      </div>
-    </section>
-  `;
-}
-
-function renderAvailabilityCard(title, items, tone) {
-  return `
-    <article class="availability-card ${tone}">
-      <h3>${title}</h3>
-      <strong>${items.length}</strong>
-      <div>${items.slice(0, 18).map((item) => `<span>${item}</span>`).join("") || "<em>Sin registros</em>"}</div>
-    </article>
-  `;
-}
-
-function renderConflictView() {
-  const conflicts = scheduleConflicts();
-  return `
-    <section class="schedule-panel">
-      <div class="section-title compact">
-        <div><p class="eyebrow">Conflictos</p><h2>Traslapes detectados automaticamente</h2></div>
-        <span class="session-pill">${conflicts.length} alertas</span>
-      </div>
-      <div class="conflict-list">
-        ${conflicts.length ? conflicts.map((conflict) => `
-          <article class="conflict-item">
-            <strong>${conflict.type}</strong>
-            <span>${conflict.label}</span>
-            <p>${conflict.day} ${conflict.a.start}-${conflict.a.end}: ${conflict.a.discipline} / ${conflict.b.discipline}</p>
-            <em>${conflict.a.installation} · ${conflict.b.installation}</em>
-          </article>
-        `).join("") : `<div class="empty-state">No se detectan traslapes con los archivos cargados.</div>`}
-      </div>
-    </section>
-  `;
-}
-
-function professorOperationalSummary(professor) {
-  const rows = calendarScheduleRows().filter((row) => row.professor === professor);
-  const officialHours = rows.filter((row) => row.source === "official").reduce((sum, row) => sum + (timeToMinutes(row.end) - timeToMinutes(row.start)) / 60, 0);
-  const bookingHours = rows.filter((row) => row.source === "booking").reduce((sum, row) => sum + (timeToMinutes(row.end) - timeToMinutes(row.start)) / 60, 0);
-  const byDay = scheduleDays.map((day) => rows.filter((row) => row.day === day)).filter((items) => items.length);
-  const campusHours = byDay.reduce((sum, items) => {
-    const starts = items.map((row) => timeToMinutes(row.start));
-    const ends = items.map((row) => timeToMinutes(row.end));
-    return sum + (Math.max(...ends) - Math.min(...starts)) / 60;
-  }, 0);
-  const totalHours = officialHours + bookingHours;
-  const deadTime = Math.max(0, campusHours - totalHours);
-  const efficiency = campusHours ? Math.round((totalHours / campusHours) * 100) : 0;
-  return { officialHours, bookingHours, totalHours, deadTime, campusHours, efficiency };
-}
-
-function renderProfessorReportView() {
-  const professors = scheduleProfessors();
-  const professor = scheduleFilters.reportProfessor === "todos" ? professors[0] : scheduleFilters.reportProfessor;
-  const rows = calendarScheduleRows().filter((row) => row.professor === professor);
-  const summary = professorOperationalSummary(professor);
-  return `
-    <section class="schedule-panel">
-      <div class="section-title compact">
-        <div><p class="eyebrow">Reporte individual</p><h2>${professor || "Selecciona profesor"}</h2></div>
-        <div class="report-actions">
-          <button class="ghost-btn schedule-download" data-download="image">Descargar Imagen</button>
-          <button class="primary-btn schedule-download" data-download="pdf">Descargar PDF</button>
-        </div>
-      </div>
-      <div class="schedule-filter-row">
-        <label>Profesor<select class="schedule-filter" data-filter="reportProfessor">${professors.map((value) => `<option ${professor === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-      </div>
-      <div id="professorScheduleExport" class="professor-export-card">
-        <h3>Horario semanal</h3>
-        ${renderWeeklyCalendar(rows, "professor")}
-      </div>
-      <div class="teacher-summary admin-summary">
-        <div><strong>${summary.officialHours.toFixed(1)}</strong><span>Horas oficiales</span></div>
-        <div><strong>${summary.bookingHours.toFixed(1)}</strong><span>Horas booking</span></div>
-        <div><strong>${summary.totalHours.toFixed(1)}</strong><span>Horas totales</span></div>
-        <div><strong>${summary.deadTime.toFixed(1)}</strong><span>Tiempo muerto</span></div>
-        <div><strong>${summary.campusHours.toFixed(1)}</strong><span>Tiempo en campus</span></div>
-        <div><strong>${summary.efficiency}%</strong><span>Eficiencia operativa</span></div>
-      </div>
-    </section>
-  `;
-}
-
-function renderScheduleSimulatorView() {
-  const rows = filteredSimulatorRows();
-  const allRows = simulatorPeriodRows();
-  const periods = schedulePeriods();
-  const conflicts = simulatorConflicts(allRows);
-  const suggestions = simulatorSuggestions(allRows);
-  const changed = allRows.filter((row) => row.draftChanged).length;
-  const selected = selectedSimulatorRow();
-  return `
-    <section class="schedule-panel simulator-panel">
-      <div class="section-title compact">
-        <div>
-          <p class="eyebrow">Simulador de horarios</p>
-          <h2>Programacion propuesta</h2>
-        </div>
-        <div class="simulator-actions">
-          <button class="ghost-btn" id="resetSimulator">Reiniciar desde Calendario Maestro</button>
-          <button class="ghost-btn" data-simulator-export="csv">Exportar Programacion Propuesta CSV</button>
-          <button class="primary-btn" data-simulator-export="xlsx">Exportar Programacion Propuesta Excel</button>
-        </div>
-      </div>
-      <div class="permission-strip simulator-note">
-        <span>Entorno de prueba: mover aqui no modifica Programacion Clases ni Booking ofertados.</span>
-        <span>${allRows.length} actividades · ${changed} cambios · ${conflicts.length} alertas</span>
-      </div>
-      <div class="schedule-filter-row simulator-filter-row">
-        <label>Periodo<select class="schedule-filter" data-filter="period"><option value="todos">Todos</option>${periods.map((value) => `<option ${scheduleFilters.period === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-        <label>Profesor<select class="simulator-filter" data-filter="professor"><option value="todos">Todos</option>${Array.from(new Set(allRows.map((row) => row.professor).filter(Boolean))).sort().map((value) => `<option ${simulatorFilters.professor === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-        <label>Dia<select class="simulator-filter" data-filter="day"><option value="todos">Todos</option>${scheduleDays.map((value) => `<option ${simulatorFilters.day === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-        <label>Instalacion<select class="simulator-filter" data-filter="installation"><option value="todos">Todas</option>${Array.from(new Set([...knownInstallations, ...allRows.map((row) => row.installation).filter(Boolean)])).sort().map((value) => `<option ${simulatorFilters.installation === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-        <label>Escenario<input class="simulator-field" data-field="scenarioName" value="${simulatorState.scenarioName || "Escenario base"}" /></label>
-      </div>
-      <div class="simulator-workspace">
-        <div>
-          ${renderSimulatorCalendar(rows)}
-        </div>
-        ${renderSimulatorEditor(selected)}
-      </div>
-      <div class="simulator-lower-grid">
-        ${renderSimulatorValidation(conflicts)}
-        ${renderSimulatorOptimization(allRows, suggestions)}
-        ${renderSimulatorAvailability()}
-      </div>
-    </section>
-  `;
-}
-
-function renderSimulatorCalendar(rows) {
-  return `
-    <div class="weekly-calendar simulator-calendar">
-      <div class="calendar-head time-col">Hora</div>
-      ${scheduleDays.map((day) => `<div class="calendar-head">${day}</div>`).join("")}
-      ${scheduleHours.map((hour) => `
-        <div class="calendar-time">${hour}</div>
-        ${scheduleDays.map((day) => {
-          const hourStart = timeToMinutes(hour);
-          const events = rows.filter((row) => row.day === day && timeToMinutes(row.start) < hourStart + 60 && timeToMinutes(row.end) > hourStart);
-          return `<div class="calendar-cell simulator-cell" data-sim-day="${day}" data-sim-hour="${hour}">${events.map((row) => renderSimulatorBlock(row)).join("")}</div>`;
-        }).join("")}
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderSimulatorBlock(row) {
-  const color = professorColor(row.professor);
-  const background = row.source === "booking" ? `${color}61` : color;
-  const opacity = row.source === "booking" ? ".38" : "1";
-  const active = selectedSimulatorRow()?.simId === row.simId ? "active" : "";
-  return `
-    <button class="schedule-block simulator-block ${active}" draggable="true" data-sim-select="${row.simId}" data-sim-drag="${row.simId}" style="--schedule-color:${color}; background:${background}; opacity:${opacity}">
-      <strong>${row.discipline}</strong>
-      <span>${row.professor}</span>
-      <em>${row.start}-${row.end} · ${row.installation}</em>
-    </button>
-  `;
-}
-
-function renderSimulatorEditor(row) {
-  if (!row) {
-    return `
-      <aside class="simulator-editor">
-        <h3>Actividad seleccionada</h3>
-        <p class="muted">Carga el archivo maestro o reinicia el simulador para generar el borrador.</p>
-      </aside>
-    `;
-  }
-  const rows = simulatorPeriodRows();
-  const professors = Array.from(new Set(rows.map((item) => item.professor).filter(Boolean))).sort();
-  const installations = Array.from(new Set([...knownInstallations, ...rows.map((item) => item.installation).filter(Boolean)])).sort();
-  return `
-    <aside class="simulator-editor">
-      <div>
-        <p class="eyebrow">Editar borrador</p>
-        <h3>${row.discipline}</h3>
-        <span class="session-pill">${row.source === "booking" ? "Booking transparente" : "Clase oficial solida"}</span>
-      </div>
-      <label>Disciplina<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="discipline" value="${row.discipline}" /></label>
-      <label>Profesor<input class="simulator-row-field" list="simProfessorList" data-sim-id="${row.simId}" data-field="professor" value="${row.professor}" /></label>
-      <datalist id="simProfessorList">${professors.map((name) => `<option value="${name}"></option>`).join("")}</datalist>
-      <label>Instalacion<input class="simulator-row-field" list="simInstallationList" data-sim-id="${row.simId}" data-field="installation" value="${row.installation}" /></label>
-      <datalist id="simInstallationList">${installations.map((name) => `<option value="${name}"></option>`).join("")}</datalist>
-      <label>Dia<select class="simulator-row-field" data-sim-id="${row.simId}" data-field="day">${scheduleDays.map((day) => `<option ${row.day === day ? "selected" : ""}>${day}</option>`).join("")}</select></label>
-      <div class="two-col">
-        <label>Inicio<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="start" type="time" value="${row.start}" /></label>
-        <label>Fin<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="end" type="time" value="${row.end}" /></label>
-      </div>
-      <label>Frecuencia<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="frequency" value="${row.frequency || "Semanal"}" /></label>
-      <div class="simulator-nudge-row">
-        <button class="ghost-btn" data-sim-day-move="-1" data-sim-id="${row.simId}">Dia anterior</button>
-        <button class="ghost-btn" data-sim-move="-30" data-sim-id="${row.simId}">-30 min</button>
-        <button class="ghost-btn" data-sim-move="30" data-sim-id="${row.simId}">+30 min</button>
-        <button class="ghost-btn" data-sim-day-move="1" data-sim-id="${row.simId}">Dia siguiente</button>
-      </div>
-    </aside>
-  `;
-}
-
-function renderSimulatorValidation(conflicts) {
-  const professorConflicts = conflicts.filter((conflict) => conflict.type === "professor");
-  const installationConflicts = conflicts.filter((conflict) => conflict.type === "installation");
-  return `
-    <article class="simulator-card">
-      <p class="eyebrow">Validacion en tiempo real</p>
-      <h3>Conflictos</h3>
-      <div class="simulator-alert-list">
-        ${professorConflicts.length ? professorConflicts.slice(0, 6).map((conflict) => `<p><strong>🔴 Conflicto de profesor</strong><span>${conflict.label} · ${conflict.day} · ${conflict.a.start}-${conflict.a.end}</span></p>`).join("") : `<p class="ok-text"><strong>Sin conflicto de profesor</strong><span>Los profesores no se traslapan.</span></p>`}
-        ${installationConflicts.length ? installationConflicts.slice(0, 6).map((conflict) => `<p><strong>🔴 Conflicto de instalacion</strong><span>${conflict.label} · ${conflict.day} · ${conflict.a.start}-${conflict.a.end}</span></p>`).join("") : `<p class="ok-text"><strong>Sin conflicto de instalacion</strong><span>Las instalaciones no se traslapan.</span></p>`}
-      </div>
-    </article>
-  `;
-}
-
-function renderSimulatorOptimization(rows, suggestions) {
-  const professors = Array.from(new Set(rows.map((row) => row.professor).filter(Boolean))).sort();
-  const summaries = professors.map((professor) => ({ professor, ...rowsForOperationalSummary(rows, professor) })).sort((a, b) => b.deadTime - a.deadTime).slice(0, 8);
-  return `
-    <article class="simulator-card">
-      <p class="eyebrow">Modo optimizacion</p>
-      <h3>Eficiencia por profesor</h3>
-      <div class="simulator-summary-table">
-        ${summaries.map((summary) => `
-          <div>
-            <strong>${summary.professor}</strong>
-            <span>${summary.totalHours.toFixed(1)} h clase</span>
-            <span>${summary.campusHours.toFixed(1)} h campus</span>
-            <span>${summary.deadTime.toFixed(1)} h muerto</span>
-            <em>${summary.efficiency}%</em>
-          </div>
-        `).join("") || `<p class="muted">Sin profesores para analizar.</p>`}
-      </div>
-      <div class="simulator-suggestions">
-        ${suggestions.length ? suggestions.map((item) => `<p>${item}</p>`).join("") : `<p>No hay huecos grandes detectados en este escenario.</p>`}
-      </div>
-    </article>
-  `;
-}
-
-function renderSimulatorAvailability() {
-  const availability = simulatorAvailabilityAt(simulatorFilters.availabilityDay, simulatorFilters.availabilityTime);
-  const rows = simulatorPeriodRows();
-  const installations = Array.from(new Set([...knownInstallations, ...rows.map((row) => row.installation).filter(Boolean)])).sort();
-  const selectedInstallation = simulatorFilters.installationView === "todos" ? installations[0] : simulatorFilters.installationView;
-  const installationRows = rows.filter((row) => row.installation === selectedInstallation);
-  return `
-    <article class="simulator-card">
-      <p class="eyebrow">Disponibilidad</p>
-      <h3>Profesores e instalaciones</h3>
-      <div class="two-col">
-        <label>Dia<select class="simulator-filter" data-filter="availabilityDay">${scheduleDays.map((day) => `<option ${simulatorFilters.availabilityDay === day ? "selected" : ""}>${day}</option>`).join("")}</select></label>
-        <label>Hora<input class="simulator-filter" data-filter="availabilityTime" type="time" value="${simulatorFilters.availabilityTime}" /></label>
-      </div>
-      <div class="availability-mini">
-        <strong>Profesores libres</strong><p>${availability.freeProfessors.slice(0, 8).join(", ") || "Sin libres"}</p>
-        <strong>Profesores ocupados</strong><p>${availability.busyProfessors.slice(0, 8).join(", ") || "Sin ocupados"}</p>
-        <strong>Instalaciones libres</strong><p>${availability.freeInstallations.slice(0, 8).join(", ") || "Sin libres"}</p>
-        <strong>Instalaciones ocupadas</strong><p>${availability.busyInstallations.slice(0, 8).join(", ") || "Sin ocupadas"}</p>
-      </div>
-      <label>Vista por instalacion<select class="simulator-filter" data-filter="installationView">${installations.map((name) => `<option ${selectedInstallation === name ? "selected" : ""}>${name}</option>`).join("")}</select></label>
-      <div class="installation-mini-list">
-        ${installationRows.slice(0, 10).map((row) => `<span>${row.day} ${row.start}-${row.end} · ${row.professor}</span>`).join("") || `<span>Sin ocupacion en ${selectedInstallation || "esta instalacion"}</span>`}
-      </div>
-    </article>
-  `;
-}
-
 function renderReports(area) {
   const selected = area.id === "general" ? areas[0] : area;
   return `
@@ -4016,14 +2920,12 @@ function render() {
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
   $("#contentArea").innerHTML = activeView === "dashboard"
     ? renderDashboard(area)
-    : activeView === "grades"
-      ? renderClassGrades()
-    : ["grades", "capture"].includes(activeView)
+    : activeView === "capture"
       ? renderCapture(area)
-      : activeView === "schedules"
-        ? renderSchedules(area)
-        : activeView === "reports"
-          ? renderReports(area)
+      : activeView === "reports"
+        ? renderReports(area)
+        : activeView === "grades"
+          ? renderClassGrades()
           : activeView === "evaluations"
             ? renderPhysicalEvaluationsDashboard()
             : renderBlueprint(area);
@@ -4081,11 +2983,6 @@ function render() {
     render();
   }));
   $("#importCollaboratorsToCloud")?.addEventListener("click", importCollaboratorsToCloud);
-  $("#refreshSupabaseSession")?.addEventListener("click", async () => {
-    await loadSupabaseSession();
-    render();
-    toast(currentUser?.auth === "supabase" ? "Sesion Supabase recuperada" : "No hay sesion Supabase activa");
-  });
   $$(".physical-filter").forEach((select) => select.addEventListener("input", (event) => {
     physicalEvaluationFilter[event.target.dataset.filter] = event.target.value;
     render();
@@ -4121,228 +3018,6 @@ function render() {
   }));
   $$("[data-delete-column]").forEach((button) => button.addEventListener("click", () => deleteCollaboratorColumn(button.dataset.deleteColumn)));
   $$(".report-download").forEach((button) => button.addEventListener("click", () => downloadCsv(button.dataset.report || "reporte")));
-  $$(".schedule-tabs button").forEach((button) => button.addEventListener("click", () => {
-    scheduleFilters.mode = button.dataset.scheduleMode;
-    render();
-  }));
-  $$(".schedule-filter").forEach((input) => input.addEventListener("input", (event) => {
-    const filter = event.target.dataset.filter;
-    scheduleFilters[filter] = event.target.value;
-    if (filter === "period") {
-      scheduleFilters.professor = "todos";
-      scheduleFilters.discipline = "todos";
-      scheduleFilters.installation = "todos";
-      scheduleFilters.reportProfessor = "todos";
-      simulatorFilters.professor = "todos";
-      simulatorFilters.installation = "todos";
-      simulatorFilters.selectedId = "";
-    }
-    render();
-  }));
-  $$("[data-schedule-upload]").forEach((input) => input.addEventListener("change", handleScheduleUpload));
-  $$(".schedule-download").forEach((button) => button.addEventListener("click", () => downloadProfessorSchedule(button.dataset.download)));
-  $$(".simulator-filter").forEach((input) => input.addEventListener("input", (event) => {
-    simulatorFilters[event.target.dataset.filter] = event.target.value;
-    render();
-  }));
-  $$(".simulator-field").forEach((input) => input.addEventListener("change", (event) => {
-    if (event.target.dataset.field === "scenarioName") {
-      simulatorState.scenarioName = event.target.value || "Escenario base";
-      simulatorState.updatedAt = new Date().toISOString();
-      saveSimulator();
-      toast("Nombre del escenario actualizado");
-    }
-  }));
-  $$("[data-sim-select]").forEach((button) => button.addEventListener("click", () => {
-    simulatorFilters.selectedId = button.dataset.simSelect;
-    render();
-  }));
-  $$(".simulator-row-field").forEach((input) => input.addEventListener("change", (event) => {
-    updateSimulatorRow(event.target.dataset.simId, { [event.target.dataset.field]: event.target.value });
-    simulatorFilters.selectedId = event.target.dataset.simId;
-    render();
-  }));
-  $$("[data-sim-move]").forEach((button) => button.addEventListener("click", () => {
-    simulatorFilters.selectedId = button.dataset.simId;
-    moveSimulatorRow(button.dataset.simId, Number(button.dataset.simMove));
-  }));
-  $$("[data-sim-day-move]").forEach((button) => button.addEventListener("click", () => {
-    const row = simulatorRows().find((item) => item.simId === button.dataset.simId);
-    if (!row) return;
-    simulatorFilters.selectedId = row.simId;
-    updateSimulatorRow(row.simId, { day: dayOffset(row.day, Number(button.dataset.simDayMove)) });
-    render();
-  }));
-  $$("[data-sim-drag]").forEach((block) => block.addEventListener("dragstart", (event) => {
-    event.dataTransfer.setData("text/plain", block.dataset.simDrag);
-    simulatorFilters.selectedId = block.dataset.simDrag;
-  }));
-  $$(".simulator-cell").forEach((cell) => {
-    cell.addEventListener("dragover", (event) => event.preventDefault());
-    cell.addEventListener("drop", (event) => {
-      event.preventDefault();
-      const simId = event.dataTransfer.getData("text/plain");
-      const row = simulatorRows().find((item) => item.simId === simId);
-      if (!row) return;
-      const start = timeToMinutes(cell.dataset.simHour);
-      const duration = Math.max(30, timeToMinutes(row.end) - timeToMinutes(row.start));
-      simulatorFilters.selectedId = simId;
-      updateSimulatorRow(simId, {
-        day: cell.dataset.simDay,
-        start: minutesToTime(start),
-        end: minutesToTime(Math.min(1320, start + duration))
-      });
-      render();
-    });
-  });
-  $("#resetSimulator")?.addEventListener("click", resetSimulatorFromMaster);
-  $$("[data-simulator-export]").forEach((button) => button.addEventListener("click", () => exportSimulatorProposal(button.dataset.simulatorExport)));
-}
-
-async function handleScheduleUpload(event) {
-  const file = event.target.files?.[0];
-  const type = event.target.dataset.scheduleUpload;
-  if (!file || !type) return;
-  try {
-    if (type === "master") {
-      const parsed = await schedulesFromMasterWorkbook(file);
-      scheduleState.official = parsed.official;
-      scheduleState.booking = parsed.booking;
-      scheduleState.errors = parsed.errors;
-      scheduleState.sourceMode = "master";
-      scheduleState.updatedAt = new Date().toISOString();
-      saveSchedules();
-      simulatorState = { rows: simulatorBaseRows(), scenarioName: "Escenario desde Calendario Maestro", updatedAt: new Date().toISOString() };
-      saveSimulator();
-      addAudit("horarios", `${file.name}: maestro con ${parsed.official.length} clases oficiales y ${parsed.booking.length} booking`);
-      render();
-      toast("Archivo maestro consolidado en Horarios");
-      return;
-    }
-    const rows = await rowsFromScheduleFile(file);
-    const parsed = parseScheduleRows(rows, type);
-    scheduleState[type] = parsed.validRows;
-    scheduleState.errors.master = [];
-    scheduleState.errors[type] = parsed.errors;
-    scheduleState.sourceMode = "manual";
-    scheduleState.updatedAt = new Date().toISOString();
-    saveSchedules();
-    simulatorState = { rows: simulatorBaseRows(), scenarioName: "Escenario desde Calendario Maestro", updatedAt: new Date().toISOString() };
-    saveSimulator();
-    addAudit("horarios", `${file.name}: ${parsed.validRows.length} registros validos, ${parsed.errors.length} errores`);
-    render();
-    toast(`${type === "official" ? "Programacion Oficial" : "Booking"} cargado`);
-  } catch (error) {
-    console.error(error);
-    if (type === "master") {
-      scheduleState.errors.master = [{ row: 0, message: "No pude leer el archivo maestro. Usa el Excel de Indicadores con las hojas Programacion Clases y Booking ofertados." }];
-    } else {
-      scheduleState.errors[type] = [{ row: 0, message: "No pude leer el archivo. Usa Excel o CSV con encabezados." }];
-    }
-    saveSchedules();
-    render();
-    toast("No pude procesar el archivo de horarios");
-  }
-}
-
-function downloadProfessorSchedule(type) {
-  const node = $("#professorScheduleExport");
-  if (!node) return;
-  if (type === "pdf") {
-    addAudit("horarios", "Descarga PDF de horario individual");
-    toast("Abriendo impresion para guardar como PDF");
-    setTimeout(() => window.print(), 300);
-    return;
-  }
-  const professor = scheduleFilters.reportProfessor === "todos" ? scheduleProfessors()[0] : scheduleFilters.reportProfessor;
-  const rows = calendarScheduleRows().filter((row) => row.professor === professor);
-  downloadBlob(scheduleSvg(professor, rows), `horario-${(professor || "profesor").toLowerCase().replaceAll(" ", "-")}.svg`, "image/svg+xml");
-  addAudit("horarios", "Descarga de horario individual");
-  toast("Horario individual descargado");
-}
-
-function simulatorExportRows() {
-  return simulatorRows().map((row) => ({
-    escenario: simulatorState.scenarioName || "Escenario base",
-    tipo: row.source === "booking" ? "Booking" : "Clase Oficial",
-    profesor: row.professor,
-    disciplina: row.discipline,
-    dia: row.day,
-    hora_inicio: row.start,
-    hora_fin: row.end,
-    instalacion: row.installation,
-    frecuencia: row.frequency || "Semanal",
-    grupo: row.group || "",
-    cambio_en_simulador: row.draftChanged ? "Si" : "No"
-  }));
-}
-
-function exportSimulatorProposal(format) {
-  const rows = simulatorExportRows();
-  if (!rows.length) {
-    toast("No hay programacion propuesta para exportar");
-    return;
-  }
-  const filenameBase = `programacion-propuesta-${new Date().toISOString().slice(0, 10)}`;
-  if (format === "xlsx" && window.XLSX) {
-    const workbook = window.XLSX.utils.book_new();
-    const worksheet = window.XLSX.utils.json_to_sheet(rows);
-    window.XLSX.utils.book_append_sheet(workbook, worksheet, "Programacion propuesta");
-    window.XLSX.writeFile(workbook, `${filenameBase}.xlsx`);
-    addAudit("simulador horarios", "Exportacion Excel de programacion propuesta");
-    toast("Programacion propuesta exportada en Excel");
-    return;
-  }
-  const headers = Object.keys(rows[0]);
-  const csv = [
-    headers.map(csvEscape).join(","),
-    ...rows.map((row) => headers.map((key) => csvEscape(row[key])).join(","))
-  ].join("\n");
-  downloadBlob(csv, `${filenameBase}.csv`);
-  addAudit("simulador horarios", "Exportacion CSV de programacion propuesta");
-  toast("Programacion propuesta exportada en CSV");
-}
-
-function escapeSvg(value) {
-  return String(value || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-}
-
-function scheduleSvg(professor, rows) {
-  const width = 1200;
-  const height = 820;
-  const left = 84;
-  const top = 112;
-  const col = 178;
-  const rowH = 38;
-  const color = professorColor(professor);
-  const blocks = rows.map((row) => {
-    const dayIndex = scheduleDays.indexOf(row.day);
-    const startOffset = Math.max(0, (timeToMinutes(row.start) - 360) / 60);
-    const duration = Math.max(.5, (timeToMinutes(row.end) - timeToMinutes(row.start)) / 60);
-    const x = left + dayIndex * col + 6;
-    const y = top + startOffset * rowH + 6;
-    const h = duration * rowH - 8;
-    const opacity = row.source === "booking" ? ".38" : "1";
-    return `
-      <rect x="${x}" y="${y}" width="${col - 12}" height="${h}" rx="8" fill="${color}" opacity="${opacity}"/>
-      <text x="${x + 10}" y="${y + 22}" fill="#fff" font-size="13" font-weight="700">${escapeSvg(row.discipline)}</text>
-      <text x="${x + 10}" y="${y + 40}" fill="#fff" font-size="11">${escapeSvg(row.installation)}</text>
-    `;
-  }).join("");
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-      <rect width="${width}" height="${height}" fill="#f4f8f8"/>
-      <text x="48" y="52" fill="#16202a" font-family="Arial" font-size="28" font-weight="800">Horario semanal</text>
-      <text x="48" y="82" fill="#5f6d7a" font-family="Arial" font-size="16">${escapeSvg(professor)}</text>
-      ${scheduleDays.map((day, index) => `<text x="${left + index * col + 10}" y="${top - 18}" fill="#16202a" font-family="Arial" font-size="15" font-weight="800">${day}</text>`).join("")}
-      ${scheduleHours.map((hour, index) => `
-        <text x="36" y="${top + index * rowH + 24}" fill="#5f6d7a" font-family="Arial" font-size="12">${hour}</text>
-        <line x1="${left}" y1="${top + index * rowH}" x2="${width - 44}" y2="${top + index * rowH}" stroke="#d8e1e7"/>
-      `).join("")}
-      ${scheduleDays.map((day, index) => `<rect x="${left + index * col}" y="${top - 38}" width="${col}" height="${scheduleHours.length * rowH + 38}" fill="none" stroke="#d8e1e7"/>`).join("")}
-      ${blocks}
-    </svg>
-  `;
 }
 
 async function saveCaptureFromForm() {
@@ -4502,8 +3177,8 @@ function downloadClassGradesCsv() {
   toast("Calificaciones exportadas");
 }
 
-function downloadBlob(text, filename, type = "text/csv;charset=utf-8") {
-  const blob = new Blob([text], { type });
+function downloadBlob(text, filename) {
+  const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -4611,12 +3286,8 @@ function renderBlueprint(area) {
 }
 
 renderCareers();
-applyUrlState();
 render();
-loadSupabaseSession().then(() => {
-  applyUrlState();
-  render();
-});
+loadSupabaseSession().then(() => render());
 
 $$(".segmented button").forEach((button) => button.addEventListener("click", () => {
   activeView = button.dataset.view;
