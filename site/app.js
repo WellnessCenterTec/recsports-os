@@ -591,9 +591,23 @@ function normalizeStudentLevel(value) {
   return clean.includes("pos") || clean.includes("maestr") || clean.includes("doctor") ? "Posgrado" : "Profesional";
 }
 
+function isEmptyStudentValue(value) {
+  const clean = normalizeText(value).replace(/\s+/g, " ");
+  return ["", "#n/a", "na", "n/a", "n a", "sin dato", "sindato", "null", "undefined"].includes(clean);
+}
+
+function parseOptionalSemester(value) {
+  if (isEmptyStudentValue(value)) return { value: null, warning: false };
+  const match = String(value ?? "").match(/\d{1,2}/);
+  if (!match) return { value: null, warning: true };
+  const semester = Number(match[0]);
+  if (!Number.isInteger(semester) || semester < 1 || semester > 12) return { value: null, warning: true };
+  return { value: semester, warning: false };
+}
+
 function parseStudentDatabaseCsv(text) {
   const rows = parseCsv(text);
-  if (rows.length < 2) return { payload: [], minimalPayload: [], errors: [{ row: 1, message: "El CSV no tiene registros" }] };
+  if (rows.length < 2) return { payload: [], minimalPayload: [], errors: [{ row: 1, message: "El CSV no tiene registros" }], warnings: [], omitted: 0 };
   const originalHeaders = rows[0].map((header) => String(header || "").trim());
   const headers = originalHeaders.map(headerKey);
   const columnFor = (aliases) => aliases.map(headerKey).map((alias) => headers.indexOf(alias)).find((index) => index >= 0);
@@ -608,36 +622,52 @@ function parseStudentDatabaseCsv(text) {
     nivel: columnFor(["desc nivel acad alumno", "nivel", "nivel escolar", "grado escolar", "grado", "escolaridad"]),
     gradoEscolar: columnFor(["desc nivel acad alumno", "grado escolar", "grado", "nivel escolar"])
   };
-  const required = [
-    ["matricula", "matricula"],
-    ["carrera", "carrera"],
-    ["nivel", "nivel o grado escolar"]
-  ];
-  const missing = required.filter(([key]) => columns[key] === undefined).map(([, label]) => label);
-  if (missing.length) {
-    return { payload: [], minimalPayload: [], errors: missing.map((name) => ({ row: 1, message: `Falta columna requerida: ${name}` })) };
+  if (columns.matricula === undefined) {
+    return {
+      payload: [],
+      minimalPayload: [],
+      errors: [{ row: 1, message: "Falta columna requerida: matricula" }],
+      warnings: [],
+      omitted: 0
+    };
   }
   const errors = [];
+  const warnings = [];
   const seen = new Set();
   const payload = [];
+  let omitted = 0;
+  const optionalColumns = [
+    ["carrera", "carrera"],
+    ["genero", "genero"],
+    ["nivel", "nivel o grado escolar"],
+    ["semestre", "semestre"],
+    ["periodoAcad", "periodo academico"]
+  ];
+  optionalColumns.forEach(([key, label]) => {
+    if (columns[key] === undefined) warnings.push({ row: 1, message: `Columna opcional no encontrada: ${label}` });
+  });
   rows.slice(1).forEach((values, index) => {
     const rowNumber = index + 2;
     const matricula = String(values[columns.matricula] || "").trim().toUpperCase();
     const carrera = String(values[columns.programaDesc] || values[columns.carrera] || "").trim();
-    const semestre = columns.semestre === undefined ? 1 : Number(String(values[columns.semestre] || "").trim() || "1");
+    const semesterResult = columns.semestre === undefined ? { value: null, warning: false } : parseOptionalSemester(values[columns.semestre]);
+    const semestre = semesterResult.value;
     const genero = columns.genero === undefined ? "No especificado" : normalizeStudentGender(values[columns.genero]);
-    const nivel_escolar = normalizeStudentLevel(values[columns.nivel]);
+    const nivel_escolar = columns.nivel === undefined ? "Profesional" : normalizeStudentLevel(values[columns.nivel]);
     const grado_escolar = String(values[columns.gradoEscolar] || values[columns.nivel] || "").trim();
-    const rowErrors = [];
-    if (!/^A0[0-9]{6,8}$/.test(matricula)) rowErrors.push("matricula invalida");
-    if (!carrera) rowErrors.push("carrera vacia");
-    if (!Number.isInteger(semestre) || semestre < 1 || semestre > 12) rowErrors.push("semestre invalido");
-    if (seen.has(matricula)) rowErrors.push("matricula duplicada en el CSV");
-    if (rowErrors.length) {
-      errors.push({ row: rowNumber, message: rowErrors.join("; ") });
+    if (!matricula) {
+      omitted += 1;
+      warnings.push({ row: rowNumber, message: "Registro omitido por matricula vacia" });
+      return;
+    }
+    if (seen.has(matricula)) {
+      omitted += 1;
+      warnings.push({ row: rowNumber, message: `Registro omitido por matricula duplicada: ${matricula}` });
       return;
     }
     seen.add(matricula);
+    if (!carrera) warnings.push({ row: rowNumber, message: "Carrera vacia; se cargara sin carrera" });
+    if (semesterResult.warning) warnings.push({ row: rowNumber, message: "Semestre no reconocido; se cargara vacio" });
     const rawPayload = {};
     originalHeaders.forEach((header, columnIndex) => {
       if (header) rawPayload[header] = String(values[columnIndex] || "").trim();
@@ -656,14 +686,18 @@ function parseStudentDatabaseCsv(text) {
   });
   return {
     payload,
-    minimalPayload: payload.map((row) => ({
-      matricula: row.Matricula,
-      genero: row.Genero,
-      carrera: row["Desc Programa Acad"] || row.Carrera,
-      semestre: row.Semestre,
-      nivel_escolar: normalizeStudentLevel(row["Desc Nivel Acad Alumno"])
-    })),
-    errors
+    minimalPayload: payload
+      .filter((row) => /^A0[0-9]{6,8}$/.test(row.Matricula))
+      .map((row) => ({
+        matricula: row.Matricula,
+        genero: row.Genero || "No especificado",
+        carrera: row["Desc Programa Acad"] || row.Carrera || "Sin carrera",
+        semestre: row.Semestre || 1,
+        nivel_escolar: normalizeStudentLevel(row["Desc Nivel Acad Alumno"])
+      })),
+    errors,
+    warnings,
+    omitted
   };
 }
 
@@ -676,7 +710,7 @@ async function replaceStudentDatabaseFromCsv(file) {
   render();
   try {
     const text = await file.text();
-    const { payload, minimalPayload, errors } = parseStudentDatabaseCsv(text);
+    const { payload, minimalPayload, errors, warnings, omitted } = parseStudentDatabaseCsv(text);
     if (errors.length) {
       toast(`CSV con errores: fila ${errors[0].row}, ${errors[0].message}`);
       return;
@@ -698,8 +732,10 @@ async function replaceStudentDatabaseFromCsv(file) {
       if (error) throw error;
     }
     await loadStudentDatabase();
-    addAudit("importacion", `${payload.length} alumnos cargados en Base de datos_alumnos`);
-    toast(`${payload.length} alumnos cargados y disponibles para WellSync`);
+    const warningSummary = warnings.length ? `, ${warnings.length} advertencias` : "";
+    const omittedSummary = omitted ? `, ${omitted} omitidos` : "";
+    addAudit("importacion", `${payload.length} alumnos cargados en Base de datos_alumnos${omittedSummary}${warningSummary}`);
+    toast(`Carga lista: ${payload.length} cargados${omittedSummary}${warningSummary}`);
   } catch (error) {
     console.error(error);
     toast(`No se pudo cargar alumnos${supabaseErrorDetail(error) ? `: ${supabaseErrorDetail(error)}` : ""}`);
