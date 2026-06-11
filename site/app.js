@@ -360,8 +360,10 @@ let classGradesLoaded = false;
 let classGradesAvailable = true;
 let classGradesImporting = false;
 let gymAttendanceRecords = [];
+let gymAsistencias = [];
 let gymStudentRegistrations = [];
 let gymDataLoaded = false;
+let gymAttendanceImporting = false;
 let gymMasterStudent = null;
 let gymWeekSelection = { Wellness: 20, EMIS: 20 };
 let classGradePage = 1;
@@ -542,7 +544,7 @@ async function loadStudentDatabase() {
 
 async function loadGymData() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const [attendanceResult, registrationsResult] = await Promise.all([
+  const [attendanceResult, registrationsResult, asistenciasResult] = await Promise.all([
     supabaseClient
       .from("gym_attendance_records")
       .select("*")
@@ -551,14 +553,21 @@ async function loadGymData() {
       .from("gym_student_registrations")
       .select("*")
       .order("registered_at", { ascending: false })
-      .limit(500)
+      .limit(500),
+    supabaseClient
+      .from("gym_asistencias")
+      .select("*")
+      .order("fecha", { ascending: true })
+      .limit(50000)
   ]);
   if (attendanceResult.error || registrationsResult.error) {
     gymDataLoaded = false;
     console.error(attendanceResult.error || registrationsResult.error);
     return;
   }
-  gymAttendanceRecords = attendanceResult.data || [];
+  if (asistenciasResult.error) console.error(asistenciasResult.error);
+  gymAsistencias = asistenciasResult.error ? [] : (asistenciasResult.data || []);
+  gymAttendanceRecords = [...(attendanceResult.data || []), ...gymAsistenciasToAttendanceRecords(gymAsistencias)];
   gymStudentRegistrations = registrationsResult.data || [];
   const highestWeek = Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
   gymWeekSelection.Wellness = Math.max(gymWeekSelection.Wellness, highestWeek);
@@ -733,6 +742,118 @@ function parseStudentDatabaseCsv(text) {
     warnings,
     omitted
   };
+}
+
+function normalizeGymSite(value) {
+  const clean = normalizeText(value);
+  if (clean.includes("emis")) return "EMIS";
+  if (clean.includes("wellness") || clean.includes("gimnasio") || clean.includes("well")) return "Wellness";
+  return "";
+}
+
+function parseGymDate(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^\d{5,6}$/.test(raw)) {
+    const excelDate = new Date((Number(raw) - 25569) * 86400 * 1000);
+    if (!Number.isNaN(excelDate.getTime())) return excelDate.toISOString().slice(0, 10);
+  }
+  const iso = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (iso) {
+    const [, year, month, day] = iso;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  const slash = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+  if (slash) {
+    let [, first, second, year] = slash;
+    if (year.length === 2) year = `20${year}`;
+    const day = Number(first) > 12 ? first : Number(second) > 12 ? second : first;
+    const month = day === first ? second : first;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  return "";
+}
+
+function parseGymTime(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const match = raw.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (!match) return raw;
+  const hour = match[1].padStart(2, "0");
+  const minute = match[2].padStart(2, "0");
+  const second = (match[3] || "00").padStart(2, "0");
+  return `${hour}:${minute}:${second}`;
+}
+
+function parseGymAttendanceCsv(text) {
+  const rows = parseCsv(text);
+  if (rows.length < 2) return { payload: [], warnings: [], errors: [{ row: 1, message: "El CSV no tiene registros" }], omitted: 0 };
+  const originalHeaders = rows[0].map((header) => String(header || "").trim());
+  const headers = originalHeaders.map(headerKey);
+  const columnFor = (aliases) => aliases.map(headerKey).map((alias) => headers.indexOf(alias)).find((index) => index >= 0);
+  const columns = {
+    id: columnFor(["id"]),
+    matricula: columnFor(["matricula", "matricula"]),
+    nombreCompleto: columnFor(["nombre completo", "nombre_completo", "nombre"]),
+    fecha: columnFor(["fecha"]),
+    hora: columnFor(["hora"]),
+    sitio: columnFor(["sitio"]),
+    observaciones: columnFor(["observaciones", "observacion", "notas"])
+  };
+  const required = [
+    ["id", "id"],
+    ["matricula", "matricula"],
+    ["fecha", "fecha"],
+    ["sitio", "Sitio"]
+  ];
+  const missing = required.filter(([key]) => columns[key] === undefined).map(([, label]) => label);
+  if (missing.length) {
+    return { payload: [], warnings: [], errors: missing.map((name) => ({ row: 1, message: `Falta columna requerida: ${name}` })), omitted: 0 };
+  }
+  const payload = [];
+  const warnings = [];
+  const seen = new Set();
+  let omitted = 0;
+  rows.slice(1).forEach((values, index) => {
+    const rowNumber = index + 2;
+    const id_origen = String(values[columns.id] || "").trim();
+    const matricula = String(values[columns.matricula] || "").trim().toUpperCase();
+    const fecha = parseGymDate(values[columns.fecha]);
+    const hora = columns.hora === undefined ? "" : parseGymTime(values[columns.hora]);
+    const sitio = normalizeGymSite(values[columns.sitio]);
+    const nombre_completo = columns.nombreCompleto === undefined ? "" : String(values[columns.nombreCompleto] || "").trim();
+    const observaciones = columns.observaciones === undefined ? "" : String(values[columns.observaciones] || "").trim();
+    const rowWarnings = [];
+    if (!id_origen) rowWarnings.push("id vacio");
+    if (!matricula) rowWarnings.push("matricula vacia");
+    if (!fecha) rowWarnings.push("fecha invalida");
+    if (!sitio) rowWarnings.push("Sitio invalido");
+    if (rowWarnings.length) {
+      omitted += 1;
+      warnings.push({ row: rowNumber, message: `Registro omitido: ${rowWarnings.join("; ")}` });
+      return;
+    }
+    const key = [id_origen, matricula, fecha, hora, sitio].join("|");
+    if (seen.has(key)) {
+      omitted += 1;
+      warnings.push({ row: rowNumber, message: "Registro duplicado dentro del CSV; se omitio" });
+      return;
+    }
+    seen.add(key);
+    payload.push({
+      id_origen,
+      matricula,
+      nombre_completo: nombre_completo || null,
+      fecha,
+      hora: hora || null,
+      sitio,
+      observaciones: observaciones || null,
+      created_by: currentUser?.id || null
+    });
+  });
+  return { payload, warnings, errors: [], omitted };
 }
 
 async function replaceStudentDatabaseFromCsv(file) {
@@ -2367,6 +2488,44 @@ function gymDayFromDate(dateValue) {
   return GYM_DAYS[(dayIndex + 6) % 7];
 }
 
+function gymDateToTime(dateValue) {
+  const date = new Date(`${dateValue}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function gymSemesterWeekFromDate(dateValue, startDateValue) {
+  const dateTime = gymDateToTime(dateValue);
+  const startTime = gymDateToTime(startDateValue);
+  if (dateTime === null || startTime === null) return 1;
+  return Math.max(1, Math.floor((dateTime - startTime) / (7 * 24 * 60 * 60 * 1000)) + 1);
+}
+
+function gymAsistenciasToAttendanceRecords(rows) {
+  if (!rows.length) return [];
+  const startDate = rows
+    .map((row) => row.fecha)
+    .filter(Boolean)
+    .sort()[0];
+  const grouped = rows.reduce((acc, row) => {
+    const facility = normalizeGymSite(row.sitio);
+    if (!row.fecha || !facility) return acc;
+    const key = `${row.fecha}|${facility}`;
+    if (!acc[key]) {
+      acc[key] = {
+        attendance_date: row.fecha,
+        week_number: gymSemesterWeekFromDate(row.fecha, startDate),
+        day_of_week: gymDayFromDate(row.fecha),
+        facility,
+        attendee_count: 0,
+        source_name: "gym_asistencias"
+      };
+    }
+    acc[key].attendee_count += 1;
+    return acc;
+  }, {});
+  return Object.values(grouped);
+}
+
 function gymMaxWeek() {
   return Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
 }
@@ -2391,6 +2550,23 @@ function gymBarRows(rows) {
       <strong>${Number(row.value || 0).toLocaleString("es-MX", { maximumFractionDigits: 1 })}</strong>
     </div>
   `).join("");
+}
+
+function gymColumnBars(rows) {
+  const max = Math.max(1, ...rows.map((row) => Number(row.value) || 0));
+  return rows.map((row) => {
+    const value = Number(row.value) || 0;
+    const height = Math.max(value ? 10 : 2, Math.round(value / max * 100));
+    return `
+      <div class="gym-column-item">
+        <strong>${value.toLocaleString("es-MX", { maximumFractionDigits: 0 })}</strong>
+        <div class="gym-column-track">
+          <i style="height:${height}%"></i>
+        </div>
+        <span>${escapeHtml(row.label)}</span>
+      </div>
+    `;
+  }).join("");
 }
 
 function gymWeeklyRows(facility) {
@@ -2433,7 +2609,7 @@ function renderGymDashboard() {
               ${gymWeekOptions(gymWeekSelection[facility])}
             </select>
           </div>
-          <div class="gym-bars gym-week-bars">${gymBarRows(gymWeeklyRows(facility))}</div>
+          <div class="gym-week-columns">${gymColumnBars(gymWeeklyRows(facility))}</div>
         </section>
       `).join("")}
     </div>
@@ -2503,6 +2679,11 @@ function renderGymStudentRegistration() {
       </section>
       <section class="chart-panel">
         <div class="gym-chart-heading"><div><p class="eyebrow">Gimnasio</p><h3>Matrículas registradas</h3></div><strong>${gymStudentRegistrations.length}</strong></div>
+        <div class="gym-upload-actions">
+          <input id="gymAttendanceCsv" type="file" accept=".csv,text/csv" hidden />
+          <button class="primary-btn" id="uploadGymAttendanceCsv" type="button" ${gymAttendanceImporting ? "disabled" : ""}>${gymAttendanceImporting ? "Cargando archivo..." : "Cargar Archivo de Asistencias"}</button>
+          <span>${gymAsistencias.length.toLocaleString("es-MX")} asistencias históricas</span>
+        </div>
         <div class="table-wrap">
           <table><thead><tr><th>Matrícula</th><th>Campus</th><th>Nivel</th><th>Fecha</th></tr></thead>
           <tbody>${rows.length ? rows.map((row) => {
@@ -3104,7 +3285,8 @@ function renderCollaboratorsDashboard() {
   const columns = collaboratorColumns();
   const directEdit = canManageStructure();
   const operationalEntry = currentUser?.auth === "supabase" && canEditArea("colaboradores");
-  const authorizedUpload = canUseAuthorizedUploads() || (currentUser?.auth === "supabase" && currentUser?.area === "colaboradores");
+  const authorizedUpload = canUseAuthorizedUploads()
+    || (currentUser?.auth === "supabase" && currentUser?.area === "colaboradores");
   const allRows = collaboratorRows();
   const coordinatorOptions = [...new Set(allRows.map((row) => row["Coordinador"]).filter(Boolean))].sort();
   const shirtOptions = [...new Set(allRows.map((row) => row["Playeras Joma"]).filter(Boolean))].sort();
@@ -3175,7 +3357,7 @@ function renderCollaboratorsDashboard() {
       <div>
         <p class="eyebrow">Archivo máster</p>
         <h3>Profesores y colaboradores</h3>
-        <span class="editor-status">${directEdit ? "Edición administrativa habilitada." : operationalEntry ? "Modo operativo: usa los botones autorizados para cargar información." : "Modo consulta."}</span>
+        <span class="editor-status">${directEdit ? "Edición administrativa activa." : operationalEntry ? "Modo operativo: altas, cargas y consulta autorizadas." : "Modo consulta."}</span>
       </div>
       <div class="table-actions">
         <button class="primary-btn" id="openCollaboratorPhotoUploader" type="button" ${authorizedUpload ? "" : "disabled"}>Cargar imágenes</button>
@@ -3478,6 +3660,19 @@ function render() {
   $("#gymAttendanceForm")?.addEventListener("submit", saveGymAttendance);
   $("#gymStudentLookupForm")?.addEventListener("submit", lookupGymStudent);
   $("#saveGymStudentRegistration")?.addEventListener("click", saveGymStudentRegistration);
+  $("#uploadGymAttendanceCsv")?.addEventListener("click", () => {
+    if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("gimnasio")) {
+      toast("Necesitas acceso autorizado de Gimnasio para cargar asistencias");
+      return;
+    }
+    $("#gymAttendanceCsv")?.click();
+  });
+  $("#gymAttendanceCsv")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importGymAttendanceCsv(file);
+    event.target.value = "";
+  });
   $("#clearAudit")?.addEventListener("click", () => {
     auditLog = [];
     saveAuditLog();
@@ -3589,6 +3784,45 @@ async function saveGymAttendance(event) {
   activeView = "dashboard";
   render();
   toast("Asistencia guardada y gráficas actualizadas");
+}
+
+async function importGymAttendanceCsv(file) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("gimnasio")) {
+    toast("Necesitas acceso autorizado de Gimnasio para cargar asistencias");
+    return;
+  }
+  gymAttendanceImporting = true;
+  render();
+  try {
+    const text = await file.text();
+    const { payload, warnings, errors, omitted } = parseGymAttendanceCsv(text);
+    if (errors.length) {
+      toast(`CSV con errores: fila ${errors[0].row}, ${errors[0].message}`);
+      return;
+    }
+    if (!payload.length) {
+      toast("El CSV no tiene asistencias validas");
+      return;
+    }
+    const chunkSize = 500;
+    for (let index = 0; index < payload.length; index += chunkSize) {
+      const { error } = await supabaseClient
+        .from("gym_asistencias")
+        .upsert(payload.slice(index, index + chunkSize), { onConflict: "id_origen,matricula,fecha,hora,sitio" });
+      if (error) throw error;
+    }
+    await loadGymData();
+    addAudit("gimnasio", `Archivo de asistencias cargado: ${payload.length} filas procesadas`);
+    const omittedSummary = omitted ? `, ${omitted} omitidas` : "";
+    const warningSummary = warnings.length ? `, ${warnings.length} advertencias` : "";
+    toast(`Asistencias cargadas: ${payload.length} procesadas${omittedSummary}${warningSummary}`);
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo cargar asistencias${supabaseErrorDetail(error) ? `: ${supabaseErrorDetail(error)}` : ""}`);
+  } finally {
+    gymAttendanceImporting = false;
+    render();
+  }
 }
 
 async function lookupGymStudent(event) {
