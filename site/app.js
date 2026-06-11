@@ -598,6 +598,27 @@ function isEmptyStudentValue(value) {
 
 function parseOptionalSemester(value) {
   if (isEmptyStudentValue(value)) return { value: null, warning: false };
+  const clean = normalizeText(value);
+  const semesterWords = {
+    primero: 1,
+    primer: 1,
+    segundo: 2,
+    tercer: 3,
+    tercero: 3,
+    cuarto: 4,
+    quinto: 5,
+    sexto: 6,
+    septimo: 7,
+    setimo: 7,
+    octavo: 8,
+    noveno: 9,
+    decimo: 10,
+    undecimo: 11,
+    doceavo: 12,
+    duodecimo: 12
+  };
+  const wordMatch = Object.entries(semesterWords).find(([word]) => clean.includes(word));
+  if (wordMatch) return { value: wordMatch[1], warning: false };
   const match = String(value ?? "").match(/\d{1,2}/);
   if (!match) return { value: null, warning: true };
   const semester = Number(match[0]);
@@ -622,6 +643,7 @@ function parseStudentDatabaseCsv(text) {
     nivel: columnFor(["desc nivel acad alumno", "nivel", "nivel escolar", "grado escolar", "grado", "escolaridad"]),
     gradoEscolar: columnFor(["desc nivel acad alumno", "grado escolar", "grado", "nivel escolar"])
   };
+  if (columns.genero === undefined) columns.genero = columnFor(["desc genero"]);
   if (columns.matricula === undefined) {
     return {
       payload: [],
@@ -701,6 +723,25 @@ function parseStudentDatabaseCsv(text) {
   };
 }
 
+async function insertStudentDatabaseChunk(rows, warnings) {
+  let currentRows = rows;
+  const removedColumns = new Set();
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const { error } = await supabaseClient.from("Base de datos_alumnos").insert(currentRows);
+    if (!error) return currentRows;
+    const missingColumn = String(error.message || "").match(/Could not find the '([^']+)' column/i)?.[1];
+    if (!missingColumn || removedColumns.has(missingColumn)) throw error;
+    removedColumns.add(missingColumn);
+    warnings.push({ row: 1, message: `Columna no existe en Supabase y se omitio: ${missingColumn}` });
+    currentRows = currentRows.map((row) => {
+      const copy = { ...row };
+      delete copy[missingColumn];
+      return copy;
+    });
+  }
+  throw new Error("No se pudo ajustar la carga a las columnas disponibles en Supabase");
+}
+
 async function replaceStudentDatabaseFromCsv(file) {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !["admin", "direccion"].includes(currentUser.role)) {
     toast("Necesitas entrar como Direccion para cargar la base de alumnos");
@@ -723,9 +764,17 @@ async function replaceStudentDatabaseFromCsv(file) {
     const deleteResult = await supabaseClient.from("Base de datos_alumnos").delete().neq("Matricula", "__well_sync_keep_none__");
     if (deleteResult.error) throw deleteResult.error;
     const chunkSize = 500;
+    let insertPayload = payload.map((row) => ({ ...row }));
     for (let index = 0; index < payload.length; index += chunkSize) {
-      const { error } = await supabaseClient.from("Base de datos_alumnos").insert(payload.slice(index, index + chunkSize));
-      if (error) throw error;
+      const insertedChunk = await insertStudentDatabaseChunk(insertPayload.slice(index, index + chunkSize), warnings);
+      const removedColumns = new Set(Object.keys(insertPayload[index] || {}).filter((key) => !(key in (insertedChunk[0] || {}))));
+      if (removedColumns.size) {
+        insertPayload = insertPayload.map((row) => {
+          const copy = { ...row };
+          removedColumns.forEach((key) => delete copy[key]);
+          return copy;
+        });
+      }
     }
     for (let index = 0; index < minimalPayload.length; index += chunkSize) {
       const { error } = await supabaseClient.from("students_minimal").upsert(minimalPayload.slice(index, index + chunkSize), { onConflict: "matricula" });
