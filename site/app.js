@@ -567,6 +567,14 @@ function parseCsv(text) {
   return rows;
 }
 
+function normalizeText(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function headerKey(value) {
   return normalizeText(value).replace(/[^a-z0-9]+/g, "");
 }
