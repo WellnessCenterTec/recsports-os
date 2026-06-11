@@ -360,10 +360,8 @@ let classGradesLoaded = false;
 let classGradesAvailable = true;
 let classGradesImporting = false;
 let gymAttendanceRecords = [];
-let gymAsistencias = [];
 let gymStudentRegistrations = [];
 let gymDataLoaded = false;
-let gymAttendanceImporting = false;
 let gymMasterStudent = null;
 let gymWeekSelection = { Wellness: 20, EMIS: 20 };
 let classGradePage = 1;
@@ -465,6 +463,7 @@ function profileToSession(profile, authUser) {
     email: authUser?.email || profile?.email || "",
     role,
     area,
+    globalAccess: ["coordinador", "consulta"].includes(role) && !profile?.area_key,
     label: profile?.display_name || authUser?.email || "Usuario Supabase",
     auth: "supabase"
   };
@@ -543,7 +542,7 @@ async function loadStudentDatabase() {
 
 async function loadGymData() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const [attendanceResult, registrationsResult, asistenciasResult] = await Promise.all([
+  const [attendanceResult, registrationsResult] = await Promise.all([
     supabaseClient
       .from("gym_attendance_records")
       .select("*")
@@ -552,21 +551,14 @@ async function loadGymData() {
       .from("gym_student_registrations")
       .select("*")
       .order("registered_at", { ascending: false })
-      .limit(500),
-    supabaseClient
-      .from("gym_asistencias")
-      .select("*")
-      .order("fecha", { ascending: true })
-      .limit(50000)
+      .limit(500)
   ]);
   if (attendanceResult.error || registrationsResult.error) {
     gymDataLoaded = false;
     console.error(attendanceResult.error || registrationsResult.error);
     return;
   }
-  if (asistenciasResult.error) console.error(asistenciasResult.error);
-  gymAsistencias = asistenciasResult.error ? [] : (asistenciasResult.data || []);
-  gymAttendanceRecords = [...(attendanceResult.data || []), ...gymAsistenciasToAttendanceRecords(gymAsistencias)];
+  gymAttendanceRecords = attendanceResult.data || [];
   gymStudentRegistrations = registrationsResult.data || [];
   const highestWeek = Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
   gymWeekSelection.Wellness = Math.max(gymWeekSelection.Wellness, highestWeek);
@@ -743,123 +735,12 @@ function parseStudentDatabaseCsv(text) {
   };
 }
 
-function normalizeGymSite(value) {
-  const clean = normalizeText(value);
-  if (clean.includes("emis")) return "EMIS";
-  if (clean.includes("wellness") || clean.includes("gimnasio") || clean.includes("well")) return "Wellness";
-  return "";
-}
-
-function parseGymDate(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  if (/^\d{5,6}$/.test(raw)) {
-    const excelDate = new Date((Number(raw) - 25569) * 86400 * 1000);
-    if (!Number.isNaN(excelDate.getTime())) return excelDate.toISOString().slice(0, 10);
-  }
-  const iso = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-  if (iso) {
-    const [, year, month, day] = iso;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  }
-  const slash = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
-  if (slash) {
-    let [, first, second, year] = slash;
-    if (year.length === 2) year = `20${year}`;
-    const day = Number(first) > 12 ? first : Number(second) > 12 ? second : first;
-    const month = day === first ? second : first;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  }
-  const parsed = new Date(raw);
-  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
-  return "";
-}
-
-function parseGymTime(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  const match = raw.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
-  if (!match) return raw;
-  const hour = match[1].padStart(2, "0");
-  const minute = match[2].padStart(2, "0");
-  const second = (match[3] || "00").padStart(2, "0");
-  return `${hour}:${minute}:${second}`;
-}
-
-function parseGymAttendanceCsv(text) {
-  const rows = parseCsv(text);
-  if (rows.length < 2) return { payload: [], warnings: [], errors: [{ row: 1, message: "El CSV no tiene registros" }], omitted: 0 };
-  const originalHeaders = rows[0].map((header) => String(header || "").trim());
-  const headers = originalHeaders.map(headerKey);
-  const columnFor = (aliases) => aliases.map(headerKey).map((alias) => headers.indexOf(alias)).find((index) => index >= 0);
-  const columns = {
-    id: columnFor(["id"]),
-    matricula: columnFor(["matricula", "matricula"]),
-    nombreCompleto: columnFor(["nombre completo", "nombre_completo", "nombre"]),
-    fecha: columnFor(["fecha"]),
-    hora: columnFor(["hora"]),
-    sitio: columnFor(["sitio"]),
-    observaciones: columnFor(["observaciones", "observacion", "notas"])
-  };
-  const required = [
-    ["id", "id"],
-    ["matricula", "matricula"],
-    ["fecha", "fecha"],
-    ["sitio", "Sitio"]
-  ];
-  const missing = required.filter(([key]) => columns[key] === undefined).map(([, label]) => label);
-  if (missing.length) {
-    return { payload: [], warnings: [], errors: missing.map((name) => ({ row: 1, message: `Falta columna requerida: ${name}` })), omitted: 0 };
-  }
-  const payload = [];
-  const warnings = [];
-  const seen = new Set();
-  let omitted = 0;
-  rows.slice(1).forEach((values, index) => {
-    const rowNumber = index + 2;
-    const id_origen = String(values[columns.id] || "").trim();
-    const matricula = String(values[columns.matricula] || "").trim().toUpperCase();
-    const fecha = parseGymDate(values[columns.fecha]);
-    const hora = columns.hora === undefined ? "" : parseGymTime(values[columns.hora]);
-    const sitio = normalizeGymSite(values[columns.sitio]);
-    const nombre_completo = columns.nombreCompleto === undefined ? "" : String(values[columns.nombreCompleto] || "").trim();
-    const observaciones = columns.observaciones === undefined ? "" : String(values[columns.observaciones] || "").trim();
-    const rowWarnings = [];
-    if (!id_origen) rowWarnings.push("id vacio");
-    if (!matricula) rowWarnings.push("matricula vacia");
-    if (!fecha) rowWarnings.push("fecha invalida");
-    if (!sitio) rowWarnings.push("Sitio invalido");
-    if (rowWarnings.length) {
-      omitted += 1;
-      warnings.push({ row: rowNumber, message: `Registro omitido: ${rowWarnings.join("; ")}` });
-      return;
-    }
-    const key = [id_origen, matricula, fecha, hora, sitio].join("|");
-    if (seen.has(key)) {
-      omitted += 1;
-      warnings.push({ row: rowNumber, message: "Registro duplicado dentro del CSV; se omitio" });
-      return;
-    }
-    seen.add(key);
-    payload.push({
-      id_origen,
-      matricula,
-      nombre_completo: nombre_completo || null,
-      fecha,
-      hora: hora || null,
-      sitio,
-      observaciones: observaciones || null,
-      created_by: currentUser?.id || null
-    });
-  });
-  return { payload, warnings, errors: [], omitted };
-}
-
 async function replaceStudentDatabaseFromCsv(file) {
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !["admin", "direccion"].includes(currentUser.role)) {
-    toast("Necesitas entrar como Direccion para cargar la base de alumnos");
+  if (!supabaseClient || !canUseAuthorizedUploads()) {
+    toast("Este perfil no tiene permiso para cargar la base de alumnos");
     return;
   }
+  if (!window.confirm("Esta carga sustituirá la Base Maestra de alumnos actual. ¿Deseas continuar?")) return;
   studentDatabaseImporting = true;
   render();
   try {
@@ -874,7 +755,7 @@ async function replaceStudentDatabaseFromCsv(file) {
       return;
     }
     toast("Reemplazando Base de datos_alumnos en Supabase");
-    const deleteResult = await supabaseClient.from("Base de datos_alumnos").delete().neq("Matricula", "__well_sync_keep_none__");
+    const deleteResult = await supabaseClient.rpc("clear_student_master_for_authorized_upload");
     if (deleteResult.error) throw deleteResult.error;
     const chunkSize = 500;
     for (let index = 0; index < payload.length; index += chunkSize) {
@@ -1191,7 +1072,7 @@ async function updateClassGrade(recordKey, rawValue) {
 }
 
 async function changePhysicalAccessCode() {
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("evaluaciones")) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !isLeadership()) {
     toast("Necesitas entrar como Dirección para cambiar el código");
     return;
   }
@@ -1262,7 +1143,7 @@ async function loadCollaboratorTableSettings() {
 
 async function saveCollaboratorColumnOrder(columns) {
   collaboratorColumnOrder = [...columns];
-  if (!supabaseClient || currentUser?.auth !== "supabase") return false;
+  if (!supabaseClient || !canManageStructure()) return false;
   const { error } = await supabaseClient
     .from("collaborator_table_settings")
     .upsert({
@@ -1280,7 +1161,7 @@ async function saveCollaboratorColumnOrder(columns) {
 }
 
 async function updateCollaboratorCell(rowId, column, value) {
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
+  if (!supabaseClient || !canManageStructure()) return;
   const row = cloudCollaborators.find((item) => item.__id === rowId);
   if (!row) {
     toast("No encontré el registro para actualizar");
@@ -1355,7 +1236,7 @@ async function addCollaboratorRow() {
 }
 
 async function addCollaboratorColumn() {
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
+  if (!supabaseClient || !canManageStructure()) return;
   const column = String(window.prompt("Nombre de la nueva columna:") || "").trim();
   if (!column) return;
   const existingColumn = knownCollaboratorColumns().find((item) => item.toLowerCase() === column.toLowerCase());
@@ -1395,7 +1276,7 @@ async function addCollaboratorColumn() {
 }
 
 async function moveCollaboratorColumn(column, direction) {
-  if (!canEditArea("colaboradores")) return;
+  if (!canManageStructure()) return;
   const columns = collaboratorColumns();
   const index = columns.indexOf(column);
   const target = index + direction;
@@ -1408,7 +1289,7 @@ async function moveCollaboratorColumn(column, direction) {
 }
 
 async function deleteCollaboratorColumn(column) {
-  if (!canEditArea("colaboradores")) return;
+  if (!canManageStructure()) return;
   if (["Nomina", "Colaboradores"].includes(column)) {
     toast("Nómina y colaborador son campos obligatorios");
     return;
@@ -1438,7 +1319,7 @@ async function deleteCollaboratorColumn(column) {
 }
 
 async function deleteCollaboratorRow(rowId) {
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
+  if (!supabaseClient || !canManageStructure()) return;
   const row = cloudCollaborators.find((item) => item.__id === rowId);
   if (!row) return;
   if (!window.confirm(`¿Eliminar a ${row.Colaboradores || rowId}? Esta acción se guardará en la base.`)) return;
@@ -1718,13 +1599,30 @@ function applyTheme() {
 
 function visibleAreas() {
   if (!currentUser || ["admin", "direccion"].includes(currentUser.role)) return areas;
+  if (currentUser.globalAccess) return areas.filter((area) => area.id !== "configuracion");
   if (currentUser.role === "compras") return areas.filter((area) => area.id === "compras");
   return areas.filter((area) => area.id === currentUser.area);
 }
 
+function isLeadership() {
+  return ["admin", "direccion"].includes(currentUser?.role);
+}
+
+function isGlobalOperator() {
+  return currentUser?.role === "coordinador" && currentUser?.globalAccess === true;
+}
+
+function canUseAuthorizedUploads() {
+  return currentUser?.auth === "supabase" && (isLeadership() || isGlobalOperator());
+}
+
+function canManageStructure() {
+  return currentUser?.auth === "supabase" && isLeadership();
+}
+
 function canEditArea(areaId) {
   if (!currentUser) return false;
-  if (["admin", "direccion"].includes(currentUser.role)) return true;
+  if (isLeadership() || isGlobalOperator()) return true;
   if (currentUser.role === "compras") return areaId === "compras";
   return currentUser.area === areaId;
 }
@@ -2469,44 +2367,6 @@ function gymDayFromDate(dateValue) {
   return GYM_DAYS[(dayIndex + 6) % 7];
 }
 
-function gymDateToTime(dateValue) {
-  const date = new Date(`${dateValue}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date.getTime();
-}
-
-function gymSemesterWeekFromDate(dateValue, startDateValue) {
-  const dateTime = gymDateToTime(dateValue);
-  const startTime = gymDateToTime(startDateValue);
-  if (dateTime === null || startTime === null) return 1;
-  return Math.max(1, Math.floor((dateTime - startTime) / (7 * 24 * 60 * 60 * 1000)) + 1);
-}
-
-function gymAsistenciasToAttendanceRecords(rows) {
-  if (!rows.length) return [];
-  const startDate = rows
-    .map((row) => row.fecha)
-    .filter(Boolean)
-    .sort()[0];
-  const grouped = rows.reduce((acc, row) => {
-    const facility = normalizeGymSite(row.sitio);
-    if (!row.fecha || !facility) return acc;
-    const key = `${row.fecha}|${facility}`;
-    if (!acc[key]) {
-      acc[key] = {
-        attendance_date: row.fecha,
-        week_number: gymSemesterWeekFromDate(row.fecha, startDate),
-        day_of_week: gymDayFromDate(row.fecha),
-        facility,
-        attendee_count: 0,
-        source_name: "gym_asistencias"
-      };
-    }
-    acc[key].attendee_count += 1;
-    return acc;
-  }, {});
-  return Object.values(grouped);
-}
-
 function gymMaxWeek() {
   return Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
 }
@@ -2531,23 +2391,6 @@ function gymBarRows(rows) {
       <strong>${Number(row.value || 0).toLocaleString("es-MX", { maximumFractionDigits: 1 })}</strong>
     </div>
   `).join("");
-}
-
-function gymColumnBars(rows) {
-  const max = Math.max(1, ...rows.map((row) => Number(row.value) || 0));
-  return rows.map((row) => {
-    const value = Number(row.value) || 0;
-    const height = Math.max(value ? 10 : 2, Math.round(value / max * 100));
-    return `
-      <div class="gym-column-item">
-        <strong>${value.toLocaleString("es-MX", { maximumFractionDigits: 0 })}</strong>
-        <div class="gym-column-track">
-          <i style="height:${height}%"></i>
-        </div>
-        <span>${escapeHtml(row.label)}</span>
-      </div>
-    `;
-  }).join("");
 }
 
 function gymWeeklyRows(facility) {
@@ -2590,7 +2433,7 @@ function renderGymDashboard() {
               ${gymWeekOptions(gymWeekSelection[facility])}
             </select>
           </div>
-          <div class="gym-week-columns">${gymColumnBars(gymWeeklyRows(facility))}</div>
+          <div class="gym-bars gym-week-bars">${gymBarRows(gymWeeklyRows(facility))}</div>
         </section>
       `).join("")}
     </div>
@@ -2660,11 +2503,6 @@ function renderGymStudentRegistration() {
       </section>
       <section class="chart-panel">
         <div class="gym-chart-heading"><div><p class="eyebrow">Gimnasio</p><h3>Matrículas registradas</h3></div><strong>${gymStudentRegistrations.length}</strong></div>
-        <div class="gym-upload-actions">
-          <input id="gymAttendanceCsv" type="file" accept=".csv,text/csv" hidden />
-          <button class="primary-btn" id="uploadGymAttendanceCsv" type="button" ${gymAttendanceImporting ? "disabled" : ""}>${gymAttendanceImporting ? "Cargando archivo..." : "Cargar Archivo de Asistencias"}</button>
-          <span>${gymAsistencias.length.toLocaleString("es-MX")} asistencias históricas</span>
-        </div>
         <div class="table-wrap">
           <table><thead><tr><th>Matrícula</th><th>Campus</th><th>Nivel</th><th>Fecha</th></tr></thead>
           <tbody>${rows.length ? rows.map((row) => {
@@ -2718,7 +2556,7 @@ function renderDashboard(area) {
         <strong>Carga controlada</strong>
         <p>Cada archivo sustituye la base anterior y alimenta módulos que usan matrícula.</p>
         <input id="studentDatabaseCsv" type="file" accept=".csv,text/csv" hidden />
-        <button class="primary-btn" id="uploadStudentDatabase" type="button" ${currentUser?.auth === "supabase" && ["admin", "direccion"].includes(currentUser.role) && !studentDatabaseImporting ? "" : "disabled"}>${studentDatabaseImporting ? "Cargando..." : "Cargar Base de Datos de Alumnos"}</button>
+        <button class="primary-btn" id="uploadStudentDatabase" type="button" ${canUseAuthorizedUploads() && !studentDatabaseImporting ? "" : "disabled"}>${studentDatabaseImporting ? "Cargando..." : "Cargar Base de Datos de Alumnos"}</button>
       </article>
     </section>
   ` : "";
@@ -3264,7 +3102,9 @@ function renderCollaboratorsDashboard() {
   const pantGenderRows = groupedByGender(rows, "Talla pants", sizeOrder);
   const coordinatorGenderRows = groupedByGender(rows, "Coordinador").slice(0, 10);
   const columns = collaboratorColumns();
-  const editable = currentUser?.auth === "supabase" && canEditArea("colaboradores");
+  const directEdit = canManageStructure();
+  const operationalEntry = currentUser?.auth === "supabase" && canEditArea("colaboradores");
+  const authorizedUpload = canUseAuthorizedUploads() || (currentUser?.auth === "supabase" && currentUser?.area === "colaboradores");
   const allRows = collaboratorRows();
   const coordinatorOptions = [...new Set(allRows.map((row) => row["Coordinador"]).filter(Boolean))].sort();
   const shirtOptions = [...new Set(allRows.map((row) => row["Playeras Joma"]).filter(Boolean))].sort();
@@ -3325,7 +3165,7 @@ function renderCollaboratorsDashboard() {
         <p class="hero-copy">Incluye pruebas fisicas, asistencia a gimnasio, historial de profesores, contactos de emergencia y layouts de contratacion.</p>
       </div>
     </div>
-    ${currentUser?.auth === "supabase" && collaboratorsCloudLoaded && !cloudCollaborators.length ? `
+    ${authorizedUpload && collaboratorsCloudLoaded && !cloudCollaborators.length ? `
       <div class="permission-strip import-collaborators-callout">
         La tabla central está vacía. Importa una sola vez los registros actuales del archivo Uniformes.
         <button class="primary-btn inline-action" id="importCollaboratorsToCloud" type="button">Importar datos iniciales</button>
@@ -3335,25 +3175,25 @@ function renderCollaboratorsDashboard() {
       <div>
         <p class="eyebrow">Archivo máster</p>
         <h3>Profesores y colaboradores</h3>
-        <span class="editor-status">${editable ? "Edita cualquier celda y presiona Enter. El orden y las columnas también se guardan en línea." : "Modo consulta."}</span>
+        <span class="editor-status">${directEdit ? "Edición administrativa habilitada." : operationalEntry ? "Modo operativo: usa los botones autorizados para cargar información." : "Modo consulta."}</span>
       </div>
       <div class="table-actions">
-        <button class="primary-btn" id="openCollaboratorPhotoUploader" type="button" ${editable ? "" : "disabled"}>Cargar imágenes</button>
+        <button class="primary-btn" id="openCollaboratorPhotoUploader" type="button" ${authorizedUpload ? "" : "disabled"}>Cargar imágenes</button>
         <button class="ghost-btn" id="exportCollaboratorBackup" type="button">Exportar respaldo</button>
       </div>
     </div>
-    ${renderCollaboratorPhotoUploader(allRows, editable)}
+    ${renderCollaboratorPhotoUploader(allRows, authorizedUpload)}
     <div class="table-wrap collaborator-editor-wrap">
       <table class="collaborator-editor">
         <thead>
-          <tr><th class="photo-heading">Foto</th>${columns.map((column, index) => collaboratorColumnHeader(column, index, columns, editable)).join("")}<th class="row-actions-heading">Fila</th></tr>
+          <tr><th class="photo-heading">Foto</th>${columns.map((column, index) => collaboratorColumnHeader(column, index, columns, directEdit)).join("")}<th class="row-actions-heading">Fila</th></tr>
         </thead>
         <tbody>
           ${rows.map((row) => `
             <tr data-row-id="${escapeHtml(row.__id || row.Nomina)}">
-              <td class="photo-cell">${collaboratorAvatar(row, editable)}</td>
-              ${columns.map((column) => `<td>${collaboratorEditorControl(row, column, editable)}</td>`).join("")}
-              <td class="row-actions-cell"><button class="delete-row-btn" data-delete-row="${escapeHtml(row.__id || row.Nomina)}" type="button" ${editable ? "" : "disabled"} title="Eliminar fila">×</button></td>
+              <td class="photo-cell">${collaboratorAvatar(row, authorizedUpload)}</td>
+              ${columns.map((column) => `<td>${collaboratorEditorControl(row, column, directEdit)}</td>`).join("")}
+              <td class="row-actions-cell"><button class="delete-row-btn" data-delete-row="${escapeHtml(row.__id || row.Nomina)}" type="button" ${directEdit ? "" : "disabled"} title="Eliminar fila">×</button></td>
             </tr>
           `).join("") || `<tr><td colspan="${columns.length + 2}">No hay registros con los filtros seleccionados.</td></tr>`}
         </tbody>
@@ -3361,8 +3201,8 @@ function renderCollaboratorsDashboard() {
           <tr>
             <td colspan="${columns.length + 2}">
               <div class="table-footer-actions">
-                <button class="primary-btn" id="addCollaboratorRow" type="button" ${editable ? "" : "disabled"}>+ Agregar profesor</button>
-                <button class="ghost-btn" id="addCollaboratorColumn" type="button" ${editable ? "" : "disabled"}>+ Agregar columna al final</button>
+                <button class="primary-btn" id="addCollaboratorRow" type="button" ${operationalEntry ? "" : "disabled"}>+ Agregar profesor</button>
+                ${directEdit ? '<button class="ghost-btn" id="addCollaboratorColumn" type="button">+ Agregar columna al final</button>' : ""}
               </div>
             </td>
           </tr>
@@ -3562,6 +3402,8 @@ function render() {
   renderLogin();
   syncRoleSelector();
   if (!currentUser) return;
+  const themeSelect = $("#themeSelect");
+  if (themeSelect) themeSelect.hidden = !isLeadership();
   const area = areas.find((a) => a.id === activeArea);
   renderNav();
   renderExecutiveKpis();
@@ -3571,17 +3413,20 @@ function render() {
   const gradesTab = $("#gradesViewButton");
   const gymAttendanceTab = $("#gymAttendanceViewButton");
   const gymRegistrationsTab = $("#gymRegistrationsViewButton");
+  const systemTab = $(`.segmented button[data-view="blueprint"]`);
   const isGym = activeArea === "gimnasio";
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
   if (gradesTab) gradesTab.hidden = isGym || !["clases", "colaboradores"].includes(activeArea);
   if (gymAttendanceTab) gymAttendanceTab.hidden = !isGym;
   if (gymRegistrationsTab) gymRegistrationsTab.hidden = !isGym;
-  $$(`.segmented button[data-view="schedules"], .segmented button[data-view="reports"], .segmented button[data-view="blueprint"]`)
+  $$(`.segmented button[data-view="schedules"], .segmented button[data-view="reports"]`)
     .forEach((button) => { button.hidden = isGym; });
+  if (systemTab) systemTab.hidden = isGym || !isLeadership();
   const filtersBand = $(".filters-band");
   if (filtersBand) filtersBand.hidden = isGym;
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
+  if (activeView === "blueprint" && !isLeadership()) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && !["clases", "colaboradores"].includes(activeArea)) activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
@@ -3633,19 +3478,6 @@ function render() {
   $("#gymAttendanceForm")?.addEventListener("submit", saveGymAttendance);
   $("#gymStudentLookupForm")?.addEventListener("submit", lookupGymStudent);
   $("#saveGymStudentRegistration")?.addEventListener("click", saveGymStudentRegistration);
-  $("#uploadGymAttendanceCsv")?.addEventListener("click", () => {
-    if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("gimnasio")) {
-      toast("Necesitas acceso autorizado de Gimnasio para cargar asistencias");
-      return;
-    }
-    $("#gymAttendanceCsv")?.click();
-  });
-  $("#gymAttendanceCsv")?.addEventListener("change", async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    await importGymAttendanceCsv(file);
-    event.target.value = "";
-  });
   $("#clearAudit")?.addEventListener("click", () => {
     auditLog = [];
     saveAuditLog();
@@ -3757,45 +3589,6 @@ async function saveGymAttendance(event) {
   activeView = "dashboard";
   render();
   toast("Asistencia guardada y gráficas actualizadas");
-}
-
-async function importGymAttendanceCsv(file) {
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("gimnasio")) {
-    toast("Necesitas acceso autorizado de Gimnasio para cargar asistencias");
-    return;
-  }
-  gymAttendanceImporting = true;
-  render();
-  try {
-    const text = await file.text();
-    const { payload, warnings, errors, omitted } = parseGymAttendanceCsv(text);
-    if (errors.length) {
-      toast(`CSV con errores: fila ${errors[0].row}, ${errors[0].message}`);
-      return;
-    }
-    if (!payload.length) {
-      toast("El CSV no tiene asistencias validas");
-      return;
-    }
-    const chunkSize = 500;
-    for (let index = 0; index < payload.length; index += chunkSize) {
-      const { error } = await supabaseClient
-        .from("gym_asistencias")
-        .upsert(payload.slice(index, index + chunkSize), { onConflict: "id_origen,matricula,fecha,hora,sitio" });
-      if (error) throw error;
-    }
-    await loadGymData();
-    addAudit("gimnasio", `Archivo de asistencias cargado: ${payload.length} filas procesadas`);
-    const omittedSummary = omitted ? `, ${omitted} omitidas` : "";
-    const warningSummary = warnings.length ? `, ${warnings.length} advertencias` : "";
-    toast(`Asistencias cargadas: ${payload.length} procesadas${omittedSummary}${warningSummary}`);
-  } catch (error) {
-    console.error(error);
-    toast(`No se pudo cargar asistencias${supabaseErrorDetail(error) ? `: ${supabaseErrorDetail(error)}` : ""}`);
-  } finally {
-    gymAttendanceImporting = false;
-    render();
-  }
 }
 
 async function lookupGymStudent(event) {
