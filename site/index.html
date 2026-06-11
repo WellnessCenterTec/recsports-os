@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>WellSync | Wellness Center</title>
-    <link rel="stylesheet" href="./styles.css?v=20260611-gym-module" />
+    <link rel="stylesheet" href="./styles.css?v=20260611-gym-csv-attendance" />
   </head>
   <body>
     <div id="loginRoot"></div>
@@ -105,7 +105,7 @@
               </div>
               <div class="segmented" role="tablist" aria-label="Vista">
                 <button class="active" data-view="dashboard">Dashboard</button>
-                <button data-view="grades">Calificaciones</button>
+                <button id="gradesViewButton" data-view="grades">Calificaciones</button>
                 <button data-view="schedules">Horarios</button>
                 <button id="gymAttendanceViewButton" data-view="gym-attendance" hidden>Registro de Asistencia</button>
                 <button id="gymRegistrationsViewButton" data-view="gym-registrations" hidden>Registro de Matrículas</button>
@@ -124,6 +124,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="./app.js?v=20260611-operational-role"></script>
+    <script src="./app.js?v=20260611-gym-stable-permissions"></script>
   </body>
 </html>
