@@ -494,13 +494,17 @@ function participationFromCloud(row) {
 }
 
 function studentDatabaseFromCloud(row) {
+  const matricula = row.Matricula || row.matricula || "";
+  const nivelRaw = row["Desc Nivel Acad Alumno"] || row.nivel_escolar || row.grado_escolar || "";
   return {
-    matricula: row.matricula || "",
-    genero: row.genero || "No especificado",
-    carrera: row.carrera || "Sin carrera",
-    semestre: Number(row.semestre || 1),
-    nivel: row.nivel_escolar || "Profesional",
-    gradoEscolar: row.grado_escolar || row.nivel_escolar || "",
+    matricula,
+    genero: row.Genero || row.genero || "No especificado",
+    carrera: row["Desc Programa Acad"] || row.Carrera || row.carrera || "Sin carrera",
+    semestre: Number(row.Semestre || row.semestre || 1),
+    nivel: normalizeStudentLevel(nivelRaw),
+    gradoEscolar: nivelRaw,
+    nombreCampus: row["Nombre Campus"] || "",
+    periodoAcad: row["Periodo acad"] || "",
     area: "general",
     registros: 0,
     acreditado: true,
@@ -514,8 +518,8 @@ async function loadStudentDatabase() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const { data, error } = await supabaseClient
     .from("Base de datos_alumnos")
-    .select("matricula, genero, carrera, semestre, nivel_escolar, grado_escolar, imported_at")
-    .order("matricula", { ascending: true })
+    .select("*")
+    .order("Matricula", { ascending: true })
     .limit(12000);
   if (error) {
     studentDatabaseLoaded = false;
@@ -582,21 +586,23 @@ function normalizeStudentLevel(value) {
 function parseStudentDatabaseCsv(text) {
   const rows = parseCsv(text);
   if (rows.length < 2) return { payload: [], minimalPayload: [], errors: [{ row: 1, message: "El CSV no tiene registros" }] };
-  const headers = rows[0].map(headerKey);
+  const originalHeaders = rows[0].map((header) => String(header || "").trim());
+  const headers = originalHeaders.map(headerKey);
   const columnFor = (aliases) => aliases.map(headerKey).map((alias) => headers.indexOf(alias)).find((index) => index >= 0);
   const columns = {
     matricula: columnFor(["matricula", "matrícula"]),
     genero: columnFor(["genero", "género", "sexo"]),
     carrera: columnFor(["carrera", "programa", "programa academico", "programa académico"]),
+    campus: columnFor(["nombre campus", "campus"]),
+    periodoAcad: columnFor(["periodo acad", "periodo academico", "periodo académico"]),
+    programaDesc: columnFor(["desc programa acad", "desc programa académico", "programa academico", "programa académico"]),
     semestre: columnFor(["semestre"]),
-    nivel: columnFor(["nivel", "nivel escolar", "grado escolar", "grado", "escolaridad"]),
-    gradoEscolar: columnFor(["grado escolar", "grado", "nivel escolar"])
+    nivel: columnFor(["desc nivel acad alumno", "nivel", "nivel escolar", "grado escolar", "grado", "escolaridad"]),
+    gradoEscolar: columnFor(["desc nivel acad alumno", "grado escolar", "grado", "nivel escolar"])
   };
   const required = [
     ["matricula", "matricula"],
-    ["genero", "genero"],
     ["carrera", "carrera"],
-    ["semestre", "semestre"],
     ["nivel", "nivel o grado escolar"]
   ];
   const missing = required.filter(([key]) => columns[key] === undefined).map(([, label]) => label);
@@ -609,9 +615,9 @@ function parseStudentDatabaseCsv(text) {
   rows.slice(1).forEach((values, index) => {
     const rowNumber = index + 2;
     const matricula = String(values[columns.matricula] || "").trim().toUpperCase();
-    const carrera = String(values[columns.carrera] || "").trim();
-    const semestre = Number(String(values[columns.semestre] || "").trim());
-    const genero = normalizeStudentGender(values[columns.genero]);
+    const carrera = String(values[columns.programaDesc] || values[columns.carrera] || "").trim();
+    const semestre = columns.semestre === undefined ? 1 : Number(String(values[columns.semestre] || "").trim() || "1");
+    const genero = columns.genero === undefined ? "No especificado" : normalizeStudentGender(values[columns.genero]);
     const nivel_escolar = normalizeStudentLevel(values[columns.nivel]);
     const grado_escolar = String(values[columns.gradoEscolar] || values[columns.nivel] || "").trim();
     const rowErrors = [];
@@ -624,20 +630,31 @@ function parseStudentDatabaseCsv(text) {
       return;
     }
     seen.add(matricula);
+    const rawPayload = {};
+    originalHeaders.forEach((header, columnIndex) => {
+      if (header) rawPayload[header] = String(values[columnIndex] || "").trim();
+    });
     payload.push({
-      matricula,
-      genero,
-      carrera,
-      semestre,
-      nivel_escolar,
-      grado_escolar,
-      source_name: "CSV alumnos",
-      imported_by: currentUser?.id || null
+      ...rawPayload,
+      Matricula: matricula,
+      Genero: genero,
+      "Desc Programa Acad": carrera,
+      Carrera: carrera,
+      Semestre: semestre,
+      "Desc Nivel Acad Alumno": grado_escolar || nivel_escolar,
+      "Nombre Campus": columns.campus !== undefined ? String(values[columns.campus] || "").trim() : "",
+      "Periodo acad": columns.periodoAcad !== undefined ? String(values[columns.periodoAcad] || "").trim() : ""
     });
   });
   return {
     payload,
-    minimalPayload: payload.map(({ matricula, genero, carrera, semestre, nivel_escolar }) => ({ matricula, genero, carrera, semestre, nivel_escolar })),
+    minimalPayload: payload.map((row) => ({
+      matricula: row.Matricula,
+      genero: row.Genero,
+      carrera: row["Desc Programa Acad"] || row.Carrera,
+      semestre: row.Semestre,
+      nivel_escolar: normalizeStudentLevel(row["Desc Nivel Acad Alumno"])
+    })),
     errors
   };
 }
@@ -661,7 +678,7 @@ async function replaceStudentDatabaseFromCsv(file) {
       return;
     }
     toast("Reemplazando Base de datos_alumnos en Supabase");
-    const deleteResult = await supabaseClient.from("Base de datos_alumnos").delete().neq("matricula", "__well_sync_keep_none__");
+    const deleteResult = await supabaseClient.from("Base de datos_alumnos").delete().neq("Matricula", "__well_sync_keep_none__");
     if (deleteResult.error) throw deleteResult.error;
     const chunkSize = 500;
     for (let index = 0; index < payload.length; index += chunkSize) {
