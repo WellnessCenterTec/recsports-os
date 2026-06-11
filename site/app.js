@@ -3598,7 +3598,7 @@ function render() {
   const systemTab = $(`.segmented button[data-view="blueprint"]`);
   const isGym = activeArea === "gimnasio";
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
-  if (gradesTab) gradesTab.hidden = isGym || !["clases", "colaboradores"].includes(activeArea);
+  if (gradesTab) gradesTab.hidden = activeArea !== "clases";
   if (gymAttendanceTab) gymAttendanceTab.hidden = !isGym;
   if (gymRegistrationsTab) gymRegistrationsTab.hidden = !isGym;
   $$(`.segmented button[data-view="schedules"], .segmented button[data-view="reports"]`)
@@ -3610,7 +3610,7 @@ function render() {
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (activeView === "blueprint" && !isLeadership()) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
-  if (activeView === "grades" && !["clases", "colaboradores"].includes(activeArea)) activeView = "dashboard";
+  if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
   $("#contentArea").innerHTML = activeView === "dashboard"
     ? renderDashboard(area)
