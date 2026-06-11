@@ -339,6 +339,8 @@ const students = Array.from({ length: 180 }, (_, i) => ({
   baja: i % 11 === 0
 }));
 
+const GYM_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
 let activeArea = "general";
 let activeView = "dashboard";
 let localCaptures = loadCaptures();
@@ -357,6 +359,11 @@ let classGrades = [];
 let classGradesLoaded = false;
 let classGradesAvailable = true;
 let classGradesImporting = false;
+let gymAttendanceRecords = [];
+let gymStudentRegistrations = [];
+let gymDataLoaded = false;
+let gymMasterStudent = null;
+let gymWeekSelection = { Wellness: 20, EMIS: 20 };
 let classGradePage = 1;
 let classGradeFilter = {
   search: "",
@@ -532,6 +539,32 @@ async function loadStudentDatabase() {
   studentDatabaseLoaded = true;
 }
 
+async function loadGymData() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const [attendanceResult, registrationsResult] = await Promise.all([
+    supabaseClient
+      .from("gym_attendance_records")
+      .select("*")
+      .order("attendance_date", { ascending: true }),
+    supabaseClient
+      .from("gym_student_registrations")
+      .select("*")
+      .order("registered_at", { ascending: false })
+      .limit(500)
+  ]);
+  if (attendanceResult.error || registrationsResult.error) {
+    gymDataLoaded = false;
+    console.error(attendanceResult.error || registrationsResult.error);
+    return;
+  }
+  gymAttendanceRecords = attendanceResult.data || [];
+  gymStudentRegistrations = registrationsResult.data || [];
+  const highestWeek = Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
+  gymWeekSelection.Wellness = Math.max(gymWeekSelection.Wellness, highestWeek);
+  gymWeekSelection.EMIS = Math.max(gymWeekSelection.EMIS, highestWeek);
+  gymDataLoaded = true;
+}
+
 function studentFromDatabase(matricula) {
   return cloudStudentDatabase.find((student) => student.matricula === matricula);
 }
@@ -598,27 +631,6 @@ function isEmptyStudentValue(value) {
 
 function parseOptionalSemester(value) {
   if (isEmptyStudentValue(value)) return { value: null, warning: false };
-  const clean = normalizeText(value);
-  const semesterWords = {
-    primero: 1,
-    primer: 1,
-    segundo: 2,
-    tercer: 3,
-    tercero: 3,
-    cuarto: 4,
-    quinto: 5,
-    sexto: 6,
-    septimo: 7,
-    setimo: 7,
-    octavo: 8,
-    noveno: 9,
-    decimo: 10,
-    undecimo: 11,
-    doceavo: 12,
-    duodecimo: 12
-  };
-  const wordMatch = Object.entries(semesterWords).find(([word]) => clean.includes(word));
-  if (wordMatch) return { value: wordMatch[1], warning: false };
   const match = String(value ?? "").match(/\d{1,2}/);
   if (!match) return { value: null, warning: true };
   const semester = Number(match[0]);
@@ -643,7 +655,6 @@ function parseStudentDatabaseCsv(text) {
     nivel: columnFor(["desc nivel acad alumno", "nivel", "nivel escolar", "grado escolar", "grado", "escolaridad"]),
     gradoEscolar: columnFor(["desc nivel acad alumno", "grado escolar", "grado", "nivel escolar"])
   };
-  if (columns.genero === undefined) columns.genero = columnFor(["desc genero"]);
   if (columns.matricula === undefined) {
     return {
       payload: [],
@@ -723,25 +734,6 @@ function parseStudentDatabaseCsv(text) {
   };
 }
 
-async function insertStudentDatabaseChunk(rows, warnings) {
-  let currentRows = rows;
-  const removedColumns = new Set();
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    const { error } = await supabaseClient.from("Base de datos_alumnos").insert(currentRows);
-    if (!error) return currentRows;
-    const missingColumn = String(error.message || "").match(/Could not find the '([^']+)' column/i)?.[1];
-    if (!missingColumn || removedColumns.has(missingColumn)) throw error;
-    removedColumns.add(missingColumn);
-    warnings.push({ row: 1, message: `Columna no existe en Supabase y se omitio: ${missingColumn}` });
-    currentRows = currentRows.map((row) => {
-      const copy = { ...row };
-      delete copy[missingColumn];
-      return copy;
-    });
-  }
-  throw new Error("No se pudo ajustar la carga a las columnas disponibles en Supabase");
-}
-
 async function replaceStudentDatabaseFromCsv(file) {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !["admin", "direccion"].includes(currentUser.role)) {
     toast("Necesitas entrar como Direccion para cargar la base de alumnos");
@@ -764,17 +756,9 @@ async function replaceStudentDatabaseFromCsv(file) {
     const deleteResult = await supabaseClient.from("Base de datos_alumnos").delete().neq("Matricula", "__well_sync_keep_none__");
     if (deleteResult.error) throw deleteResult.error;
     const chunkSize = 500;
-    let insertPayload = payload.map((row) => ({ ...row }));
     for (let index = 0; index < payload.length; index += chunkSize) {
-      const insertedChunk = await insertStudentDatabaseChunk(insertPayload.slice(index, index + chunkSize), warnings);
-      const removedColumns = new Set(Object.keys(insertPayload[index] || {}).filter((key) => !(key in (insertedChunk[0] || {}))));
-      if (removedColumns.size) {
-        insertPayload = insertPayload.map((row) => {
-          const copy = { ...row };
-          removedColumns.forEach((key) => delete copy[key]);
-          return copy;
-        });
-      }
+      const { error } = await supabaseClient.from("Base de datos_alumnos").insert(payload.slice(index, index + chunkSize));
+      if (error) throw error;
     }
     for (let index = 0; index < minimalPayload.length; index += chunkSize) {
       const { error } = await supabaseClient.from("students_minimal").upsert(minimalPayload.slice(index, index + chunkSize), { onConflict: "matricula" });
@@ -1516,7 +1500,7 @@ async function loadSupabaseSession() {
   }
   saveSession(profileToSession(profile, authUser));
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
-  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades()]);
+  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData()]);
 }
 
 async function loginWithSupabase() {
@@ -1572,7 +1556,7 @@ async function loginWithSupabase() {
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
   activeView = "dashboard";
-  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades()]);
+  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData()]);
   render();
   toast(`Sesion Supabase: ${currentUser.name}`);
 }
@@ -2358,9 +2342,164 @@ function renderExecutiveKpis() {
   ].map(([label, value, hint]) => `<div class="kpi"><span>${label}</span><strong>${value}</strong><em>${hint}</em></div>`).join("");
 }
 
+function gymDayFromDate(dateValue) {
+  if (!dateValue) return "";
+  const dayIndex = new Date(`${dateValue}T12:00:00`).getDay();
+  return GYM_DAYS[(dayIndex + 6) % 7];
+}
+
+function gymMaxWeek() {
+  return Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
+}
+
+function gymLatestWeek() {
+  return Math.max(1, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
+}
+
+function gymWeekOptions(selected) {
+  return Array.from({ length: gymMaxWeek() }, (_, index) => {
+    const week = index + 1;
+    return `<option value="${week}" ${week === selected ? "selected" : ""}>Hasta semana ${week}</option>`;
+  }).join("");
+}
+
+function gymBarRows(rows) {
+  const max = Math.max(1, ...rows.map((row) => Number(row.value) || 0));
+  return rows.map((row) => `
+    <div class="gym-bar-row">
+      <span>${escapeHtml(row.label)}</span>
+      <div class="gym-bar-track"><i style="width:${Math.round((Number(row.value) || 0) / max * 100)}%"></i></div>
+      <strong>${Number(row.value || 0).toLocaleString("es-MX", { maximumFractionDigits: 1 })}</strong>
+    </div>
+  `).join("");
+}
+
+function gymWeeklyRows(facility) {
+  const lastWeek = gymWeekSelection[facility] || gymMaxWeek();
+  return Array.from({ length: lastWeek }, (_, index) => {
+    const week = index + 1;
+    const value = gymAttendanceRecords
+      .filter((row) => row.facility === facility && Number(row.week_number) === week)
+      .reduce((sum, row) => sum + Number(row.attendee_count || 0), 0);
+    return { label: `S${week}`, value };
+  });
+}
+
+function renderGymDashboard() {
+  const dailyRows = GYM_DAYS.map((day) => {
+    const records = gymAttendanceRecords.filter((row) => row.day_of_week === day);
+    const total = records.reduce((sum, row) => sum + Number(row.attendee_count || 0), 0);
+    return { label: day, value: records.length ? total / records.length : 0 };
+  });
+  const emptyMessage = !gymDataLoaded
+    ? `<p class="form-message">Activa las tablas de Gimnasio en Supabase para comenzar.</p>`
+    : !gymAttendanceRecords.length
+      ? `<p class="form-message">Aún no hay asistencias. Captura el primer registro para alimentar las gráficas.</p>`
+      : "";
+  return `
+    <div class="gym-dashboard">
+      <section class="chart-panel gym-daily-chart">
+        <div class="gym-chart-heading">
+          <div><p class="eyebrow">Asistencia</p><h3>Promedio diario</h3></div>
+          <span>Promedio de asistentes registrados</span>
+        </div>
+        ${emptyMessage}
+        <div class="gym-bars">${gymBarRows(dailyRows)}</div>
+      </section>
+      ${["Wellness", "EMIS"].map((facility) => `
+        <section class="chart-panel gym-week-chart">
+          <div class="gym-chart-heading">
+            <div><p class="eyebrow">${facility}</p><h3>Asistencia semanal</h3></div>
+            <select class="gym-week-filter" data-facility="${facility}" aria-label="Semanas visibles de ${facility}">
+              ${gymWeekOptions(gymWeekSelection[facility])}
+            </select>
+          </div>
+          <div class="gym-bars gym-week-bars">${gymBarRows(gymWeeklyRows(facility))}</div>
+        </section>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderGymAttendanceRegistration() {
+  const today = new Date().toISOString().slice(0, 10);
+  const latest = [...gymAttendanceRecords].sort((a, b) => String(b.attendance_date).localeCompare(String(a.attendance_date))).slice(0, 12);
+  return `
+    <div class="gym-form-layout">
+      <section class="form-panel">
+        <p class="eyebrow">Gimnasio</p>
+        <h3>Registro de Asistencia</h3>
+        <form id="gymAttendanceForm">
+          <label>Semana<input name="week_number" type="number" min="1" value="${gymLatestWeek()}" required /></label>
+          <label>Fecha<input id="gymAttendanceDate" name="attendance_date" type="date" value="${today}" required /></label>
+          <label>Día<input id="gymAttendanceDay" name="day_of_week" value="${gymDayFromDate(today)}" readonly required /></label>
+          <label>Instalación
+            <select name="facility" required><option>Wellness</option><option>EMIS</option></select>
+          </label>
+          <label>Cantidad de asistentes<input name="attendee_count" type="number" min="0" required /></label>
+          <label class="wide-field">Observaciones<textarea name="notes" rows="3" placeholder="Opcional"></textarea></label>
+          <button class="primary-btn wide-field" type="submit">Guardar asistencia</button>
+        </form>
+        <p class="form-message">Un registro por fecha e instalación. Si repites la fecha, se actualiza la cantidad.</p>
+      </section>
+      <section class="chart-panel">
+        <div class="gym-chart-heading"><div><p class="eyebrow">Historial reciente</p><h3>Últimos registros</h3></div></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Fecha</th><th>Semana</th><th>Día</th><th>Instalación</th><th>Asistentes</th></tr></thead>
+          <tbody>${latest.length ? latest.map((row) => `<tr><td>${escapeHtml(row.attendance_date)}</td><td>${row.week_number}</td><td>${escapeHtml(row.day_of_week)}</td><td>${escapeHtml(row.facility)}</td><td>${row.attendee_count}</td></tr>`).join("") : `<tr><td colspan="5">Sin registros todavía.</td></tr>`}</tbody></table>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function safeGymStudentSnapshot(student) {
+  return Object.fromEntries(Object.entries(student || {}).filter(([key]) => !/(correo|email|tel|phone|domicilio|direccion|salud|medic|emergencia)/i.test(key)));
+}
+
+function renderGymStudentDetails(student) {
+  if (!student) return `<p class="form-message">Escribe una matrícula para consultar la Base Maestra.</p>`;
+  const preferredKeys = ["Matricula", "Nombre Campus", "Desc Nivel Acad Alumno", "Desc Programa Acad", "Periodo acad", "Genero", "Semestre"];
+  const entries = preferredKeys.filter((key) => student[key] !== undefined && student[key] !== null && student[key] !== "");
+  return `
+    <div class="gym-student-details">
+      ${entries.map((key) => `<div><span>${escapeHtml(key)}</span><strong>${escapeHtml(student[key])}</strong></div>`).join("")}
+    </div>
+    <button class="primary-btn" id="saveGymStudentRegistration" type="button">Registrar matrícula en Gimnasio</button>
+  `;
+}
+
+function renderGymStudentRegistration() {
+  const rows = gymStudentRegistrations.slice(0, 25);
+  return `
+    <div class="gym-form-layout">
+      <section class="form-panel">
+        <p class="eyebrow">Base Maestra de Alumnos</p>
+        <h3>Registro de Matrículas</h3>
+        <form id="gymStudentLookupForm" class="gym-lookup-form">
+          <label>Matrícula<input name="matricula" autocomplete="off" placeholder="A01234567" required /></label>
+          <button class="primary-btn" type="submit">Buscar matrícula</button>
+        </form>
+        <div id="gymStudentLookupResult">${renderGymStudentDetails(gymMasterStudent)}</div>
+      </section>
+      <section class="chart-panel">
+        <div class="gym-chart-heading"><div><p class="eyebrow">Gimnasio</p><h3>Matrículas registradas</h3></div><strong>${gymStudentRegistrations.length}</strong></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Matrícula</th><th>Campus</th><th>Nivel</th><th>Fecha</th></tr></thead>
+          <tbody>${rows.length ? rows.map((row) => {
+            const snapshot = row.student_snapshot || {};
+            return `<tr><td>${escapeHtml(row.matricula)}</td><td>${escapeHtml(snapshot["Nombre Campus"] || "")}</td><td>${escapeHtml(snapshot["Desc Nivel Acad Alumno"] || "")}</td><td>${escapeHtml(String(row.registered_at || "").slice(0, 10))}</td></tr>`;
+          }).join("") : `<tr><td colspan="4">Sin matrículas registradas todavía.</td></tr>`}</tbody></table>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 function renderDashboard(area) {
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
   if (area.id === "configuracion") return renderConfigurationDashboard();
+  if (area.id === "gimnasio") return renderGymDashboard();
   const data = filteredStudents();
   const metrics = metricSet(data);
   const byArea = areas.filter(a => a.id !== "general").map(a => ({
@@ -2398,7 +2537,7 @@ function renderDashboard(area) {
         <strong>Carga controlada</strong>
         <p>Cada archivo sustituye la base anterior y alimenta módulos que usan matrícula.</p>
         <input id="studentDatabaseCsv" type="file" accept=".csv,text/csv" hidden />
-        <button class="primary-btn" id="uploadStudentDatabase" type="button" ${studentDatabaseImporting ? "disabled" : ""}>${studentDatabaseImporting ? "Cargando..." : "Cargar Base de Datos de Alumnos"}</button>
+        <button class="primary-btn" id="uploadStudentDatabase" type="button" ${currentUser?.auth === "supabase" && ["admin", "direccion"].includes(currentUser.role) && !studentDatabaseImporting ? "" : "disabled"}>${studentDatabaseImporting ? "Cargando..." : "Cargar Base de Datos de Alumnos"}</button>
       </article>
     </section>
   ` : "";
@@ -3249,8 +3388,19 @@ function render() {
   $("#currentTitle").textContent = area.name;
   const evaluationsTab = $("#evaluationsViewButton");
   const gradesTab = $("#gradesViewButton");
+  const gymAttendanceTab = $("#gymAttendanceViewButton");
+  const gymRegistrationsTab = $("#gymRegistrationsViewButton");
+  const isGym = activeArea === "gimnasio";
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
-  if (gradesTab) gradesTab.hidden = !["clases", "colaboradores"].includes(activeArea);
+  if (gradesTab) gradesTab.hidden = isGym || !["clases", "colaboradores"].includes(activeArea);
+  if (gymAttendanceTab) gymAttendanceTab.hidden = !isGym;
+  if (gymRegistrationsTab) gymRegistrationsTab.hidden = !isGym;
+  $$(`.segmented button[data-view="schedules"], .segmented button[data-view="reports"], .segmented button[data-view="blueprint"]`)
+    .forEach((button) => { button.hidden = isGym; });
+  const filtersBand = $(".filters-band");
+  if (filtersBand) filtersBand.hidden = isGym;
+  if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
+  if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && !["clases", "colaboradores"].includes(activeArea)) activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
@@ -3258,6 +3408,10 @@ function render() {
     ? renderDashboard(area)
     : activeView === "capture"
       ? renderCapture(area)
+      : activeView === "gym-attendance"
+        ? renderGymAttendanceRegistration()
+        : activeView === "gym-registrations"
+          ? renderGymStudentRegistration()
       : activeView === "schedules"
         ? renderCapture(area)
         : activeView === "reports"
@@ -3280,23 +3434,24 @@ function render() {
     render();
     toast("Capturas locales eliminadas");
   });
-  $("#uploadStudentDatabase")?.addEventListener("click", () => {
-    if (!supabaseClient || currentUser?.auth !== "supabase") {
-      toast("Entra con tu cuenta Supabase para cargar la base de alumnos");
-      return;
-    }
-    if (!["admin", "direccion"].includes(currentUser.role)) {
-      toast("Tu usuario necesita permiso de Direccion para cargar alumnos");
-      return;
-    }
-    $("#studentDatabaseCsv")?.click();
-  });
+  $("#uploadStudentDatabase")?.addEventListener("click", () => $("#studentDatabaseCsv")?.click());
   $("#studentDatabaseCsv")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     await replaceStudentDatabaseFromCsv(file);
     event.target.value = "";
   });
+  $$(".gym-week-filter").forEach((select) => select.addEventListener("change", (event) => {
+    gymWeekSelection[event.target.dataset.facility] = Number(event.target.value);
+    render();
+  }));
+  $("#gymAttendanceDate")?.addEventListener("change", (event) => {
+    const dayInput = $("#gymAttendanceDay");
+    if (dayInput) dayInput.value = gymDayFromDate(event.target.value);
+  });
+  $("#gymAttendanceForm")?.addEventListener("submit", saveGymAttendance);
+  $("#gymStudentLookupForm")?.addEventListener("submit", lookupGymStudent);
+  $("#saveGymStudentRegistration")?.addEventListener("click", saveGymStudentRegistration);
   $("#clearAudit")?.addEventListener("click", () => {
     auditLog = [];
     saveAuditLog();
@@ -3373,6 +3528,93 @@ function render() {
   }));
   $$("[data-delete-column]").forEach((button) => button.addEventListener("click", () => deleteCollaboratorColumn(button.dataset.deleteColumn)));
   $$(".report-download").forEach((button) => button.addEventListener("click", () => downloadCsv(button.dataset.report || "reporte")));
+}
+
+async function saveGymAttendance(event) {
+  event.preventDefault();
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("gimnasio")) {
+    toast("Necesitas acceso autorizado de Gimnasio para guardar");
+    return;
+  }
+  const form = new FormData(event.currentTarget);
+  const payload = {
+    week_number: Number(form.get("week_number")),
+    attendance_date: String(form.get("attendance_date") || ""),
+    day_of_week: String(form.get("day_of_week") || ""),
+    facility: String(form.get("facility") || ""),
+    attendee_count: Number(form.get("attendee_count")),
+    notes: String(form.get("notes") || "").trim() || null,
+    created_by: currentUser.id
+  };
+  if (!payload.attendance_date || payload.week_number < 1 || payload.attendee_count < 0 || !GYM_DAYS.includes(payload.day_of_week) || !["Wellness", "EMIS"].includes(payload.facility)) {
+    toast("Revisa los datos de asistencia");
+    return;
+  }
+  const { error } = await supabaseClient
+    .from("gym_attendance_records")
+    .upsert(payload, { onConflict: "attendance_date,facility" });
+  if (error) {
+    console.error(error);
+    toast(`No se pudo guardar: ${supabaseErrorDetail(error) || "revisa la activación de Gimnasio"}`);
+    return;
+  }
+  addAudit("gimnasio", `Asistencia ${payload.facility}: ${payload.attendee_count}`);
+  await loadGymData();
+  activeView = "dashboard";
+  render();
+  toast("Asistencia guardada y gráficas actualizadas");
+}
+
+async function lookupGymStudent(event) {
+  event.preventDefault();
+  const matricula = String(new FormData(event.currentTarget).get("matricula") || "").trim().toUpperCase();
+  if (!matricula) return;
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    toast("La búsqueda requiere una sesión Supabase");
+    return;
+  }
+  const result = await supabaseClient
+    .from("Base de datos_alumnos")
+    .select("*")
+    .eq("Matricula", matricula)
+    .maybeSingle();
+  if (result.error) {
+    console.error(result.error);
+    gymMasterStudent = null;
+    $("#gymStudentLookupResult").innerHTML = `<p class="form-message error">No se pudo consultar la Base Maestra.</p>`;
+    return;
+  }
+  gymMasterStudent = result.data || null;
+  $("#gymStudentLookupResult").innerHTML = gymMasterStudent
+    ? renderGymStudentDetails(gymMasterStudent)
+    : `<p class="form-message error">La matrícula ${escapeHtml(matricula)} no existe en Base de datos_alumnos.</p>`;
+  $("#saveGymStudentRegistration")?.addEventListener("click", saveGymStudentRegistration);
+}
+
+async function saveGymStudentRegistration() {
+  if (!gymMasterStudent || !supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("gimnasio")) {
+    toast("Necesitas acceso autorizado de Gimnasio");
+    return;
+  }
+  const matricula = String(gymMasterStudent.Matricula || gymMasterStudent.matricula || "").trim().toUpperCase();
+  const payload = {
+    matricula,
+    student_snapshot: safeGymStudentSnapshot(gymMasterStudent),
+    registered_by: currentUser.id
+  };
+  const { error } = await supabaseClient
+    .from("gym_student_registrations")
+    .upsert(payload, { onConflict: "matricula" });
+  if (error) {
+    console.error(error);
+    toast(`No se pudo registrar: ${supabaseErrorDetail(error) || "revisa la activación de Gimnasio"}`);
+    return;
+  }
+  addAudit("gimnasio", `Matrícula registrada: ${matricula}`);
+  gymMasterStudent = null;
+  await loadGymData();
+  render();
+  toast("Matrícula vinculada con la Base Maestra");
 }
 
 async function saveCaptureFromForm() {
@@ -3687,6 +3929,10 @@ $("#logoutButton").addEventListener("click", () => {
     physicalEvaluationsLoaded = false;
     classGrades = [];
     classGradesLoaded = false;
+    gymAttendanceRecords = [];
+    gymStudentRegistrations = [];
+    gymDataLoaded = false;
+    gymMasterStudent = null;
     collaboratorsCloudLoaded = false;
     collaboratorColumnOrder = [];
     collaboratorSettingsLoaded = false;

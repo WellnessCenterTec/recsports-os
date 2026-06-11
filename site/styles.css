@@ -652,6 +652,162 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   margin-top: 12px;
 }
 
+.gym-dashboard {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gym-dashboard .chart-panel {
+  min-width: 0;
+  min-height: 330px;
+  box-sizing: border-box;
+}
+
+.gym-daily-chart {
+  grid-column: 1 / -1;
+}
+
+.gym-chart-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.gym-chart-heading h3 {
+  margin: 2px 0 0;
+}
+
+.gym-chart-heading > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.gym-chart-heading select {
+  width: auto;
+  min-width: 150px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.gym-bars {
+  display: grid;
+  gap: 14px;
+}
+
+.gym-week-bars {
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.gym-bar-row {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.gym-bar-row strong {
+  color: var(--ink);
+  text-align: right;
+}
+
+.gym-bar-track {
+  height: 14px;
+  overflow: hidden;
+  background: #e5ebee;
+  border-radius: 4px;
+}
+
+.gym-bar-track i {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  background: linear-gradient(90deg, var(--blue), var(--green));
+  border-radius: inherit;
+}
+
+.gym-form-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, .85fr) minmax(0, 1.15fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.gym-form-layout .form-panel,
+.gym-form-layout .chart-panel {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.gym-form-layout .form-panel form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gym-form-layout .wide-field {
+  grid-column: 1 / -1;
+}
+
+.gym-form-layout textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.gym-lookup-form {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: end;
+}
+
+.gym-lookup-form .primary-btn {
+  min-height: 42px;
+}
+
+.gym-student-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.gym-student-details div {
+  padding: 11px;
+  background: #f7faf9;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.gym-student-details span,
+.gym-student-details strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.gym-student-details span {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.form-message {
+  margin: 12px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.form-message.error {
+  color: var(--red);
+}
+
 .collaborator-charts-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1874,6 +2030,7 @@ th { color: var(--muted); background: #f7faf9; }
   .collaborator-kpi-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .class-grade-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .physical-code-panel { grid-template-columns: 1fr; }
+  .gym-form-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {
@@ -1893,6 +2050,13 @@ th { color: var(--muted); background: #f7faf9; }
   .class-grade-table-header { flex-direction: column; align-items: stretch; }
   .physical-filter-grid, .physical-kpi-grid, .physical-code-controls { grid-template-columns: 1fr; }
   .physical-dashboard-actions { flex-direction: column; align-items: stretch; }
+  .gym-dashboard, .gym-student-details { grid-template-columns: 1fr; }
+  .gym-daily-chart { grid-column: auto; }
+  .gym-chart-heading { flex-direction: column; }
+  .gym-chart-heading select { width: 100%; }
+  .gym-form-layout .form-panel form,
+  .gym-lookup-form { grid-template-columns: 1fr !important; }
+  .gym-bar-row { grid-template-columns: 72px minmax(0, 1fr) 42px; }
   .blueprint-grid, .wireframes { grid-template-columns: 1fr; }
   .roadmap-board { grid-template-columns: 1fr; }
   .catalog-grid { grid-template-columns: 1fr; }
