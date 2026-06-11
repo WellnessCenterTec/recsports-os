@@ -710,6 +710,56 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   padding-right: 4px;
 }
 
+.gym-week-columns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(54px, 1fr);
+  align-items: end;
+  gap: 12px;
+  min-height: 260px;
+  overflow-x: auto;
+  padding: 12px 4px 2px;
+}
+
+.gym-column-item {
+  display: grid;
+  grid-template-rows: 24px 190px 24px;
+  align-items: end;
+  justify-items: center;
+  min-width: 54px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.gym-column-item strong {
+  align-self: start;
+  color: var(--blue);
+  font-size: 11px;
+  line-height: 1.1;
+}
+
+.gym-column-track {
+  position: relative;
+  width: 100%;
+  height: 190px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.gym-column-track i {
+  display: block;
+  width: min(100%, 46px);
+  background: #0b82c7;
+  border-radius: 2px 2px 0 0;
+}
+
+.gym-column-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .gym-bar-row {
   display: grid;
   grid-template-columns: 86px minmax(0, 1fr) 48px;

@@ -2374,6 +2374,23 @@ function gymBarRows(rows) {
   `).join("");
 }
 
+function gymColumnBars(rows) {
+  const max = Math.max(1, ...rows.map((row) => Number(row.value) || 0));
+  return rows.map((row) => {
+    const value = Number(row.value) || 0;
+    const height = Math.max(value ? 10 : 2, Math.round(value / max * 100));
+    return `
+      <div class="gym-column-item">
+        <strong>${value.toLocaleString("es-MX", { maximumFractionDigits: 0 })}</strong>
+        <div class="gym-column-track">
+          <i style="height:${height}%"></i>
+        </div>
+        <span>${escapeHtml(row.label)}</span>
+      </div>
+    `;
+  }).join("");
+}
+
 function gymWeeklyRows(facility) {
   const lastWeek = gymWeekSelection[facility] || gymMaxWeek();
   return Array.from({ length: lastWeek }, (_, index) => {
@@ -2414,7 +2431,7 @@ function renderGymDashboard() {
               ${gymWeekOptions(gymWeekSelection[facility])}
             </select>
           </div>
-          <div class="gym-bars gym-week-bars">${gymBarRows(gymWeeklyRows(facility))}</div>
+          <div class="gym-week-columns">${gymColumnBars(gymWeeklyRows(facility))}</div>
         </section>
       `).join("")}
     </div>
