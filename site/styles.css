@@ -802,6 +802,24 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   box-sizing: border-box;
 }
 
+.gym-upload-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 12px;
+  background: #f7faf9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.gym-upload-actions span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .gym-form-layout .form-panel form {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

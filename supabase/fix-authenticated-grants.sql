@@ -20,6 +20,7 @@ grant select, insert, update on public.participations to authenticated;
 
 grant select, insert, update on public.class_sections to authenticated;
 grant select, insert, update on public.class_teacher_performance to authenticated;
+grant select, insert, update on public.gym_asistencias to authenticated;
 
 grant select, insert, update, delete on public.collaborators to authenticated;
 grant select, insert, update on public.purchases to authenticated;
