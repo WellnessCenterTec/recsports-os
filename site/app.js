@@ -2349,7 +2349,7 @@ function renderDashboard(area) {
         <strong>Carga controlada</strong>
         <p>Cada archivo sustituye la base anterior y alimenta módulos que usan matrícula.</p>
         <input id="studentDatabaseCsv" type="file" accept=".csv,text/csv" hidden />
-        <button class="primary-btn" id="uploadStudentDatabase" type="button" ${currentUser?.auth === "supabase" && ["admin", "direccion"].includes(currentUser.role) && !studentDatabaseImporting ? "" : "disabled"}>${studentDatabaseImporting ? "Cargando..." : "Cargar Base de Datos de Alumnos"}</button>
+        <button class="primary-btn" id="uploadStudentDatabase" type="button" ${studentDatabaseImporting ? "disabled" : ""}>${studentDatabaseImporting ? "Cargando..." : "Cargar Base de Datos de Alumnos"}</button>
       </article>
     </section>
   ` : "";
@@ -3231,7 +3231,17 @@ function render() {
     render();
     toast("Capturas locales eliminadas");
   });
-  $("#uploadStudentDatabase")?.addEventListener("click", () => $("#studentDatabaseCsv")?.click());
+  $("#uploadStudentDatabase")?.addEventListener("click", () => {
+    if (!supabaseClient || currentUser?.auth !== "supabase") {
+      toast("Entra con tu cuenta Supabase para cargar la base de alumnos");
+      return;
+    }
+    if (!["admin", "direccion"].includes(currentUser.role)) {
+      toast("Tu usuario necesita permiso de Direccion para cargar alumnos");
+      return;
+    }
+    $("#studentDatabaseCsv")?.click();
+  });
   $("#studentDatabaseCsv")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
