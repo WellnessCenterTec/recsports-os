@@ -668,6 +668,10 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   grid-column: 1 / -1;
 }
 
+.gym-week-chart {
+  grid-column: 1 / -1;
+}
+
 .gym-chart-heading {
   display: flex;
   align-items: flex-start;
