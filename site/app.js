@@ -379,6 +379,8 @@ let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
 let classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
 let classScheduleSimulatorCloudReady = false;
+let classSimulatorTeacherConflictIds = new Set();
+let classSimulatorTeacherConflictMessage = "";
 let activeTheme = localStorage.getItem(THEME_KEY) || "tec";
 let currentUser = loadSession();
 let cloudCaptures = [];
@@ -1175,6 +1177,26 @@ function classSimulatorOverlaps({ area, day, start_time, end_time }) {
   ));
 }
 
+function classSimulatorTeacherKey(row) {
+  const teacherId = String(row?.teacher_id || "").trim();
+  if (teacherId) return `id:${teacherId}`;
+  const teacherName = normalizeText(row?.teacher_name || row?.professor || "");
+  return teacherName ? `name:${teacherName}` : "";
+}
+
+function classSimulatorTeacherOverlaps({ teacher_id, teacher_name, day, start_time, end_time }) {
+  const teacherKey = classSimulatorTeacherKey({ teacher_id, teacher_name });
+  if (!teacherKey) return [];
+  const start = timeToMinutes(start_time);
+  const end = timeToMinutes(end_time);
+  return classScheduleSimulatorRows.filter((row) => (
+    classSimulatorTeacherKey(row) === teacherKey
+    && row.day === day
+    && start < timeToMinutes(row.end_time)
+    && timeToMinutes(row.start_time) < end
+  ));
+}
+
 function classSimulatorDurationRows(row) {
   const start = timeToMinutes(row.start_time);
   const end = timeToMinutes(row.end_time);
@@ -1206,6 +1228,12 @@ async function registerClassSimulator(event) {
     end_time: String(formData.get("end_time") || "")
   };
   const days = formData.getAll("days").map(String);
+  classSimulatorTeacherConflictIds = new Set();
+  classSimulatorTeacherConflictMessage = "";
+  if (!teacher) {
+    toast("Selecciona un profesor");
+    return;
+  }
   if (!payload.discipline) {
     toast("Escribe la disciplina de la clase");
     return;
@@ -1222,6 +1250,17 @@ async function registerClassSimulator(event) {
     toast("La hora de fin debe ser mayor a la hora de inicio");
     return;
   }
+  if (supabaseClient && currentUser?.auth === "supabase") {
+    await loadClassScheduleSimulatorCloud();
+  }
+  const teacherConflicts = days.flatMap((day) => classSimulatorTeacherOverlaps({ ...payload, day }));
+  if (teacherConflicts.length) {
+    classSimulatorTeacherConflictIds = new Set(teacherConflicts.map((row) => row.id));
+    classSimulatorTeacherConflictMessage = "El profesor ya tiene una clase asignada en ese horario.";
+    render();
+    toast(classSimulatorTeacherConflictMessage);
+    return;
+  }
   const conflicts = days.flatMap((day) => classSimulatorOverlaps({ ...payload, day }));
   if (conflicts.length) {
     const conflict = conflicts[0];
@@ -1236,6 +1275,8 @@ async function registerClassSimulator(event) {
     created_at: now
   })).filter(Boolean);
   const result = await saveClassSimulatorRows(rows);
+  classSimulatorTeacherConflictIds = new Set();
+  classSimulatorTeacherConflictMessage = "";
   addAudit("simulador clases", `${rows.length} clase(s) registradas en ${payload.area}`);
   form.reset();
   render();
@@ -4449,6 +4490,12 @@ function renderScheduleSimulatorView() {
       <div class="permission-strip class-simulator-note">
         Este simulador es solo para planeacion visual. No modifica Calificaciones, alumnos, reportes ni la oferta oficial.
       </div>
+      ${classSimulatorTeacherConflictMessage ? `
+        <div class="class-simulator-conflict-alert" role="alert">
+          <strong>Empalme de profesor</strong>
+          <span>${escapeHtml(classSimulatorTeacherConflictMessage)}</span>
+        </div>
+      ` : ""}
       ${renderClassSimulatorForm()}
       <div class="class-simulator-maps">
         ${classSimulatorAreas.map((area) => renderClassSimulatorMap(area)).join("")}
@@ -4462,8 +4509,8 @@ function renderClassSimulatorForm() {
   return `
     <form id="classSimulatorForm" class="class-simulator-form">
       <label>Profesor
-        <select name="teacher_id">
-          <option value="">Opcional</option>
+        <select name="teacher_id" required>
+          <option value="">Selecciona profesor</option>
           ${teachers.map((teacher) => `<option value="${escapeHtml(teacher.id)}">${escapeHtml(teacher.name)}</option>`).join("")}
         </select>
       </label>
@@ -4536,8 +4583,10 @@ function renderClassSimulatorMap(area) {
 
 function renderClassSimulatorBlock(row) {
   const tone = row.area === "Spinning" ? "spinning" : "fitness";
+  const teacherConflict = classSimulatorTeacherConflictIds.has(row.id);
   return `
-    <div class="class-simulator-class ${tone}">
+    <div class="class-simulator-class ${tone} ${teacherConflict ? "teacher-conflict" : ""}" data-class-simulator-id="${escapeHtml(row.id)}">
+      ${teacherConflict ? `<span class="class-simulator-conflict-badge" title="Empalme de profesor">⚠ Empalme de profesor</span>` : ""}
       <strong>${escapeHtml(row.discipline)}</strong>
       ${row.teacher_name ? `<span>${escapeHtml(row.teacher_name)}</span>` : ""}
       <em>${classSimulatorTimeLabel(row.start_time)} - ${classSimulatorTimeLabel(row.end_time)}</em>

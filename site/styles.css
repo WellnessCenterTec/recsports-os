@@ -2604,6 +2604,26 @@ tbody tr:hover td {
   margin: 0;
 }
 
+.class-simulator-conflict-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid #df9a9a;
+  border-left: 5px solid var(--red);
+  border-radius: 8px;
+  background: #fff3f2;
+  color: #8f2929;
+}
+
+.class-simulator-conflict-alert strong {
+  white-space: nowrap;
+}
+
+.class-simulator-conflict-alert span {
+  font-size: 13px;
+}
+
 .class-simulator-form {
   background: #fff;
   border: 1px solid var(--line);
@@ -2785,6 +2805,25 @@ tbody tr:hover td {
 
 .class-simulator-class.fitness {
   background: #2f7d66;
+}
+
+.class-simulator-class.teacher-conflict {
+  background: #a92f2f;
+  outline: 3px solid rgba(179, 58, 58, .26);
+  outline-offset: 2px;
+}
+
+.class-simulator-conflict-badge {
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: #fff;
+  color: #8f2929;
+  font-size: 9px !important;
+  font-weight: 900;
+  line-height: 1.1 !important;
+  white-space: normal;
 }
 
 .class-simulator-class strong,
