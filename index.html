@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Planeación Semestral RecSports</title>
+    <link rel="stylesheet" href="./styles.css?v=20260612-week-summary" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">RecSports</p>
+          <h1>Planeación Semestral</h1>
+          <p class="subhead">Seguimiento colaborativo de actividades por área y mes.</p>
+        </div>
+        <div class="topbar-actions">
+          <a class="form-link" href="https://docs.google.com/forms/d/e/1FAIpQLSc2XKrOEilT6DDskV3zZAi0Ysn6n2j-1VsTR4U03kvcsQ0VHw/viewform?usp=publish-editor" target="_blank" rel="noreferrer">
+            Capturar actividad
+          </a>
+          <button class="import-button" id="importButton" type="button">Importar Excel/CSV</button>
+          <button class="template-button" id="templateButton" type="button">Plantilla</button>
+          <input id="importFile" type="file" accept=".xlsx,.xls,.csv" hidden>
+        </div>
+      </header>
+      <div class="import-status" id="importStatus" role="status" aria-live="polite"></div>
+
+      <section class="controls" aria-label="Filtros">
+        <div class="period-tabs" aria-label="Periodos">
+          <button class="period-tab" type="button" data-period="invierno">Invierno</button>
+          <button class="period-tab" type="button" data-period="feb-jun">Feb-Jun</button>
+          <button class="period-tab" type="button" data-period="verano">Verano</button>
+          <button class="period-tab" type="button" data-period="ago-dic">Ago-Dic</button>
+        </div>
+        <label>
+          Área
+          <select id="areaFilter"></select>
+        </label>
+        <label>
+          Mes
+          <select id="monthFilter"></select>
+        </label>
+        <button id="resetFilters" type="button">Limpiar filtros</button>
+      </section>
+
+      <section class="board-wrap" aria-label="Matriz de planeación">
+        <div class="board" id="planningBoard"></div>
+      </section>
+
+      <section class="activity-panel" aria-label="Lista de actividades">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow" id="summaryEyebrow">Semana actual</p>
+            <h2 id="summaryTitle">Resumen semana actual</h2>
+          </div>
+          <span id="lastUpdated">Actualizado localmente</span>
+        </div>
+        <div class="activity-list" id="activityList"></div>
+      </section>
+    </main>
+
+    <script src="./assets/xlsx.full.min.js"></script>
+    <script src="./app.js?v=20260612-week-summary"></script>
+  </body>
+</html>
