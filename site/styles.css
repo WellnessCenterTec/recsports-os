@@ -2528,6 +2528,7 @@ th { color: var(--muted); background: #f7faf9; }
 .class-simulator-grid {
   display: grid;
   grid-template-columns: 70px repeat(5, minmax(108px, 1fr));
+  grid-template-rows: 34px repeat(24, 50px);
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2563,8 +2564,10 @@ th { color: var(--muted); background: #f7faf9; }
   position: relative;
 }
 
-.class-simulator-cell.is-covered {
-  background: #f7faf9;
+.class-simulator-event {
+  min-width: 108px;
+  padding: 4px;
+  z-index: 2;
 }
 
 .class-simulator-class {
@@ -2572,10 +2575,11 @@ th { color: var(--muted); background: #f7faf9; }
   color: #fff;
   display: grid;
   gap: 3px;
-  min-height: 58px;
+  height: 100%;
+  min-height: 0;
+  align-content: start;
   padding: 8px;
   position: relative;
-  z-index: 2;
 }
 
 .class-simulator-class.spinning {

@@ -4495,6 +4495,23 @@ function renderClassSimulatorForm() {
 
 function renderClassSimulatorMap(area) {
   const rows = classSimulatorRowsByArea(area);
+  const slotTimes = classSimulatorTimes.slice(0, -1);
+  const gridCells = slotTimes.map((time, rowIndex) => `
+    <div class="class-simulator-time" style="grid-column:1;grid-row:${rowIndex + 2}">${classSimulatorTimeLabel(time)}</div>
+    ${classSimulatorDays.map((day, dayIndex) => `
+      <div class="class-simulator-cell" style="grid-column:${dayIndex + 2};grid-row:${rowIndex + 2}" aria-label="${escapeHtml(`${area} ${day} ${time}`)}"></div>
+    `).join("")}
+  `).join("");
+  const gridEvents = rows.map((row) => {
+    const dayIndex = classSimulatorDays.indexOf(row.day);
+    const startIndex = slotTimes.indexOf(row.start_time);
+    if (dayIndex < 0 || startIndex < 0) return "";
+    return `
+      <div class="class-simulator-event" style="grid-column:${dayIndex + 2};grid-row:${startIndex + 2} / span ${classSimulatorDurationRows(row)}">
+        ${renderClassSimulatorBlock(row)}
+      </div>
+    `;
+  }).join("");
   return `
     <article class="class-simulator-map-card">
       <div class="class-simulator-map-heading">
@@ -4505,27 +4522,19 @@ function renderClassSimulatorMap(area) {
         <span>${rows.length} bloques</span>
       </div>
       <div class="class-simulator-grid">
-        <div class="class-simulator-head time-col">Hora</div>
-        ${classSimulatorDays.map((day) => `<div class="class-simulator-head">${day}</div>`).join("")}
-        ${classSimulatorTimes.slice(0, -1).map((time) => `
-          <div class="class-simulator-time">${classSimulatorTimeLabel(time)}</div>
-          ${classSimulatorDays.map((day) => {
-            const row = rows.find((item) => item.day === day && item.start_time === time);
-            const covered = rows.some((item) => item.day === day && timeToMinutes(item.start_time) < timeToMinutes(time) && timeToMinutes(time) < timeToMinutes(item.end_time));
-            if (covered) return `<div class="class-simulator-cell is-covered"></div>`;
-            return `<div class="class-simulator-cell">${row ? renderClassSimulatorBlock(row) : ""}</div>`;
-          }).join("")}
-        `).join("")}
+        <div class="class-simulator-head time-col" style="grid-column:1;grid-row:1">Hora</div>
+        ${classSimulatorDays.map((day, dayIndex) => `<div class="class-simulator-head" style="grid-column:${dayIndex + 2};grid-row:1">${day}</div>`).join("")}
+        ${gridCells}
+        ${gridEvents}
       </div>
     </article>
   `;
 }
 
 function renderClassSimulatorBlock(row) {
-  const duration = classSimulatorDurationRows(row);
   const tone = row.area === "Spinning" ? "spinning" : "fitness";
   return `
-    <div class="class-simulator-class ${tone}" style="min-height:${Math.max(58, duration * 34 - 8)}px">
+    <div class="class-simulator-class ${tone}">
       <strong>${escapeHtml(row.discipline)}</strong>
       ${row.teacher_name ? `<span>${escapeHtml(row.teacher_name)}</span>` : ""}
       <em>${classSimulatorTimeLabel(row.start_time)} - ${classSimulatorTimeLabel(row.end_time)}</em>
