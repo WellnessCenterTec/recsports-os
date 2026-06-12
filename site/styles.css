@@ -2492,6 +2492,78 @@ th { color: var(--muted); background: #f7faf9; }
   padding: 14px;
 }
 
+.class-simulator-day-menu {
+  position: relative;
+}
+
+.class-simulator-day-menu summary {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  font-weight: 900;
+  justify-content: space-between;
+  list-style: none;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.class-simulator-day-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.class-simulator-day-menu summary::after {
+  color: var(--muted);
+  content: "⌄";
+  font-size: 14px;
+}
+
+.class-simulator-day-menu[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.class-simulator-day-options {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 16px 32px rgba(14, 39, 53, .14);
+  display: grid;
+  gap: 2px;
+  left: 0;
+  margin-top: 6px;
+  padding: 8px;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 12;
+}
+
+.class-simulator-day-options label {
+  align-items: center;
+  border-radius: 6px;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 8px;
+}
+
+.class-simulator-day-options label:hover {
+  background: #f2f7f7;
+}
+
+.class-simulator-day-options input {
+  width: auto;
+}
+
 .class-simulator-maps {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
