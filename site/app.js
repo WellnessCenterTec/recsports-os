@@ -3357,6 +3357,7 @@ function renderDashboard(area) {
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
   if (area.id === "configuracion") return renderConfigurationDashboard();
   if (area.id === "gimnasio") return renderGymDashboard();
+  if (area.id === "clases") return renderClassesDashboard();
   const data = filteredStudents();
   const metrics = metricSet(data);
   const byArea = areas.filter(a => a.id !== "general").map(a => ({
@@ -3398,7 +3399,6 @@ function renderDashboard(area) {
       </article>
     </section>
   ` : "";
-  const classTeachersMarkup = area.id === "clases" ? renderClassTeacherPerformance() : "";
   return `
     <div class="permission-strip">
       ${allowedDataText()} Estado: ${cloudStatus}. Capturas nube: ${cloudCaptures.length}. Capturas locales: ${localCaptures.length}.
@@ -3447,7 +3447,6 @@ function renderDashboard(area) {
         <p class="hero-copy">Segmentación sugerida: género, carrera, semestre, nivel escolar, periodo, área, disciplina, evento y estatus.</p>
       </div>
     </div>
-    ${classTeachersMarkup}
     <div class="module-grid">${moduleCards}</div>
     <div class="table-wrap">
       <table>
@@ -3455,6 +3454,19 @@ function renderDashboard(area) {
         <tbody>${data.slice(0, 14).map((s) => `<tr><td>${s.matricula}</td><td>${s.genero}</td><td>${s.carrera}</td><td>${s.semestre}</td><td>${s.nivel}</td><td>${labelArea(s.area)}</td><td>${s.registros}</td></tr>`).join("")}</tbody>
       </table>
     </div>
+  `;
+}
+
+function renderClassesDashboard() {
+  return `
+    <section class="permission-strip">
+      <div>
+        <p class="eyebrow">Clases Deportivas</p>
+        <strong>Indicadores específicos del área</strong>
+        <p class="hero-copy">Este espacio queda preparado exclusivamente para gráficas de programación, inscripción, acreditación, ocupación y desempeño de clases.</p>
+      </div>
+    </section>
+    ${renderClassTeacherPerformance()}
   `;
 }
 
