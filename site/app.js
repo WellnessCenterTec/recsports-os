@@ -3025,7 +3025,12 @@ function renderLogin() {
       <section class="login-card" aria-label="Acceso WellSync">
         <div class="login-visual">
           <div>
-            <div class="brand-mark">WS</div>
+            <div class="login-brand-lockup">
+              <div class="login-logo-tile">
+                <img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
+              </div>
+              <span>Wellness Center</span>
+            </div>
             <p class="eyebrow" style="color:#f0b323">Piloto web</p>
             <h1>WellSync</h1>
             <p>Entra con un perfil demo para validar permisos, captura por área y dashboards antes de liberar la plataforma.</p>

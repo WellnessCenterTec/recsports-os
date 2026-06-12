@@ -4,14 +4,16 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>WellSync | Wellness Center</title>
-    <link rel="stylesheet" href="./styles.css?v=20260612-multi-day-dropdown" />
+    <link rel="stylesheet" href="./styles.css?v=20260612-institutional-final" />
   </head>
   <body>
     <div id="loginRoot"></div>
     <div class="app-shell">
       <aside class="sidebar" aria-label="Menu principal">
         <div class="brand">
-          <div class="brand-mark">WS</div>
+          <div class="brand-logo-tile">
+            <img class="brand-logo" src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
+          </div>
           <div>
             <strong>WellSync</strong>
             <span>Dirección Deportiva</span>
@@ -59,7 +61,10 @@
             </div>
           </div>
           <div class="hero-kpis" id="executiveKpis"></div>
-          <a class="planning-link" href="https://planeacion-semestral-recsports.vercel.app/" target="_blank" rel="noopener noreferrer">Planeación</a>
+          <div class="hero-actions">
+            <a class="planning-link" href="https://planeacion-semestral-recsports.vercel.app/" target="_blank" rel="noopener noreferrer">Planeación</a>
+            <img class="hero-borregos-logo" src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
+          </div>
         </section>
 
         <section class="filters-band" aria-label="Filtros recomendados">
@@ -125,6 +130,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="./app.js?v=20260612-multi-day-dropdown"></script>
+    <script src="./app.js?v=20260612-institutional-final"></script>
   </body>
 </html>
