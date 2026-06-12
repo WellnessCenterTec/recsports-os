@@ -186,6 +186,7 @@ const activities = ["clases", "gimnasio", "intramuros", "vivencia", "representat
 const STORAGE_KEY = "recsports_os_local_captures";
 const SCHEDULE_KEY = "recsports_os_class_schedules";
 const SIMULATOR_KEY = "recsports_os_schedule_simulator";
+const CLASS_SIMULATOR_KEY = "wellsync_spinning_fitness_simulator";
 const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
@@ -209,6 +210,12 @@ const supabaseClient = window.supabase && SUPABASE_ENV.SUPABASE_URL && SUPABASE_
   : null;
 const scheduleDays = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
 const scheduleHours = Array.from({ length: 16 }, (_, index) => `${String(6 + index).padStart(2, "0")}:00`);
+const classSimulatorDays = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
+const classSimulatorAreas = ["Spinning", "Fitness"];
+const classSimulatorTimes = Array.from({ length: 25 }, (_, index) => {
+  const totalMinutes = 8 * 60 + index * 30;
+  return minutesToTime(totalMinutes);
+});
 const knownInstallations = [
   "Sala Fitness", "Arena Wellness 2", "Artes Marciales", "Sala de Spinning", "Sala CrossFit",
   "Muro de Escalada", "Cancha de Soccer", "Alberca", "Canchas de Tenis", "Sala Yoga",
@@ -370,6 +377,8 @@ let scheduleState = loadSchedules();
 let scheduleFilters = { professor: "todos", day: "todos", discipline: "todos", installation: "todos", mode: "professors", timeDay: "Lunes", time: "09:00", reportProfessor: "todos" };
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
+let classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
+let classScheduleSimulatorCloudReady = false;
 let activeTheme = localStorage.getItem(THEME_KEY) || "tec";
 let currentUser = loadSession();
 let cloudCaptures = [];
@@ -485,6 +494,97 @@ function loadSimulator() {
 
 function saveSimulator() {
   localStorage.setItem(SIMULATOR_KEY, JSON.stringify(simulatorState));
+}
+
+function loadClassScheduleSimulatorLocal() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CLASS_SIMULATOR_KEY) || "[]");
+    return Array.isArray(saved) ? saved.map(normalizeClassSimulatorRow).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveClassScheduleSimulatorLocal() {
+  localStorage.setItem(CLASS_SIMULATOR_KEY, JSON.stringify(classScheduleSimulatorRows));
+}
+
+function normalizeClassSimulatorRow(row) {
+  if (!row) return null;
+  const day = normalizeDay(row.day || row.day_label);
+  const area = classSimulatorAreas.find((item) => normalizeText(item) === normalizeText(row.area)) || "";
+  const start = normalizeTimeToken(row.start_time || row.start || "");
+  const end = normalizeTimeToken(row.end_time || row.end || "");
+  if (!area || !day || !start || !end) return null;
+  return {
+    id: String(row.id || crypto.randomUUID()),
+    area,
+    discipline: String(row.discipline || "").trim(),
+    teacher_id: row.teacher_id ? String(row.teacher_id) : "",
+    teacher_name: String(row.teacher_name || row.professor || "").trim(),
+    day,
+    start_time: start,
+    end_time: end,
+    created_at: row.created_at || new Date().toISOString()
+  };
+}
+
+async function loadClassScheduleSimulatorCloud() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    classScheduleSimulatorCloudReady = false;
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from("class_schedule_simulator")
+    .select("id, area, discipline, teacher_id, teacher_name, day, start_time, end_time, created_at")
+    .order("day")
+    .order("start_time");
+  if (error) {
+    classScheduleSimulatorCloudReady = false;
+    return;
+  }
+  classScheduleSimulatorRows = (data || []).map(normalizeClassSimulatorRow).filter(Boolean);
+  classScheduleSimulatorCloudReady = true;
+  saveClassScheduleSimulatorLocal();
+}
+
+async function saveClassSimulatorRows(rows) {
+  classScheduleSimulatorRows = [...classScheduleSimulatorRows, ...rows];
+  saveClassScheduleSimulatorLocal();
+  if (!supabaseClient || currentUser?.auth !== "supabase") return { cloud: false };
+  const payload = rows.map((row) => ({
+    id: row.id,
+    area: row.area,
+    discipline: row.discipline,
+    teacher_id: row.teacher_id || null,
+    teacher_name: row.teacher_name || null,
+    day: row.day,
+    start_time: row.start_time,
+    end_time: row.end_time,
+    created_at: row.created_at
+  }));
+  const { error } = await supabaseClient.from("class_schedule_simulator").insert(payload);
+  if (error) {
+    classScheduleSimulatorCloudReady = false;
+    return { cloud: false, error };
+  }
+  classScheduleSimulatorCloudReady = true;
+  return { cloud: true };
+}
+
+async function deleteClassSimulatorRow(id) {
+  const row = classScheduleSimulatorRows.find((item) => item.id === id);
+  if (!row) return;
+  if (!confirm("¿Seguro que deseas eliminar esta clase del simulador?")) return;
+  classScheduleSimulatorRows = classScheduleSimulatorRows.filter((item) => item.id !== id);
+  saveClassScheduleSimulatorLocal();
+  if (supabaseClient && currentUser?.auth === "supabase") {
+    const { error } = await supabaseClient.from("class_schedule_simulator").delete().eq("id", id);
+    classScheduleSimulatorCloudReady = !error;
+  }
+  addAudit("simulador clases", `Clase eliminada: ${row.discipline} ${row.day} ${row.start_time}-${row.end_time}`);
+  render();
+  toast("Clase eliminada del simulador");
 }
 
 function loadSession() {
@@ -1046,6 +1146,100 @@ function simulatorAvailabilityAt(day, time) {
     freeInstallations: installations.filter((name) => !busyInstallations.has(name)),
     busyInstallations: installations.filter((name) => busyInstallations.has(name))
   };
+}
+
+function classSimulatorTeachers() {
+  return collaboratorRows()
+    .map((row) => ({
+      id: String(row.__id || row.Nomina || row.nomina || row.Colaboradores || ""),
+      name: String(row.Colaboradores || row.nombre_completo || row.full_name || "").trim()
+    }))
+    .filter((row) => row.name)
+    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+}
+
+function classSimulatorRowsByArea(area) {
+  return classScheduleSimulatorRows
+    .filter((row) => row.area === area)
+    .sort((a, b) => classSimulatorDays.indexOf(a.day) - classSimulatorDays.indexOf(b.day) || timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
+}
+
+function classSimulatorOverlaps({ area, day, start_time, end_time }) {
+  const start = timeToMinutes(start_time);
+  const end = timeToMinutes(end_time);
+  return classScheduleSimulatorRows.filter((row) => (
+    row.area === area
+    && row.day === day
+    && start < timeToMinutes(row.end_time)
+    && timeToMinutes(row.start_time) < end
+  ));
+}
+
+function classSimulatorDurationRows(row) {
+  const start = timeToMinutes(row.start_time);
+  const end = timeToMinutes(row.end_time);
+  return Math.max(1, Math.round((end - start) / 30));
+}
+
+function classSimulatorTimeLabel(value) {
+  const minutes = timeToMinutes(value);
+  if (!Number.isFinite(minutes)) return value;
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  const suffix = hour >= 12 ? "p.m." : "a.m.";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+async function registerClassSimulator(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const teacherId = String(formData.get("teacher_id") || "");
+  const teacher = classSimulatorTeachers().find((item) => item.id === teacherId);
+  const payload = {
+    area: String(formData.get("area") || ""),
+    discipline: String(formData.get("discipline") || "").trim(),
+    teacher_id: teacherId,
+    teacher_name: teacher?.name || "",
+    start_time: String(formData.get("start_time") || ""),
+    end_time: String(formData.get("end_time") || "")
+  };
+  const days = formData.getAll("days").map(String);
+  if (!payload.discipline) {
+    toast("Escribe la disciplina de la clase");
+    return;
+  }
+  if (!classSimulatorAreas.includes(payload.area)) {
+    toast("Selecciona Spinning o Fitness");
+    return;
+  }
+  if (!days.length) {
+    toast("Selecciona al menos un dia");
+    return;
+  }
+  if (timeToMinutes(payload.end_time) <= timeToMinutes(payload.start_time)) {
+    toast("La hora de fin debe ser mayor a la hora de inicio");
+    return;
+  }
+  const conflicts = days.flatMap((day) => classSimulatorOverlaps({ ...payload, day }));
+  if (conflicts.length) {
+    const conflict = conflicts[0];
+    toast(`Empalme detectado: ${conflict.area} ${conflict.day} ${conflict.start_time}-${conflict.end_time}`);
+    return;
+  }
+  const now = new Date().toISOString();
+  const rows = days.map((day) => normalizeClassSimulatorRow({
+    id: crypto.randomUUID(),
+    ...payload,
+    day,
+    created_at: now
+  })).filter(Boolean);
+  const result = await saveClassSimulatorRows(rows);
+  addAudit("simulador clases", `${rows.length} clase(s) registradas en ${payload.area}`);
+  form.reset();
+  render();
+  toast(result.cloud ? "Clase guardada en Supabase" : "Clase registrada en el simulador");
 }
 
 function normalizeStudentGender(value) {
@@ -2049,7 +2243,7 @@ async function loadSupabaseSession() {
   }
   saveSession(profileToSession(profile, authUser));
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
-  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData()]);
+  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData(), loadClassScheduleSimulatorCloud()]);
 }
 
 async function loginWithSupabase() {
@@ -2105,7 +2299,7 @@ async function loginWithSupabase() {
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
   activeView = "dashboard";
-  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData()]);
+  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData(), loadClassScheduleSimulatorCloud()]);
   render();
   toast(`Sesion Supabase: ${currentUser.name}`);
 }
@@ -4225,177 +4419,102 @@ function renderProfessorReportView() {
 
 function renderScheduleSimulatorView() {
   if (activeArea !== "clases") return `<div class="permission-strip">El Simulador pertenece a Clases Deportivas.</div>`;
-  ensureSimulatorDraft();
-  const rows = filteredSimulatorRows();
-  const allRows = simulatorRows();
-  const conflicts = simulatorConflicts(allRows);
-  const suggestions = simulatorSuggestions(allRows);
-  const changed = allRows.filter((row) => row.draftChanged).length;
-  const selected = selectedSimulatorRow();
+  const rows = classScheduleSimulatorRows;
   return `
-    <section class="schedule-panel simulator-panel">
+    <section class="schedule-panel class-simulator-panel">
       <div class="section-title compact">
         <div>
-          <p class="eyebrow">Simulador de horarios</p>
-          <h2>Programacion propuesta</h2>
+          <p class="eyebrow">Simulador visual</p>
+          <h2>Spinning y Fitness</h2>
         </div>
-        <div class="simulator-actions">
-          <button class="ghost-btn" id="resetSimulator">Reiniciar desde Calendario Maestro</button>
-          <button class="ghost-btn" data-simulator-export="csv">Exportar CSV</button>
-          <button class="primary-btn" data-simulator-export="xlsx">Exportar Excel</button>
-        </div>
+        <span class="session-pill">${rows.length} clases planeadas · ${classScheduleSimulatorCloudReady ? "Supabase activo" : "respaldo local"}</span>
       </div>
-      <div class="permission-strip simulator-note">
-        <span>Entorno de prueba: mover aqui no modifica Programacion Clases ni Booking ofertados.</span>
-        <span>${allRows.length} actividades PMT1 · ${changed} cambios · ${conflicts.length} alertas</span>
+      <div class="permission-strip class-simulator-note">
+        Este simulador es solo para planeacion visual. No modifica Calificaciones, alumnos, reportes ni la oferta oficial.
       </div>
-      <div class="schedule-filter-row simulator-filter-row">
-        <label>Profesor<select class="simulator-filter" data-filter="professor"><option value="todos">Todos</option>${Array.from(new Set(allRows.map((row) => row.professor).filter(Boolean))).sort().map((value) => `<option ${simulatorFilters.professor === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-        <label>Dia<select class="simulator-filter" data-filter="day"><option value="todos">Todos</option>${scheduleDays.map((value) => `<option ${simulatorFilters.day === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-        <label>Instalacion<select class="simulator-filter" data-filter="installation"><option value="todos">Todas</option>${Array.from(new Set([...knownInstallations, ...allRows.map((row) => row.installation).filter(Boolean)])).sort().map((value) => `<option ${simulatorFilters.installation === value ? "selected" : ""}>${value}</option>`).join("")}</select></label>
-        <label>Escenario<input class="simulator-field" data-field="scenarioName" value="${simulatorState.scenarioName || "Escenario base"}" /></label>
-      </div>
-      <div class="simulator-workspace">
-        <div>${renderSimulatorCalendar(rows)}</div>
-        ${renderSimulatorEditor(selected)}
-      </div>
-      <div class="simulator-lower-grid">
-        ${renderSimulatorValidation(conflicts)}
-        ${renderSimulatorOptimization(allRows, suggestions)}
-        ${renderSimulatorAvailability()}
+      ${renderClassSimulatorForm()}
+      <div class="class-simulator-maps">
+        ${classSimulatorAreas.map((area) => renderClassSimulatorMap(area)).join("")}
       </div>
     </section>
   `;
 }
 
-function renderSimulatorCalendar(rows) {
+function renderClassSimulatorForm() {
+  const teachers = classSimulatorTeachers();
   return `
-    <div class="weekly-calendar simulator-calendar">
-      <div class="calendar-head time-col">Hora</div>
-      ${scheduleDays.map((day) => `<div class="calendar-head">${day}</div>`).join("")}
-      ${scheduleHours.map((hour) => `
-        <div class="calendar-time">${hour}</div>
-        ${scheduleDays.map((day) => {
-          const hourStart = timeToMinutes(hour);
-          const events = rows.filter((row) => row.day === day && timeToMinutes(row.start) < hourStart + 60 && timeToMinutes(row.end) > hourStart);
-          return `<div class="calendar-cell simulator-cell" data-sim-day="${day}" data-sim-hour="${hour}">${events.map((row) => renderSimulatorBlock(row)).join("")}</div>`;
-        }).join("")}
-      `).join("")}
+    <form id="classSimulatorForm" class="class-simulator-form">
+      <label>Profesor
+        <select name="teacher_id">
+          <option value="">Opcional</option>
+          ${teachers.map((teacher) => `<option value="${escapeHtml(teacher.id)}">${escapeHtml(teacher.name)}</option>`).join("")}
+        </select>
+      </label>
+      <label>Disciplina
+        <input name="discipline" placeholder="Pilates, Cycling, Funcional" />
+      </label>
+      <label>Area / instalacion
+        <select name="area">
+          ${classSimulatorAreas.map((area) => `<option>${area}</option>`).join("")}
+        </select>
+      </label>
+      <label>Hora inicio
+        <select name="start_time">${classSimulatorTimes.slice(0, -1).map((time) => `<option value="${time}">${classSimulatorTimeLabel(time)}</option>`).join("")}</select>
+      </label>
+      <label>Hora fin
+        <select name="end_time">${classSimulatorTimes.slice(1).map((time) => `<option value="${time}">${classSimulatorTimeLabel(time)}</option>`).join("")}</select>
+      </label>
+      <fieldset class="class-simulator-days">
+        <legend>Dias / frecuencia</legend>
+        ${classSimulatorDays.map((day) => `
+          <label><input type="checkbox" name="days" value="${day}" />${day}</label>
+        `).join("")}
+      </fieldset>
+      <button class="primary-btn" type="submit">Registrar clase</button>
+    </form>
+  `;
+}
+
+function renderClassSimulatorMap(area) {
+  const rows = classSimulatorRowsByArea(area);
+  return `
+    <article class="class-simulator-map-card">
+      <div class="class-simulator-map-heading">
+        <div>
+          <p class="eyebrow">Mapa de horario</p>
+          <h3>${area}</h3>
+        </div>
+        <span>${rows.length} bloques</span>
+      </div>
+      <div class="class-simulator-grid">
+        <div class="class-simulator-head time-col">Hora</div>
+        ${classSimulatorDays.map((day) => `<div class="class-simulator-head">${day}</div>`).join("")}
+        ${classSimulatorTimes.slice(0, -1).map((time) => `
+          <div class="class-simulator-time">${classSimulatorTimeLabel(time)}</div>
+          ${classSimulatorDays.map((day) => {
+            const row = rows.find((item) => item.day === day && item.start_time === time);
+            const covered = rows.some((item) => item.day === day && timeToMinutes(item.start_time) < timeToMinutes(time) && timeToMinutes(time) < timeToMinutes(item.end_time));
+            if (covered) return `<div class="class-simulator-cell is-covered"></div>`;
+            return `<div class="class-simulator-cell">${row ? renderClassSimulatorBlock(row) : ""}</div>`;
+          }).join("")}
+        `).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function renderClassSimulatorBlock(row) {
+  const duration = classSimulatorDurationRows(row);
+  const tone = row.area === "Spinning" ? "spinning" : "fitness";
+  return `
+    <div class="class-simulator-class ${tone}" style="min-height:${Math.max(58, duration * 34 - 8)}px">
+      <strong>${escapeHtml(row.discipline)}</strong>
+      ${row.teacher_name ? `<span>${escapeHtml(row.teacher_name)}</span>` : ""}
+      <em>${classSimulatorTimeLabel(row.start_time)} - ${classSimulatorTimeLabel(row.end_time)}</em>
+      <div class="class-simulator-class-actions">
+        <button type="button" data-delete-class-simulator="${row.id}">Eliminar</button>
+      </div>
     </div>
-  `;
-}
-
-function renderSimulatorBlock(row) {
-  const color = professorColor(row.professor);
-  const background = row.source === "booking" ? `${color}61` : color;
-  const active = selectedSimulatorRow()?.simId === row.simId ? "active" : "";
-  return `
-    <button class="schedule-block simulator-block ${active}" draggable="true" data-sim-select="${row.simId}" data-sim-drag="${row.simId}" style="--schedule-color:${color}; background:${background}">
-      <strong>${row.discipline}</strong>
-      <span>${row.professor}</span>
-      <em>${row.start}-${row.end} · ${row.installation}</em>
-    </button>
-  `;
-}
-
-function renderSimulatorEditor(row) {
-  if (!row) return `<aside class="simulator-editor"><h3>Actividad seleccionada</h3><p class="muted">Carga el archivo maestro o reinicia el simulador para generar el borrador.</p></aside>`;
-  const rows = simulatorRows();
-  const professors = Array.from(new Set(rows.map((item) => item.professor).filter(Boolean))).sort();
-  const installations = Array.from(new Set([...knownInstallations, ...rows.map((item) => item.installation).filter(Boolean)])).sort();
-  return `
-    <aside class="simulator-editor">
-      <div>
-        <p class="eyebrow">Editar borrador</p>
-        <h3>${row.discipline}</h3>
-        <span class="session-pill">${row.source === "booking" ? "Booking transparente" : "Clase oficial solida"}</span>
-      </div>
-      <label>Disciplina<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="discipline" value="${row.discipline}" /></label>
-      <label>Profesor<input class="simulator-row-field" list="simProfessorList" data-sim-id="${row.simId}" data-field="professor" value="${row.professor}" /></label>
-      <datalist id="simProfessorList">${professors.map((name) => `<option value="${name}"></option>`).join("")}</datalist>
-      <label>Instalacion<input class="simulator-row-field" list="simInstallationList" data-sim-id="${row.simId}" data-field="installation" value="${row.installation}" /></label>
-      <datalist id="simInstallationList">${installations.map((name) => `<option value="${name}"></option>`).join("")}</datalist>
-      <label>Dia<select class="simulator-row-field" data-sim-id="${row.simId}" data-field="day">${scheduleDays.map((day) => `<option ${row.day === day ? "selected" : ""}>${day}</option>`).join("")}</select></label>
-      <div class="two-col">
-        <label>Inicio<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="start" type="time" value="${row.start}" /></label>
-        <label>Fin<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="end" type="time" value="${row.end}" /></label>
-      </div>
-      <label>Frecuencia<input class="simulator-row-field" data-sim-id="${row.simId}" data-field="frequency" value="${row.frequency || "Semanal"}" /></label>
-      <div class="simulator-nudge-row">
-        <button class="ghost-btn" data-sim-day-move="-1" data-sim-id="${row.simId}">Dia anterior</button>
-        <button class="ghost-btn" data-sim-move="-30" data-sim-id="${row.simId}">-30 min</button>
-        <button class="ghost-btn" data-sim-move="30" data-sim-id="${row.simId}">+30 min</button>
-        <button class="ghost-btn" data-sim-day-move="1" data-sim-id="${row.simId}">Dia siguiente</button>
-      </div>
-    </aside>
-  `;
-}
-
-function renderSimulatorValidation(conflicts) {
-  const professorConflicts = conflicts.filter((conflict) => conflict.type === "professor");
-  const installationConflicts = conflicts.filter((conflict) => conflict.type === "installation");
-  return `
-    <article class="simulator-card">
-      <p class="eyebrow">Validacion en tiempo real</p>
-      <h3>Conflictos</h3>
-      <div class="simulator-alert-list">
-        ${professorConflicts.length ? professorConflicts.slice(0, 6).map((conflict) => `<p><strong>Conflicto de profesor</strong><span>${conflict.label} · ${conflict.day} · ${conflict.a.start}-${conflict.a.end}</span></p>`).join("") : `<p class="ok-text"><strong>Sin conflicto de profesor</strong><span>Los profesores no se traslapan.</span></p>`}
-        ${installationConflicts.length ? installationConflicts.slice(0, 6).map((conflict) => `<p><strong>Conflicto de instalacion</strong><span>${conflict.label} · ${conflict.day} · ${conflict.a.start}-${conflict.a.end}</span></p>`).join("") : `<p class="ok-text"><strong>Sin conflicto de instalacion</strong><span>Las instalaciones no se traslapan.</span></p>`}
-      </div>
-    </article>
-  `;
-}
-
-function renderSimulatorOptimization(rows, suggestions) {
-  const professors = Array.from(new Set(rows.map((row) => row.professor).filter(Boolean))).sort();
-  const summaries = professors.map((professor) => ({ professor, ...rowsForOperationalSummary(rows, professor) })).sort((a, b) => b.deadTime - a.deadTime).slice(0, 8);
-  return `
-    <article class="simulator-card">
-      <p class="eyebrow">Modo optimizacion</p>
-      <h3>Eficiencia por profesor</h3>
-      <div class="simulator-summary-table">
-        ${summaries.map((summary) => `
-          <div>
-            <strong>${summary.professor}</strong>
-            <span>${summary.totalHours.toFixed(1)} h clase</span>
-            <span>${summary.campusHours.toFixed(1)} h campus</span>
-            <span>${summary.deadTime.toFixed(1)} h muerto</span>
-            <em>${summary.efficiency}%</em>
-          </div>
-        `).join("") || `<p class="muted">Sin profesores para analizar.</p>`}
-      </div>
-      <div class="simulator-suggestions">
-        ${suggestions.length ? suggestions.map((item) => `<p>${item}</p>`).join("") : `<p>No hay huecos grandes detectados en este escenario.</p>`}
-      </div>
-    </article>
-  `;
-}
-
-function renderSimulatorAvailability() {
-  const availability = simulatorAvailabilityAt(simulatorFilters.availabilityDay, simulatorFilters.availabilityTime);
-  const rows = simulatorRows();
-  const installations = Array.from(new Set([...knownInstallations, ...rows.map((row) => row.installation).filter(Boolean)])).sort();
-  const selectedInstallation = simulatorFilters.installationView === "todos" ? installations[0] : simulatorFilters.installationView;
-  const installationRows = rows.filter((row) => row.installation === selectedInstallation);
-  return `
-    <article class="simulator-card">
-      <p class="eyebrow">Disponibilidad</p>
-      <h3>Profesores e instalaciones</h3>
-      <div class="two-col">
-        <label>Dia<select class="simulator-filter" data-filter="availabilityDay">${scheduleDays.map((day) => `<option ${simulatorFilters.availabilityDay === day ? "selected" : ""}>${day}</option>`).join("")}</select></label>
-        <label>Hora<input class="simulator-filter" data-filter="availabilityTime" type="time" value="${simulatorFilters.availabilityTime}" /></label>
-      </div>
-      <div class="availability-mini">
-        <strong>Profesores libres</strong><p>${availability.freeProfessors.slice(0, 8).join(", ") || "Sin libres"}</p>
-        <strong>Profesores ocupados</strong><p>${availability.busyProfessors.slice(0, 8).join(", ") || "Sin ocupados"}</p>
-        <strong>Instalaciones libres</strong><p>${availability.freeInstallations.slice(0, 8).join(", ") || "Sin libres"}</p>
-        <strong>Instalaciones ocupadas</strong><p>${availability.busyInstallations.slice(0, 8).join(", ") || "Sin ocupadas"}</p>
-      </div>
-      <label>Vista por instalacion<select class="simulator-filter" data-filter="installationView">${installations.map((name) => `<option ${selectedInstallation === name ? "selected" : ""}>${name}</option>`).join("")}</select></label>
-      <div class="installation-mini-list">
-        ${installationRows.slice(0, 10).map((row) => `<span>${row.day} ${row.start}-${row.end} · ${row.professor}</span>`).join("") || `<span>Sin ocupacion en ${selectedInstallation || "esta instalacion"}</span>`}
-      </div>
-    </article>
   `;
 }
 
@@ -4543,6 +4662,8 @@ function render() {
     await replaceStudentDatabaseFromCsv(file);
     event.target.value = "";
   });
+  $("#classSimulatorForm")?.addEventListener("submit", registerClassSimulator);
+  $$("[data-delete-class-simulator]").forEach((button) => button.addEventListener("click", () => deleteClassSimulatorRow(button.dataset.deleteClassSimulator)));
   $$("[data-schedule-mode]").forEach((button) => button.addEventListener("click", () => {
     scheduleFilters.mode = button.dataset.scheduleMode;
     render();
@@ -5323,6 +5444,8 @@ $("#logoutButton").addEventListener("click", () => {
     gymStudentRegistrations = [];
     gymDataLoaded = false;
     gymMasterStudent = null;
+    classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
+    classScheduleSimulatorCloudReady = false;
     collaboratorsCloudLoaded = false;
     collaboratorColumnOrder = [];
     collaboratorSettingsLoaded = false;

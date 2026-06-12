@@ -2472,6 +2472,189 @@ th { color: var(--muted); background: #f7faf9; }
   padding: 6px 9px;
 }
 
+.class-simulator-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.class-simulator-note {
+  margin: 0;
+}
+
+.class-simulator-form {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 1.1fr 1.2fr .9fr .8fr .8fr 1.5fr auto;
+  gap: 10px;
+  align-items: end;
+  padding: 14px;
+}
+
+.class-simulator-days {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  min-height: 54px;
+  padding: 8px 10px 10px;
+}
+
+.class-simulator-days legend {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0 4px;
+}
+
+.class-simulator-days label {
+  align-items: center;
+  color: var(--ink);
+  display: inline-flex;
+  flex-direction: row;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 5px;
+  min-height: auto;
+}
+
+.class-simulator-days input {
+  width: auto;
+}
+
+.class-simulator-maps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.class-simulator-map-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.class-simulator-map-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.class-simulator-map-heading h3 {
+  margin: 0;
+}
+
+.class-simulator-map-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.class-simulator-grid {
+  display: grid;
+  grid-template-columns: 70px repeat(5, minmax(108px, 1fr));
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.class-simulator-head,
+.class-simulator-time,
+.class-simulator-cell {
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  min-height: 34px;
+  padding: 5px;
+}
+
+.class-simulator-head {
+  background: #f8fbfb;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 900;
+  min-height: 34px;
+}
+
+.class-simulator-time {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.class-simulator-cell {
+  min-width: 108px;
+  position: relative;
+}
+
+.class-simulator-cell.is-covered {
+  background: #f7faf9;
+}
+
+.class-simulator-class {
+  border-radius: 8px;
+  color: #fff;
+  display: grid;
+  gap: 3px;
+  min-height: 58px;
+  padding: 8px;
+  position: relative;
+  z-index: 2;
+}
+
+.class-simulator-class.spinning {
+  background: linear-gradient(135deg, #006a8e, #009b8a);
+}
+
+.class-simulator-class.fitness {
+  background: linear-gradient(135deg, #0f766e, #4e9f3d);
+}
+
+.class-simulator-class strong,
+.class-simulator-class span,
+.class-simulator-class em {
+  display: block;
+  font-style: normal;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.class-simulator-class strong {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.class-simulator-class span,
+.class-simulator-class em {
+  font-size: 11px;
+}
+
+.class-simulator-class-actions {
+  margin-top: 4px;
+}
+
+.class-simulator-class-actions button {
+  background: rgba(255, 255, 255, .18);
+  border: 1px solid rgba(255, 255, 255, .45);
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 900;
+  min-height: 24px;
+  padding: 0 8px;
+}
+
 .system-map { display: grid; gap: 10px; }
 .map-node { padding: 13px; }
 .map-node strong { display: block; margin-bottom: 5px; }
@@ -2516,12 +2699,14 @@ th { color: var(--muted); background: #f7faf9; }
   .class-grade-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .physical-code-panel { grid-template-columns: 1fr; }
   .gym-form-layout { grid-template-columns: 1fr; }
+  .class-simulator-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .class-simulator-maps { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {
   .workspace, .sidebar { padding: 14px; }
   .topbar, .top-actions, .section-title, .report-row, .permission-strip, .collaborator-table-header { flex-direction: column; align-items: stretch; }
-  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div { grid-template-columns: 1fr; }
+  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps { grid-template-columns: 1fr; }
   .simulator-editor { position: static; }
   .simulator-actions { justify-content: flex-start; }
   .hero-dashboard { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
