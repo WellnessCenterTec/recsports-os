@@ -3044,7 +3044,12 @@ function renderGymDashboard() {
 
 function renderGymAttendanceRegistration() {
   const today = new Date().toISOString().slice(0, 10);
-  const latest = [...gymAttendanceRecords].sort((a, b) => String(b.attendance_date).localeCompare(String(a.attendance_date))).slice(0, 12);
+  const manualRecords = gymAttendanceRecords
+    .filter((row) => row.id)
+    .sort((a, b) => {
+      const dateOrder = String(b.attendance_date).localeCompare(String(a.attendance_date));
+      return dateOrder || String(b.created_at || "").localeCompare(String(a.created_at || ""));
+    });
   return `
     <div class="gym-form-layout">
       <section class="form-panel">
@@ -3064,14 +3069,41 @@ function renderGymAttendanceRegistration() {
         <p class="form-message">Un registro por fecha e instalación. Si repites la fecha, se actualiza la cantidad.</p>
       </section>
       <section class="chart-panel">
-        <div class="gym-chart-heading"><div><p class="eyebrow">Historial reciente</p><h3>Últimos registros</h3></div></div>
+        <div class="gym-chart-heading">
+          <div><p class="eyebrow">Historial de cargas</p><h3>Registros manuales</h3></div>
+          <strong>${manualRecords.length}</strong>
+        </div>
+        <p class="form-message">Puedes eliminar una captura incorrecta. Las asistencias históricas importadas permanecen protegidas.</p>
         <div class="table-wrap">
-          <table><thead><tr><th>Fecha</th><th>Semana</th><th>Día</th><th>Instalación</th><th>Asistentes</th></tr></thead>
-          <tbody>${latest.length ? latest.map((row) => `<tr><td>${escapeHtml(row.attendance_date)}</td><td>${row.week_number}</td><td>${escapeHtml(row.day_of_week)}</td><td>${escapeHtml(row.facility)}</td><td>${row.attendee_count}</td></tr>`).join("") : `<tr><td colspan="5">Sin registros todavía.</td></tr>`}</tbody></table>
+          <table><thead><tr><th>Fecha</th><th>Semana</th><th>Día</th><th>Instalación</th><th>Asistentes</th><th>Observaciones</th><th>Acción</th></tr></thead>
+          <tbody>${manualRecords.length ? manualRecords.map((row) => `
+            <tr>
+              <td>${escapeHtml(row.attendance_date)}</td>
+              <td>${row.week_number}</td>
+              <td>${escapeHtml(row.day_of_week)}</td>
+              <td>${escapeHtml(row.facility)}</td>
+              <td>${row.attendee_count}</td>
+              <td>${escapeHtml(row.notes || "")}</td>
+              <td>
+                <button
+                  class="danger-btn"
+                  data-delete-gym-attendance="${escapeHtml(row.id)}"
+                  type="button"
+                  ${canDeleteGymAttendance(row) ? "" : "disabled"}
+                  title="${canDeleteGymAttendance(row) ? "Eliminar esta carga" : "Solo puedes eliminar tus propias cargas"}"
+                >Eliminar</button>
+              </td>
+            </tr>
+          `).join("") : `<tr><td colspan="7">Sin cargas manuales todavía.</td></tr>`}</tbody></table>
         </div>
       </section>
     </div>
   `;
+}
+
+function canDeleteGymAttendance(row) {
+  if (!row?.id || currentUser?.auth !== "supabase") return false;
+  return isLeadership() || (canEditArea("gimnasio") && row.created_by === currentUser?.id);
 }
 
 function safeGymStudentSnapshot(student) {
@@ -4586,6 +4618,9 @@ function render() {
     if (dayInput) dayInput.value = gymDayFromDate(event.target.value);
   });
   $("#gymAttendanceForm")?.addEventListener("submit", saveGymAttendance);
+  $$("[data-delete-gym-attendance]").forEach((button) => button.addEventListener("click", () => {
+    deleteGymAttendance(button.dataset.deleteGymAttendance);
+  }));
   $("#gymStudentLookupForm")?.addEventListener("submit", lookupGymStudent);
   $("#saveGymStudentRegistration")?.addEventListener("click", saveGymStudentRegistration);
   $("#uploadGymAttendanceCsv")?.addEventListener("click", () => {
@@ -4712,6 +4747,29 @@ async function saveGymAttendance(event) {
   activeView = "dashboard";
   render();
   toast("Asistencia guardada y gráficas actualizadas");
+}
+
+async function deleteGymAttendance(recordId) {
+  const record = gymAttendanceRecords.find((row) => row.id === recordId);
+  if (!record || !canDeleteGymAttendance(record)) {
+    toast("No tienes permiso para eliminar esta carga");
+    return;
+  }
+  const description = `${record.facility}, semana ${record.week_number}, ${record.attendance_date}, ${record.attendee_count} asistentes`;
+  if (!window.confirm(`¿Eliminar la carga de ${description}? Las gráficas se actualizarán automáticamente.`)) return;
+  const { error } = await supabaseClient
+    .from("gym_attendance_records")
+    .delete()
+    .eq("id", recordId);
+  if (error) {
+    console.error(error);
+    toast(`No se pudo eliminar: ${supabaseErrorDetail(error) || "revisa los permisos de Gimnasio"}`);
+    return;
+  }
+  addAudit("gimnasio", `Carga de asistencia eliminada: ${description}`);
+  await loadGymData();
+  render();
+  toast("Carga eliminada y gráficas actualizadas");
 }
 
 async function importGymAttendanceCsv(file) {
