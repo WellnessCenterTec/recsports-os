@@ -211,6 +211,19 @@ const supabaseClient = window.supabase && SUPABASE_ENV.SUPABASE_URL && SUPABASE_
 const scheduleDays = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
 const scheduleHours = Array.from({ length: 16 }, (_, index) => `${String(6 + index).padStart(2, "0")}:00`);
 const classSimulatorDays = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
+const classSimulatorFrequencyOptions = [
+  { label: "Lunes", days: ["Lunes"] },
+  { label: "Martes", days: ["Martes"] },
+  { label: "Miercoles", days: ["Miercoles"] },
+  { label: "Jueves", days: ["Jueves"] },
+  { label: "Viernes", days: ["Viernes"] },
+  { label: "Lunes y miercoles", days: ["Lunes", "Miercoles"] },
+  { label: "Lunes y jueves", days: ["Lunes", "Jueves"] },
+  { label: "Martes y jueves", days: ["Martes", "Jueves"] },
+  { label: "Martes y viernes", days: ["Martes", "Viernes"] },
+  { label: "Lunes, miercoles y viernes", days: ["Lunes", "Miercoles", "Viernes"] },
+  { label: "Lunes a viernes", days: ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"] }
+];
 const classSimulatorAreas = ["Spinning", "Fitness"];
 const classSimulatorTimes = Array.from({ length: 25 }, (_, index) => {
   const totalMinutes = 8 * 60 + index * 30;
@@ -1191,6 +1204,11 @@ function classSimulatorTimeLabel(value) {
   return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
+function classSimulatorFrequencyDays(value) {
+  const option = classSimulatorFrequencyOptions.find((item) => item.label === value);
+  return option ? option.days : [];
+}
+
 async function registerClassSimulator(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -1205,7 +1223,7 @@ async function registerClassSimulator(event) {
     start_time: String(formData.get("start_time") || ""),
     end_time: String(formData.get("end_time") || "")
   };
-  const days = formData.getAll("days").map(String);
+  const days = classSimulatorFrequencyDays(String(formData.get("frequency") || ""));
   if (!payload.discipline) {
     toast("Escribe la disciplina de la clase");
     return;
@@ -1215,7 +1233,7 @@ async function registerClassSimulator(event) {
     return;
   }
   if (!days.length) {
-    toast("Selecciona al menos un dia");
+    toast("Selecciona una frecuencia");
     return;
   }
   if (timeToMinutes(payload.end_time) <= timeToMinutes(payload.start_time)) {
@@ -4464,12 +4482,12 @@ function renderClassSimulatorForm() {
       <label>Hora fin
         <select name="end_time">${classSimulatorTimes.slice(1).map((time) => `<option value="${time}">${classSimulatorTimeLabel(time)}</option>`).join("")}</select>
       </label>
-      <fieldset class="class-simulator-days">
-        <legend>Dias / frecuencia</legend>
-        ${classSimulatorDays.map((day) => `
-          <label><input type="checkbox" name="days" value="${day}" />${day}</label>
-        `).join("")}
-      </fieldset>
+      <label>Frecuencia
+        <select name="frequency">
+          <option value="">Selecciona frecuencia</option>
+          ${classSimulatorFrequencyOptions.map((option) => `<option value="${escapeHtml(option.label)}">${escapeHtml(option.label)}</option>`).join("")}
+        </select>
+      </label>
       <button class="primary-btn" type="submit">Registrar clase</button>
     </form>
   `;

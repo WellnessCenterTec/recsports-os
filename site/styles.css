@@ -2486,43 +2486,10 @@ th { color: var(--muted); background: #f7faf9; }
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
-  grid-template-columns: 1.1fr 1.2fr .9fr .8fr .8fr 1.5fr auto;
+  grid-template-columns: 1.1fr 1.2fr .9fr .8fr .8fr 1fr auto;
   gap: 10px;
   align-items: end;
   padding: 14px;
-}
-
-.class-simulator-days {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 0;
-  min-height: 54px;
-  padding: 8px 10px 10px;
-}
-
-.class-simulator-days legend {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-  padding: 0 4px;
-}
-
-.class-simulator-days label {
-  align-items: center;
-  color: var(--ink);
-  display: inline-flex;
-  flex-direction: row;
-  font-size: 12px;
-  font-weight: 800;
-  gap: 5px;
-  min-height: auto;
-}
-
-.class-simulator-days input {
-  width: auto;
 }
 
 .class-simulator-maps {
