@@ -203,6 +203,7 @@ function getActivityId(row) {
     row.area,
     row.month,
     row.week,
+    row.specificDate,
     row.activity,
   ].map((value) => normalize(value)).join("|");
   return btoa(unescape(encodeURIComponent(rawId)));
@@ -374,7 +375,7 @@ function getRowWeekKey(row) {
   return "";
 }
 
-function parseActivitySchedule(activity, fallbackWeek) {
+function parseActivitySchedule(activity, fallbackWeek, specificDate = "") {
   const text = String(activity || "");
   const normalizedText = normalize(text);
   const monthIndexes = {
@@ -407,11 +408,29 @@ function parseActivitySchedule(activity, fallbackWeek) {
   let dateLabel = "";
   let timeLabel = "";
 
+  const normalizedSpecificDate = normalize(specificDate);
+  const specificIsoDate = normalizedSpecificDate.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  const specificNumericDate = normalizedSpecificDate.match(/\b([0-3]?\d)[/-]([0-3]?\d)[/-](\d{2,4})\b/);
   const numericDate = normalizedText.match(/\b([0-3]?\d)[/-]([0-1]?\d)(?:[/-](\d{2,4}))?\b/);
   const namedDate = normalizedText.match(/\b([0-3]?\d)\s*(?:de\s*)?(ene(?:ro)?|feb(?:rero)?|mar(?:zo)?|abr(?:il)?|may(?:o)?|jun(?:io)?|jul(?:io)?|ago(?:sto)?|sep(?:tiembre)?|oct(?:ubre)?|nov(?:iembre)?|dic(?:iembre)?)\b/);
   const timeMatch = normalizedText.match(/\b([01]?\d|2[0-3])(?::|\.)([0-5]\d)\s*(am|pm)?\b|\b([1-9]|1[0-2])\s*(am|pm)\b/);
 
-  if (numericDate) {
+  if (specificIsoDate) {
+    const year = Number(specificIsoDate[1]);
+    const month = Number(specificIsoDate[2]) - 1;
+    const day = Number(specificIsoDate[3]);
+    date = new Date(year, month, day);
+    dateLabel = date.toLocaleDateString("es-MX", { day: "numeric", month: "short" }).replace(".", "");
+  } else if (specificNumericDate) {
+    const firstValue = Number(specificNumericDate[1]);
+    const secondValue = Number(specificNumericDate[2]);
+    const day = secondValue > 12 ? secondValue : firstValue;
+    const month = (secondValue > 12 ? firstValue : secondValue) - 1;
+    const yearValue = specificNumericDate[3];
+    const year = Number(yearValue.length === 2 ? `20${yearValue}` : yearValue);
+    date = new Date(year, month, day);
+    dateLabel = date.toLocaleDateString("es-MX", { day: "numeric", month: "short" }).replace(".", "");
+  } else if (numericDate) {
     const day = Number(numericDate[1]);
     const month = Number(numericDate[2]) - 1;
     const year = numericDate[3]
@@ -648,6 +667,7 @@ function mapCsvRows(csvRows) {
   const monthIndex = indexByHeader.mes ?? 2;
   const weekIndex = indexByHeader.semana ?? 3;
   const activityIndex = indexByHeader.actividad ?? (indexByHeader.semana === undefined ? 3 : 4);
+  const specificDateIndex = indexByHeader["fecha especifica"] ?? indexByHeader.fecha;
   const responsibleIndex = indexByHeader.responsable;
   const statusIndex = indexByHeader.estatus ?? indexByHeader.estado ?? indexByHeader.status;
 
@@ -657,6 +677,7 @@ function mapCsvRows(csvRows) {
     month: normalize(row[monthIndex]),
     activity: String(row[activityIndex] || "").trim(),
     week: String(row[weekIndex] || "").trim(),
+    specificDate: specificDateIndex === undefined ? "" : String(row[specificDateIndex] || "").trim(),
     responsible: responsibleIndex === undefined ? "" : String(row[responsibleIndex] || "").trim(),
     status: statusIndex === undefined ? "" : String(row[statusIndex] || "").trim(),
   })).filter((row) => row.area && row.month && row.activity);
@@ -853,7 +874,7 @@ function renderList(rows) {
     .filter((row) => getRowWeekKey(row) === selectedWeek.key)
     .map((row) => ({
       ...row,
-      schedule: parseActivitySchedule(row.activity, selectedWeek),
+      schedule: parseActivitySchedule(row.activity, selectedWeek, row.specificDate),
     }))
     .sort((a, b) => a.schedule.sortValue - b.schedule.sortValue || a.area.localeCompare(b.area));
 
