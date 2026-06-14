@@ -748,6 +748,73 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   margin-top: 12px;
 }
 
+.career-participation-panel {
+  grid-column: 1 / -1;
+}
+
+.chart-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.chart-title-row h3 {
+  margin-bottom: 0;
+}
+
+.chart-title-row > span,
+.career-chart-summary {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.career-bars {
+  display: grid;
+  gap: 11px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.career-bar-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 300px) minmax(0, 1fr) 70px;
+  gap: 12px;
+  align-items: center;
+}
+
+.career-bar-label {
+  min-width: 0;
+}
+
+.career-bar-label strong,
+.career-bar-label span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.career-bar-label strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.career-bar-label span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.career-bar-row > strong {
+  color: var(--ink);
+  font-size: 13px;
+  text-align: right;
+}
+
 .gym-dashboard {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2908,6 +2975,7 @@ tbody tr:hover td {
   .gym-form-layout { grid-template-columns: 1fr; }
   .class-simulator-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .class-simulator-maps { grid-template-columns: 1fr; }
+  .career-bar-row { grid-template-columns: minmax(160px, 240px) minmax(0, 1fr) 64px; }
 }
 
 @media (max-width: 760px) {
@@ -2924,6 +2992,16 @@ tbody tr:hover td {
     flex: 0 0 auto;
     min-width: 0;
     min-height: 40px;
+  }
+  .chart-title-row,
+  .career-bar-row {
+    grid-template-columns: 1fr;
+  }
+  .chart-title-row {
+    display: grid;
+  }
+  .career-bar-row > strong {
+    text-align: left;
   }
   .simulator-editor { position: static; }
   .simulator-actions { justify-content: flex-start; }

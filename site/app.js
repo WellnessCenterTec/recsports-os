@@ -2456,6 +2456,54 @@ function countBy(rows, key) {
   }, {});
 }
 
+function careerParticipationSummary(rows = filteredStudents()) {
+  const participantsByMatricula = new Map();
+  rows.forEach((row) => {
+    const matricula = String(row.matricula || "").trim().toUpperCase();
+    const hasParticipation = row.source !== "base_alumnos" && ((Number(row.registros) || 0) > 0 || row.source === "supabase" || row.source === "local");
+    if (!matricula || !hasParticipation || participantsByMatricula.has(matricula)) return;
+    const student = studentFromDatabase(matricula);
+    const carrera = String(student?.carrera || row.carrera || "Sin carrera").trim() || "Sin carrera";
+    participantsByMatricula.set(matricula, carrera);
+  });
+  const total = participantsByMatricula.size;
+  const grouped = [...participantsByMatricula.values()].reduce((acc, carrera) => {
+    acc[carrera] = (acc[carrera] || 0) + 1;
+    return acc;
+  }, {});
+  return Object.entries(grouped)
+    .map(([career, count]) => ({
+      career,
+      count,
+      percent: total ? Math.round((count / total) * 100) : 0
+    }))
+    .sort((a, b) => b.count - a.count || a.career.localeCompare(b.career, "es"));
+}
+
+function renderCareerParticipationChart(rows = filteredStudents()) {
+  const summary = careerParticipationSummary(rows);
+  const total = summary.reduce((sum, row) => sum + row.count, 0);
+  if (!summary.length) {
+    return `<p class="form-message">Aun no hay participaciones con matricula para agrupar por carrera.</p>`;
+  }
+  const max = Math.max(...summary.map((row) => row.count), 1);
+  return `
+    <div class="career-chart-summary">${total.toLocaleString("es-MX")} alumnos participantes con carrera identificada</div>
+    <div class="career-bars" aria-label="Participacion por carrera">
+      ${summary.map((row) => `
+        <div class="career-bar-row">
+          <div class="career-bar-label">
+            <strong>${escapeHtml(row.career)}</strong>
+            <span>${row.count.toLocaleString("es-MX")} alumnos &middot; ${row.percent}%</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(3, Math.round((row.count / max) * 100))}%"></div></div>
+          <strong>${row.count.toLocaleString("es-MX")}</strong>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
 function knownCollaboratorColumns() {
   const custom = new Set();
   collaboratorRows().forEach((row) => {
@@ -3487,6 +3535,18 @@ function renderDashboard(area) {
         <div class="donut" data-label="${metrics.unique} únicos"></div>
         <p class="hero-copy">Segmentación sugerida: género, carrera, semestre, nivel escolar, periodo, área, disciplina, evento y estatus.</p>
       </div>
+      ${area.id === "general" ? `
+        <div class="chart-panel career-participation-panel">
+          <div class="chart-title-row">
+            <div>
+              <p class="eyebrow">Base de datos_alumnos + participaciones</p>
+              <h3>Participaci&oacute;n por Carrera</h3>
+            </div>
+            <span>Matricula como relacion</span>
+          </div>
+          ${renderCareerParticipationChart(data)}
+        </div>
+      ` : ""}
     </div>
     <div class="module-grid">${moduleCards}</div>
     <div class="table-wrap">
