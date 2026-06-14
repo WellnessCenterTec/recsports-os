@@ -269,7 +269,7 @@ function getCurrentPeriod() {
   return periods[state.period] || periods["ago-dic"];
 }
 
-function buildPeriodWeeks(period) {
+function buildPeriodWeeks(period, periodKey = state.period) {
   if (period.customWeeks) {
     return period.customWeeks.map((item) => {
       const start = new Date(item.start);
@@ -286,7 +286,7 @@ function buildPeriodWeeks(period) {
         end,
         label,
         isBreak: Boolean(item.isBreak || normalize(label).includes("vacacion")),
-        isTecWeek: tecWeekPeriods.includes(state.period) && tecWeekNumbers.includes(item.number),
+        isTecWeek: tecWeekPeriods.includes(periodKey) && tecWeekNumbers.includes(item.number),
         range: `${formatShortDate(start)}-${formatShortDate(end)}`,
       };
     });
@@ -306,14 +306,14 @@ function buildPeriodWeeks(period) {
       end,
       label: `Semana ${weekNumber}`,
       isBreak: false,
-      isTecWeek: tecWeekPeriods.includes(state.period) && tecWeekNumbers.includes(weekNumber),
+      isTecWeek: tecWeekPeriods.includes(periodKey) && tecWeekNumbers.includes(weekNumber),
       range: `${formatShortDate(start)}-${formatShortDate(end)}`,
     };
   });
 }
 
 function getPeriodWeeks() {
-  return buildPeriodWeeks(getCurrentPeriod());
+  return buildPeriodWeeks(getCurrentPeriod(), state.period);
 }
 
 function getCurrentWeekKey() {
@@ -355,21 +355,37 @@ function getPlanningColumns(visibleMonths) {
   })));
 }
 
-function getWeekByKey(weekKey) {
-  return getPeriodWeeks().find((week) => week.key === weekKey);
+function getWeeksForPeriod(periodKey = state.period) {
+  const period = periods[periodKey] || getCurrentPeriod();
+  return buildPeriodWeeks(period, periodKey);
+}
+
+function getWeekByKey(weekKey, periodKey = state.period) {
+  return getWeeksForPeriod(periodKey).find((week) => week.key === weekKey);
 }
 
 function getRowSpecificDate(row) {
   return parseSpecificDateValue(row.specificDate);
 }
 
-function getWeekKeyFromDate(date) {
+function getWeekKeyFromDate(date, periodKey = state.period) {
   if (!date) return "";
   const target = startOfDay(date);
-  const matchingWeek = getPeriodWeeks().find((week) => (
+  const matchingWeek = getWeeksForPeriod(periodKey).find((week) => (
     target >= startOfDay(week.start) && target <= startOfDay(week.end)
   ));
   return matchingWeek ? matchingWeek.key : "";
+}
+
+function getPeriodKeyFromDate(date) {
+  if (!date) return "";
+  const target = startOfDay(date);
+  const match = Object.entries(periods).find(([periodKey]) => (
+    getWeeksForPeriod(periodKey).some((week) => (
+      target >= startOfDay(week.start) && target <= startOfDay(week.end)
+    ))
+  ));
+  return match ? match[0] : "";
 }
 
 function getRowMonth(row) {
@@ -380,8 +396,8 @@ function getRowMonth(row) {
   return normalize(row.month);
 }
 
-function getRowWeekLabel(row) {
-  const week = getWeekByKey(getRowWeekKey(row));
+function getRowWeekLabel(row, periodKey = state.period) {
+  const week = getWeekByKey(getRowWeekKey(row, periodKey), periodKey);
   return week ? week.label : row.week || "Semana 0";
 }
 
@@ -408,13 +424,13 @@ function getSelectedWeek() {
   return fallbackWeek || null;
 }
 
-function getRowWeekKey(row) {
-  const specificDateWeekKey = getWeekKeyFromDate(getRowSpecificDate(row));
+function getRowWeekKey(row, periodKey = state.period) {
+  const specificDateWeekKey = getWeekKeyFromDate(getRowSpecificDate(row), periodKey);
   if (specificDateWeekKey) return specificDateWeekKey;
 
   const raw = normalize(row.week);
   if (!raw) return "";
-  const periodWeeks = getPeriodWeeks();
+  const periodWeeks = getWeeksForPeriod(periodKey);
 
   if (raw.includes("vacacion")) {
     const breakWeek = periodWeeks.find((week) => week.isBreak);
@@ -615,8 +631,9 @@ function mapImportedRows(rawRows) {
     const month = parsedDate
       ? normalize(parsedDate.toLocaleDateString("es-MX", { month: "long" }))
       : normalize(getImportValue(row, headers, ["mes"]));
+    const periodKey = getPeriodKeyFromDate(parsedDate);
     const weekRaw = parsedDate
-      ? getRowWeekLabel({ specificDate, week: getImportValue(row, headers, ["semana"]) })
+      ? getRowWeekLabel({ specificDate, week: getImportValue(row, headers, ["semana"]) }, periodKey || state.period)
       : getImportValue(row, headers, ["semana"]);
     const activity = getImportValue(row, headers, ["actividad"]);
     const time = getImportValue(row, headers, ["hora", "horario"]);
@@ -654,11 +671,12 @@ function validateImportedRows(rows) {
 }
 
 async function submitImportedRow(row) {
+  const periodKey = getPeriodKeyFromDate(getRowSpecificDate(row)) || state.period;
   const formData = new URLSearchParams();
   formData.set(formEntries.specificDate, row.specificDate);
   formData.set(formEntries.area, row.area);
   formData.set(formEntries.month, getRowMonth(row));
-  formData.set(formEntries.week, getRowWeekLabel(row));
+  formData.set(formEntries.week, getRowWeekLabel(row, periodKey));
   formData.set(formEntries.activity, row.activity);
 
   await fetch(FORM_SUBMIT_URL, {
@@ -904,18 +922,25 @@ function setupCaptureForm() {
       return;
     }
 
-    if (!getRowWeekKey(row)) {
-      setCaptureStatus("La fecha seleccionada no cae dentro del periodo activo.", "error");
+    const targetPeriod = getPeriodKeyFromDate(getRowSpecificDate(row));
+
+    if (!targetPeriod) {
+      setCaptureStatus("La fecha seleccionada no cae dentro de un periodo configurado.", "error");
       return;
     }
 
     try {
       setCaptureStatus("Guardando actividad...", "info");
       await submitImportedRow(row);
+      state.period = targetPeriod;
+      state.month = "todos";
+      state.selectedWeekKey = getRowWeekKey(row, targetPeriod);
+      renderPeriodTabs();
+      renderMonthFilter();
       state.rows = [...state.rows, {
         ...row,
         month: getRowMonth(row),
-        week: getRowWeekLabel(row),
+        week: getRowWeekLabel(row, targetPeriod),
       }];
       captureForm.reset();
       render();
