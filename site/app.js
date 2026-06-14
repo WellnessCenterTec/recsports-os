@@ -3283,6 +3283,70 @@ function gymColumnBars(rows) {
   }).join("");
 }
 
+function gymHeatmapHour(value) {
+  const raw = String(value || "").trim();
+  const match = raw.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return "";
+  const hour = Math.max(0, Math.min(23, Number(match[1]) || 0));
+  return `${String(hour).padStart(2, "0")}:00`;
+}
+
+function gymHeatmapRows() {
+  const matrix = {};
+  gymAsistencias.forEach((row) => {
+    const day = gymDayFromDate(row.fecha);
+    const hour = gymHeatmapHour(row.hora);
+    if (!day || !hour) return;
+    if (!matrix[hour]) matrix[hour] = {};
+    matrix[hour][day] = (matrix[hour][day] || 0) + 1;
+  });
+  return Object.keys(matrix)
+    .sort((a, b) => a.localeCompare(b))
+    .map((hour) => ({
+      hour,
+      values: GYM_DAYS.reduce((acc, day) => {
+        acc[day] = matrix[hour]?.[day] || 0;
+        return acc;
+      }, {})
+    }));
+}
+
+function gymHeatmapTone(value, max) {
+  if (!value) return "empty";
+  const ratio = max ? value / max : 0;
+  if (ratio >= 0.66) return "high";
+  if (ratio >= 0.33) return "medium";
+  return "low";
+}
+
+function renderGymHeatmap() {
+  const rows = gymHeatmapRows();
+  const max = Math.max(1, ...rows.flatMap((row) => Object.values(row.values)));
+  const totalTimedVisits = rows.reduce((sum, row) => sum + Object.values(row.values).reduce((a, value) => a + value, 0), 0);
+  if (!rows.length) {
+    return `<p class="form-message">Aun no hay asistencias historicas con hora para construir el mapa de calor. Sube el CSV de asistencias con la columna hora.</p>`;
+  }
+  return `
+    <div class="gym-heatmap-legend" aria-label="Escala de ocupacion">
+      <span><i class="low"></i>Baja</span>
+      <span><i class="medium"></i>Media</span>
+      <span><i class="high"></i>Alta</span>
+      <strong>${totalTimedVisits.toLocaleString("es-MX")} visitas con hora</strong>
+    </div>
+    <div class="gym-heatmap" role="table" aria-label="Mapa de calor de ocupacion por dia y hora">
+      <div class="gym-heatmap-cell gym-heatmap-head">Hora</div>
+      ${GYM_DAYS.map((day) => `<div class="gym-heatmap-cell gym-heatmap-head">${escapeHtml(day)}</div>`).join("")}
+      ${rows.map((row) => `
+        <div class="gym-heatmap-cell gym-heatmap-time">${row.hour}</div>
+        ${GYM_DAYS.map((day) => {
+          const value = row.values[day] || 0;
+          return `<div class="gym-heatmap-cell ${gymHeatmapTone(value, max)}" title="${escapeHtml(day)} ${row.hour}: ${value} visitas">${value ? value.toLocaleString("es-MX") : ""}</div>`;
+        }).join("")}
+      `).join("")}
+    </div>
+  `;
+}
+
 function gymWeeklyRows(facility) {
   const lastWeek = gymWeekSelection[facility] || gymMaxWeek();
   return Array.from({ length: lastWeek }, (_, index) => {
@@ -3326,6 +3390,13 @@ function renderGymDashboard() {
           <div class="gym-week-columns">${gymColumnBars(gymWeeklyRows(facility))}</div>
         </section>
       `).join("")}
+      <section class="chart-panel gym-heatmap-panel">
+        <div class="gym-chart-heading">
+          <div><p class="eyebrow">Ocupaci&oacute;n</p><h3>Mapa de calor por horario</h3></div>
+          <span>Registros reales por fecha y hora</span>
+        </div>
+        ${renderGymHeatmap()}
+      </section>
     </div>
   `;
 }
