@@ -398,6 +398,7 @@ let classGradesAvailable = true;
 let classGradesImporting = false;
 let gymAttendanceRecords = [];
 let gymAsistencias = [];
+let gymManualAttendanceRows = [];
 let gymStudentRegistrations = [];
 let gymDataLoaded = false;
 let gymAsistenciasLoadedCount = 0;
@@ -759,7 +760,8 @@ async function loadGymData() {
   if (asistenciasResult.error) console.error(asistenciasResult.error);
   gymAsistencias = asistenciasResult.error ? [] : (asistenciasResult.data || []);
   gymAsistenciasLoadedCount = gymAsistencias.length;
-  gymAttendanceRecords = [...(attendanceResult.data || []), ...gymAsistenciasToAttendanceRecords(gymAsistencias)];
+  gymManualAttendanceRows = attendanceResult.data || [];
+  gymAttendanceRecords = mergeGymAttendanceSources(gymManualAttendanceRows, gymAsistencias);
   gymStudentRegistrations = registrationsResult.data || [];
   const highestWeek = Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
   gymWeekSelection.Wellness = Math.max(gymWeekSelection.Wellness, highestWeek);
@@ -3256,6 +3258,19 @@ function gymAsistenciasToAttendanceRecords(rows) {
   return Object.values(grouped);
 }
 
+function gymAttendanceSourceKey(row) {
+  const date = row.attendance_date || row.fecha || "";
+  const facility = normalizeGymSite(row.facility || row.sitio);
+  return date && facility ? `${date}|${facility}` : "";
+}
+
+function mergeGymAttendanceSources(manualRows, importedRows) {
+  const importedSummary = gymAsistenciasToAttendanceRecords(importedRows);
+  const importedKeys = new Set(importedSummary.map(gymAttendanceSourceKey).filter(Boolean));
+  const manualOnlyRows = manualRows.filter((row) => !importedKeys.has(gymAttendanceSourceKey(row)));
+  return [...manualOnlyRows, ...importedSummary];
+}
+
 function gymMaxWeek() {
   return Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
 }
@@ -3419,8 +3434,8 @@ function renderGymDashboard() {
 
 function renderGymAttendanceRegistration() {
   const today = new Date().toISOString().slice(0, 10);
-  const manualRecords = gymAttendanceRecords
-    .filter((row) => row.id)
+  const importedKeys = new Set(gymAsistenciasToAttendanceRecords(gymAsistencias).map(gymAttendanceSourceKey).filter(Boolean));
+  const manualRecords = gymManualAttendanceRows
     .sort((a, b) => {
       const dateOrder = String(b.attendance_date).localeCompare(String(a.attendance_date));
       return dateOrder || String(b.created_at || "").localeCompare(String(a.created_at || ""));
@@ -3441,7 +3456,7 @@ function renderGymAttendanceRegistration() {
           <label class="wide-field">Observaciones<textarea name="notes" rows="3" placeholder="Opcional"></textarea></label>
           <button class="primary-btn wide-field" type="submit">Guardar asistencia</button>
         </form>
-        <p class="form-message">Un registro por fecha e instalación. Si repites la fecha, se actualiza la cantidad.</p>
+        <p class="form-message">Respaldo manual. Si ya existe CSV para la misma fecha e instalación, el dashboard usa el CSV y omite este registro.</p>
       </section>
       <section class="chart-panel">
         <div class="gym-chart-heading">
@@ -3458,7 +3473,7 @@ function renderGymAttendanceRegistration() {
               <td>${escapeHtml(row.day_of_week)}</td>
               <td>${escapeHtml(row.facility)}</td>
               <td>${row.attendee_count}</td>
-              <td>${escapeHtml(row.notes || "")}</td>
+              <td>${escapeHtml(importedKeys.has(gymAttendanceSourceKey(row)) ? "Omitido en dashboard: existe CSV" : (row.notes || ""))}</td>
               <td>
                 <button
                   class="danger-btn"
@@ -5097,7 +5112,7 @@ async function saveGymAttendance(event) {
 }
 
 async function deleteGymAttendance(recordId) {
-  const record = gymAttendanceRecords.find((row) => row.id === recordId);
+  const record = gymManualAttendanceRows.find((row) => row.id === recordId);
   if (!record || !canDeleteGymAttendance(record)) {
     toast("No tienes permiso para eliminar esta carga");
     return;
@@ -5667,6 +5682,9 @@ $("#logoutButton").addEventListener("click", () => {
     classGrades = [];
     classGradesLoaded = false;
     gymAttendanceRecords = [];
+    gymManualAttendanceRows = [];
+    gymAsistencias = [];
+    gymAsistenciasLoadedCount = 0;
     gymStudentRegistrations = [];
     gymDataLoaded = false;
     gymMasterStudent = null;
