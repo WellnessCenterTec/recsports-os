@@ -131,6 +131,15 @@ const importButton = document.querySelector("#importButton");
 const importFile = document.querySelector("#importFile");
 const importStatus = document.querySelector("#importStatus");
 const templateButton = document.querySelector("#templateButton");
+const captureButton = document.querySelector("#captureButton");
+const capturePanel = document.querySelector("#capturePanel");
+const captureForm = document.querySelector("#captureForm");
+const captureDate = document.querySelector("#captureDate");
+const captureArea = document.querySelector("#captureArea");
+const captureActivity = document.querySelector("#captureActivity");
+const captureClose = document.querySelector("#captureClose");
+const captureCancel = document.querySelector("#captureCancel");
+const captureStatus = document.querySelector("#captureStatus");
 
 function normalize(value) {
   return String(value || "")
@@ -571,6 +580,11 @@ function setImportStatus(message, type = "info") {
   importStatus.className = `import-status ${message ? "is-visible" : ""} is-${type}`;
 }
 
+function setCaptureStatus(message, type = "info") {
+  captureStatus.textContent = message;
+  captureStatus.className = `capture-status ${message ? "is-visible" : ""} is-${type}`;
+}
+
 function normalizeHeader(header) {
   return normalize(header).replace(/\s+/g, "");
 }
@@ -844,6 +858,73 @@ function setupImporter() {
   importButton.addEventListener("click", () => importFile.click());
   importFile.addEventListener("change", () => handleImportFile(importFile.files[0]));
   templateButton.addEventListener("click", downloadImportTemplate);
+}
+
+function openCapturePanel() {
+  capturePanel.hidden = false;
+  setCaptureStatus("");
+  captureDate.focus();
+}
+
+function closeCapturePanel() {
+  capturePanel.hidden = true;
+  setCaptureStatus("");
+}
+
+function setupCaptureForm() {
+  captureArea.innerHTML = areas.map((area) => (
+    `<option value="${area.key}">${area.label}</option>`
+  )).join("");
+
+  captureButton.addEventListener("click", openCapturePanel);
+  captureClose.addEventListener("click", closeCapturePanel);
+  captureCancel.addEventListener("click", closeCapturePanel);
+
+  captureForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const row = {
+      timestamp: new Date().toLocaleString("es-MX"),
+      area: normalize(captureArea.value),
+      month: "",
+      week: "",
+      specificDate: captureDate.value,
+      activity: captureActivity.value.trim(),
+      responsible: "",
+      status: "",
+    };
+
+    if (!parseSpecificDateValue(row.specificDate)) {
+      setCaptureStatus("Selecciona una fecha válida.", "error");
+      return;
+    }
+
+    if (!row.area || !row.activity) {
+      setCaptureStatus("Completa área y actividad.", "error");
+      return;
+    }
+
+    if (!getRowWeekKey(row)) {
+      setCaptureStatus("La fecha seleccionada no cae dentro del periodo activo.", "error");
+      return;
+    }
+
+    try {
+      setCaptureStatus("Guardando actividad...", "info");
+      await submitImportedRow(row);
+      state.rows = [...state.rows, {
+        ...row,
+        month: getRowMonth(row),
+        week: getRowWeekLabel(row),
+      }];
+      captureForm.reset();
+      render();
+      setCaptureStatus("Actividad guardada y colocada en el calendario.", "success");
+      window.setTimeout(refreshRows, 3500);
+    } catch {
+      setCaptureStatus("No se pudo guardar la actividad. Intenta de nuevo.", "error");
+    }
+  });
 }
 
 function getFilteredRows() {
@@ -1151,6 +1232,7 @@ async function refreshRows() {
 async function init() {
   setupFilters();
   setupImporter();
+  setupCaptureForm();
   setupCompletionToggles();
   setupDeleteButtons();
   setupActivityTooltip();

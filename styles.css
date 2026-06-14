@@ -157,6 +157,127 @@ h2 {
   background: #fff1f0;
 }
 
+.capture-panel {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: var(--shadow);
+}
+
+.capture-panel[hidden] {
+  display: none;
+}
+
+.capture-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.capture-close {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #cbd6e2;
+  border-radius: 6px;
+  color: var(--navy);
+  background: #f8fafc;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.capture-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.65fr) minmax(180px, 0.75fr) minmax(280px, 1.6fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.capture-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.capture-form input,
+.capture-form textarea {
+  width: 100%;
+  border: 1px solid #cbd6e2;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.capture-form input {
+  height: 42px;
+  padding: 0 12px;
+}
+
+.capture-form textarea {
+  min-height: 42px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.capture-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.capture-submit,
+.capture-secondary {
+  min-height: 42px;
+  border-radius: 6px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.capture-submit {
+  border: 0;
+  padding: 0 18px;
+  color: var(--white);
+  background: var(--navy);
+}
+
+.capture-secondary {
+  border: 1px solid #cbd6e2;
+  padding: 0 14px;
+  color: var(--navy);
+  background: #f8fafc;
+}
+
+.capture-status {
+  display: none;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.capture-status.is-visible {
+  display: block;
+}
+
+.capture-status.is-success {
+  color: #1f6b39;
+  background: #eef8f0;
+}
+
+.capture-status.is-error {
+  color: #9b2c20;
+  background: #fff1f0;
+}
+
 .controls {
   display: flex;
   align-items: flex-end;
@@ -789,7 +910,8 @@ select {
   }
 
   .summary-grid,
-  .activity-list {
+  .activity-list,
+  .capture-form {
     grid-template-columns: 1fr;
   }
 

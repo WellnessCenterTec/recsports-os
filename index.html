@@ -15,15 +15,44 @@
           <p class="subhead">Seguimiento colaborativo de actividades por área y mes.</p>
         </div>
         <div class="topbar-actions">
-          <a class="form-link" href="https://docs.google.com/forms/d/e/1FAIpQLSc2XKrOEilT6DDskV3zZAi0Ysn6n2j-1VsTR4U03kvcsQ0VHw/viewform?usp=publish-editor" target="_blank" rel="noreferrer">
+          <button class="form-link" id="captureButton" type="button">
             Capturar actividad
-          </a>
+          </button>
           <button class="import-button" id="importButton" type="button">Importar Excel/CSV</button>
           <button class="template-button" id="templateButton" type="button">Plantilla</button>
           <input id="importFile" type="file" accept=".xlsx,.xls,.csv" hidden>
         </div>
       </header>
       <div class="import-status" id="importStatus" role="status" aria-live="polite"></div>
+
+      <section class="capture-panel" id="capturePanel" aria-label="Captura de actividad" hidden>
+        <div class="capture-panel-heading">
+          <div>
+            <p class="eyebrow">Nueva actividad</p>
+            <h2>Capturar actividad</h2>
+          </div>
+          <button class="capture-close" id="captureClose" type="button" aria-label="Cerrar captura">×</button>
+        </div>
+        <form class="capture-form" id="captureForm">
+          <label>
+            Fecha específica
+            <input id="captureDate" name="specificDate" type="date" required>
+          </label>
+          <label>
+            Área
+            <select id="captureArea" name="area" required></select>
+          </label>
+          <label class="capture-activity-field">
+            Actividad
+            <textarea id="captureActivity" name="activity" rows="3" required placeholder="Describe la actividad"></textarea>
+          </label>
+          <div class="capture-actions">
+            <button class="capture-submit" type="submit">Guardar actividad</button>
+            <button class="capture-secondary" id="captureCancel" type="button">Cancelar</button>
+          </div>
+        </form>
+        <div class="capture-status" id="captureStatus" role="status" aria-live="polite"></div>
+      </section>
 
       <section class="controls" aria-label="Filtros">
         <div class="period-tabs" aria-label="Periodos">
