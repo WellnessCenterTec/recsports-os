@@ -922,6 +922,35 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   border-radius: 2px 2px 0 0;
 }
 
+.gym-heatmap-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(160px, 240px);
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.gym-heatmap-control-group {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.gym-heatmap-controls label {
+  gap: 6px;
+}
+
+.gym-heatmap-controls select {
+  width: 100%;
+  padding: 9px 10px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+}
+
 .gym-heatmap-legend {
   display: flex;
   align-items: center;

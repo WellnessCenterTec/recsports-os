@@ -405,6 +405,8 @@ let gymAsistenciasLoadedCount = 0;
 let gymAttendanceImporting = false;
 let gymMasterStudent = null;
 let gymWeekSelection = { Wellness: 20, EMIS: 20 };
+let gymHeatmapMode = "average";
+let gymHeatmapFacility = "Wellness";
 let classGradePage = 1;
 let classGradeFilter = {
   search: "",
@@ -3322,12 +3324,17 @@ function gymHeatmapHour(value) {
   return `${String(hour).padStart(2, "0")}:00`;
 }
 
-function gymHeatmapRows() {
+function gymHeatmapRows(facility = gymHeatmapFacility, mode = gymHeatmapMode) {
   const matrix = {};
-  gymAsistencias.forEach((row) => {
+  const dateCountsByDay = GYM_DAYS.reduce((acc, day) => {
+    acc[day] = new Set();
+    return acc;
+  }, {});
+  gymAsistencias.filter((row) => normalizeGymSite(row.sitio) === facility).forEach((row) => {
     const day = gymDayFromDate(row.fecha);
     const hour = gymHeatmapHour(row.hora);
     if (!day || !hour) return;
+    dateCountsByDay[day]?.add(row.fecha);
     if (!matrix[hour]) matrix[hour] = {};
     matrix[hour][day] = (matrix[hour][day] || 0) + 1;
   });
@@ -3336,7 +3343,9 @@ function gymHeatmapRows() {
     .map((hour) => ({
       hour,
       values: GYM_DAYS.reduce((acc, day) => {
-        acc[day] = matrix[hour]?.[day] || 0;
+        const total = matrix[hour]?.[day] || 0;
+        const denominator = dateCountsByDay[day]?.size || 0;
+        acc[day] = mode === "average" && denominator ? total / denominator : total;
         return acc;
       }, {})
     }));
@@ -3351,18 +3360,42 @@ function gymHeatmapTone(value, max) {
 }
 
 function renderGymHeatmap() {
-  const rows = gymHeatmapRows();
+  const rows = gymHeatmapRows(gymHeatmapFacility, gymHeatmapMode);
   const max = Math.max(1, ...rows.flatMap((row) => Object.values(row.values)));
-  const totalTimedVisits = rows.reduce((sum, row) => sum + Object.values(row.values).reduce((a, value) => a + value, 0), 0);
+  const totalTimedVisits = gymAsistencias
+    .filter((row) => normalizeGymSite(row.sitio) === gymHeatmapFacility && gymHeatmapHour(row.hora))
+    .length;
+  const valueLabel = gymHeatmapMode === "average" ? "promedio por día equivalente" : "visitas acumuladas";
+  const modeLabel = gymHeatmapMode === "average" ? "Promedio activo" : "Total acumulado activo";
+  const formatHeatmapValue = (value) => gymHeatmapMode === "average"
+    ? value.toLocaleString("es-MX", { maximumFractionDigits: 1 })
+    : value.toLocaleString("es-MX", { maximumFractionDigits: 0 });
+  const controls = `
+    <div class="gym-heatmap-controls">
+      <div class="gym-heatmap-control-group">
+        <span>Instalaci&oacute;n</span>
+        <div class="segmented small" aria-label="Instalacion del mapa de calor">
+          ${["Wellness", "EMIS"].map((facility) => `<button type="button" class="${gymHeatmapFacility === facility ? "active" : ""}" data-gym-heatmap-facility="${facility}">${facility}</button>`).join("")}
+        </div>
+      </div>
+      <label>C&aacute;lculo
+        <select id="gymHeatmapMode" aria-label="Calculo del mapa de calor">
+          <option value="average" ${gymHeatmapMode === "average" ? "selected" : ""}>Promedio</option>
+          <option value="total" ${gymHeatmapMode === "total" ? "selected" : ""}>Total acumulado</option>
+        </select>
+      </label>
+    </div>
+  `;
   if (!rows.length) {
-    return `<p class="form-message">Aun no hay asistencias historicas con hora para construir el mapa de calor. Sube el CSV de asistencias con la columna hora.</p>`;
+    return `${controls}<p class="form-message">Aun no hay asistencias historicas con hora para ${gymHeatmapFacility}. Sube el CSV de asistencias con la columna hora.</p>`;
   }
   return `
+    ${controls}
     <div class="gym-heatmap-legend" aria-label="Escala de ocupacion">
       <span><i class="low"></i>Baja</span>
       <span><i class="medium"></i>Media</span>
       <span><i class="high"></i>Alta</span>
-      <strong>${totalTimedVisits.toLocaleString("es-MX")} visitas con hora</strong>
+      <strong>${totalTimedVisits.toLocaleString("es-MX")} visitas con hora · ${modeLabel}</strong>
     </div>
     <div class="gym-heatmap" role="table" aria-label="Mapa de calor de ocupacion por dia y hora">
       <div class="gym-heatmap-cell gym-heatmap-head">Hora</div>
@@ -3371,7 +3404,8 @@ function renderGymHeatmap() {
         <div class="gym-heatmap-cell gym-heatmap-time">${row.hour}</div>
         ${GYM_DAYS.map((day) => {
           const value = row.values[day] || 0;
-          return `<div class="gym-heatmap-cell ${gymHeatmapTone(value, max)}" title="${escapeHtml(day)} ${row.hour}: ${value} visitas">${value ? value.toLocaleString("es-MX") : ""}</div>`;
+          const label = formatHeatmapValue(value);
+          return `<div class="gym-heatmap-cell ${gymHeatmapTone(value, max)}" title="${escapeHtml(day)} ${row.hour}: ${label} ${valueLabel}">${value ? label : ""}</div>`;
         }).join("")}
       `).join("")}
     </div>
@@ -4975,6 +5009,14 @@ function render() {
     gymWeekSelection[event.target.dataset.facility] = Number(event.target.value);
     render();
   }));
+  $$("[data-gym-heatmap-facility]").forEach((button) => button.addEventListener("click", () => {
+    gymHeatmapFacility = button.dataset.gymHeatmapFacility;
+    render();
+  }));
+  $("#gymHeatmapMode")?.addEventListener("change", (event) => {
+    gymHeatmapMode = event.target.value;
+    render();
+  });
   $("#gymAttendanceDate")?.addEventListener("change", (event) => {
     const dayInput = $("#gymAttendanceDay");
     if (dayInput) dayInput.value = gymDayFromDate(event.target.value);
