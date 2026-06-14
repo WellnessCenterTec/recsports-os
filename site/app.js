@@ -400,6 +400,7 @@ let gymAttendanceRecords = [];
 let gymAsistencias = [];
 let gymStudentRegistrations = [];
 let gymDataLoaded = false;
+let gymAsistenciasLoadedCount = 0;
 let gymAttendanceImporting = false;
 let gymMasterStudent = null;
 let gymWeekSelection = { Wellness: 20, EMIS: 20 };
@@ -718,6 +719,24 @@ async function loadStudentDatabase() {
   studentDatabaseLoaded = true;
 }
 
+async function loadGymAsistencias() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return { data: [], error: null };
+  const rows = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabaseClient
+      .from("gym_asistencias")
+      .select("id, id_origen, matricula, nombre_completo, fecha, hora, sitio, observaciones, created_by, created_at")
+      .order("fecha", { ascending: true })
+      .order("hora", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) return { data: rows, error };
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return { data: rows, error: null };
+}
+
 async function loadGymData() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const [attendanceResult, registrationsResult, asistenciasResult] = await Promise.all([
@@ -730,11 +749,7 @@ async function loadGymData() {
       .select("*")
       .order("registered_at", { ascending: false })
       .limit(500),
-    supabaseClient
-      .from("gym_asistencias")
-      .select("*")
-      .order("fecha", { ascending: true })
-      .limit(50000)
+    loadGymAsistencias()
   ]);
   if (attendanceResult.error || registrationsResult.error) {
     gymDataLoaded = false;
@@ -743,6 +758,7 @@ async function loadGymData() {
   }
   if (asistenciasResult.error) console.error(asistenciasResult.error);
   gymAsistencias = asistenciasResult.error ? [] : (asistenciasResult.data || []);
+  gymAsistenciasLoadedCount = gymAsistencias.length;
   gymAttendanceRecords = [...(attendanceResult.data || []), ...gymAsistenciasToAttendanceRecords(gymAsistencias)];
   gymStudentRegistrations = registrationsResult.data || [];
   const highestWeek = Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
@@ -1407,7 +1423,7 @@ function parseStudentDatabaseCsv(text) {
 
 function normalizeGymSite(value) {
   const clean = normalizeText(value);
-  if (clean.includes("emis")) return "EMIS";
+  if (clean.includes("emis") || clean.includes("hospital")) return "EMIS";
   if (clean.includes("wellness") || clean.includes("gimnasio") || clean.includes("well")) return "Wellness";
   return "";
 }
