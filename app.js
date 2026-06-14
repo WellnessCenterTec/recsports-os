@@ -1,6 +1,7 @@
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1DL1GIPjzqPqXlJWlnWlAOWEiMJM9tPqknT6M4HCXEHM/gviz/tq?tqx=out:csv&sheet=Respuestas%20de%20formulario%201";
 const FORM_SUBMIT_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc2XKrOEilT6DDskV3zZAi0Ysn6n2j-1VsTR4U03kvcsQ0VHw/formResponse";
 const formEntries = {
+  specificDate: "entry.1046506641",
   area: "entry.864852996",
   month: "entry.1216259793",
   week: "entry.1237735269",
@@ -161,6 +162,30 @@ function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+function parseSpecificDateValue(value) {
+  const normalizedValue = normalize(value);
+  const isoDate = normalizedValue.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  const numericDate = normalizedValue.match(/\b([0-3]?\d)[/-]([0-3]?\d)[/-](\d{2,4})\b/);
+
+  if (isoDate) {
+    const date = new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]));
+    return Number.isNaN(date.getTime()) ? null : startOfDay(date);
+  }
+
+  if (numericDate) {
+    const firstValue = Number(numericDate[1]);
+    const secondValue = Number(numericDate[2]);
+    const day = secondValue > 12 ? secondValue : firstValue;
+    const month = (secondValue > 12 ? firstValue : secondValue) - 1;
+    const yearValue = numericDate[3];
+    const year = Number(yearValue.length === 2 ? `20${yearValue}` : yearValue);
+    const date = new Date(year, month, day);
+    return Number.isNaN(date.getTime()) ? null : startOfDay(date);
+  }
+
+  return null;
+}
+
 function readCompletedActivities() {
   try {
     return JSON.parse(localStorage.getItem(completionStorageKey) || "[]");
@@ -223,8 +248,8 @@ function renderActivityControl(row, className) {
         type="button"
         data-delete-id="${id}"
         data-delete-area="${escapeHtml(row.area)}"
-        data-delete-month="${escapeHtml(row.month)}"
-        data-delete-week="${escapeHtml(row.week || "Semana 0")}"
+        data-delete-month="${escapeHtml(getRowMonth(row))}"
+        data-delete-week="${escapeHtml(getRowWeekLabel(row))}"
         aria-label="Ocultar actividad"
       >×</button>
     </label>
@@ -325,6 +350,38 @@ function getWeekByKey(weekKey) {
   return getPeriodWeeks().find((week) => week.key === weekKey);
 }
 
+function getRowSpecificDate(row) {
+  return parseSpecificDateValue(row.specificDate);
+}
+
+function getWeekKeyFromDate(date) {
+  if (!date) return "";
+  const target = startOfDay(date);
+  const matchingWeek = getPeriodWeeks().find((week) => (
+    target >= startOfDay(week.start) && target <= startOfDay(week.end)
+  ));
+  return matchingWeek ? matchingWeek.key : "";
+}
+
+function getRowMonth(row) {
+  const specificDate = getRowSpecificDate(row);
+  if (specificDate) {
+    return normalize(specificDate.toLocaleDateString("es-MX", { month: "long" }));
+  }
+  return normalize(row.month);
+}
+
+function getRowWeekLabel(row) {
+  const week = getWeekByKey(getRowWeekKey(row));
+  return week ? week.label : row.week || "Semana 0";
+}
+
+function getRowDayLabel(row) {
+  const specificDate = getRowSpecificDate(row);
+  if (!specificDate) return "";
+  return titleCase(specificDate.toLocaleDateString("es-MX", { weekday: "long" }));
+}
+
 function getSelectedWeek() {
   const periodWeeks = getPeriodWeeks();
   const selectedWeek = periodWeeks.find((week) => week.key === state.selectedWeekKey);
@@ -343,6 +400,9 @@ function getSelectedWeek() {
 }
 
 function getRowWeekKey(row) {
+  const specificDateWeekKey = getWeekKeyFromDate(getRowSpecificDate(row));
+  if (specificDateWeekKey) return specificDateWeekKey;
+
   const raw = normalize(row.week);
   if (!raw) return "";
   const periodWeeks = getPeriodWeeks();
@@ -525,8 +585,10 @@ function mapImportedRows(rawRows) {
     acc[normalizeHeader(header)] = index;
     return acc;
   }, {});
-  const required = ["area", "mes", "semana", "actividad"];
+  const hasSpecificDate = ["fechaespecifica", "fecha", "dia", "día"].some((header) => headers[normalizeHeader(header)] !== undefined);
+  const required = ["area", "actividad"];
   const missing = required.filter((header) => headers[header] === undefined);
+  if (!hasSpecificDate) missing.unshift("fecha específica");
 
   if (missing.length) {
     throw new Error(`Faltan columnas: ${missing.map(titleCase).join(", ")}`);
@@ -534,13 +596,17 @@ function mapImportedRows(rawRows) {
 
   return rawRows.slice(1).map((row, index) => {
     const area = normalize(getImportValue(row, headers, ["area"]));
-    const month = normalize(getImportValue(row, headers, ["mes"]));
-    const weekRaw = getImportValue(row, headers, ["semana"]);
+    const specificDate = getImportValue(row, headers, ["fecha específica", "fecha especifica", "fecha", "dia", "día"]);
+    const parsedDate = parseSpecificDateValue(specificDate);
+    const month = parsedDate
+      ? normalize(parsedDate.toLocaleDateString("es-MX", { month: "long" }))
+      : normalize(getImportValue(row, headers, ["mes"]));
+    const weekRaw = parsedDate
+      ? getRowWeekLabel({ specificDate, week: getImportValue(row, headers, ["semana"]) })
+      : getImportValue(row, headers, ["semana"]);
     const activity = getImportValue(row, headers, ["actividad"]);
-    const date = getImportValue(row, headers, ["fecha", "dia", "día"]);
     const time = getImportValue(row, headers, ["hora", "horario"]);
     const parts = [
-      date ? `Fecha: ${date}` : "",
       time ? `Hora: ${time}` : "",
       activity,
     ].filter(Boolean);
@@ -550,22 +616,21 @@ function mapImportedRows(rawRows) {
       area,
       month,
       week: weekRaw,
+      specificDate,
       activity: parts.join(" | "),
       responsible: getImportValue(row, headers, ["responsable"]),
       status: getImportValue(row, headers, ["estatus", "estado", "status"]),
     };
-  }).filter((row) => row.area || row.month || row.week || row.activity);
+  }).filter((row) => row.area || row.specificDate || row.activity);
 }
 
 function validateImportedRows(rows) {
   const areaKeys = new Set(areas.map((area) => area.key));
-  const monthKeys = new Set(months);
   const errors = [];
 
   rows.forEach((row) => {
     if (!areaKeys.has(row.area)) errors.push(`Fila ${row.rowNumber}: área no válida`);
-    if (!monthKeys.has(row.month)) errors.push(`Fila ${row.rowNumber}: mes no válido`);
-    if (!row.week) errors.push(`Fila ${row.rowNumber}: falta semana`);
+    if (!parseSpecificDateValue(row.specificDate)) errors.push(`Fila ${row.rowNumber}: fecha específica no válida`);
     if (!row.activity) errors.push(`Fila ${row.rowNumber}: falta actividad`);
   });
 
@@ -576,9 +641,10 @@ function validateImportedRows(rows) {
 
 async function submitImportedRow(row) {
   const formData = new URLSearchParams();
+  formData.set(formEntries.specificDate, row.specificDate);
   formData.set(formEntries.area, row.area);
-  formData.set(formEntries.month, row.month);
-  formData.set(formEntries.week, row.week);
+  formData.set(formEntries.month, getRowMonth(row));
+  formData.set(formEntries.week, getRowWeekLabel(row));
   formData.set(formEntries.activity, row.activity);
 
   await fetch(FORM_SUBMIT_URL, {
@@ -640,11 +706,11 @@ async function handleImportFile(file) {
 
 function downloadImportTemplate() {
   const rows = [
-    ["Área", "Mes", "Semana", "Fecha", "Hora", "Actividad"],
-    ["direccion", "agosto", "Semana 1", "10/08/2026", "08:00", "Reunión de seguimiento"],
-    ["clases", "agosto", "Semana 1", "10/08/2026", "09:00", "Bienvenida de alumnos"],
-    ["comunicacion", "septiembre", "Semana 6", "14/09/2026", "12:30", "Semana Tec"],
-    ["intramuros", "marzo", "Vacaciones", "22/03/2027", "", "Pausa de actividades"],
+    ["Fecha específica", "Área", "Actividad"],
+    ["10/08/2026", "direccion", "Reunión de seguimiento"],
+    ["10/08/2026", "clases", "Bienvenida de alumnos"],
+    ["14/09/2026", "comunicacion", "Semana Tec"],
+    ["22/03/2027", "intramuros", "Pausa de actividades"],
   ];
   const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -664,23 +730,31 @@ function mapCsvRows(csvRows) {
   }, {});
   const timestampIndex = indexByHeader["marca temporal"] ?? 0;
   const areaIndex = indexByHeader.area ?? 1;
-  const monthIndex = indexByHeader.mes ?? 2;
-  const weekIndex = indexByHeader.semana ?? 3;
+  const monthIndex = indexByHeader.mes;
+  const weekIndex = indexByHeader.semana;
   const activityIndex = indexByHeader.actividad ?? (indexByHeader.semana === undefined ? 3 : 4);
   const specificDateIndex = indexByHeader["fecha especifica"] ?? indexByHeader.fecha;
   const responsibleIndex = indexByHeader.responsable;
   const statusIndex = indexByHeader.estatus ?? indexByHeader.estado ?? indexByHeader.status;
 
-  return csvRows.slice(1).map((row) => ({
-    timestamp: row[timestampIndex] || "",
-    area: normalize(row[areaIndex]),
-    month: normalize(row[monthIndex]),
-    activity: String(row[activityIndex] || "").trim(),
-    week: String(row[weekIndex] || "").trim(),
-    specificDate: specificDateIndex === undefined ? "" : String(row[specificDateIndex] || "").trim(),
-    responsible: responsibleIndex === undefined ? "" : String(row[responsibleIndex] || "").trim(),
-    status: statusIndex === undefined ? "" : String(row[statusIndex] || "").trim(),
-  })).filter((row) => row.area && row.month && row.activity);
+  return csvRows.slice(1).map((row) => {
+    const specificDate = specificDateIndex === undefined ? "" : String(row[specificDateIndex] || "").trim();
+    const parsedDate = parseSpecificDateValue(specificDate);
+    const month = monthIndex === undefined
+      ? (parsedDate ? normalize(parsedDate.toLocaleDateString("es-MX", { month: "long" })) : "")
+      : normalize(row[monthIndex]);
+
+    return {
+      timestamp: row[timestampIndex] || "",
+      area: normalize(row[areaIndex]),
+      month,
+      activity: String(row[activityIndex] || "").trim(),
+      week: weekIndex === undefined ? "" : String(row[weekIndex] || "").trim(),
+      specificDate,
+      responsible: responsibleIndex === undefined ? "" : String(row[responsibleIndex] || "").trim(),
+      status: statusIndex === undefined ? "" : String(row[statusIndex] || "").trim(),
+    };
+  }).filter((row) => row.area && getRowMonth(row) && row.activity);
 }
 
 async function loadRows() {
@@ -780,10 +854,11 @@ function getFilteredRows() {
 
     const id = getActivityId(row);
     const deleteMatch = !state.deletedActivities.has(id) && !globalDeletedActivities.has(id);
-    const periodMatch = periodMonths.includes(row.month);
+    const rowMonth = getRowMonth(row);
+    const periodMatch = periodMonths.includes(rowMonth);
     const weekMatch = Boolean(getRowWeekKey(row));
     const areaMatch = state.area === "todas" || row.area === state.area;
-    const monthMatch = state.month === "todos" || row.month === state.month;
+    const monthMatch = state.month === "todos" || rowMonth === state.month;
     return deleteMatch && periodMatch && weekMatch && areaMatch && monthMatch;
   });
 }
@@ -794,9 +869,10 @@ function getSummaryRows() {
   return state.rows.filter((row) => {
     if (isDeleteMarker(row)) return false;
     const id = getActivityId(row);
+    const rowMonth = getRowMonth(row);
     return !state.deletedActivities.has(id)
       && !globalDeletedActivities.has(id)
-      && periodMonths.includes(row.month)
+      && periodMonths.includes(rowMonth)
       && Boolean(getRowWeekKey(row));
   });
 }
@@ -841,7 +917,7 @@ function renderBoard(rows) {
     </div>`,
     ...planningColumns.map((column) => {
       const activities = rows.filter((row) => {
-        if (row.area !== area.key || row.month !== column.month) return false;
+        if (row.area !== area.key || getRowMonth(row) !== column.month) return false;
         return getRowWeekKey(row) === column.weekKey;
       });
       const content = activities.length
@@ -874,6 +950,7 @@ function renderList(rows) {
     .filter((row) => getRowWeekKey(row) === selectedWeek.key)
     .map((row) => ({
       ...row,
+      dayLabel: getRowDayLabel(row),
       schedule: parseActivitySchedule(row.activity, selectedWeek, row.specificDate),
     }))
     .sort((a, b) => a.schedule.sortValue - b.schedule.sortValue || a.area.localeCompare(b.area));
@@ -904,6 +981,7 @@ function renderList(rows) {
           ${areaRows.map((row) => `
             <article class="week-summary-item">
               <div class="week-summary-time">
+                ${row.dayLabel ? `<span>${escapeHtml(row.dayLabel)}</span>` : ""}
                 ${row.schedule.dateLabel ? `<span>${escapeHtml(row.schedule.dateLabel)}</span>` : ""}
                 ${row.schedule.timeLabel ? `<strong>${escapeHtml(row.schedule.timeLabel)}</strong>` : ""}
                 ${!row.schedule.dateLabel && !row.schedule.timeLabel ? "<span>Sin fecha</span>" : ""}
