@@ -1,5 +1,6 @@
-﻿const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1DL1GIPjzqPqXlJWlnWlAOWEiMJM9tPqknT6M4HCXEHM/gviz/tq?tqx=out:csv&sheet=Respuestas%20de%20formulario%201";
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1DL1GIPjzqPqXlJWlnWlAOWEiMJM9tPqknT6M4HCXEHM/gviz/tq?tqx=out:csv&sheet=Respuestas%20de%20formulario%201";
 const FORM_SUBMIT_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc2XKrOEilT6DDskV3zZAi0Ysn6n2j-1VsTR4U03kvcsQ0VHw/formResponse";
+const XLSX_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
 const formEntries = {
   specificDate: "entry.1046506641",
   area: "entry.864852996",
@@ -517,6 +518,26 @@ function rowMatchesPlanningColumn(row, column, areaKey, periodKey = state.period
   return row.area === areaKey && getRowWeekKey(row, periodKey) === column.weekKey;
 }
 
+function getPlanningCellKey(areaKey, weekKey) {
+  return `${areaKey}|${weekKey}`;
+}
+
+function buildPlanningIndex(rows, periodKey = state.period) {
+  const index = new Map();
+
+  rows.forEach((row) => {
+    const weekKey = getRowWeekKey(row, periodKey);
+    if (!row.area || !weekKey) return;
+
+    const cellKey = getPlanningCellKey(row.area, weekKey);
+    const currentRows = index.get(cellKey) || [];
+    currentRows.push(row);
+    index.set(cellKey, currentRows);
+  });
+
+  return index;
+}
+
 function parseActivitySchedule(activity, fallbackWeek, specificDate = "") {
   const text = String(activity || "");
   const normalizedText = normalize(text);
@@ -746,6 +767,26 @@ async function submitImportedRow(row) {
   });
 }
 
+function loadXlsxLibrary() {
+  if (globalThis.XLSX) return Promise.resolve(globalThis.XLSX);
+
+  return new Promise((resolve, reject) => {
+    const existingScript = document.querySelector(`[src="${XLSX_SCRIPT_URL}"]`);
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(globalThis.XLSX), { once: true });
+      existingScript.addEventListener("error", reject, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = XLSX_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => resolve(globalThis.XLSX);
+    script.onerror = () => reject(new Error("No se pudo cargar el lector de Excel. Intenta con archivo CSV."));
+    document.head.appendChild(script);
+  });
+}
+
 async function parseImportFile(file) {
   const extension = file.name.split(".").pop().toLowerCase();
 
@@ -753,7 +794,7 @@ async function parseImportFile(file) {
     return mapImportedRows(parseCsv(await file.text()));
   }
 
-  const xlsx = globalThis.XLSX;
+  const xlsx = await loadXlsxLibrary();
   if (!xlsx) {
     throw new Error("No se pudo cargar el lector de Excel. Intenta con archivo CSV.");
   }
@@ -1059,6 +1100,7 @@ function renderBoard(rows) {
   const currentWeekKey = getCurrentWeekKey();
   const selectedWeek = getSelectedWeek();
   const selectedWeekKey = selectedWeek?.key || "";
+  const planningIndex = buildPlanningIndex(rows);
 
   boardEl.style.gridTemplateColumns = `190px repeat(${planningColumns.length}, minmax(${weekColumnWidth}px, 1fr))`;
   boardEl.style.minWidth = `${190 + (planningColumns.length * weekColumnWidth)}px`;
@@ -1082,14 +1124,12 @@ function renderBoard(rows) {
   const body = visibleAreas.flatMap((area) => [
     `<div class="cell area-cell ${area.className}">
       ${area.image
-        ? `<img class="area-photo" src="${area.image}" alt="${area.label}">`
+        ? `<img class="area-photo" src="${area.image}" alt="${area.label}" loading="lazy" decoding="async">`
         : `<span class="area-icon">${area.icon}</span>`}
       <span>${area.label}</span>
     </div>`,
     ...planningColumns.map((column) => {
-      const activities = rows.filter((row) => (
-        rowMatchesPlanningColumn(row, column, area.key)
-      ));
+      const activities = planningIndex.get(getPlanningCellKey(area.key, column.weekKey)) || [];
       const content = activities.length
         ? activities.map((row) => renderActivityControl(row, "activity-chip")).join("")
         : "";
@@ -1144,7 +1184,7 @@ function renderList(rows) {
     return `
       <section class="week-summary-group ${area.className}">
         <div class="week-summary-area">
-          ${area.image ? `<img src="${area.image}" alt="${area.label}">` : ""}
+          ${area.image ? `<img src="${area.image}" alt="${area.label}" loading="lazy" decoding="async">` : ""}
           <h3>${area.label}</h3>
         </div>
         <div class="week-summary-items">
