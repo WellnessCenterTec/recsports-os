@@ -32,7 +32,7 @@ const months = [
   "diciembre",
 ];
 
-const refreshIntervalMs = 10000;
+const refreshIntervalMs = 60000;
 const completionStorageKey = "planeacion-actividades-completadas-v1";
 const deletedStorageKey = "planeacion-actividades-ocultas-v1";
 const pendingStorageKey = "planeacion-actividades-pendientes-v1";
@@ -129,6 +129,7 @@ const state = {
   month: "todos",
   selectedWeekKey: "",
   isRefreshing: false,
+  lastRowsSignature: "",
   completedActivities: new Set(readCompletedActivities()),
   deletedActivities: new Set(readDeletedActivities()),
   pendingActivities: readPendingActivities(),
@@ -295,6 +296,10 @@ function getActivityId(row) {
     row.activity,
   ].map((value) => normalize(value)).join("|");
   return btoa(unescape(encodeURIComponent(rawId)));
+}
+
+function getRowsSignature(rows) {
+  return rows.map(getActivityId).join("~");
 }
 
 function renderActivityControl(row, className) {
@@ -1356,13 +1361,21 @@ async function refreshRows() {
   if (state.isRefreshing) return;
 
   state.isRefreshing = true;
-  const remoteRows = await loadRows();
-  const mergedRows = mergeRowsWithPending(remoteRows, state.pendingActivities);
-  state.rows = mergedRows.rows;
-  state.pendingActivities = mergedRows.pendingRows;
-  savePendingActivities();
-  render();
-  state.isRefreshing = false;
+  try {
+    const remoteRows = await loadRows();
+    const mergedRows = mergeRowsWithPending(remoteRows, state.pendingActivities);
+    const nextRowsSignature = getRowsSignature(mergedRows.rows);
+
+    if (nextRowsSignature !== state.lastRowsSignature) {
+      state.rows = mergedRows.rows;
+      state.pendingActivities = mergedRows.pendingRows;
+      state.lastRowsSignature = nextRowsSignature;
+      savePendingActivities();
+      render();
+    }
+  } finally {
+    state.isRefreshing = false;
+  }
 }
 
 async function init() {
