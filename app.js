@@ -1,4 +1,4 @@
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1DL1GIPjzqPqXlJWlnWlAOWEiMJM9tPqknT6M4HCXEHM/gviz/tq?tqx=out:csv&sheet=Respuestas%20de%20formulario%201";
+﻿const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1DL1GIPjzqPqXlJWlnWlAOWEiMJM9tPqknT6M4HCXEHM/gviz/tq?tqx=out:csv&sheet=Respuestas%20de%20formulario%201";
 const FORM_SUBMIT_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc2XKrOEilT6DDskV3zZAi0Ysn6n2j-1VsTR4U03kvcsQ0VHw/formResponse";
 const formEntries = {
   specificDate: "entry.1046506641",
@@ -7,6 +7,14 @@ const formEntries = {
   week: "entry.1237735269",
   activity: "entry.129099553",
 };
+
+function getFormAreaValue(areaKey) {
+  const formAreaValues = {
+    comunicacion: "comunicación",
+    direccion: "dirección",
+  };
+  return formAreaValues[areaKey] || areaKey;
+}
 
 const months = [
   "enero",
@@ -26,6 +34,8 @@ const months = [
 const refreshIntervalMs = 10000;
 const completionStorageKey = "planeacion-actividades-completadas-v1";
 const deletedStorageKey = "planeacion-actividades-ocultas-v1";
+const pendingStorageKey = "planeacion-actividades-pendientes-v1";
+const pendingActivityMaxAgeMs = 30 * 60 * 1000;
 const deleteMarkerPrefix = "__OCULTAR_ACTIVIDAD__::";
 const weekColumnWidth = 163;
 const tecWeekPeriods = ["feb-jun", "ago-dic"];
@@ -120,6 +130,7 @@ const state = {
   isRefreshing: false,
   completedActivities: new Set(readCompletedActivities()),
   deletedActivities: new Set(readDeletedActivities()),
+  pendingActivities: readPendingActivities(),
 };
 
 const boardEl = document.querySelector("#planningBoard");
@@ -217,6 +228,48 @@ function readDeletedActivities() {
 
 function saveDeletedActivities() {
   localStorage.setItem(deletedStorageKey, JSON.stringify([...state.deletedActivities]));
+}
+
+function readPendingActivities() {
+  try {
+    return JSON.parse(localStorage.getItem(pendingStorageKey) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function savePendingActivities() {
+  localStorage.setItem(pendingStorageKey, JSON.stringify(state.pendingActivities));
+}
+
+function getPendingActivityKey(row) {
+  const date = parseSpecificDateValue(row.specificDate);
+  const dateKey = date
+    ? [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0"),
+    ].join("-")
+    : normalize(row.specificDate);
+  return [normalize(row.area), dateKey, normalize(row.activity)].join("|");
+}
+
+function mergeRowsWithPending(remoteRows, pendingRows, now = Date.now()) {
+  const confirmedKeys = new Set(remoteRows.map(getPendingActivityKey));
+  const activePendingRows = pendingRows.filter((row) => now - Number(row.pendingAt || 0) <= pendingActivityMaxAgeMs);
+  const unconfirmedPendingRows = activePendingRows.filter((row) => !confirmedKeys.has(getPendingActivityKey(row)));
+  return { rows: [...remoteRows, ...unconfirmedPendingRows], pendingRows: unconfirmedPendingRows };
+}
+
+function addPendingActivity(row) {
+  const pendingRow = {
+    ...row,
+    timestamp: row.timestamp || new Date().toLocaleString("es-MX"),
+    pendingAt: Date.now(),
+  };
+  state.pendingActivities = [...state.pendingActivities, pendingRow];
+  state.rows = [...state.rows, pendingRow];
+  savePendingActivities();
 }
 
 function isDeleteMarker(row) {
@@ -460,6 +513,10 @@ function getRowWeekKey(row, periodKey = state.period) {
   return "";
 }
 
+function rowMatchesPlanningColumn(row, column, areaKey, periodKey = state.period) {
+  return row.area === areaKey && getRowWeekKey(row, periodKey) === column.weekKey;
+}
+
 function parseActivitySchedule(activity, fallbackWeek, specificDate = "") {
   const text = String(activity || "");
   const normalizedText = normalize(text);
@@ -674,7 +731,7 @@ async function submitImportedRow(row) {
   const periodKey = getPeriodKeyFromDate(getRowSpecificDate(row)) || state.period;
   const formData = new URLSearchParams();
   formData.set(formEntries.specificDate, row.specificDate);
-  formData.set(formEntries.area, row.area);
+  formData.set(formEntries.area, getFormAreaValue(row.area));
   formData.set(formEntries.month, getRowMonth(row));
   formData.set(formEntries.week, getRowWeekLabel(row, periodKey));
   formData.set(formEntries.activity, row.activity);
@@ -721,11 +778,19 @@ async function handleImportFile(file) {
 
     setImportStatus(`Importando ${importedRows.length} actividades...`, "info");
     for (let index = 0; index < importedRows.length; index += 1) {
-      await submitImportedRow(importedRows[index]);
+      const importedRow = importedRows[index];
+      await submitImportedRow(importedRow);
+      const periodKey = getPeriodKeyFromDate(getRowSpecificDate(importedRow)) || state.period;
+      addPendingActivity({
+        ...importedRow,
+        month: getRowMonth(importedRow),
+        week: getRowWeekLabel(importedRow, periodKey),
+      });
       setImportStatus(`Importando ${index + 1} de ${importedRows.length} actividades...`, "info");
       await new Promise((resolve) => setTimeout(resolve, 180));
     }
 
+    render();
     setImportStatus(`Listo: ${importedRows.length} actividades enviadas al tablero.`, "success");
     await refreshRows();
     window.setTimeout(refreshRows, 3500);
@@ -937,11 +1002,11 @@ function setupCaptureForm() {
       state.selectedWeekKey = getRowWeekKey(row, targetPeriod);
       renderPeriodTabs();
       renderMonthFilter();
-      state.rows = [...state.rows, {
+      addPendingActivity({
         ...row,
         month: getRowMonth(row),
         week: getRowWeekLabel(row, targetPeriod),
-      }];
+      });
       captureForm.reset();
       render();
       setCaptureStatus("Actividad guardada y colocada en el calendario.", "success");
@@ -1022,10 +1087,9 @@ function renderBoard(rows) {
       <span>${area.label}</span>
     </div>`,
     ...planningColumns.map((column) => {
-      const activities = rows.filter((row) => {
-        if (row.area !== area.key || getRowMonth(row) !== column.month) return false;
-        return getRowWeekKey(row) === column.weekKey;
-      });
+      const activities = rows.filter((row) => (
+        rowMatchesPlanningColumn(row, column, area.key)
+      ));
       const content = activities.length
         ? activities.map((row) => renderActivityControl(row, "activity-chip")).join("")
         : "";
@@ -1147,7 +1211,10 @@ function setupCompletionToggles() {
 
 async function submitDeleteMarker(button) {
   const formData = new URLSearchParams();
-  formData.set(formEntries.area, button.dataset.deleteArea || "clases");
+  formData.set(
+    formEntries.area,
+    getFormAreaValue(button.dataset.deleteArea || "clases"),
+  );
   formData.set(formEntries.month, button.dataset.deleteMonth || "agosto");
   formData.set(formEntries.week, button.dataset.deleteWeek || "Semana 0");
   formData.set(formEntries.activity, `${deleteMarkerPrefix}${button.dataset.deleteId}`);
@@ -1249,7 +1316,11 @@ async function refreshRows() {
   if (state.isRefreshing) return;
 
   state.isRefreshing = true;
-  state.rows = await loadRows();
+  const remoteRows = await loadRows();
+  const mergedRows = mergeRowsWithPending(remoteRows, state.pendingActivities);
+  state.rows = mergedRows.rows;
+  state.pendingActivities = mergedRows.pendingRows;
+  savePendingActivities();
   render();
   state.isRefreshing = false;
 }
@@ -1267,3 +1338,4 @@ async function init() {
 }
 
 init();
+
