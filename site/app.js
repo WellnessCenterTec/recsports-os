@@ -407,6 +407,11 @@ let gymMasterStudent = null;
 let gymWeekSelection = { Wellness: 20, EMIS: 20 };
 let gymHeatmapMode = "average";
 let gymHeatmapFacility = "Wellness";
+let vivenciaEvents = [];
+let vivenciaEventsLoaded = false;
+let vivenciaEventsAvailable = true;
+let vivenciaEventImporting = false;
+let vivenciaEventImportResult = null;
 let classGradePage = 1;
 let classGradeFilter = {
   search: "",
@@ -1598,6 +1603,287 @@ async function loadSupabaseCaptures() {
   cloudStatus = "Supabase conectado";
 }
 
+async function loadVivenciaEvents() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const { data, error } = await supabaseClient
+    .from("vivencia_events")
+    .select("*")
+    .is("archived_at", null)
+    .order("event_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1500);
+  vivenciaEventsLoaded = true;
+  if (error) {
+    vivenciaEventsAvailable = false;
+    vivenciaEvents = [];
+    console.error(error);
+    return;
+  }
+  vivenciaEventsAvailable = true;
+  vivenciaEvents = data || [];
+}
+
+function vivenciaValue(row, aliases) {
+  const keys = Object.keys(row || {});
+  const wanted = aliases.map(headerKey);
+  const key = keys.find((candidate) => wanted.includes(headerKey(candidate)));
+  return key ? row[key] : "";
+}
+
+function vivenciaBoolean(value) {
+  if (typeof value === "boolean") return value;
+  const clean = normalizeText(value);
+  return ["si", "sí", "true", "1", "x", "con cobro", "insignia"].includes(clean);
+}
+
+function vivenciaOptionalNumber(value) {
+  const clean = String(value ?? "").trim().replace(/[$,%\s]/g, "").replace(",", ".");
+  if (!clean || ["na", "n/a", "#n/a", "sin dato"].includes(normalizeText(clean))) return null;
+  const number = Number(clean);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+function vivenciaStatus(value) {
+  const clean = normalizeText(value);
+  if (clean.includes("realiz")) return "realizado";
+  if (clean.includes("cancel")) return "cancelado";
+  if (clean.includes("posp")) return "pospuesto";
+  return "planeado";
+}
+
+function vivenciaSourceKey(payload) {
+  return [
+    payload.campus,
+    payload.event_date,
+    payload.event_name,
+    payload.discipline,
+    payload.classification,
+    payload.responsible_name
+  ].map((value) => headerKey(value)).join("|");
+}
+
+function parseVivenciaEventRows(rows, sourceName) {
+  const payload = [];
+  const warnings = [];
+  const errors = [];
+  const seen = new Set();
+  const headers = Object.keys(rows[0] || {}).map(headerKey);
+  const requiredColumns = [
+    ["Campus", ["campus", "nombre campus"]],
+    ["Nombre del evento", ["nombre del evento", "evento", "event_name"]],
+    ["Fecha del evento", ["fecha del evento", "fecha", "event_date"]]
+  ];
+  requiredColumns.forEach(([label, aliases]) => {
+    if (!aliases.map(headerKey).some((alias) => headers.includes(alias))) {
+      errors.push({ row: 1, message: `Falta columna requerida: ${label}` });
+    }
+  });
+  if (errors.length) return { payload, warnings, errors, omitted: rows.length };
+
+  rows.forEach((row, index) => {
+    const rowNumber = index + 2;
+    const campus = String(vivenciaValue(row, ["Campus", "Nombre Campus"]) || "").trim();
+    const eventName = String(vivenciaValue(row, ["Nombre del evento", "Evento", "event_name"]) || "").trim();
+    const eventDate = parseGymDate(vivenciaValue(row, ["Fecha del evento", "Fecha", "event_date"]));
+    if (!campus || !eventName || !eventDate) {
+      const missing = [
+        !campus ? "campus" : "",
+        !eventName ? "nombre del evento" : "",
+        !eventDate ? "fecha valida" : ""
+      ].filter(Boolean).join(", ");
+      errors.push({ row: rowNumber, message: `Falta ${missing}` });
+      return;
+    }
+    const endDateRaw = vivenciaValue(row, ["Fecha fin", "Fecha final", "end_date"]);
+    const endDate = endDateRaw ? parseGymDate(endDateRaw) : "";
+    if (endDateRaw && !endDate) warnings.push({ row: rowNumber, message: "Fecha final invalida; se guardara vacia" });
+    if (endDate && endDate < eventDate) {
+      errors.push({ row: rowNumber, message: "La fecha final es anterior a la fecha del evento" });
+      return;
+    }
+    const hasFee = vivenciaBoolean(vivenciaValue(row, ["Evento con cobro", "Con cobro", "has_fee"]));
+    const feeRaw = vivenciaValue(row, ["Costo de inscripcion", "Costo de inscripción", "Cuota", "fee_amount"]);
+    const feeAmount = vivenciaOptionalNumber(feeRaw);
+    if (hasFee && feeAmount === null) warnings.push({ row: rowNumber, message: "Evento con cobro sin costo valido; se guardara en 0" });
+    const goalRaw = vivenciaValue(row, ["Meta de captacion", "Meta de captación", "Meta de captación (número de estudiantes)", "Meta", "participation_goal"]);
+    const goal = vivenciaOptionalNumber(goalRaw);
+    if (String(goalRaw || "").trim() && goal === null) warnings.push({ row: rowNumber, message: "Meta invalida; se guardara vacia" });
+    const result = {
+      campus,
+      event_name: eventName,
+      discipline: String(vivenciaValue(row, ["Disciplina deportiva", "Disciplina", "discipline"]) || "").trim() || null,
+      classification: String(vivenciaValue(row, ["Clasificacion", "Clasificación", "classification"]) || "").trim() || null,
+      event_date: eventDate,
+      end_date: endDate || null,
+      branch: String(vivenciaValue(row, ["Rama", "branch"]) || "").trim() || null,
+      target_population: String(vivenciaValue(row, ["Poblacion que participa en el evento", "Población que participa en el evento", "Poblacion", "target_population"]) || "").trim() || null,
+      participation_goal: goal === null ? null : Math.round(goal),
+      has_fee: hasFee,
+      fee_amount: hasFee ? (feeAmount ?? 0) : 0,
+      responsible_name: String(vivenciaValue(row, ["Nombre del responsable", "Responsable", "responsible_name"]) || "").trim() || null,
+      description: String(vivenciaValue(row, ["Descripcion del evento", "Descripción del evento", "Descripcion", "description"]) || "").trim() || null,
+      is_signature_event: vivenciaBoolean(vivenciaValue(row, ["Evento insignia", "Es evento insignia", "is_signature_event"])),
+      status: vivenciaStatus(vivenciaValue(row, ["Estado", "Estatus", "status"])),
+      reported_total_participants: vivenciaOptionalNumber(vivenciaValue(row, ["Numero total de participantes", "Número total de participantes", "Total participantes"])),
+      reported_men: vivenciaOptionalNumber(vivenciaValue(row, ["Hombres", "Masculino"])),
+      reported_women: vivenciaOptionalNumber(vivenciaValue(row, ["Mujeres", "Femenino"])),
+      source_name: sourceName,
+      created_by: currentUser?.id || null
+    };
+    ["reported_total_participants", "reported_men", "reported_women"].forEach((field) => {
+      if (result[field] !== null) result[field] = Math.round(result[field]);
+    });
+    result.source_row_key = vivenciaSourceKey(result);
+    if (seen.has(result.source_row_key)) {
+      warnings.push({ row: rowNumber, message: "Evento repetido dentro del archivo; se omitio" });
+      return;
+    }
+    seen.add(result.source_row_key);
+    payload.push(result);
+  });
+  return { payload, warnings, errors, omitted: rows.length - payload.length };
+}
+
+async function vivenciaRowsFromFile(file) {
+  const extension = file.name.split(".").pop().toLowerCase();
+  if (["xlsx", "xls"].includes(extension)) {
+    if (!window.XLSX) throw new Error("No esta disponible el lector de Excel");
+    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    return window.XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  }
+  const grid = parseCsv(await file.text());
+  const headers = grid.shift() || [];
+  return grid.map((cells) => headers.reduce((row, header, index) => {
+    row[String(header || "").trim()] = cells[index] || "";
+    return row;
+  }, {}));
+}
+
+async function saveVivenciaEvent(event) {
+  event.preventDefault();
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("vivencia")) {
+    toast("Necesitas acceso autorizado de Vivencia para guardar eventos");
+    return;
+  }
+  const form = new FormData(event.currentTarget);
+  const hasFee = form.get("has_fee") === "on";
+  const payload = {
+    campus: String(form.get("campus") || "").trim(),
+    event_name: String(form.get("event_name") || "").trim(),
+    discipline: String(form.get("discipline") || "").trim() || null,
+    classification: String(form.get("classification") || "").trim() || null,
+    event_date: String(form.get("event_date") || ""),
+    end_date: String(form.get("end_date") || "") || null,
+    branch: String(form.get("branch") || "").trim() || null,
+    target_population: String(form.get("target_population") || "").trim() || null,
+    participation_goal: vivenciaOptionalNumber(form.get("participation_goal")),
+    has_fee: hasFee,
+    fee_amount: hasFee ? vivenciaOptionalNumber(form.get("fee_amount")) : 0,
+    responsible_name: String(form.get("responsible_name") || "").trim() || null,
+    description: String(form.get("description") || "").trim() || null,
+    is_signature_event: form.get("is_signature_event") === "on",
+    status: vivenciaStatus(form.get("status")),
+    source_name: "captura_manual",
+    source_row_key: crypto.randomUUID(),
+    created_by: currentUser.id
+  };
+  if (!payload.campus || !payload.event_name || !payload.event_date) {
+    toast("Campus, nombre y fecha del evento son obligatorios");
+    return;
+  }
+  if (payload.end_date && payload.end_date < payload.event_date) {
+    toast("La fecha final no puede ser anterior a la fecha del evento");
+    return;
+  }
+  if (hasFee && payload.fee_amount === null) {
+    toast("Escribe un costo valido para el evento con cobro");
+    return;
+  }
+  const button = $("#saveVivenciaEvent");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Guardando...";
+  }
+  const { error } = await supabaseClient.from("vivencia_events").insert(payload);
+  if (error) {
+    console.error(error);
+    toast(`No se pudo guardar el evento: ${supabaseErrorDetail(error) || "revisa la Fase 1 en Supabase"}`);
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Guardar evento";
+    }
+    return;
+  }
+  vivenciaEventImportResult = { loaded: 1, omitted: 0, warnings: [], source: "Captura manual" };
+  addAudit("vivencia", `Evento creado: ${payload.event_name}`);
+  await loadVivenciaEvents();
+  render();
+  toast("Evento guardado en Supabase");
+}
+
+async function importVivenciaEvents(file) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("vivencia")) {
+    toast("Necesitas acceso autorizado de Vivencia para cargar eventos");
+    return;
+  }
+  vivenciaEventImporting = true;
+  vivenciaEventImportResult = null;
+  render();
+  try {
+    const rows = await vivenciaRowsFromFile(file);
+    if (!rows.length) throw new Error("El archivo no contiene eventos");
+    const parsed = parseVivenciaEventRows(rows, file.name);
+    if (parsed.errors.length) {
+      vivenciaEventImportResult = {
+        loaded: 0,
+        omitted: parsed.omitted,
+        warnings: [...parsed.errors, ...parsed.warnings],
+        source: file.name,
+        blocked: true
+      };
+      toast(`Archivo con errores: fila ${parsed.errors[0].row}, ${parsed.errors[0].message}`);
+      return;
+    }
+    const existingResult = await supabaseClient
+      .from("vivencia_events")
+      .select("source_row_key")
+      .eq("source_name", file.name)
+      .not("source_row_key", "is", null);
+    if (existingResult.error) throw existingResult.error;
+    const existingKeys = new Set((existingResult.data || []).map((row) => row.source_row_key));
+    const newRows = parsed.payload.filter((row) => !existingKeys.has(row.source_row_key));
+    const duplicateCount = parsed.payload.length - newRows.length;
+    const chunkSize = 300;
+    for (let index = 0; index < newRows.length; index += chunkSize) {
+      const { error } = await supabaseClient.from("vivencia_events").insert(newRows.slice(index, index + chunkSize));
+      if (error) throw error;
+    }
+    vivenciaEventImportResult = {
+      loaded: newRows.length,
+      omitted: parsed.omitted + duplicateCount,
+      warnings: parsed.warnings,
+      source: file.name
+    };
+    addAudit("vivencia", `${newRows.length} eventos importados desde ${file.name}`);
+    await loadVivenciaEvents();
+    toast(`Carga lista: ${newRows.length} eventos nuevos`);
+  } catch (error) {
+    console.error(error);
+    vivenciaEventImportResult = {
+      loaded: 0,
+      omitted: 0,
+      warnings: [{ row: 0, message: supabaseErrorDetail(error) || error.message || "Error de carga" }],
+      source: file.name,
+      blocked: true
+    };
+    toast(`No se pudo cargar eventos: ${supabaseErrorDetail(error) || error.message}`);
+  } finally {
+    vivenciaEventImporting = false;
+    render();
+  }
+}
+
 function collaboratorFromCloud(row) {
   return {
     __id: row.nomina,
@@ -2304,7 +2590,7 @@ async function loadSupabaseSession() {
   }
   saveSession(profileToSession(profile, authUser));
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
-  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData(), loadClassScheduleSimulatorCloud()]);
+  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData(), loadClassScheduleSimulatorCloud(), loadVivenciaEvents()]);
 }
 
 async function loginWithSupabase() {
@@ -2360,7 +2646,7 @@ async function loginWithSupabase() {
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
   activeView = "dashboard";
-  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData(), loadClassScheduleSimulatorCloud()]);
+  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData(), loadClassScheduleSimulatorCloud(), loadVivenciaEvents()]);
   render();
   toast(`Sesion Supabase: ${currentUser.name}`);
 }
@@ -4300,6 +4586,151 @@ function renderCollaboratorsDashboard() {
   `;
 }
 
+function renderVivenciaImportSummary() {
+  const result = vivenciaEventImportResult;
+  if (!result) return "";
+  return `
+    <div class="vivencia-import-summary ${result.blocked ? "blocked" : ""}">
+      <div>
+        <strong>${escapeHtml(result.source)}</strong>
+        <span>${result.blocked ? "Carga detenida por errores obligatorios" : "Carga procesada correctamente"}</span>
+      </div>
+      <div class="vivencia-import-counts">
+        <span><strong>${result.loaded}</strong> cargados</span>
+        <span><strong>${result.omitted}</strong> omitidos</span>
+        <span><strong>${result.warnings.length}</strong> advertencias</span>
+      </div>
+      ${result.warnings.length ? `
+        <details>
+          <summary>Ver detalle</summary>
+          ${result.warnings.slice(0, 12).map((warning) => `<p>${warning.row ? `Fila ${warning.row}: ` : ""}${escapeHtml(warning.message)}</p>`).join("")}
+        </details>
+      ` : ""}
+    </div>
+  `;
+}
+
+function renderVivenciaEventHistory() {
+  if (currentUser?.auth !== "supabase") {
+    return `<div class="vivencia-empty-state">Inicia sesion con Supabase para consultar el historial compartido.</div>`;
+  }
+  if (!vivenciaEventsLoaded) {
+    return `<div class="vivencia-empty-state">Cargando historial de eventos...</div>`;
+  }
+  if (!vivenciaEventsAvailable) {
+    return `
+      <div class="vivencia-empty-state warning">
+        <strong>Falta activar la estructura de Vivencia en Supabase.</strong>
+        <span>Ejecuta el archivo <code>supabase/vivencia.sql</code> y vuelve a entrar.</span>
+      </div>
+    `;
+  }
+  if (!vivenciaEvents.length) {
+    return `<div class="vivencia-empty-state">Todavia no hay eventos guardados en Supabase.</div>`;
+  }
+  return `
+    <div class="table-wrap vivencia-history-wrap">
+      <table class="vivencia-history-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Evento</th>
+            <th>Campus</th>
+            <th>Clasificacion</th>
+            <th>Meta</th>
+            <th>Participantes reportados</th>
+            <th>Responsable</th>
+            <th>Estado</th>
+            <th>Fuente</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${vivenciaEvents.map((row) => `
+            <tr>
+              <td>${escapeHtml(row.event_date || "")}</td>
+              <td>
+                <strong>${escapeHtml(row.event_name || "")}</strong>
+                ${row.discipline ? `<span>${escapeHtml(row.discipline)}</span>` : ""}
+                ${row.is_signature_event ? `<em>Evento insignia</em>` : ""}
+              </td>
+              <td>${escapeHtml(row.campus || "")}</td>
+              <td>${escapeHtml(row.classification || "Sin clasificar")}</td>
+              <td>${row.participation_goal ?? "Sin meta"}</td>
+              <td>${row.reported_total_participants ?? "Pendiente"}</td>
+              <td>${escapeHtml(row.responsible_name || "Sin asignar")}</td>
+              <td><span class="vivencia-status ${escapeHtml(row.status || "planeado")}">${escapeHtml(row.status || "planeado")}</span></td>
+              <td>${escapeHtml(row.source_name === "captura_manual" ? "Captura manual" : row.source_name || "Sin fuente")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderVivenciaEventsView() {
+  const editable = currentUser?.auth === "supabase" && canEditArea("vivencia") && vivenciaEventsAvailable;
+  const today = new Date().toISOString().slice(0, 10);
+  return `
+    <section class="vivencia-events-module">
+      <div class="permission-strip">
+        <span>Supabase es la fuente principal. Excel y CSV se usan solo para cargar eventos.</span>
+        <span>${vivenciaEvents.length} eventos en historial</span>
+      </div>
+      ${renderVivenciaImportSummary()}
+      <div class="vivencia-event-layout">
+        <article class="form-panel vivencia-event-entry">
+          <div class="vivencia-panel-heading">
+            <div>
+              <p class="eyebrow">Vivencia</p>
+              <h3>Captura manual de evento</h3>
+            </div>
+            <span class="editor-status">${editable ? "Guardado en linea activo" : "Modo consulta"}</span>
+          </div>
+          <form id="vivenciaEventForm" class="vivencia-event-form">
+            <label>Campus<input name="campus" required placeholder="Ej. Monterrey" ${editable ? "" : "disabled"} /></label>
+            <label>Nombre del evento<input name="event_name" required placeholder="Nombre del evento" ${editable ? "" : "disabled"} /></label>
+            <label>Disciplina deportiva<input name="discipline" placeholder="Opcional" ${editable ? "" : "disabled"} /></label>
+            <label>Clasificacion<input name="classification" placeholder="Ej. Bienestar, recreativo" ${editable ? "" : "disabled"} /></label>
+            <label>Fecha del evento<input name="event_date" type="date" required value="${today}" ${editable ? "" : "disabled"} /></label>
+            <label>Fecha final<input name="end_date" type="date" ${editable ? "" : "disabled"} /></label>
+            <label>Rama<input name="branch" placeholder="Opcional" ${editable ? "" : "disabled"} /></label>
+            <label>Poblacion objetivo<input name="target_population" placeholder="Ej. Profesional" ${editable ? "" : "disabled"} /></label>
+            <label>Meta de captacion<input name="participation_goal" type="number" min="0" placeholder="0" ${editable ? "" : "disabled"} /></label>
+            <label>Responsable<input name="responsible_name" placeholder="Nombre del responsable" ${editable ? "" : "disabled"} /></label>
+            <label>Estado<select name="status" ${editable ? "" : "disabled"}><option value="planeado">Planeado</option><option value="realizado">Realizado</option><option value="pospuesto">Pospuesto</option><option value="cancelado">Cancelado</option></select></label>
+            <label>Costo de inscripcion<input name="fee_amount" type="number" min="0" step="0.01" placeholder="0.00" ${editable ? "" : "disabled"} /></label>
+            <label class="vivencia-check"><input name="has_fee" type="checkbox" ${editable ? "" : "disabled"} /> Evento con cobro</label>
+            <label class="vivencia-check"><input name="is_signature_event" type="checkbox" ${editable ? "" : "disabled"} /> Evento insignia</label>
+            <label class="full">Descripcion<textarea name="description" rows="3" placeholder="Descripcion breve del evento" ${editable ? "" : "disabled"}></textarea></label>
+            <button class="primary-btn full" id="saveVivenciaEvent" type="submit" ${editable ? "" : "disabled"}>Guardar evento</button>
+          </form>
+          <div class="vivencia-bulk-upload">
+            <div>
+              <strong>Carga masiva de eventos</strong>
+              <span>Acepta CSV, XLSX o XLS. Requiere Campus, Nombre del evento y Fecha del evento.</span>
+            </div>
+            <button class="ghost-btn" id="uploadVivenciaEvents" type="button" ${editable && !vivenciaEventImporting ? "" : "disabled"}>
+              ${vivenciaEventImporting ? "Procesando archivo..." : "Cargar CSV o Excel"}
+            </button>
+            <input id="vivenciaEventsFile" type="file" accept=".csv,.xlsx,.xls" hidden />
+          </div>
+        </article>
+        <article class="form-panel vivencia-event-history">
+          <div class="vivencia-panel-heading">
+            <div>
+              <p class="eyebrow">Historial</p>
+              <h3>Eventos cargados</h3>
+            </div>
+            <span class="editor-status">No se elimina historico</span>
+          </div>
+          ${renderVivenciaEventHistory()}
+        </article>
+      </div>
+    </section>
+  `;
+}
+
 function renderCapture(area) {
   const selected = area.id === "general" ? areas.find((item) => item.id === currentUser?.area) || areas[1] : area;
   if (selected.id === "colaboradores") return renderCollaboratorsCapture(selected);
@@ -4879,13 +5310,16 @@ function render() {
   const simulatorTab = $("#simulatorViewButton");
   const gymAttendanceTab = $("#gymAttendanceViewButton");
   const gymRegistrationsTab = $("#gymRegistrationsViewButton");
+  const vivenciaEventsTab = $("#vivenciaEventsViewButton");
   const systemTab = $(`.segmented button[data-view="blueprint"]`);
   const isGym = activeArea === "gimnasio";
+  const isVivencia = activeArea === "vivencia";
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
   if (gradesTab) gradesTab.hidden = activeArea !== "clases";
   if (simulatorTab) simulatorTab.hidden = activeArea !== "clases";
   if (gymAttendanceTab) gymAttendanceTab.hidden = !isGym;
   if (gymRegistrationsTab) gymRegistrationsTab.hidden = !isGym;
+  if (vivenciaEventsTab) vivenciaEventsTab.hidden = !isVivencia;
   $$(`.segmented button[data-view="schedules"], .segmented button[data-view="reports"]`)
     .forEach((button) => { button.hidden = isGym; });
   if (systemTab) systemTab.hidden = isGym || !isLeadership();
@@ -4893,6 +5327,7 @@ function render() {
   if (filtersBand) filtersBand.hidden = isGym;
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
+  if (!isVivencia && activeView === "vivencia-events") activeView = "dashboard";
   if (activeView === "blueprint" && !isLeadership()) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
@@ -4906,6 +5341,8 @@ function render() {
         ? renderGymAttendanceRegistration()
         : activeView === "gym-registrations"
           ? renderGymStudentRegistration()
+          : activeView === "vivencia-events"
+            ? renderVivenciaEventsView()
       : activeView === "schedules"
         ? renderSchedules(area)
         : activeView === "simulator"
@@ -4935,6 +5372,14 @@ function render() {
     const file = event.target.files?.[0];
     if (!file) return;
     await replaceStudentDatabaseFromCsv(file);
+    event.target.value = "";
+  });
+  $("#vivenciaEventForm")?.addEventListener("submit", saveVivenciaEvent);
+  $("#uploadVivenciaEvents")?.addEventListener("click", () => $("#vivenciaEventsFile")?.click());
+  $("#vivenciaEventsFile")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importVivenciaEvents(file);
     event.target.value = "";
   });
   $("#classSimulatorForm")?.addEventListener("submit", registerClassSimulator);
@@ -5730,6 +6175,10 @@ $("#logoutButton").addEventListener("click", () => {
     gymStudentRegistrations = [];
     gymDataLoaded = false;
     gymMasterStudent = null;
+    vivenciaEvents = [];
+    vivenciaEventsLoaded = false;
+    vivenciaEventsAvailable = true;
+    vivenciaEventImportResult = null;
     classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
     classScheduleSimulatorCloudReady = false;
     collaboratorsCloudLoaded = false;

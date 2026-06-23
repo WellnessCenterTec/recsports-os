@@ -48,9 +48,9 @@ create table if not exists public.vivencia_events (
     )
 );
 
-create unique index if not exists vivencia_events_source_row_uidx
-  on public.vivencia_events(source_name, source_row_key)
-  where source_name is not null and source_row_key is not null;
+drop index if exists public.vivencia_events_source_row_uidx;
+create unique index vivencia_events_source_row_uidx
+  on public.vivencia_events(source_name, source_row_key);
 
 create index if not exists vivencia_events_date_idx
   on public.vivencia_events(event_date);

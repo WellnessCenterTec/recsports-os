@@ -45,6 +45,19 @@ La migracion de Vivencia agrega:
 Al terminar, Supabase debe mostrar una fila con el estado
 `vivencia_phase_1_ready` y cuatro columnas con valor `true`.
 
+La Fase 2 ya usa esta estructura desde la pestaña
+**Vivencia > Carga de eventos**. Desde ahi se puede:
+
+- Capturar un evento manualmente.
+- Importar eventos desde CSV, XLSX o XLS.
+- Validar Campus, Nombre del evento y Fecha del evento.
+- Consultar el historial compartido guardado en Supabase.
+- Evitar duplicados al volver a cargar el mismo archivo.
+
+Si `vivencia.sql` se ejecuto antes de la Fase 2, vuelve a ejecutar el archivo
+completo para actualizar la clave unica usada por las importaciones. No se
+eliminan eventos ni participantes existentes.
+
 ## 3. Crear usuarios coordinadores
 
 Primero crea los usuarios en **Authentication > Users**. Despues registra su perfil en SQL Editor con este formato, cambiando el correo, nombre, rol y area:
