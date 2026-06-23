@@ -129,6 +129,11 @@ h2 {
   background: rgba(255, 255, 255, 0.22);
 }
 
+.import-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .import-status {
   display: none;
   margin-top: 12px;

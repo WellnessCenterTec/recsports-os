@@ -140,10 +140,8 @@ const listEl = document.querySelector("#activityList");
 const areaFilter = document.querySelector("#areaFilter");
 const monthFilter = document.querySelector("#monthFilter");
 const periodTabs = [...document.querySelectorAll("[data-period]")];
-const importButton = document.querySelector("#importButton");
-const importFile = document.querySelector("#importFile");
+const exportButton = document.querySelector("#exportButton");
 const importStatus = document.querySelector("#importStatus");
-const templateButton = document.querySelector("#templateButton");
 const captureButton = document.querySelector("#captureButton");
 const capturePanel = document.querySelector("#capturePanel");
 const captureForm = document.querySelector("#captureForm");
@@ -684,75 +682,6 @@ function setCaptureStatus(message, type = "info") {
   captureStatus.className = `capture-status ${message ? "is-visible" : ""} is-${type}`;
 }
 
-function normalizeHeader(header) {
-  return normalize(header).replace(/\s+/g, "");
-}
-
-function getImportValue(row, headers, names) {
-  const key = names.map(normalizeHeader).find((name) => headers[name] !== undefined);
-  return key ? String(row[headers[key]] || "").trim() : "";
-}
-
-function mapImportedRows(rawRows) {
-  const headers = (rawRows[0] || []).reduce((acc, header, index) => {
-    acc[normalizeHeader(header)] = index;
-    return acc;
-  }, {});
-  const hasSpecificDate = ["fechaespecifica", "fecha", "dia", "día"].some((header) => headers[normalizeHeader(header)] !== undefined);
-  const required = ["area", "actividad"];
-  const missing = required.filter((header) => headers[header] === undefined);
-  if (!hasSpecificDate) missing.unshift("fecha específica");
-
-  if (missing.length) {
-    throw new Error(`Faltan columnas: ${missing.map(titleCase).join(", ")}`);
-  }
-
-  return rawRows.slice(1).map((row, index) => {
-    const area = normalize(getImportValue(row, headers, ["area"]));
-    const specificDate = getImportValue(row, headers, ["fecha específica", "fecha especifica", "fecha", "dia", "día"]);
-    const parsedDate = parseSpecificDateValue(specificDate);
-    const month = parsedDate
-      ? normalize(parsedDate.toLocaleDateString("es-MX", { month: "long" }))
-      : normalize(getImportValue(row, headers, ["mes"]));
-    const periodKey = getPeriodKeyFromDate(parsedDate);
-    const weekRaw = parsedDate
-      ? getRowWeekLabel({ specificDate, week: getImportValue(row, headers, ["semana"]) }, periodKey || state.period)
-      : getImportValue(row, headers, ["semana"]);
-    const activity = getImportValue(row, headers, ["actividad"]);
-    const time = getImportValue(row, headers, ["hora", "horario"]);
-    const parts = [
-      time ? `Hora: ${time}` : "",
-      activity,
-    ].filter(Boolean);
-
-    return {
-      rowNumber: index + 2,
-      area,
-      month,
-      week: weekRaw,
-      specificDate,
-      activity: parts.join(" | "),
-      responsible: getImportValue(row, headers, ["responsable"]),
-      status: getImportValue(row, headers, ["estatus", "estado", "status"]),
-    };
-  }).filter((row) => row.area || row.specificDate || row.activity);
-}
-
-function validateImportedRows(rows) {
-  const areaKeys = new Set(areas.map((area) => area.key));
-  const errors = [];
-
-  rows.forEach((row) => {
-    if (!areaKeys.has(row.area)) errors.push(`Fila ${row.rowNumber}: área no válida`);
-    if (!parseSpecificDateValue(row.specificDate)) errors.push(`Fila ${row.rowNumber}: fecha específica no válida`);
-    if (!row.activity) errors.push(`Fila ${row.rowNumber}: falta actividad`);
-  });
-
-  if (errors.length) {
-    throw new Error(errors.slice(0, 6).join(". "));
-  }
-}
-
 async function submitImportedRow(row) {
   const periodKey = getPeriodKeyFromDate(getRowSpecificDate(row)) || state.period;
   const formData = new URLSearchParams();
@@ -792,77 +721,93 @@ function loadXlsxLibrary() {
   });
 }
 
-async function parseImportFile(file) {
-  const extension = file.name.split(".").pop().toLowerCase();
+function getExportableRows() {
+  const globallyDeleted = getGlobalDeletedActivities();
 
-  if (extension === "csv") {
-    return mapImportedRows(parseCsv(await file.text()));
-  }
-
-  const xlsx = await loadXlsxLibrary();
-  if (!xlsx) {
-    throw new Error("No se pudo cargar el lector de Excel. Intenta con archivo CSV.");
-  }
-
-  const workbook = xlsx.read(await file.arrayBuffer(), { type: "array" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-  return mapImportedRows(rows);
+  return state.rows
+    .filter((row) => {
+      if (isDeleteMarker(row)) return false;
+      const id = getActivityId(row);
+      return !state.deletedActivities.has(id) && !globallyDeleted.has(id);
+    })
+    .sort((a, b) => {
+      const dateA = getRowSpecificDate(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      const dateB = getRowSpecificDate(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+      if (dateA !== dateB) return dateA - dateB;
+      if (a.area !== b.area) return a.area.localeCompare(b.area, "es");
+      return a.activity.localeCompare(b.activity, "es");
+    });
 }
 
-async function handleImportFile(file) {
-  if (!file) return;
+function formatExportDate(date) {
+  if (!date) return "";
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+async function exportPlanningExcel() {
+  exportButton.disabled = true;
+  setImportStatus("Preparando el archivo Excel...", "info");
 
   try {
-    setImportStatus("Revisando archivo...", "info");
-    const importedRows = await parseImportFile(file);
-    validateImportedRows(importedRows);
-
-    if (!importedRows.length) {
-      throw new Error("El archivo no trae actividades para importar.");
-    }
-
-    setImportStatus(`Importando ${importedRows.length} actividades...`, "info");
-    for (let index = 0; index < importedRows.length; index += 1) {
-      const importedRow = importedRows[index];
-      await submitImportedRow(importedRow);
-      const periodKey = getPeriodKeyFromDate(getRowSpecificDate(importedRow)) || state.period;
-      addPendingActivity({
-        ...importedRow,
-        month: getRowMonth(importedRow),
-        week: getRowWeekLabel(importedRow, periodKey),
-      });
-      setImportStatus(`Importando ${index + 1} de ${importedRows.length} actividades...`, "info");
-      await new Promise((resolve) => setTimeout(resolve, 180));
-    }
-
-    render();
-    setImportStatus(`Listo: ${importedRows.length} actividades enviadas al tablero.`, "success");
     await refreshRows();
-    window.setTimeout(refreshRows, 3500);
-  } catch (error) {
-    setImportStatus(error.message || "No se pudo importar el archivo.", "error");
-  } finally {
-    importFile.value = "";
-  }
-}
+    const rows = getExportableRows();
+    if (!rows.length) {
+      throw new Error("No hay actividades disponibles para exportar.");
+    }
 
-function downloadImportTemplate() {
-  const rows = [
-    ["Fecha específica", "Área", "Actividad"],
-    ["10/08/2026", "direccion", "Reunión de seguimiento"],
-    ["10/08/2026", "clases", "Bienvenida de alumnos"],
-    ["14/09/2026", "comunicacion", "Semana Tec"],
-    ["22/03/2027", "intramuros", "Pausa de actividades"],
-  ];
-  const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "plantilla_planeacion.csv";
-  link.click();
-  URL.revokeObjectURL(url);
+    const xlsx = await loadXlsxLibrary();
+    const exportRows = rows.map((row) => {
+      const date = getRowSpecificDate(row);
+      const periodKey = getPeriodKeyFromDate(date);
+      const area = areas.find((item) => item.key === row.area);
+      const activityId = getActivityId(row);
+
+      return {
+        Fecha: formatExportDate(date),
+        Día: date ? titleCase(date.toLocaleDateString("es-MX", { weekday: "long" })) : "",
+        Periodo: periods[periodKey]?.label || "",
+        Mes: titleCase(getRowMonth(row)),
+        Semana: getRowWeekLabel(row, periodKey || state.period),
+        Área: area?.label || titleCase(row.area),
+        Actividad: row.activity,
+        Responsable: row.responsible || "",
+        Estatus: row.status || "",
+        Realizada: state.completedActivities.has(activityId) ? "Sí" : "No",
+        "Fecha de registro": row.timestamp || "",
+      };
+    });
+
+    const worksheet = xlsx.utils.json_to_sheet(exportRows);
+    worksheet["!cols"] = [
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 13 },
+      { wch: 16 },
+      { wch: 20 },
+      { wch: 52 },
+      { wch: 24 },
+      { wch: 16 },
+      { wch: 11 },
+      { wch: 20 },
+    ];
+    worksheet["!autofilter"] = { ref: `A1:K${exportRows.length + 1}` };
+
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Planeación");
+
+    const today = formatExportDate(new Date());
+    xlsx.writeFile(workbook, `planeacion_semestral_${today}.xlsx`, { compression: true });
+    setImportStatus(`Excel descargado: ${rows.length} actividades.`, "success");
+  } catch (error) {
+    setImportStatus(error.message || "No se pudo exportar el archivo.", "error");
+  } finally {
+    exportButton.disabled = false;
+  }
 }
 
 function mapCsvRows(csvRows) {
@@ -983,10 +928,8 @@ function setupFilters() {
   });
 }
 
-function setupImporter() {
-  importButton.addEventListener("click", () => importFile.click());
-  importFile.addEventListener("change", () => handleImportFile(importFile.files[0]));
-  templateButton.addEventListener("click", downloadImportTemplate);
+function setupExporter() {
+  exportButton.addEventListener("click", exportPlanningExcel);
 }
 
 function openCapturePanel() {
@@ -1380,7 +1323,7 @@ async function refreshRows() {
 
 async function init() {
   setupFilters();
-  setupImporter();
+  setupExporter();
   setupCaptureForm();
   setupCompletionToggles();
   setupDeleteButtons();
