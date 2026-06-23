@@ -1,1337 +1,170 @@
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1DL1GIPjzqPqXlJWlnWlAOWEiMJM9tPqknT6M4HCXEHM/gviz/tq?tqx=out:csv&sheet=Respuestas%20de%20formulario%201";
-const FORM_SUBMIT_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc2XKrOEilT6DDskV3zZAi0Ysn6n2j-1VsTR4U03kvcsQ0VHw/formResponse";
-const XLSX_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
-const formEntries = {
-  specificDate: "entry.1046506641",
-  area: "entry.864852996",
-  month: "entry.1216259793",
-  week: "entry.1237735269",
-  activity: "entry.129099553",
-};
-
-function getFormAreaValue(areaKey) {
-  const formAreaValues = {
-    comunicacion: "comunicación",
-    direccion: "dirección",
-  };
-  return formAreaValues[areaKey] || areaKey;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${name.toLowerCase().replaceAll(" ", "-")}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  addAudit("exportacion", "Reporte de colaboradores");
+  toast("Reporte de colaboradores descargado");
 }
 
-const months = [
-  "enero",
-  "febrero",
-  "marzo",
-  "abril",
-  "mayo",
-  "junio",
-  "julio",
-  "agosto",
-  "septiembre",
-  "octubre",
-  "noviembre",
-  "diciembre",
-];
-
-const refreshIntervalMs = 60000;
-const completionStorageKey = "planeacion-actividades-completadas-v1";
-const deletedStorageKey = "planeacion-actividades-ocultas-v1";
-const pendingStorageKey = "planeacion-actividades-pendientes-v1";
-const pendingActivityMaxAgeMs = 30 * 60 * 1000;
-const deleteMarkerPrefix = "__OCULTAR_ACTIVIDAD__::";
-const weekColumnWidth = 163;
-const tecWeekPeriods = ["feb-jun", "ago-dic"];
-const tecWeekNumbers = [6, 12];
-
-const periods = {
-  invierno: {
-    label: "Invierno",
-    months: ["enero", "febrero"],
-    start: new Date(2027, 0, 4),
-    weekCount: 6,
-    firstWeekNumber: 1,
-  },
-  "feb-jun": {
-    label: "Feb-Jun",
-    months: ["febrero", "marzo", "abril", "mayo", "junio"],
-    start: new Date(2027, 1, 8),
-    customWeeks: [
-      { number: 1, start: new Date(2027, 1, 8) },
-      { number: 2, start: new Date(2027, 1, 15) },
-      { number: 3, start: new Date(2027, 1, 22) },
-      { number: 4, start: new Date(2027, 2, 1) },
-      { number: 5, start: new Date(2027, 2, 8) },
-      { number: 6, start: new Date(2027, 2, 15) },
-      { key: "vacaciones-marzo", label: "Vacaciones", start: new Date(2027, 2, 22) },
-      { number: 7, start: new Date(2027, 2, 29) },
-      { number: 8, start: new Date(2027, 3, 5) },
-      { number: 9, start: new Date(2027, 3, 12) },
-      { number: 10, start: new Date(2027, 3, 19) },
-      { number: 11, start: new Date(2027, 3, 26) },
-      { number: 12, start: new Date(2027, 4, 3) },
-      { number: 13, start: new Date(2027, 4, 10) },
-      { number: 14, start: new Date(2027, 4, 17) },
-      { number: 15, start: new Date(2027, 4, 24) },
-      { number: 16, start: new Date(2027, 4, 31) },
-      { number: 17, start: new Date(2027, 5, 7) },
-      { number: 18, start: new Date(2027, 5, 14) },
-      { number: 19, start: new Date(2027, 5, 21) },
-    ],
-  },
-  verano: {
-    label: "Verano",
-    months: ["junio", "julio"],
-    start: new Date(2027, 5, 28),
-    weekCount: 5,
-    firstWeekNumber: 1,
-  },
-  "ago-dic": {
-    label: "Ago-Dic",
-    months: ["agosto", "septiembre", "octubre", "noviembre", "diciembre"],
-    start: new Date(2026, 7, 3),
-    weekCount: 20,
-  },
-};
-
-const areas = [
-  { key: "direccion", label: "Dirección", icon: "DIR", image: "assets/planeacion-direccion.jpg", className: "area-direccion" },
-  { key: "clases", label: "Clases", icon: "CLS", image: "assets/planeacion-clases.jpg", className: "area-clases" },
-  { key: "comunicacion", label: "Comunicación", icon: "COM", image: "assets/planeacion-comunicacion.jpg", className: "area-comunicacion" },
-  { key: "intramuros", label: "Intramuros", icon: "INT", image: "assets/planeacion-intramuros.jpg", className: "area-intramuros" },
-  { key: "gimnasio", label: "Gimnasio", icon: "GYM", image: "assets/planeacion-gimnasio.jpg", className: "area-gimnasio" },
-  { key: "vivencia", label: "Vivencia", icon: "VIV", image: "assets/planeacion-vivencia.jpg", className: "area-vivencia" },
-];
-
-const fallbackRows = [
-  {
-    timestamp: "3/6/2026 14:11:35",
-    area: "intramuros",
-    month: "septiembre",
-    activity: "Inscripciones nuevas",
-  },
-  {
-    timestamp: "3/6/2026 14:11:56",
-    area: "intramuros",
-    month: "septiembre",
-    activity: "Juntas previas de todos los torneos",
-  },
-  {
-    timestamp: "3/6/2026 14:12:21",
-    area: "intramuros",
-    month: "septiembre",
-    activity: "Reunión de equipo 3 veces al mes",
-  },
-];
-
-const state = {
-  rows: [],
-  period: "ago-dic",
-  area: "todas",
-  month: "todos",
-  selectedWeekKey: "",
-  isRefreshing: false,
-  lastRowsSignature: "",
-  completedActivities: new Set(readCompletedActivities()),
-  deletedActivities: new Set(readDeletedActivities()),
-  pendingActivities: readPendingActivities(),
-};
-
-const boardEl = document.querySelector("#planningBoard");
-const listEl = document.querySelector("#activityList");
-const areaFilter = document.querySelector("#areaFilter");
-const monthFilter = document.querySelector("#monthFilter");
-const periodTabs = [...document.querySelectorAll("[data-period]")];
-const exportButton = document.querySelector("#exportButton");
-const importStatus = document.querySelector("#importStatus");
-const captureButton = document.querySelector("#captureButton");
-const capturePanel = document.querySelector("#capturePanel");
-const captureForm = document.querySelector("#captureForm");
-const captureDate = document.querySelector("#captureDate");
-const captureArea = document.querySelector("#captureArea");
-const captureActivity = document.querySelector("#captureActivity");
-const captureClose = document.querySelector("#captureClose");
-const captureCancel = document.querySelector("#captureCancel");
-const captureStatus = document.querySelector("#captureStatus");
-
-function normalize(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function titleCase(value) {
-  const clean = String(value || "").trim();
-  return clean.charAt(0).toUpperCase() + clean.slice(1);
-}
-
-function escapeHtml(value) {
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function formatShortDate(date) {
-  return date.toLocaleDateString("es-MX", { day: "numeric", month: "short" }).replace(".", "");
-}
-
-function startOfDay(date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function parseSpecificDateValue(value) {
-  const normalizedValue = normalize(value);
-  const isoDate = normalizedValue.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
-  const numericDate = normalizedValue.match(/\b([0-3]?\d)[/-]([0-3]?\d)[/-](\d{2,4})\b/);
-
-  if (isoDate) {
-    const date = new Date(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]));
-    return Number.isNaN(date.getTime()) ? null : startOfDay(date);
-  }
-
-  if (numericDate) {
-    const firstValue = Number(numericDate[1]);
-    const secondValue = Number(numericDate[2]);
-    const day = secondValue > 12 ? secondValue : firstValue;
-    const month = (secondValue > 12 ? firstValue : secondValue) - 1;
-    const yearValue = numericDate[3];
-    const year = Number(yearValue.length === 2 ? `20${yearValue}` : yearValue);
-    const date = new Date(year, month, day);
-    return Number.isNaN(date.getTime()) ? null : startOfDay(date);
-  }
-
-  return null;
-}
-
-function readCompletedActivities() {
-  try {
-    return JSON.parse(localStorage.getItem(completionStorageKey) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveCompletedActivities() {
-  localStorage.setItem(completionStorageKey, JSON.stringify([...state.completedActivities]));
-}
-
-function readDeletedActivities() {
-  try {
-    return JSON.parse(localStorage.getItem(deletedStorageKey) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveDeletedActivities() {
-  localStorage.setItem(deletedStorageKey, JSON.stringify([...state.deletedActivities]));
-}
-
-function readPendingActivities() {
-  try {
-    return JSON.parse(localStorage.getItem(pendingStorageKey) || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function savePendingActivities() {
-  localStorage.setItem(pendingStorageKey, JSON.stringify(state.pendingActivities));
-}
-
-function getPendingActivityKey(row) {
-  const date = parseSpecificDateValue(row.specificDate);
-  const dateKey = date
-    ? [
-      date.getFullYear(),
-      String(date.getMonth() + 1).padStart(2, "0"),
-      String(date.getDate()).padStart(2, "0"),
-    ].join("-")
-    : normalize(row.specificDate);
-  return [normalize(row.area), dateKey, normalize(row.activity)].join("|");
-}
-
-function mergeRowsWithPending(remoteRows, pendingRows, now = Date.now()) {
-  const confirmedKeys = new Set(remoteRows.map(getPendingActivityKey));
-  const activePendingRows = pendingRows.filter((row) => now - Number(row.pendingAt || 0) <= pendingActivityMaxAgeMs);
-  const unconfirmedPendingRows = activePendingRows.filter((row) => !confirmedKeys.has(getPendingActivityKey(row)));
-  return { rows: [...remoteRows, ...unconfirmedPendingRows], pendingRows: unconfirmedPendingRows };
-}
-
-function addPendingActivity(row) {
-  const pendingRow = {
-    ...row,
-    timestamp: row.timestamp || new Date().toLocaleString("es-MX"),
-    pendingAt: Date.now(),
-  };
-  state.pendingActivities = [...state.pendingActivities, pendingRow];
-  state.rows = [...state.rows, pendingRow];
-  savePendingActivities();
-}
-
-function isDeleteMarker(row) {
-  return row.activity.startsWith(deleteMarkerPrefix);
-}
-
-function getMarkedDeleteId(row) {
-  return isDeleteMarker(row) ? row.activity.slice(deleteMarkerPrefix.length).trim() : "";
-}
-
-function getGlobalDeletedActivities() {
-  return new Set(state.rows.map(getMarkedDeleteId).filter(Boolean));
-}
-
-function getActivityId(row) {
-  const rawId = [
-    row.timestamp,
-    row.area,
-    row.month,
-    row.week,
-    row.specificDate,
-    row.activity,
-  ].map((value) => normalize(value)).join("|");
-  return btoa(unescape(encodeURIComponent(rawId)));
-}
-
-function getRowsSignature(rows) {
-  return rows.map(getActivityId).join("~");
-}
-
-function renderActivityControl(row, className) {
-  const id = getActivityId(row);
-  const activity = escapeHtml(row.activity);
-  const isCompleted = state.completedActivities.has(id);
+function renderBlueprint(area) {
+  const selected = area.id === "general" ? areas[0] : area;
   return `
-    <label class="${className} ${isCompleted ? "is-completed" : ""}">
-      <input type="checkbox" data-completion-id="${id}" ${isCompleted ? "checked" : ""} aria-label="Marcar actividad como realizada">
-      <span class="check-mark" aria-hidden="true"></span>
-      <span class="activity-copy" title="${activity}" data-full-text="${activity}">${activity}</span>
-      <button
-        class="delete-activity"
-        type="button"
-        data-delete-id="${id}"
-        data-delete-area="${escapeHtml(row.area)}"
-        data-delete-month="${escapeHtml(getRowMonth(row))}"
-        data-delete-week="${escapeHtml(getRowWeekLabel(row))}"
-        aria-label="Ocultar actividad"
-      >×</button>
-    </label>
+    <div class="blueprint-grid">
+      <section class="blueprint-card">
+        <h3>Mapa de modulos</h3>
+        <p>El menu principal queda organizado por las ocho areas operativas y una vista ejecutiva. Cada modulo comparte el mismo patron para que los coordinadores no aprendan ocho sistemas distintos.</p>
+        <div class="chip-list">${areas.map((a) => `<span class="chip">${a.name}</span>`).join("")}</div>
+      </section>
+      <section class="blueprint-card">
+        <h3>Submenus por modulo</h3>
+        <p>La navegacion interna recomendada separa captura, seguimiento, indicadores, reportes y configuracion de catalogos.</p>
+        <div class="chip-list">${submenus.map((s) => `<span class="chip">${s}</span>`).join("")}</div>
+      </section>
+      <section class="blueprint-card">
+        <h3>Base de datos recomendada</h3>
+        <p>PostgreSQL administrado en Supabase. Se mantiene una tabla minima de estudiantes y tablas transaccionales por operacion.</p>
+        <ul>${dbTables.map((t) => `<li>${t}</li>`).join("")}</ul>
+      </section>
+      <section class="blueprint-card">
+        <h3>Arquitectura tecnologica</h3>
+        <p>Next.js en Vercel para la app, Supabase para base de datos y autenticacion, almacenamiento para archivos, funciones serverless para PDF/Excel y politicas por rol en la base.</p>
+        <div class="chip-list">
+          <span class="chip">Vercel</span><span class="chip">Next.js</span><span class="chip">Supabase</span><span class="chip">PostgreSQL</span><span class="chip">PDF</span><span class="chip">Excel</span>
+        </div>
+      </section>
+      <section class="blueprint-card wide">
+        <h3>Permisos por rol</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Rol</th><th>Alcance</th><th>Permisos</th></tr></thead>
+            <tbody>${roleMatrix.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </section>
+      <section class="blueprint-card wide">
+        <h3>Definicion del modulo activo: ${selected.name}</h3>
+        <div class="module-grid">
+          <article class="module-card" data-tone="${selected.tone}">
+            <h3>Captura</h3>
+            <p>${selected.capture.join(", ")}.</p>
+          </article>
+          <article class="module-card" data-tone="${selected.tone}">
+            <h3>Indicadores automaticos</h3>
+            <p>${selected.indicators.join(", ")}.</p>
+          </article>
+          <article class="module-card" data-tone="${selected.tone}">
+            <h3>Graficas sugeridas</h3>
+            <p>${selected.charts.join(", ")}.</p>
+          </article>
+        </div>
+      </section>
+      <section class="blueprint-card wide">
+        <h3>Wireframes funcionales</h3>
+        <div class="wireframes">
+          <div class="wireframe">
+            <strong>Computadora</strong>
+            <div class="wire-top"></div>
+            <div class="wire-body"><div class="wire-side"></div><div class="wire-main"><div class="wire-kpis"><div class="wire-kpi"></div><div class="wire-kpi"></div><div class="wire-kpi"></div><div class="wire-kpi"></div></div><div class="wire-row"></div><div class="wire-row"></div><div class="wire-row"></div></div></div>
+          </div>
+          <div class="wireframe">
+            <strong>Celular</strong>
+            <div class="wire-top"></div>
+            <div class="wire-main"><div class="wire-row"></div><div class="wire-row"></div><div class="wire-kpi"></div><div class="wire-kpi"></div><div class="wire-row"></div></div>
+          </div>
+          <div class="wireframe">
+            <strong>Formulario</strong>
+            <div class="wire-top"></div>
+            <div class="wire-main"><div class="wire-row"></div><div class="wire-row"></div><div class="wire-row"></div><div class="wire-row"></div><div class="wire-kpi"></div></div>
+          </div>
+        </div>
+      </section>
+    </div>
   `;
 }
 
-function getCurrentPeriod() {
-  return periods[state.period] || periods["ago-dic"];
-}
-
-function buildPeriodWeeks(period, periodKey = state.period) {
-  if (period.customWeeks) {
-    return period.customWeeks.map((item) => {
-      const start = new Date(item.start);
-      const end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      const key = item.key || `s${item.number}`;
-      const label = item.label || `Semana ${item.number}`;
-
-      return {
-        key,
-        number: item.number ?? null,
-        month: normalize(start.toLocaleDateString("es-MX", { month: "long" })),
-        start,
-        end,
-        label,
-        isBreak: Boolean(item.isBreak || normalize(label).includes("vacacion")),
-        isTecWeek: tecWeekPeriods.includes(periodKey) && tecWeekNumbers.includes(item.number),
-        range: `${formatShortDate(start)}-${formatShortDate(end)}`,
-      };
-    });
-  }
-
-  return Array.from({ length: period.weekCount }, (_, index) => {
-    const weekNumber = index + (period.firstWeekNumber ?? 0);
-    const start = new Date(period.start);
-    start.setDate(period.start.getDate() + (index * 7));
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    return {
-      key: `s${weekNumber}`,
-      number: weekNumber,
-      month: normalize(start.toLocaleDateString("es-MX", { month: "long" })),
-      start,
-      end,
-      label: `Semana ${weekNumber}`,
-      isBreak: false,
-      isTecWeek: tecWeekPeriods.includes(periodKey) && tecWeekNumbers.includes(weekNumber),
-      range: `${formatShortDate(start)}-${formatShortDate(end)}`,
-    };
-  });
-}
-
-function getPeriodWeeks() {
-  return buildPeriodWeeks(getCurrentPeriod(), state.period);
-}
-
-function getCurrentWeekKey() {
-  const today = startOfDay(new Date());
-  const currentWeek = getPeriodWeeks().find((week) => (
-    today >= startOfDay(week.start) && today <= startOfDay(week.end)
-  ));
-
-  return currentWeek ? currentWeek.key : "";
-}
-
-function getMonthColumns() {
-  const period = getCurrentPeriod();
-  const periodWeeks = getPeriodWeeks();
-  return period.months.map((month) => ({
-    key: month,
-    weeks: periodWeeks.filter((week) => week.month === month),
-  })).filter((month) => month.weeks.length);
-}
-
-function getVisibleMonthColumns() {
-  const monthColumns = getMonthColumns();
-  return state.month === "todos"
-    ? monthColumns
-    : monthColumns.filter((month) => month.key === state.month);
-}
-
-function getPlanningColumns(visibleMonths) {
-  return visibleMonths.flatMap((month) => month.weeks.map((week) => ({
-    key: `${month.key}-${week.key}`,
-    month: month.key,
-    type: "week",
-    weekKey: week.key,
-    weekNumber: week.number,
-    label: week.label,
-    isBreak: week.isBreak,
-    isTecWeek: week.isTecWeek,
-    range: week.range,
-  })));
-}
-
-function getWeeksForPeriod(periodKey = state.period) {
-  const period = periods[periodKey] || getCurrentPeriod();
-  return buildPeriodWeeks(period, periodKey);
-}
-
-function getWeekByKey(weekKey, periodKey = state.period) {
-  return getWeeksForPeriod(periodKey).find((week) => week.key === weekKey);
-}
-
-function getRowSpecificDate(row) {
-  return parseSpecificDateValue(row.specificDate);
-}
-
-function getWeekKeyFromDate(date, periodKey = state.period) {
-  if (!date) return "";
-  const target = startOfDay(date);
-  const matchingWeek = getWeeksForPeriod(periodKey).find((week) => (
-    target >= startOfDay(week.start) && target <= startOfDay(week.end)
-  ));
-  return matchingWeek ? matchingWeek.key : "";
-}
-
-function getPeriodKeyFromDate(date) {
-  if (!date) return "";
-  const target = startOfDay(date);
-  const match = Object.entries(periods).find(([periodKey]) => (
-    getWeeksForPeriod(periodKey).some((week) => (
-      target >= startOfDay(week.start) && target <= startOfDay(week.end)
-    ))
-  ));
-  return match ? match[0] : "";
-}
-
-function getRowMonth(row) {
-  const specificDate = getRowSpecificDate(row);
-  if (specificDate) {
-    return normalize(specificDate.toLocaleDateString("es-MX", { month: "long" }));
-  }
-  return normalize(row.month);
-}
-
-function getRowWeekLabel(row, periodKey = state.period) {
-  const week = getWeekByKey(getRowWeekKey(row, periodKey), periodKey);
-  return week ? week.label : row.week || "Semana 0";
-}
-
-function getRowDayLabel(row) {
-  const specificDate = getRowSpecificDate(row);
-  if (!specificDate) return "";
-  return titleCase(specificDate.toLocaleDateString("es-MX", { weekday: "long" }));
-}
-
-function getSelectedWeek() {
-  const periodWeeks = getPeriodWeeks();
-  const selectedWeek = periodWeeks.find((week) => week.key === state.selectedWeekKey);
-  if (selectedWeek) return selectedWeek;
-
-  const currentWeek = periodWeeks.find((week) => week.key === getCurrentWeekKey());
-  if (currentWeek) {
-    state.selectedWeekKey = currentWeek.key;
-    return currentWeek;
-  }
-
-  const visibleWeek = getPlanningColumns(getVisibleMonthColumns())[0];
-  const fallbackWeek = visibleWeek ? getWeekByKey(visibleWeek.weekKey) : periodWeeks[0];
-  state.selectedWeekKey = fallbackWeek?.key || "";
-  return fallbackWeek || null;
-}
-
-function getRowWeekKey(row, periodKey = state.period) {
-  const specificDateWeekKey = getWeekKeyFromDate(getRowSpecificDate(row), periodKey);
-  if (specificDateWeekKey) return specificDateWeekKey;
-
-  const raw = normalize(row.week);
-  if (!raw) return "";
-  const periodWeeks = getWeeksForPeriod(periodKey);
-
-  if (raw.includes("vacacion")) {
-    const breakWeek = periodWeeks.find((week) => week.isBreak);
-    return breakWeek ? breakWeek.key : "";
-  }
-
-  if (raw.includes("semana tec")) {
-    const explicitTecWeek = raw.match(/\b(6|12)\b/);
-    if (explicitTecWeek) {
-      const weekKey = `s${explicitTecWeek[1]}`;
-      return periodWeeks.some((week) => week.key === weekKey && week.isTecWeek) ? weekKey : "";
-    }
-  }
-
-  const explicitWeek = raw.match(/(?:semana|s)?\s*(1[0-9]|2[0-9]|[0-9])\b/);
-  if (explicitWeek) {
-    const weekKey = `s${explicitWeek[1]}`;
-    return periodWeeks.some((week) => week.key === weekKey) ? weekKey : "";
-  }
-
-  const parsedDate = new Date(row.week);
-  if (!Number.isNaN(parsedDate.getTime())) {
-    const matchingWeek = periodWeeks.find((week) => parsedDate >= week.start && parsedDate <= week.end);
-    return matchingWeek ? matchingWeek.key : "";
-  }
-
-  return "";
-}
-
-function rowMatchesPlanningColumn(row, column, areaKey, periodKey = state.period) {
-  return row.area === areaKey && getRowWeekKey(row, periodKey) === column.weekKey;
-}
-
-function getPlanningCellKey(areaKey, weekKey) {
-  return `${areaKey}|${weekKey}`;
-}
-
-function buildPlanningIndex(rows, periodKey = state.period) {
-  const index = new Map();
-
-  rows.forEach((row) => {
-    const weekKey = getRowWeekKey(row, periodKey);
-    if (!row.area || !weekKey) return;
-
-    const cellKey = getPlanningCellKey(row.area, weekKey);
-    const currentRows = index.get(cellKey) || [];
-    currentRows.push(row);
-    index.set(cellKey, currentRows);
-  });
-
-  return index;
-}
-
-function parseActivitySchedule(activity, fallbackWeek, specificDate = "") {
-  const text = String(activity || "");
-  const normalizedText = normalize(text);
-  const monthIndexes = {
-    ene: 0,
-    enero: 0,
-    feb: 1,
-    febrero: 1,
-    mar: 2,
-    marzo: 2,
-    abr: 3,
-    abril: 3,
-    may: 4,
-    mayo: 4,
-    jun: 5,
-    junio: 5,
-    jul: 6,
-    julio: 6,
-    ago: 7,
-    agosto: 7,
-    sep: 8,
-    septiembre: 8,
-    oct: 9,
-    octubre: 9,
-    nov: 10,
-    noviembre: 10,
-    dic: 11,
-    diciembre: 11,
-  };
-  let date = null;
-  let dateLabel = "";
-  let timeLabel = "";
-
-  const normalizedSpecificDate = normalize(specificDate);
-  const specificIsoDate = normalizedSpecificDate.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
-  const specificNumericDate = normalizedSpecificDate.match(/\b([0-3]?\d)[/-]([0-3]?\d)[/-](\d{2,4})\b/);
-  const numericDate = normalizedText.match(/\b([0-3]?\d)[/-]([0-1]?\d)(?:[/-](\d{2,4}))?\b/);
-  const namedDate = normalizedText.match(/\b([0-3]?\d)\s*(?:de\s*)?(ene(?:ro)?|feb(?:rero)?|mar(?:zo)?|abr(?:il)?|may(?:o)?|jun(?:io)?|jul(?:io)?|ago(?:sto)?|sep(?:tiembre)?|oct(?:ubre)?|nov(?:iembre)?|dic(?:iembre)?)\b/);
-  const timeMatch = normalizedText.match(/\b([01]?\d|2[0-3])(?::|\.)([0-5]\d)\s*(am|pm)?\b|\b([1-9]|1[0-2])\s*(am|pm)\b/);
-
-  if (specificIsoDate) {
-    const year = Number(specificIsoDate[1]);
-    const month = Number(specificIsoDate[2]) - 1;
-    const day = Number(specificIsoDate[3]);
-    date = new Date(year, month, day);
-    dateLabel = date.toLocaleDateString("es-MX", { day: "numeric", month: "short" }).replace(".", "");
-  } else if (specificNumericDate) {
-    const firstValue = Number(specificNumericDate[1]);
-    const secondValue = Number(specificNumericDate[2]);
-    const day = secondValue > 12 ? secondValue : firstValue;
-    const month = (secondValue > 12 ? firstValue : secondValue) - 1;
-    const yearValue = specificNumericDate[3];
-    const year = Number(yearValue.length === 2 ? `20${yearValue}` : yearValue);
-    date = new Date(year, month, day);
-    dateLabel = date.toLocaleDateString("es-MX", { day: "numeric", month: "short" }).replace(".", "");
-  } else if (numericDate) {
-    const day = Number(numericDate[1]);
-    const month = Number(numericDate[2]) - 1;
-    const year = numericDate[3]
-      ? Number(numericDate[3].length === 2 ? `20${numericDate[3]}` : numericDate[3])
-      : fallbackWeek.start.getFullYear();
-    date = new Date(year, month, day);
-    dateLabel = date.toLocaleDateString("es-MX", { day: "numeric", month: "short" }).replace(".", "");
-  } else if (namedDate) {
-    const day = Number(namedDate[1]);
-    const month = monthIndexes[namedDate[2]];
-    date = new Date(fallbackWeek.start.getFullYear(), month, day);
-    dateLabel = date.toLocaleDateString("es-MX", { day: "numeric", month: "short" }).replace(".", "");
-  }
-
-  if (!date) {
-    date = new Date(fallbackWeek.start);
-  }
-
-  if (timeMatch) {
-    let hour = Number(timeMatch[1] || timeMatch[4]);
-    const minutes = Number(timeMatch[2] || 0);
-    const meridiem = timeMatch[3] || timeMatch[5] || "";
-    if (meridiem === "pm" && hour < 12) hour += 12;
-    if (meridiem === "am" && hour === 12) hour = 0;
-    date.setHours(hour, minutes, 0, 0);
-    timeLabel = `${String(hour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-  }
-
-  return {
-    date,
-    dateLabel,
-    timeLabel,
-    sortValue: date.getTime(),
-  };
-}
-
-function parseCsv(text) {
-  const rows = [];
-  let current = [];
-  let field = "";
-  let inQuotes = false;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    const next = text[index + 1];
-
-    if (char === '"' && inQuotes && next === '"') {
-      field += '"';
-      index += 1;
-    } else if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      current.push(field);
-      field = "";
-    } else if ((char === "\n" || char === "\r") && !inQuotes) {
-      if (field || current.length) {
-        current.push(field);
-        rows.push(current);
-      }
-      field = "";
-      current = [];
-      if (char === "\r" && next === "\n") index += 1;
-    } else {
-      field += char;
-    }
-  }
-
-  if (field || current.length) {
-    current.push(field);
-    rows.push(current);
-  }
-
-  return rows;
-}
-
-function setImportStatus(message, type = "info") {
-  importStatus.textContent = message;
-  importStatus.className = `import-status ${message ? "is-visible" : ""} is-${type}`;
-}
-
-function setCaptureStatus(message, type = "info") {
-  captureStatus.textContent = message;
-  captureStatus.className = `capture-status ${message ? "is-visible" : ""} is-${type}`;
-}
-
-async function submitImportedRow(row) {
-  const periodKey = getPeriodKeyFromDate(getRowSpecificDate(row)) || state.period;
-  const formData = new URLSearchParams();
-  formData.set(formEntries.specificDate, row.specificDate);
-  formData.set(formEntries.area, getFormAreaValue(row.area));
-  formData.set(formEntries.month, getRowMonth(row));
-  formData.set(formEntries.week, getRowWeekLabel(row, periodKey));
-  formData.set(formEntries.activity, row.activity);
-
-  await fetch(FORM_SUBMIT_URL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: formData.toString(),
-  });
-}
-
-function loadXlsxLibrary() {
-  if (globalThis.XLSX) return Promise.resolve(globalThis.XLSX);
-
-  return new Promise((resolve, reject) => {
-    const existingScript = document.querySelector(`[src="${XLSX_SCRIPT_URL}"]`);
-    if (existingScript) {
-      existingScript.addEventListener("load", () => resolve(globalThis.XLSX), { once: true });
-      existingScript.addEventListener("error", reject, { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = XLSX_SCRIPT_URL;
-    script.async = true;
-    script.onload = () => resolve(globalThis.XLSX);
-    script.onerror = () => reject(new Error("No se pudo cargar el lector de Excel. Intenta con archivo CSV."));
-    document.head.appendChild(script);
-  });
-}
-
-function getExportableRows() {
-  const globallyDeleted = getGlobalDeletedActivities();
-
-  return state.rows
-    .filter((row) => {
-      if (isDeleteMarker(row)) return false;
-      const id = getActivityId(row);
-      return !state.deletedActivities.has(id) && !globallyDeleted.has(id);
-    })
-    .sort((a, b) => {
-      const dateA = getRowSpecificDate(a)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-      const dateB = getRowSpecificDate(b)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-      if (dateA !== dateB) return dateA - dateB;
-      if (a.area !== b.area) return a.area.localeCompare(b.area, "es");
-      return a.activity.localeCompare(b.activity, "es");
-    });
-}
-
-function formatExportDate(date) {
-  if (!date) return "";
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, "0"),
-    String(date.getDate()).padStart(2, "0"),
-  ].join("-");
-}
-
-async function exportPlanningExcel() {
-  exportButton.disabled = true;
-  setImportStatus("Preparando el archivo Excel...", "info");
-
-  try {
-    await refreshRows();
-    const rows = getExportableRows();
-    if (!rows.length) {
-      throw new Error("No hay actividades disponibles para exportar.");
-    }
-
-    const xlsx = await loadXlsxLibrary();
-    const exportRows = rows.map((row) => {
-      const date = getRowSpecificDate(row);
-      const periodKey = getPeriodKeyFromDate(date);
-      const area = areas.find((item) => item.key === row.area);
-      const activityId = getActivityId(row);
-
-      return {
-        Fecha: formatExportDate(date),
-        Día: date ? titleCase(date.toLocaleDateString("es-MX", { weekday: "long" })) : "",
-        Periodo: periods[periodKey]?.label || "",
-        Mes: titleCase(getRowMonth(row)),
-        Semana: getRowWeekLabel(row, periodKey || state.period),
-        Área: area?.label || titleCase(row.area),
-        Actividad: row.activity,
-        Responsable: row.responsible || "",
-        Estatus: row.status || "",
-        Realizada: state.completedActivities.has(activityId) ? "Sí" : "No",
-        "Fecha de registro": row.timestamp || "",
-      };
-    });
-
-    const worksheet = xlsx.utils.json_to_sheet(exportRows);
-    worksheet["!cols"] = [
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 13 },
-      { wch: 16 },
-      { wch: 20 },
-      { wch: 52 },
-      { wch: 24 },
-      { wch: 16 },
-      { wch: 11 },
-      { wch: 20 },
-    ];
-    worksheet["!autofilter"] = { ref: `A1:K${exportRows.length + 1}` };
-
-    const workbook = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(workbook, worksheet, "Planeación");
-
-    const today = formatExportDate(new Date());
-    xlsx.writeFile(workbook, `planeacion_semestral_${today}.xlsx`, { compression: true });
-    setImportStatus(`Excel descargado: ${rows.length} actividades.`, "success");
-  } catch (error) {
-    setImportStatus(error.message || "No se pudo exportar el archivo.", "error");
-  } finally {
-    exportButton.disabled = false;
-  }
-}
-
-function mapCsvRows(csvRows) {
-  const headers = csvRows[0] || [];
-  const indexByHeader = headers.reduce((acc, header, index) => {
-    acc[normalize(header)] = index;
-    return acc;
-  }, {});
-  const timestampIndex = indexByHeader["marca temporal"] ?? 0;
-  const areaIndex = indexByHeader.area ?? 1;
-  const monthIndex = indexByHeader.mes;
-  const weekIndex = indexByHeader.semana;
-  const activityIndex = indexByHeader.actividad ?? (indexByHeader.semana === undefined ? 3 : 4);
-  const specificDateIndex = indexByHeader["fecha especifica"] ?? indexByHeader.fecha;
-  const responsibleIndex = indexByHeader.responsable;
-  const statusIndex = indexByHeader.estatus ?? indexByHeader.estado ?? indexByHeader.status;
-
-  return csvRows.slice(1).map((row) => {
-    const specificDate = specificDateIndex === undefined ? "" : String(row[specificDateIndex] || "").trim();
-    const parsedDate = parseSpecificDateValue(specificDate);
-    const month = monthIndex === undefined
-      ? (parsedDate ? normalize(parsedDate.toLocaleDateString("es-MX", { month: "long" })) : "")
-      : normalize(row[monthIndex]);
-
-    return {
-      timestamp: row[timestampIndex] || "",
-      area: normalize(row[areaIndex]),
-      month,
-      activity: String(row[activityIndex] || "").trim(),
-      week: weekIndex === undefined ? "" : String(row[weekIndex] || "").trim(),
-      specificDate,
-      responsible: responsibleIndex === undefined ? "" : String(row[responsibleIndex] || "").trim(),
-      status: statusIndex === undefined ? "" : String(row[statusIndex] || "").trim(),
-    };
-  }).filter((row) => row.area && getRowMonth(row) && row.activity);
-}
-
-async function loadRows() {
-  if (!SHEET_CSV_URL) {
-    return fallbackRows;
-  }
-
-  try {
-    const separator = SHEET_CSV_URL.includes("?") ? "&" : "?";
-    const freshUrl = `${SHEET_CSV_URL}${separator}_=${Date.now()}`;
-    const response = await fetch(freshUrl, { cache: "no-store" });
-    if (!response.ok) throw new Error("No se pudo leer la hoja");
-    const rows = mapCsvRows(parseCsv(await response.text()));
-    return rows.length ? rows : fallbackRows;
-  } catch (error) {
-    return fallbackRows;
-  }
-}
-
-function renderPeriodTabs() {
-  periodTabs.forEach((button) => {
-    const isActive = button.dataset.period === state.period;
-    button.classList.toggle("is-active", isActive);
-    button.setAttribute("aria-pressed", String(isActive));
-  });
-}
-
-function renderMonthFilter() {
-  const period = getCurrentPeriod();
-  monthFilter.innerHTML = [
-    '<option value="todos">Todos los meses</option>',
-    ...period.months.map((month) => `<option value="${month}">${titleCase(month)}</option>`),
-  ].join("");
-
-  if (state.month !== "todos" && !period.months.includes(state.month)) {
-    state.month = "todos";
-  }
-
-  monthFilter.value = state.month;
-}
-
-function setupFilters() {
-  areaFilter.innerHTML = [
-    '<option value="todas">Todas las áreas</option>',
-    ...areas.map((area) => `<option value="${area.key}">${area.label}</option>`),
-  ].join("");
-
-  renderPeriodTabs();
-  renderMonthFilter();
-
-  periodTabs.forEach((button) => {
-    button.addEventListener("click", () => {
-      state.period = button.dataset.period;
-      state.month = "todos";
-      state.selectedWeekKey = "";
-      renderPeriodTabs();
-      renderMonthFilter();
-      render();
-    });
-  });
-
-  areaFilter.addEventListener("change", () => {
-    state.area = areaFilter.value;
-    render();
-  });
-
-  monthFilter.addEventListener("change", () => {
-    state.month = monthFilter.value;
-    const selectedWeek = getWeekByKey(state.selectedWeekKey);
-    if (state.month !== "todos" && selectedWeek?.month !== state.month) {
-      state.selectedWeekKey = "";
+renderCareers();
+render();
+loadSupabaseSession().then(() => render());
+
+$$(".segmented button").forEach((button) => button.addEventListener("click", () => {
+  activeView = button.dataset.view;
+  render();
+}));
+
+["periodFilter", "levelFilter", "careerFilter", "genderFilter", "globalSearch", "roleSelect"].forEach((id) => {
+  $(`#${id}`).addEventListener("input", (event) => {
+    if (id === "roleSelect") {
+      const user = demoUsers.find((item) => item.id === event.target.value) || demoUsers[0];
+      saveSession(user);
+      addAudit("cambio_rol", `Cambio a ${user.name}`);
+      activeArea = user.role === "direccion" ? "general" : user.area;
+      activeView = "dashboard";
     }
     render();
   });
+});
 
-  document.querySelector("#resetFilters").addEventListener("click", () => {
-    state.area = "todas";
-    state.month = "todos";
-    state.selectedWeekKey = "";
-    areaFilter.value = state.area;
-    renderMonthFilter();
-    render();
-  });
-}
+$("#themeSelect").addEventListener("input", (event) => {
+  activeTheme = event.target.value;
+  localStorage.setItem(THEME_KEY, activeTheme);
+  addAudit("tema", `Tema visual: ${activeTheme}`);
+  applyTheme();
+  toast("Tema visual actualizado");
+});
 
-function setupExporter() {
-  exportButton.addEventListener("click", exportPlanningExcel);
-}
+$("#exportExcel").addEventListener("click", () => downloadCsv("recsports-export"));
+$("#exportPdf").addEventListener("click", () => {
+  addAudit("exportacion", `PDF/impresion de ${labelArea(activeArea)}`);
+  toast("Abriendo impresion para guardar como PDF");
+  setTimeout(() => window.print(), 350);
+});
 
-function openCapturePanel() {
-  capturePanel.hidden = false;
-  setCaptureStatus("");
-  captureDate.focus();
-}
-
-function closeCapturePanel() {
-  capturePanel.hidden = true;
-  setCaptureStatus("");
-}
-
-function setupCaptureForm() {
-  captureArea.innerHTML = areas.map((area) => (
-    `<option value="${area.key}">${area.label}</option>`
-  )).join("");
-
-  captureButton.addEventListener("click", openCapturePanel);
-  captureClose.addEventListener("click", closeCapturePanel);
-  captureCancel.addEventListener("click", closeCapturePanel);
-
-  captureForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const row = {
-      timestamp: new Date().toLocaleString("es-MX"),
-      area: normalize(captureArea.value),
-      month: "",
-      week: "",
-      specificDate: captureDate.value,
-      activity: captureActivity.value.trim(),
-      responsible: "",
-      status: "",
-    };
-
-    if (!parseSpecificDateValue(row.specificDate)) {
-      setCaptureStatus("Selecciona una fecha válida.", "error");
-      return;
-    }
-
-    if (!row.area || !row.activity) {
-      setCaptureStatus("Completa área y actividad.", "error");
-      return;
-    }
-
-    const targetPeriod = getPeriodKeyFromDate(getRowSpecificDate(row));
-
-    if (!targetPeriod) {
-      setCaptureStatus("La fecha seleccionada no cae dentro de un periodo configurado.", "error");
-      return;
-    }
-
-    try {
-      setCaptureStatus("Guardando actividad...", "info");
-      await submitImportedRow(row);
-      state.period = targetPeriod;
-      state.month = "todos";
-      state.selectedWeekKey = getRowWeekKey(row, targetPeriod);
-      renderPeriodTabs();
-      renderMonthFilter();
-      addPendingActivity({
-        ...row,
-        month: getRowMonth(row),
-        week: getRowWeekLabel(row, targetPeriod),
-      });
-      captureForm.reset();
-      render();
-      setCaptureStatus("Actividad guardada y colocada en el calendario.", "success");
-      window.setTimeout(refreshRows, 3500);
-    } catch {
-      setCaptureStatus("No se pudo guardar la actividad. Intenta de nuevo.", "error");
-    }
-  });
-}
-
-function getFilteredRows() {
-  const periodMonths = getCurrentPeriod().months;
-  const globalDeletedActivities = getGlobalDeletedActivities();
-  return state.rows.filter((row) => {
-    if (isDeleteMarker(row)) return false;
-
-    const id = getActivityId(row);
-    const deleteMatch = !state.deletedActivities.has(id) && !globalDeletedActivities.has(id);
-    const rowMonth = getRowMonth(row);
-    const periodMatch = periodMonths.includes(rowMonth);
-    const weekMatch = Boolean(getRowWeekKey(row));
-    const areaMatch = state.area === "todas" || row.area === state.area;
-    const monthMatch = state.month === "todos" || rowMonth === state.month;
-    return deleteMatch && periodMatch && weekMatch && areaMatch && monthMatch;
-  });
-}
-
-function getSummaryRows() {
-  const periodMonths = getCurrentPeriod().months;
-  const globalDeletedActivities = getGlobalDeletedActivities();
-  return state.rows.filter((row) => {
-    if (isDeleteMarker(row)) return false;
-    const id = getActivityId(row);
-    const rowMonth = getRowMonth(row);
-    return !state.deletedActivities.has(id)
-      && !globalDeletedActivities.has(id)
-      && periodMonths.includes(rowMonth)
-      && Boolean(getRowWeekKey(row));
-  });
-}
-
-function renderLastUpdated() {
-  document.querySelector("#lastUpdated").textContent = `Actualizado: ${new Date().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}`;
-}
-
-function renderBoard(rows) {
-  const visibleAreas = state.area === "todas" ? areas : areas.filter((area) => area.key === state.area);
-  const visibleMonths = getVisibleMonthColumns();
-  const planningColumns = getPlanningColumns(visibleMonths);
-  const currentWeekKey = getCurrentWeekKey();
-  const selectedWeek = getSelectedWeek();
-  const selectedWeekKey = selectedWeek?.key || "";
-  const planningIndex = buildPlanningIndex(rows);
-
-  boardEl.style.gridTemplateColumns = `190px repeat(${planningColumns.length}, minmax(${weekColumnWidth}px, 1fr))`;
-  boardEl.style.minWidth = `${190 + (planningColumns.length * weekColumnWidth)}px`;
-
-  const monthHeader = [
-    '<div class="cell head-cell area-head">Área</div>',
-    ...visibleMonths.map((month, index) => (
-      `<div class="cell head-cell month-head month-${index % 6}" style="grid-column: span ${month.weeks.length};">${titleCase(month.key)}</div>`
-    )),
-  ];
-
-  const weekHeader = planningColumns.map((column) => `
-    <button class="cell head-cell week-head ${column.isBreak ? "is-break-week" : ""} ${column.isTecWeek ? "is-tec-week" : ""} ${column.weekKey === currentWeekKey ? "is-current-week" : ""} ${column.weekKey === selectedWeekKey ? "is-selected-week" : ""}" type="button" data-week-key="${column.weekKey}" aria-pressed="${column.weekKey === selectedWeekKey}">
-      <span>${column.label}</span>
-      <small>${column.range}</small>
-      ${column.isTecWeek ? '<em class="tec-week-badge">Semana Tec</em>' : ""}
-      ${column.weekKey === currentWeekKey ? '<em class="current-week-badge">Actual</em>' : ""}
-    </button>
-  `);
-
-  const body = visibleAreas.flatMap((area) => [
-    `<div class="cell area-cell ${area.className}">
-      ${area.image
-        ? `<img class="area-photo" src="${area.image}" alt="${area.label}" loading="lazy" decoding="async">`
-        : `<span class="area-icon">${area.icon}</span>`}
-      <span>${area.label}</span>
-    </div>`,
-    ...planningColumns.map((column) => {
-      const activities = planningIndex.get(getPlanningCellKey(area.key, column.weekKey)) || [];
-      const content = activities.length
-        ? activities.map((row) => renderActivityControl(row, "activity-chip")).join("")
-        : "";
-      return `<div class="cell plan-cell ${column.isBreak ? "is-break-week" : ""} ${column.isTecWeek ? "is-tec-week" : ""} ${column.weekKey === currentWeekKey ? "is-current-week" : ""} ${column.weekKey === selectedWeekKey ? "is-selected-week" : ""}" data-week-key="${column.weekKey}" role="button" tabindex="0" aria-label="Ver resumen de ${column.label}, ${column.range}">${content}</div>`;
-    }),
-  ]);
-
-  boardEl.innerHTML = [...monthHeader, ...weekHeader, ...body].join("");
-}
-
-function renderList(rows) {
-  const selectedWeek = getSelectedWeek();
-  const titleEl = document.querySelector("#summaryTitle");
-  const eyebrowEl = document.querySelector("#summaryEyebrow");
-
-  if (!selectedWeek) {
-    eyebrowEl.textContent = "Resumen semanal";
-    titleEl.textContent = "Selecciona una semana";
-    listEl.innerHTML = `
-      <div class="summary-empty">
-        Selecciona una semana en el calendario para consultar sus actividades.
-      </div>
-    `;
-    return;
+$("#logoutButton").addEventListener("click", () => {
+  addAudit("logout", "Sesion cerrada");
+  if (currentUser?.auth === "supabase") {
+    supabaseClient?.auth.signOut();
+    cloudCaptures = [];
+    cloudCollaborators = [];
+    physicalEvaluations = [];
+    physicalEvaluationsLoaded = false;
+    classGrades = [];
+    classGradesLoaded = false;
+    gymAttendanceRecords = [];
+    gymManualAttendanceRows = [];
+    gymAsistencias = [];
+    gymAsistenciasLoadedCount = 0;
+    gymStudentRegistrations = [];
+    gymDataLoaded = false;
+    gymMasterStudent = null;
+    vivenciaEvents = [];
+    vivenciaEventsLoaded = false;
+    vivenciaEventsAvailable = true;
+    vivenciaEventImportResult = null;
+    classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
+    classScheduleSimulatorCloudReady = false;
+    collaboratorsCloudLoaded = false;
+    collaboratorColumnOrder = [];
+    collaboratorSettingsLoaded = false;
+    cloudStatus = "Supabase listo";
   }
+  clearSession();
+  render();
+  toast("Sesion cerrada");
+});
 
-  const selectedRows = rows
-    .filter((row) => getRowWeekKey(row) === selectedWeek.key)
-    .map((row) => ({
-      ...row,
-      dayLabel: getRowDayLabel(row),
-      schedule: parseActivitySchedule(row.activity, selectedWeek, row.specificDate),
-    }))
-    .sort((a, b) => a.schedule.sortValue - b.schedule.sortValue || a.area.localeCompare(b.area));
+document.addEventListener("mock-colab-save", () => {
+  addAudit("colaboradores", "Guardado simulado de colaborador");
+  toast("Guardado simulado. En produccion actualizara la tabla de colaboradores.");
+});
 
-  eyebrowEl.textContent = `Resumen ${selectedWeek.label}`;
-  titleEl.textContent = `${selectedWeek.range} · ${selectedRows.length} ${selectedRows.length === 1 ? "actividad planeada" : "actividades planeadas"}`;
+document.addEventListener("mock-config-save", () => {
+  addAudit("configuracion", "Guardado simulado de usuario/catalogo");
+  toast("Configuracion simulada guardada localmente");
+});
 
-  if (!selectedRows.length) {
-    listEl.innerHTML = `
-      <div class="summary-empty">
-        No hay actividades registradas para esta semana.
-      </div>
-    `;
-    return;
-  }
-
-  listEl.innerHTML = areas.map((area) => {
-    const areaRows = selectedRows.filter((row) => row.area === area.key);
-    if (!areaRows.length) return "";
-
-    return `
-      <section class="week-summary-group ${area.className}">
-        <div class="week-summary-area">
-          ${area.image ? `<img src="${area.image}" alt="${area.label}" loading="lazy" decoding="async">` : ""}
-          <h3>${area.label}</h3>
-        </div>
-        <div class="week-summary-items">
-          ${areaRows.map((row) => `
-            <article class="week-summary-item">
-              <div class="week-summary-time">
-                ${row.dayLabel ? `<span>${escapeHtml(row.dayLabel)}</span>` : ""}
-                ${row.schedule.dateLabel ? `<span>${escapeHtml(row.schedule.dateLabel)}</span>` : ""}
-                ${row.schedule.timeLabel ? `<strong>${escapeHtml(row.schedule.timeLabel)}</strong>` : ""}
-                ${!row.schedule.dateLabel && !row.schedule.timeLabel ? "<span>Sin fecha</span>" : ""}
-              </div>
-              <div class="week-summary-detail">
-                ${renderActivityControl(row, "activity-text week-summary-activity")}
-                ${row.responsible || row.status ? `
-                  <div class="week-summary-meta">
-                    ${row.responsible ? `<span><strong>Responsable:</strong> ${escapeHtml(row.responsible)}</span>` : ""}
-                    ${row.status ? `<span><strong>Estatus:</strong> ${escapeHtml(row.status)}</span>` : ""}
-                  </div>
-                ` : ""}
-              </div>
-            </article>
-          `).join("")}
-        </div>
-      </section>
-    `;
-  }).join("");
-}
-
-function setupWeekSelection() {
-  boardEl.addEventListener("click", (event) => {
-    if (event.target.closest(".activity-chip, [data-delete-id]")) return;
-    const weekTarget = event.target.closest("[data-week-key]");
-    if (!weekTarget) return;
-    state.selectedWeekKey = weekTarget.dataset.weekKey;
-    render();
-    document.querySelector(".activity-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-
-  boardEl.addEventListener("keydown", (event) => {
-    if (!["Enter", " "].includes(event.key)) return;
-    const weekTarget = event.target.closest(".plan-cell[data-week-key]");
-    if (!weekTarget) return;
-    event.preventDefault();
-    state.selectedWeekKey = weekTarget.dataset.weekKey;
-    render();
-  });
-}
-
-function setupCompletionToggles() {
-  document.addEventListener("change", (event) => {
-    const input = event.target.closest("[data-completion-id]");
-    if (!input) return;
-
-    if (input.checked) {
-      state.completedActivities.add(input.dataset.completionId);
-    } else {
-      state.completedActivities.delete(input.dataset.completionId);
-    }
-
-    saveCompletedActivities();
-    render();
-  });
-}
-
-async function submitDeleteMarker(button) {
-  const formData = new URLSearchParams();
-  formData.set(
-    formEntries.area,
-    getFormAreaValue(button.dataset.deleteArea || "clases"),
-  );
-  formData.set(formEntries.month, button.dataset.deleteMonth || "agosto");
-  formData.set(formEntries.week, button.dataset.deleteWeek || "Semana 0");
-  formData.set(formEntries.activity, `${deleteMarkerPrefix}${button.dataset.deleteId}`);
-
-  await fetch(FORM_SUBMIT_URL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: formData.toString(),
-  });
-}
-
-function setupDeleteButtons() {
-  document.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-delete-id]");
-    if (!button) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    state.deletedActivities.add(button.dataset.deleteId);
-    state.completedActivities.delete(button.dataset.deleteId);
-    saveDeletedActivities();
-    saveCompletedActivities();
-    render();
-
-    button.disabled = true;
-    try {
-      await submitDeleteMarker(button);
-      window.setTimeout(refreshRows, 1800);
-    } catch {
-      // La actividad ya se oculto localmente; se reintentara si se vuelve a cargar.
-    }
-  });
-}
-
-function setupActivityTooltip() {
-  const tooltip = document.createElement("div");
-  tooltip.className = "activity-tooltip";
-  tooltip.setAttribute("role", "tooltip");
-  document.body.appendChild(tooltip);
-
-  function positionTooltip(target) {
-    const rect = target.getBoundingClientRect();
-    const gap = 10;
-    const width = Math.min(360, window.innerWidth - 28);
-    const left = Math.min(
-      Math.max(14, rect.left),
-      window.innerWidth - width - 14,
-    );
-    const top = rect.bottom + gap;
-
-    tooltip.style.width = `${width}px`;
-    tooltip.style.left = `${left}px`;
-    tooltip.style.top = `${top}px`;
-  }
-
-  function showTooltip(target) {
-    if (!target) return;
-
-    tooltip.textContent = target.dataset.fullText;
-    tooltip.classList.add("is-visible");
-    positionTooltip(target);
-  }
-
-  document.addEventListener("mouseover", (event) => {
-    showTooltip(event.target.closest("[data-full-text]"));
-  });
-
-  document.addEventListener("mousemove", (event) => {
-    const target = event.target.closest("[data-full-text]");
-    if (target) showTooltip(target);
-  });
-
-  document.addEventListener("click", (event) => {
-    if (event.target.closest(".activity-chip, .activity-text, [data-delete-id]")) return;
-    showTooltip(event.target.closest("[data-full-text]"));
-  });
-
-  document.addEventListener("mouseout", (event) => {
-    const target = event.target.closest("[data-full-text]");
-    if (!target || target.contains(event.relatedTarget)) return;
-    tooltip.classList.remove("is-visible");
-  });
-
-  window.addEventListener("scroll", () => tooltip.classList.remove("is-visible"), true);
-  window.addEventListener("resize", () => tooltip.classList.remove("is-visible"));
-}
-
-function render() {
-  const rows = getFilteredRows();
-  renderLastUpdated();
-  renderBoard(rows);
-  renderList(getSummaryRows());
-}
-
-async function refreshRows() {
-  if (state.isRefreshing) return;
-
-  state.isRefreshing = true;
-  try {
-    const remoteRows = await loadRows();
-    const mergedRows = mergeRowsWithPending(remoteRows, state.pendingActivities);
-    const nextRowsSignature = getRowsSignature(mergedRows.rows);
-
-    if (nextRowsSignature !== state.lastRowsSignature) {
-      state.rows = mergedRows.rows;
-      state.pendingActivities = mergedRows.pendingRows;
-      state.lastRowsSignature = nextRowsSignature;
-      savePendingActivities();
-      render();
-    }
-  } finally {
-    state.isRefreshing = false;
-  }
-}
-
-async function init() {
-  setupFilters();
-  setupExporter();
-  setupCaptureForm();
-  setupCompletionToggles();
-  setupDeleteButtons();
-  setupActivityTooltip();
-  setupWeekSelection();
-  await refreshRows();
-  window.setInterval(refreshRows, refreshIntervalMs);
-}
-
-init();
-
+loadUniformesData();
+loadClassGradeSeedData().then(() => render());
