@@ -18,6 +18,7 @@ En Supabase abre **SQL Editor** y ejecuta estos archivos en este orden:
 
 1. `supabase/schema.sql`
 2. `supabase/seed.sql`
+3. `supabase/vivencia.sql` para activar la fase 1 del modulo Vivencia.
 
 Con eso se crean:
 
@@ -31,6 +32,18 @@ Con eso se crean:
 - Compras y presupuesto.
 - Bitacora de auditoria.
 - Reglas de seguridad para que cada coordinador vea solo lo que le toca.
+
+La migracion de Vivencia agrega:
+
+- `vivencia_events`: catalogo operativo e historico de eventos.
+- `vivencia_participants`: matriculas asociadas a cada evento sin duplicados.
+- `vivencia_participant_details`: cruce de participantes con datos academicos permitidos.
+- `vivencia_event_metrics`: conteos y cumplimiento de meta calculados automaticamente.
+- Permisos para Direccion, administradores y Coordinacion de Vivencia.
+- Archivado logico de eventos, sin permiso de eliminacion desde la aplicacion.
+
+Al terminar, Supabase debe mostrar una fila con el estado
+`vivencia_phase_1_ready` y cuatro columnas con valor `true`.
 
 ## 3. Crear usuarios coordinadores
 
