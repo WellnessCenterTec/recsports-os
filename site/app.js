@@ -417,6 +417,7 @@ let vivenciaEventImportResult = null;
 let vivenciaParticipantImporting = false;
 let vivenciaParticipantImportResult = null;
 let selectedVivenciaEventForParticipants = "";
+let selectedVivenciaEventForDetail = "";
 let classGradePage = 1;
 let classGradeFilter = {
   search: "",
@@ -1649,17 +1650,12 @@ async function loadVivenciaEvents() {
       .limit(12000)
   ]);
   if (metricsResult.error || participantsResult.error) {
-    vivenciaEventsAvailable = false;
-    vivenciaEvents = [];
-    vivenciaEventMetrics = [];
-    vivenciaParticipants = [];
-    console.error(metricsResult.error || participantsResult.error);
-    return;
+    console.warn(metricsResult.error || participantsResult.error);
   }
   vivenciaEventsAvailable = true;
   vivenciaEvents = data || [];
-  vivenciaEventMetrics = metricsResult.data || [];
-  vivenciaParticipants = (participantsResult.data || []).map((participant) => {
+  vivenciaEventMetrics = metricsResult.error ? [] : (metricsResult.data || []);
+  vivenciaParticipants = (participantsResult.error ? [] : (participantsResult.data || [])).map((participant) => {
     const student = findStudentInDatabase(participant.matricula) || {};
     return {
       ...participant,
@@ -1935,6 +1931,7 @@ async function saveVivenciaEvent(event) {
   }
   const form = new FormData(event.currentTarget);
   const hasFee = form.get("has_fee") === "on";
+  const eventId = String(form.get("event_id") || "").trim();
   const payload = {
     campus: String(form.get("campus") || "").trim() || "Monterrey",
     event_name: String(form.get("event_name") || "").trim(),
@@ -1955,6 +1952,11 @@ async function saveVivenciaEvent(event) {
     source_row_key: crypto.randomUUID(),
     created_by: currentUser.id
   };
+  if (eventId) {
+    delete payload.source_name;
+    delete payload.source_row_key;
+    delete payload.created_by;
+  }
   if (!payload.event_name || !payload.event_date) {
     toast("Nombre y fecha del evento son obligatorios");
     return;
@@ -1972,7 +1974,10 @@ async function saveVivenciaEvent(event) {
     button.disabled = true;
     button.textContent = "Guardando...";
   }
-  const { error } = await supabaseClient.from("vivencia_events").insert(payload);
+  const query = eventId
+    ? supabaseClient.from("vivencia_events").update(payload).eq("id", eventId)
+    : supabaseClient.from("vivencia_events").insert(payload);
+  const { error } = await query;
   if (error) {
     console.error(error);
     toast(`No se pudo guardar el evento: ${supabaseErrorDetail(error) || "revisa la Fase 1 en Supabase"}`);
@@ -1982,11 +1987,12 @@ async function saveVivenciaEvent(event) {
     }
     return;
   }
-  vivenciaEventImportResult = { loaded: 1, omitted: 0, warnings: [], source: "Captura manual" };
-  addAudit("vivencia", `Evento creado: ${payload.event_name}`);
+  vivenciaEventImportResult = { loaded: 1, omitted: 0, warnings: [], source: eventId ? "Detalle de evento" : "Captura manual" };
+  addAudit("vivencia", `${eventId ? "Evento actualizado" : "Evento creado"}: ${payload.event_name}`);
   await loadVivenciaEvents();
+  selectedVivenciaEventForDetail = eventId;
   render();
-  toast("Evento guardado en Supabase");
+  toast(eventId ? "Detalle del evento actualizado" : "Evento guardado en Supabase");
 }
 
 async function importVivenciaEvents(file) {
@@ -1999,11 +2005,10 @@ async function importVivenciaEvents(file) {
   render();
   try {
     const grid = await vivenciaGridFromFile(file);
-    const rows = vivenciaRowsFromGrid(grid);
-    if (!rows.length) throw new Error("El archivo no contiene eventos");
-    const parsed = parseVivenciaEventRows(rows, file.name);
-    const combined = parseVivenciaCombinedRows(grid, file.name);
-    if (parsed.errors.length) {
+	    const rows = vivenciaRowsFromGrid(grid);
+	    if (!rows.length) throw new Error("El archivo no contiene eventos");
+	    const parsed = parseVivenciaEventRows(rows, file.name);
+	    if (parsed.errors.length) {
       vivenciaEventImportResult = {
         loaded: 0,
         omitted: parsed.omitted,
@@ -2014,8 +2019,7 @@ async function importVivenciaEvents(file) {
       toast(`Archivo con errores: fila ${parsed.errors[0].row}, ${parsed.errors[0].message}`);
       return;
     }
-    const hasCombinedData = combined.participantsByEvent.size || combined.totalsByEvent.size;
-    if (!parsed.payload.length && !hasCombinedData) {
+	    if (!parsed.payload.length) {
       vivenciaEventImportResult = {
         loaded: 0,
         omitted: parsed.omitted,
@@ -2027,68 +2031,22 @@ async function importVivenciaEvents(file) {
       return;
     }
     const chunkSize = 300;
-    for (let index = 0; index < parsed.payload.length; index += chunkSize) {
-      const { error } = await supabaseClient
-        .from("vivencia_events")
-        .upsert(parsed.payload.slice(index, index + chunkSize), { onConflict: "source_name,source_row_key" });
-      if (error) throw error;
-    }
+	    for (let index = 0; index < parsed.payload.length; index += chunkSize) {
+	      const { error } = await supabaseClient
+	        .from("vivencia_events")
+	        .upsert(parsed.payload.slice(index, index + chunkSize), { onConflict: "source_name,source_row_key" });
+	      if (error) throw error;
+	    }
 
-    const eventsResult = await supabaseClient
-      .from("vivencia_events")
-      .select("id, event_name")
-      .is("archived_at", null)
-      .limit(5000);
-    if (eventsResult.error) throw eventsResult.error;
-    const eventLookup = new Map();
-    (eventsResult.data || []).forEach((row) => {
-      const key = headerKey(row.event_name);
-      if (!eventLookup.has(key)) eventLookup.set(key, row.id);
-    });
-
-    let totalsUpdated = 0;
-    for (const [key, totalRow] of combined.totalsByEvent.entries()) {
-      const eventId = eventLookup.get(key);
-      if (!eventId) continue;
-      const { error } = await supabaseClient
-        .from("vivencia_events")
-        .update({ reported_total_participants: totalRow.reported_total_participants })
-        .eq("id", eventId);
-      if (error) throw error;
-      totalsUpdated += 1;
-    }
-
-    let participantsLoaded = 0;
-    let participantsOmitted = 0;
-    for (const [key, participants] of combined.participantsByEvent.entries()) {
-      const eventId = eventLookup.get(key);
-      if (!eventId) {
-        participantsOmitted += participants.length;
-        combined.warnings.push({
-          row: 0,
-          message: `No encontre evento existente para "${participants[0]?.event_name || key}"; sus matriculas no se asociaron`
-        });
-        continue;
-      }
-      const payload = participants.map((row) => ({ ...row, event_id: eventId }));
-      const { data, error } = await supabaseClient
-        .from("vivencia_participants")
-        .upsert(payload, { onConflict: "event_id,matricula", ignoreDuplicates: true })
-        .select("id");
-      if (error) throw error;
-      participantsLoaded += data?.length || 0;
-      participantsOmitted += payload.length - (data?.length || 0);
-    }
-
-    vivenciaEventImportResult = {
-      loaded: parsed.payload.length + totalsUpdated + participantsLoaded,
-      omitted: parsed.omitted + combined.omitted + participantsOmitted,
-      warnings: [...parsed.warnings, ...combined.warnings],
-      source: file.name
-    };
-    addAudit("vivencia", `${parsed.payload.length} eventos, ${totalsUpdated} totales y ${participantsLoaded} participantes procesados desde ${file.name}`);
-    await loadVivenciaEvents();
-    toast(`Carga lista: ${parsed.payload.length} eventos, ${totalsUpdated} totales y ${participantsLoaded} participantes`);
+	    vivenciaEventImportResult = {
+	      loaded: parsed.payload.length,
+	      omitted: parsed.omitted,
+	      warnings: parsed.warnings,
+	      source: file.name
+	    };
+	    addAudit("vivencia", `${parsed.payload.length} eventos procesados desde ${file.name}`);
+	    await loadVivenciaEvents();
+	    toast(`Carga lista: ${parsed.payload.length} eventos`);
   } catch (error) {
     console.error(error);
     vivenciaEventImportResult = {
@@ -5133,7 +5091,7 @@ function renderVivenciaEventHistory() {
                 <td><span class="vivencia-status ${escapeHtml(row.status || "planeado")}">${escapeHtml(row.status || "planeado")}</span></td>
                 <td>${escapeHtml(row.source_name === "captura_manual" ? "Captura manual" : row.source_name || "Sin fuente")}</td>
                 <td>
-                  <button class="ghost-btn compact-action" data-vivencia-participants="${escapeHtml(row.id)}" ${editable && !vivenciaParticipantImporting ? "" : "disabled"}>Cargar matriculas</button>
+                  <button class="ghost-btn compact-action" data-vivencia-detail="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Detalle</button>
                 </td>
               </tr>
             `;
@@ -5147,6 +5105,11 @@ function renderVivenciaEventHistory() {
 function renderVivenciaEventsView() {
   const editable = currentUser?.auth === "supabase" && canEditArea("vivencia") && vivenciaEventsAvailable;
   const today = new Date().toISOString().slice(0, 10);
+  const detailEvent = vivenciaEvents.find((row) => row.id === selectedVivenciaEventForDetail) || null;
+  const formValue = (key, fallback = "") => escapeHtml(detailEvent?.[key] ?? fallback ?? "");
+  const formNumber = (key) => detailEvent?.[key] ?? "";
+  const detailStatus = vivenciaStatus(detailEvent?.status || "planeado");
+  const detailSource = detailEvent?.source_name === "planeacion_semestral" ? "Vinculado a Planeacion Semestral" : "Captura manual";
   return `
     <section class="vivencia-events-module">
       <div class="permission-strip">
@@ -5160,27 +5123,29 @@ function renderVivenciaEventsView() {
           <div class="vivencia-panel-heading">
             <div>
               <p class="eyebrow">Vivencia</p>
-              <h3>Captura manual de evento</h3>
+              <h3>${detailEvent ? "Detalle del evento" : "Captura manual de evento"}</h3>
             </div>
-            <span class="editor-status">${editable ? "Guardado en linea activo" : "Modo consulta"}</span>
+            <span class="editor-status">${detailEvent ? detailSource : (editable ? "Guardado en linea activo" : "Modo consulta")}</span>
           </div>
           <form id="vivenciaEventForm" class="vivencia-event-form">
-            <label>Campus<input name="campus" value="Monterrey" placeholder="Ej. Monterrey" ${editable ? "" : "disabled"} /></label>
-            <label>Nombre del evento<input name="event_name" required placeholder="Nombre del evento" ${editable ? "" : "disabled"} /></label>
-            <label>Disciplina deportiva<input name="discipline" placeholder="Opcional" ${editable ? "" : "disabled"} /></label>
-            <label>Clasificacion<input name="classification" placeholder="Ej. Bienestar, recreativo" ${editable ? "" : "disabled"} /></label>
-            <label>Fecha del evento<input name="event_date" type="date" required value="${today}" ${editable ? "" : "disabled"} /></label>
-            <label>Fecha final<input name="end_date" type="date" ${editable ? "" : "disabled"} /></label>
-            <label>Rama<input name="branch" placeholder="Opcional" ${editable ? "" : "disabled"} /></label>
-            <label>Poblacion objetivo<input name="target_population" placeholder="Ej. Profesional" ${editable ? "" : "disabled"} /></label>
-            <label>Meta de captacion<input name="participation_goal" type="number" min="0" placeholder="0" ${editable ? "" : "disabled"} /></label>
-            <label>Responsable<input name="responsible_name" placeholder="Nombre del responsable" ${editable ? "" : "disabled"} /></label>
-            <label>Estado<select name="status" ${editable ? "" : "disabled"}><option value="planeado">Planeado</option><option value="realizado">Realizado</option><option value="pospuesto">Pospuesto</option><option value="cancelado">Cancelado</option></select></label>
-            <label>Costo de inscripcion<input name="fee_amount" type="number" min="0" step="0.01" placeholder="0.00" ${editable ? "" : "disabled"} /></label>
-            <label class="vivencia-check"><input name="has_fee" type="checkbox" ${editable ? "" : "disabled"} /> Evento con cobro</label>
-            <label class="vivencia-check"><input name="is_signature_event" type="checkbox" ${editable ? "" : "disabled"} /> Evento insignia</label>
-            <label class="full">Descripcion<textarea name="description" rows="3" placeholder="Descripcion breve del evento" ${editable ? "" : "disabled"}></textarea></label>
-            <button class="primary-btn full" id="saveVivenciaEvent" type="submit" ${editable ? "" : "disabled"}>Guardar evento</button>
+            <input name="event_id" type="hidden" value="${formValue("id")}" />
+            <label>Campus<input name="campus" value="${formValue("campus", "Monterrey")}" placeholder="Ej. Monterrey" ${editable ? "" : "disabled"} /></label>
+            <label>Nombre del evento<input name="event_name" required value="${formValue("event_name")}" placeholder="Nombre del evento" ${editable ? "" : "disabled"} /></label>
+            <label>Disciplina deportiva<input name="discipline" value="${formValue("discipline")}" placeholder="Opcional" ${editable ? "" : "disabled"} /></label>
+            <label>Clasificacion<input name="classification" value="${formValue("classification")}" placeholder="Ej. Bienestar, recreativo" ${editable ? "" : "disabled"} /></label>
+            <label>Fecha del evento<input name="event_date" type="date" required value="${formValue("event_date", today)}" ${editable ? "" : "disabled"} /></label>
+            <label>Fecha final<input name="end_date" type="date" value="${formValue("end_date")}" ${editable ? "" : "disabled"} /></label>
+            <label>Rama<input name="branch" value="${formValue("branch")}" placeholder="Opcional" ${editable ? "" : "disabled"} /></label>
+            <label>Poblacion objetivo<input name="target_population" value="${formValue("target_population")}" placeholder="Ej. Profesional" ${editable ? "" : "disabled"} /></label>
+            <label>Meta de captacion<input name="participation_goal" type="number" min="0" value="${formNumber("participation_goal")}" placeholder="0" ${editable ? "" : "disabled"} /></label>
+            <label>Responsable<input name="responsible_name" value="${formValue("responsible_name")}" placeholder="Nombre del responsable" ${editable ? "" : "disabled"} /></label>
+            <label>Estado<select name="status" ${editable ? "" : "disabled"}><option value="planeado" ${detailStatus === "planeado" ? "selected" : ""}>Planeado</option><option value="realizado" ${detailStatus === "realizado" ? "selected" : ""}>Realizado</option><option value="pospuesto" ${detailStatus === "pospuesto" ? "selected" : ""}>Pospuesto</option><option value="cancelado" ${detailStatus === "cancelado" ? "selected" : ""}>Cancelado</option></select></label>
+            <label>Costo de inscripcion<input name="fee_amount" type="number" min="0" step="0.01" value="${formNumber("fee_amount")}" placeholder="0.00" ${editable ? "" : "disabled"} /></label>
+            <label class="vivencia-check"><input name="has_fee" type="checkbox" ${detailEvent?.has_fee ? "checked" : ""} ${editable ? "" : "disabled"} /> Evento con cobro</label>
+            <label class="vivencia-check"><input name="is_signature_event" type="checkbox" ${detailEvent?.is_signature_event ? "checked" : ""} ${editable ? "" : "disabled"} /> Evento insignia</label>
+            <label class="full">Descripcion<textarea name="description" rows="3" placeholder="Descripcion breve del evento" ${editable ? "" : "disabled"}>${formValue("description")}</textarea></label>
+            ${detailEvent ? `<button class="ghost-btn full" id="newVivenciaEvent" type="button">Capturar evento nuevo</button>` : ""}
+            <button class="primary-btn full" id="saveVivenciaEvent" type="submit" ${editable ? "" : "disabled"}>${detailEvent ? "Guardar detalle" : "Guardar evento"}</button>
           </form>
           <div class="vivencia-bulk-upload">
             <div>
@@ -5191,7 +5156,6 @@ function renderVivenciaEventsView() {
               ${vivenciaEventImporting ? "Procesando archivo..." : "Cargar CSV o Excel"}
             </button>
             <input id="vivenciaEventsFile" type="file" accept=".csv,.xlsx,.xls" hidden />
-            <input id="vivenciaParticipantsFile" type="file" accept=".csv,.xlsx,.xls" hidden />
           </div>
         </article>
         <article class="form-panel vivencia-event-history">
@@ -5853,6 +5817,10 @@ function render() {
     event.target.value = "";
   });
   $("#vivenciaEventForm")?.addEventListener("submit", saveVivenciaEvent);
+  $("#newVivenciaEvent")?.addEventListener("click", () => {
+    selectedVivenciaEventForDetail = "";
+    render();
+  });
   $("#uploadVivenciaEvents")?.addEventListener("click", () => $("#vivenciaEventsFile")?.click());
   $("#vivenciaEventsFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
@@ -5863,6 +5831,10 @@ function render() {
   $$("[data-vivencia-participants]").forEach((button) => button.addEventListener("click", () => {
     selectedVivenciaEventForParticipants = button.dataset.vivenciaParticipants;
     $("#vivenciaParticipantsFile")?.click();
+  }));
+  $$("[data-vivencia-detail]").forEach((button) => button.addEventListener("click", () => {
+    selectedVivenciaEventForDetail = button.dataset.vivenciaDetail;
+    render();
   }));
   $("#vivenciaParticipantsFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
@@ -6671,6 +6643,7 @@ $("#logoutButton").addEventListener("click", () => {
     vivenciaEventImportResult = null;
     vivenciaParticipantImportResult = null;
     selectedVivenciaEventForParticipants = "";
+    selectedVivenciaEventForDetail = "";
     classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
     classScheduleSimulatorCloudReady = false;
     collaboratorsCloudLoaded = false;
