@@ -1710,6 +1710,23 @@ function vivenciaSourceKey(payload) {
   ].map((value) => headerKey(value)).join("|");
 }
 
+function vivenciaRowsFromGrid(grid) {
+  const rows = (grid || []).filter((row) => row.some((cell) => String(cell ?? "").trim()));
+  if (!rows.length) return [];
+  const eventNameHeaders = new Set(["nombredelevento", "nombreevento", "eventname", "evento", "actividad", "nombreactividad"]);
+  const eventDateHeaders = new Set(["fechadelevento", "fechaevento", "eventdate", "fecha"]);
+  const headerIndex = rows.findIndex((row, index) => {
+    if (index > 20) return false;
+    const keys = row.map((cell) => headerKey(cell));
+    return keys.some((key) => eventNameHeaders.has(key)) && keys.some((key) => eventDateHeaders.has(key));
+  });
+  const headers = rows[headerIndex >= 0 ? headerIndex : 0].map((header, index) => String(header || `columna_${index + 1}`).trim());
+  return rows.slice((headerIndex >= 0 ? headerIndex : 0) + 1).map((cells) => headers.reduce((row, header, index) => {
+    row[header] = cells[index] || "";
+    return row;
+  }, {}));
+}
+
 function parseVivenciaEventRows(rows, sourceName) {
   const payload = [];
   const warnings = [];
@@ -1717,7 +1734,7 @@ function parseVivenciaEventRows(rows, sourceName) {
   const seen = new Set();
   const headers = Object.keys(rows[0] || {}).map(headerKey);
   const requiredColumns = [
-    ["Nombre del evento", ["nombre del evento", "evento", "event_name"]],
+    ["Nombre del evento", ["nombre del evento", "nombre evento", "evento", "actividad", "nombre actividad", "event_name"]],
     ["Fecha del evento", ["fecha del evento", "fecha", "event_date"]]
   ];
   requiredColumns.forEach(([label, aliases]) => {
@@ -1730,7 +1747,7 @@ function parseVivenciaEventRows(rows, sourceName) {
   rows.forEach((row, index) => {
     const rowNumber = index + 2;
     const campus = String(vivenciaValue(row, ["Campus", "Nombre Campus"]) || "").trim() || "Monterrey";
-    const eventName = String(vivenciaValue(row, ["Nombre del evento", "Evento", "event_name"]) || "").trim();
+    const eventName = String(vivenciaValue(row, ["Nombre del evento", "Nombre evento", "Evento", "Actividad", "Nombre actividad", "event_name"]) || "").trim();
     const eventDate = parseGymDate(vivenciaValue(row, ["Fecha del evento", "Fecha", "event_date"]));
     if (!eventName || !eventDate) {
       const missing = [
@@ -1796,14 +1813,9 @@ async function vivenciaRowsFromFile(file) {
     if (!window.XLSX) throw new Error("No esta disponible el lector de Excel");
     const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    return window.XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    return vivenciaRowsFromGrid(window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }));
   }
-  const grid = parseCsv(await file.text());
-  const headers = grid.shift() || [];
-  return grid.map((cells) => headers.reduce((row, header, index) => {
-    row[String(header || "").trim()] = cells[index] || "";
-    return row;
-  }, {}));
+  return vivenciaRowsFromGrid(parseCsv(await file.text()));
 }
 
 async function vivenciaGridFromFile(file) {
