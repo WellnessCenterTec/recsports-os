@@ -2818,6 +2818,25 @@ async function fetchMyProfile() {
   return { profile: directResult.data, error: directResult.error || rpcResult.error };
 }
 
+async function loadSupabaseDataBundle() {
+  const loaders = [
+    ["Base de alumnos", loadStudentDatabase],
+    ["Capturas", loadSupabaseCaptures],
+    ["Colaboradores", loadSupabaseCollaborators],
+    ["Evaluaciones fisicas", loadPhysicalEvaluations],
+    ["Calificaciones", loadClassGrades],
+    ["Gimnasio", loadGymData],
+    ["Simulador de clases", loadClassScheduleSimulatorCloud],
+    ["Vivencia", loadVivenciaEvents]
+  ];
+  const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.warn(`No se pudo cargar ${loaders[index][0]}`, result.reason);
+    }
+  });
+}
+
 async function loadSupabaseSession() {
   if (!supabaseClient) return;
   const { data: sessionData } = await supabaseClient.auth.getSession();
@@ -2833,7 +2852,7 @@ async function loadSupabaseSession() {
   }
   saveSession(profileToSession(profile, authUser));
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
-  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData(), loadClassScheduleSimulatorCloud(), loadVivenciaEvents()]);
+  await loadSupabaseDataBundle();
 }
 
 async function loginWithSupabase() {
@@ -2889,7 +2908,7 @@ async function loginWithSupabase() {
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
   activeView = "dashboard";
-  await Promise.all([loadStudentDatabase(), loadSupabaseCaptures(), loadSupabaseCollaborators(), loadPhysicalEvaluations(), loadClassGrades(), loadGymData(), loadClassScheduleSimulatorCloud(), loadVivenciaEvents()]);
+  await loadSupabaseDataBundle();
   render();
   toast(`Sesion Supabase: ${currentUser.name}`);
 }
