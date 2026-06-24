@@ -157,6 +157,7 @@ const importButton = document.querySelector("#importButton");
 const importFile = document.querySelector("#importFile");
 const importStatus = document.querySelector("#importStatus");
 const templateButton = document.querySelector("#templateButton");
+const exportButton = document.querySelector("#exportButton");
 const captureButton = document.querySelector("#captureButton");
 const capturePanel = document.querySelector("#capturePanel");
 const captureForm = document.querySelector("#captureForm");
@@ -362,11 +363,19 @@ async function syncVivenciaPlanningRow(row) {
   if (!client) {
     throw new Error("Falta configurar Supabase para sincronizar Vivencia.");
   }
-  const { error } = await client
+  const existing = await client
     .from("vivencia_events")
-    .upsert(payload, { onConflict: "planning_activity_id" });
-  if (error) {
-    throw new Error(`No se pudo sincronizar Vivencia: ${supabaseErrorMessage(error)}`);
+    .select("id")
+    .eq("planning_activity_id", payload.planning_activity_id)
+    .maybeSingle();
+  if (existing.error) {
+    throw new Error(`No se pudo revisar Vivencia: ${supabaseErrorMessage(existing.error)}`);
+  }
+  const result = existing.data?.id
+    ? await client.from("vivencia_events").update(payload).eq("id", existing.data.id)
+    : await client.from("vivencia_events").insert(payload);
+  if (result.error) {
+    throw new Error(`No se pudo sincronizar Vivencia: ${supabaseErrorMessage(result.error)}`);
   }
   return { skipped: false, planningActivityId: payload.planning_activity_id };
 }
@@ -914,6 +923,51 @@ function downloadImportTemplate() {
   URL.revokeObjectURL(url);
 }
 
+function planningExportRows() {
+  return getSummaryRows().map((row) => {
+    const periodKey = getPeriodKeyFromDate(getRowSpecificDate(row)) || state.period;
+    return {
+      "Fecha especifica": row.specificDate || "",
+      Periodo: periods[periodKey]?.label || periodKey || "",
+      Mes: titleCase(getRowMonth(row)),
+      Semana: getRowWeekLabel(row, periodKey),
+      Area: areas.find((area) => area.key === row.area)?.label || row.area,
+      Actividad: row.activity || "",
+      Responsable: row.responsible || "",
+      Estatus: row.status || "",
+    };
+  });
+}
+
+function downloadPlanningExcel() {
+  const rows = planningExportRows();
+  if (!rows.length) {
+    setImportStatus("No hay actividades para exportar.", "error");
+    return;
+  }
+  const xlsx = globalThis.XLSX;
+  if (!xlsx) {
+    const headers = Object.keys(rows[0]);
+    const csvRows = [
+      headers,
+      ...rows.map((row) => headers.map((header) => row[header])),
+    ];
+    const csv = csvRows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "planeacion_semestral.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    return;
+  }
+  const workbook = xlsx.utils.book_new();
+  const worksheet = xlsx.utils.json_to_sheet(rows);
+  xlsx.utils.book_append_sheet(workbook, worksheet, "Planeacion");
+  xlsx.writeFile(workbook, "planeacion_semestral.xlsx");
+}
+
 function mapCsvRows(csvRows) {
   const headers = csvRows[0] || [];
   const indexByHeader = headers.reduce((acc, header, index) => {
@@ -1036,6 +1090,7 @@ function setupImporter() {
   importButton.addEventListener("click", () => importFile.click());
   importFile.addEventListener("change", () => handleImportFile(importFile.files[0]));
   templateButton.addEventListener("click", downloadImportTemplate);
+  exportButton?.addEventListener("click", downloadPlanningExcel);
 }
 
 function openCapturePanel() {
