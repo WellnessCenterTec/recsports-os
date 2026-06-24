@@ -73,7 +73,7 @@ for each row execute function public.set_updated_at();
 create table if not exists public.vivencia_participants (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.vivencia_events(id) on delete restrict,
-  matricula text not null references public.students_minimal(matricula) on update cascade,
+  matricula text not null,
   source_name text,
   source_row_number integer
     check (source_row_number is null or source_row_number > 0),
@@ -81,6 +81,9 @@ create table if not exists public.vivencia_participants (
   created_at timestamptz not null default now(),
   unique (event_id, matricula)
 );
+
+alter table public.vivencia_participants
+  drop constraint if exists vivencia_participants_matricula_fkey;
 
 create index if not exists vivencia_participants_event_idx
   on public.vivencia_participants(event_id);

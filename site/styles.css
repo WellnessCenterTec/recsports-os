@@ -3232,6 +3232,152 @@ tbody tr:hover td {
   font-size: 12px;
 }
 
+.vivencia-dashboard {
+  display: grid;
+  gap: 18px;
+}
+
+.vivencia-dashboard-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vivencia-dashboard-grid .chart-panel {
+  min-width: 0;
+}
+
+.vivencia-bars {
+  display: grid;
+  gap: 11px;
+}
+
+.vivencia-bars.compact {
+  gap: 8px;
+}
+
+.vivencia-bar-row {
+  display: grid;
+  grid-template-columns: minmax(130px, .9fr) minmax(140px, 1.2fr) minmax(70px, auto);
+  gap: 10px;
+  align-items: center;
+}
+
+.vivencia-bar-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.vivencia-bar-row strong {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.vivencia-goal-bars {
+  display: grid;
+  gap: 12px;
+}
+
+.vivencia-goal-bars article {
+  display: grid;
+  gap: 8px;
+}
+
+.vivencia-goal-bars article > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.vivencia-goal-track {
+  position: relative;
+  min-height: 15px;
+  border-radius: 999px;
+  background: #e7edf0;
+  overflow: hidden;
+}
+
+.vivencia-goal-track span,
+.vivencia-goal-track em {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+}
+
+.vivencia-goal-track span {
+  background: #dce5e9;
+}
+
+.vivencia-goal-track em {
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+}
+
+.vivencia-upcoming-panel {
+  grid-column: 1 / -1;
+}
+
+.vivencia-upcoming-list {
+  display: grid;
+  gap: 10px;
+}
+
+.vivencia-upcoming-list article {
+  display: grid;
+  grid-template-columns: 105px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.vivencia-upcoming-list time {
+  color: var(--blue);
+  font-weight: 900;
+}
+
+.vivencia-upcoming-list strong,
+.vivencia-upcoming-list span {
+  display: block;
+}
+
+.vivencia-upcoming-list span {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.vivencia-upcoming-list em {
+  justify-self: end;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f4f7f8;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.vivencia-empty-mini {
+  display: grid;
+  min-height: 86px;
+  place-items: center;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.compact-action {
+  min-height: 34px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
 .system-map { display: grid; gap: 10px; }
 .map-node { padding: 13px; }
 .map-node strong { display: block; margin-bottom: 5px; }
@@ -3279,6 +3425,10 @@ tbody tr:hover td {
   .class-simulator-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .class-simulator-maps { grid-template-columns: 1fr; }
   .vivencia-event-layout { grid-template-columns: 1fr; }
+  .vivencia-dashboard-grid { grid-template-columns: 1fr; }
+  .vivencia-bar-row { grid-template-columns: 1fr; }
+  .vivencia-bar-row strong { text-align: left; }
+  .vivencia-upcoming-list article { grid-template-columns: 1fr; }
   .career-bar-row { grid-template-columns: minmax(160px, 240px) minmax(0, 1fr) 64px; }
 }
 
