@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Planeación Semestral RecSports</title>
-    <link rel="stylesheet" href="./styles.css?v=20260623-export-planning" />
+    <link rel="stylesheet" href="./styles.css?v=20260614-auto-period-capture" />
   </head>
   <body>
     <main class="shell">
@@ -18,7 +18,9 @@
           <button class="form-link" id="captureButton" type="button">
             Capturar actividad
           </button>
-          <button class="import-button" id="exportButton" type="button">Exportar Excel</button>
+          <button class="import-button" id="importButton" type="button">Importar Excel/CSV</button>
+          <button class="template-button" id="templateButton" type="button">Plantilla</button>
+          <input id="importFile" type="file" accept=".xlsx,.xls,.csv" hidden>
         </div>
       </header>
       <div class="import-status" id="importStatus" role="status" aria-live="polite"></div>
@@ -86,6 +88,10 @@
       </section>
     </main>
 
-    <script src="./app.js?v=20260623-export-planning"></script>
+    <script>window.RECSPORTS_ENV = window.RECSPORTS_ENV || {};</script>
+    <script src="./env.js?v=20260624-vivencia-planeacion"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="./app.js?v=20260624-vivencia-planeacion"></script>
   </body>
 </html>
