@@ -1751,14 +1751,14 @@ function parseVivenciaEventRows(rows, sourceName) {
         !eventName ? "nombre del evento" : "",
         !eventDate ? "fecha valida" : ""
       ].filter(Boolean).join(", ");
-      errors.push({ row: rowNumber, message: `Falta ${missing}` });
+      warnings.push({ row: rowNumber, message: `Fila omitida: falta ${missing}` });
       return;
     }
     const endDateRaw = vivenciaValue(row, ["Fecha fin", "Fecha final", "end_date"]);
     const endDate = endDateRaw ? parseGymDate(endDateRaw) : "";
     if (endDateRaw && !endDate) warnings.push({ row: rowNumber, message: "Fecha final invalida; se guardara vacia" });
     if (endDate && endDate < eventDate) {
-      errors.push({ row: rowNumber, message: "La fecha final es anterior a la fecha del evento" });
+      warnings.push({ row: rowNumber, message: "Fila omitida: la fecha final es anterior a la fecha del evento" });
       return;
     }
     const hasFee = vivenciaBoolean(vivenciaValue(row, ["Evento con cobro", "Con cobro", "has_fee"]));
@@ -1947,6 +1947,17 @@ async function importVivenciaEvents(file) {
         blocked: true
       };
       toast(`Archivo con errores: fila ${parsed.errors[0].row}, ${parsed.errors[0].message}`);
+      return;
+    }
+    if (!parsed.payload.length) {
+      vivenciaEventImportResult = {
+        loaded: 0,
+        omitted: parsed.omitted,
+        warnings: parsed.warnings.length ? parsed.warnings : [{ row: 0, message: "No se encontraron eventos con nombre y fecha valida" }],
+        source: file.name,
+        blocked: true
+      };
+      toast("No encontre eventos con nombre y fecha valida en el archivo");
       return;
     }
     const existingResult = await supabaseClient
