@@ -2127,6 +2127,33 @@ async function importVivenciaParticipants(file, eventId) {
   }
 }
 
+async function deleteVivenciaEvent(eventId) {
+  if (!eventId || !supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("vivencia")) return;
+  const eventRow = vivenciaEvents.find((row) => row.id === eventId);
+  const eventName = eventRow?.event_name || "este evento";
+  if (!window.confirm(`Eliminar ${eventName} del historial de Vivencia?`)) return;
+  const { error } = await supabaseClient
+    .from("vivencia_events")
+    .update({
+      archived_at: new Date().toISOString(),
+      sync_status: eventRow?.sync_status === "planning_deleted" ? "planning_deleted" : "detached",
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", eventId);
+  if (error) {
+    console.error(error);
+    toast(`No se pudo eliminar el evento: ${supabaseErrorDetail(error) || error.message}`);
+    return;
+  }
+  vivenciaEvents = vivenciaEvents.filter((row) => row.id !== eventId);
+  vivenciaEventMetrics = vivenciaEventMetrics.filter((row) => row.event_id !== eventId);
+  vivenciaParticipants = vivenciaParticipants.filter((row) => row.event_id !== eventId);
+  if (selectedVivenciaEventForDetail === eventId) selectedVivenciaEventForDetail = "";
+  if (selectedVivenciaEventForParticipants === eventId) selectedVivenciaEventForParticipants = "";
+  render();
+  toast("Evento eliminado del historial");
+}
+
 function collaboratorFromCloud(row) {
   return {
     __id: row.nomina,
@@ -5111,6 +5138,7 @@ function renderVivenciaEventHistory() {
                 <td>${escapeHtml(row.source_name === "captura_manual" ? "Captura manual" : row.source_name || "Sin fuente")}</td>
                 <td>
                   <button class="ghost-btn compact-action" data-vivencia-detail="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Detalle</button>
+                  <button class="danger-btn compact-action" data-vivencia-delete="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Eliminar</button>
                 </td>
               </tr>
             `;
@@ -5854,6 +5882,9 @@ function render() {
   $$("[data-vivencia-detail]").forEach((button) => button.addEventListener("click", () => {
     selectedVivenciaEventForDetail = button.dataset.vivenciaDetail;
     render();
+  }));
+  $$("[data-vivencia-delete]").forEach((button) => button.addEventListener("click", () => {
+    deleteVivenciaEvent(button.dataset.vivenciaDelete);
   }));
   $("#vivenciaParticipantsFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
