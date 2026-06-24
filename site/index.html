@@ -1,136 +1,98 @@
 <!doctype html>
 <html lang="es">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>WellSync | Wellness Center</title>
-    <link rel="stylesheet" href="./styles.css?v=20260624-vivencia-mixed-file" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Planeación Semestral RecSports</title>
+    <link rel="stylesheet" href="./styles.css?v=20260614-auto-period-capture" />
   </head>
   <body>
-    <div id="loginRoot"></div>
-    <div class="app-shell">
-      <aside class="sidebar" aria-label="Menu principal">
-        <div class="brand">
-          <div class="brand-logo-tile">
-            <img class="brand-logo" src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
-          </div>
-          <div>
-            <strong>WellSync</strong>
-            <span>Dirección Deportiva</span>
-          </div>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">RecSports</p>
+          <h1>Planeación Semestral</h1>
+          <p class="subhead">Seguimiento colaborativo de actividades por área y mes.</p>
         </div>
-        <nav id="areaNav" class="nav-list"></nav>
-      </aside>
+        <div class="topbar-actions">
+          <button class="form-link" id="captureButton" type="button">
+            Capturar actividad
+          </button>
+          <button class="template-button" id="exportButton" type="button">Exportar Excel</button>
+          <button class="import-button" id="importButton" type="button">Importar Excel/CSV</button>
+          <button class="template-button" id="templateButton" type="button">Plantilla</button>
+          <input id="importFile" type="file" accept=".xlsx,.xls,.csv" hidden>
+        </div>
+      </header>
+      <div class="import-status" id="importStatus" role="status" aria-live="polite"></div>
 
-      <main class="workspace">
-        <header class="topbar">
-          <div class="search-wrap">
-            <span class="search-icon">⌕</span>
-            <input id="globalSearch" type="search" placeholder="Buscar módulo, indicador, reporte o matrícula" />
+      <section class="capture-panel" id="capturePanel" aria-label="Captura de actividad" hidden>
+        <div class="capture-panel-heading">
+          <div>
+            <p class="eyebrow">Nueva actividad</p>
+            <h2>Capturar actividad</h2>
           </div>
-          <div class="top-actions">
-            <select id="themeSelect" aria-label="Tema visual">
-              <option value="tec">Tec deportivo</option>
-              <option value="power">Power BI limpio</option>
-              <option value="dark">Modo nocturno</option>
-            </select>
-            <select id="roleSelect" aria-label="Rol activo">
-              <option value="direccion">Dirección Deportiva</option>
-              <option value="clases">Coord. Clases Deportivas</option>
-              <option value="gimnasio">Coord. Gimnasio</option>
-              <option value="intramuros">Coord. Intramuros</option>
-              <option value="vivencia">Coord. Vivencia</option>
-              <option value="comunicacion">Coord. Comunicacion</option>
-              <option value="representativos">Coord. Representativos</option>
-              <option value="gamer">Coord. Gamer</option>
-              <option value="colaboradores">Coord. Colaboradores</option>
-              <option value="compras">Compras y Presupuesto</option>
-            </select>
-            <button class="ghost-btn" id="exportExcel">Exportar Excel</button>
-            <button class="primary-btn" id="exportPdf">Exportar PDF</button>
-            <button class="danger-btn" id="logoutButton">Salir</button>
-          </div>
-        </header>
-
-        <section class="hero-dashboard">
-          <div class="hero-identity">
-            <span class="hero-mark" aria-hidden="true">WS</span>
-            <div>
-              <h1>WellSync</h1>
-              <p>Panel operativo</p>
-            </div>
-          </div>
-          <div class="hero-kpis" id="executiveKpis"></div>
-          <div class="hero-actions">
-            <a class="planning-link" href="https://planeacion-semestral-recsports.vercel.app/" target="_blank" rel="noopener noreferrer">Planeación</a>
-            <img class="hero-borregos-logo" src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
-          </div>
-        </section>
-
-        <section class="filters-band" aria-label="Filtros recomendados">
+          <button class="capture-close" id="captureClose" type="button" aria-label="Cerrar captura">×</button>
+        </div>
+        <form class="capture-form" id="captureForm">
           <label>
-            Periodo
-            <select id="periodFilter">
-              <option>AD26</option>
-              <option>FJ26</option>
-              <option>IN26</option>
-            </select>
+            Fecha específica
+            <input id="captureDate" name="specificDate" type="date" required>
           </label>
           <label>
-            Nivel
-            <select id="levelFilter">
-              <option value="todos">Todos</option>
-              <option>Profesional</option>
-              <option>Posgrado</option>
-            </select>
+            Área
+            <select id="captureArea" name="area" required></select>
           </label>
-          <label>
-            Carrera
-            <select id="careerFilter">
-              <option value="todos">Todas</option>
-            </select>
+          <label class="capture-activity-field">
+            Actividad
+            <textarea id="captureActivity" name="activity" rows="3" required placeholder="Describe la actividad"></textarea>
           </label>
-          <label>
-            Género
-            <select id="genderFilter">
-              <option value="todos">Todos</option>
-              <option>Femenino</option>
-              <option>Masculino</option>
-              <option>No especificado</option>
-            </select>
-          </label>
-        </section>
-
-        <section class="view-grid">
-          <div class="main-panel">
-            <div class="section-title">
-              <div>
-                <p class="eyebrow">Dashboard ejecutivo</p>
-                <h2 id="currentTitle">Vista general</h2>
-              </div>
-              <div class="segmented" role="tablist" aria-label="Vista">
-                <button class="active" data-view="dashboard">Dashboard</button>
-                <button id="vivenciaEventsViewButton" data-view="vivencia-events" hidden>Carga de eventos</button>
-                <button id="gradesViewButton" data-view="grades">Calificaciones</button>
-                <button data-view="schedules">Horarios</button>
-                <button id="simulatorViewButton" data-view="simulator" hidden>Simulador</button>
-                <button id="gymAttendanceViewButton" data-view="gym-attendance" hidden>Registro de Asistencia</button>
-                <button id="gymRegistrationsViewButton" data-view="gym-registrations" hidden>Registro de Matrículas</button>
-                <button data-view="reports">Reportes</button>
-                <button id="evaluationsViewButton" data-view="evaluations" hidden>Evaluaciones Físicas</button>
-                <button data-view="blueprint">Sistema</button>
-              </div>
-            </div>
-            <div id="contentArea"></div>
+          <div class="capture-actions">
+            <button class="capture-submit" type="submit">Guardar actividad</button>
+            <button class="capture-secondary" id="captureCancel" type="button">Cancelar</button>
           </div>
-        </section>
-      </main>
-    </div>
+        </form>
+        <div class="capture-status" id="captureStatus" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="controls" aria-label="Filtros">
+        <div class="period-tabs" aria-label="Periodos">
+          <button class="period-tab" type="button" data-period="invierno">Invierno</button>
+          <button class="period-tab" type="button" data-period="feb-jun">Feb-Jun</button>
+          <button class="period-tab" type="button" data-period="verano">Verano</button>
+          <button class="period-tab" type="button" data-period="ago-dic">Ago-Dic</button>
+        </div>
+        <label>
+          Área
+          <select id="areaFilter"></select>
+        </label>
+        <label>
+          Mes
+          <select id="monthFilter"></select>
+        </label>
+        <button id="resetFilters" type="button">Limpiar filtros</button>
+      </section>
+
+      <section class="board-wrap" aria-label="Matriz de planeación">
+        <div class="board" id="planningBoard"></div>
+      </section>
+
+      <section class="activity-panel" aria-label="Lista de actividades">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow" id="summaryEyebrow">Semana actual</p>
+            <h2 id="summaryTitle">Resumen semana actual</h2>
+          </div>
+          <span id="lastUpdated">Actualizado localmente</span>
+        </div>
+        <div class="activity-list" id="activityList"></div>
+      </section>
+    </main>
+
     <script>window.RECSPORTS_ENV = window.RECSPORTS_ENV || {};</script>
-    <script src="./env.js?v=20260610-students-db"></script>
+    <script src="./env.js?v=20260624-vivencia-planeacion"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="./app.js?v=20260624-vivencia-delete-event"></script>
+    <script src="./app.js?v=20260624-vivencia-export-fix"></script>
   </body>
 </html>
