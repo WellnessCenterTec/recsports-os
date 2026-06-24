@@ -1717,7 +1717,6 @@ function parseVivenciaEventRows(rows, sourceName) {
   const seen = new Set();
   const headers = Object.keys(rows[0] || {}).map(headerKey);
   const requiredColumns = [
-    ["Campus", ["campus", "nombre campus"]],
     ["Nombre del evento", ["nombre del evento", "evento", "event_name"]],
     ["Fecha del evento", ["fecha del evento", "fecha", "event_date"]]
   ];
@@ -1730,12 +1729,11 @@ function parseVivenciaEventRows(rows, sourceName) {
 
   rows.forEach((row, index) => {
     const rowNumber = index + 2;
-    const campus = String(vivenciaValue(row, ["Campus", "Nombre Campus"]) || "").trim();
+    const campus = String(vivenciaValue(row, ["Campus", "Nombre Campus"]) || "").trim() || "Monterrey";
     const eventName = String(vivenciaValue(row, ["Nombre del evento", "Evento", "event_name"]) || "").trim();
     const eventDate = parseGymDate(vivenciaValue(row, ["Fecha del evento", "Fecha", "event_date"]));
-    if (!campus || !eventName || !eventDate) {
+    if (!eventName || !eventDate) {
       const missing = [
-        !campus ? "campus" : "",
         !eventName ? "nombre del evento" : "",
         !eventDate ? "fecha valida" : ""
       ].filter(Boolean).join(", ");
@@ -1866,7 +1864,7 @@ async function saveVivenciaEvent(event) {
   const form = new FormData(event.currentTarget);
   const hasFee = form.get("has_fee") === "on";
   const payload = {
-    campus: String(form.get("campus") || "").trim(),
+    campus: String(form.get("campus") || "").trim() || "Monterrey",
     event_name: String(form.get("event_name") || "").trim(),
     discipline: String(form.get("discipline") || "").trim() || null,
     classification: String(form.get("classification") || "").trim() || null,
@@ -1885,8 +1883,8 @@ async function saveVivenciaEvent(event) {
     source_row_key: crypto.randomUUID(),
     created_by: currentUser.id
   };
-  if (!payload.campus || !payload.event_name || !payload.event_date) {
-    toast("Campus, nombre y fecha del evento son obligatorios");
+  if (!payload.event_name || !payload.event_date) {
+    toast("Nombre y fecha del evento son obligatorios");
     return;
   }
   if (payload.end_date && payload.end_date < payload.event_date) {
@@ -5041,7 +5039,7 @@ function renderVivenciaEventsView() {
             <span class="editor-status">${editable ? "Guardado en linea activo" : "Modo consulta"}</span>
           </div>
           <form id="vivenciaEventForm" class="vivencia-event-form">
-            <label>Campus<input name="campus" required placeholder="Ej. Monterrey" ${editable ? "" : "disabled"} /></label>
+            <label>Campus<input name="campus" value="Monterrey" placeholder="Ej. Monterrey" ${editable ? "" : "disabled"} /></label>
             <label>Nombre del evento<input name="event_name" required placeholder="Nombre del evento" ${editable ? "" : "disabled"} /></label>
             <label>Disciplina deportiva<input name="discipline" placeholder="Opcional" ${editable ? "" : "disabled"} /></label>
             <label>Clasificacion<input name="classification" placeholder="Ej. Bienestar, recreativo" ${editable ? "" : "disabled"} /></label>
@@ -5061,7 +5059,7 @@ function renderVivenciaEventsView() {
           <div class="vivencia-bulk-upload">
             <div>
               <strong>Carga masiva de eventos</strong>
-              <span>Acepta CSV, XLSX o XLS. Requiere Campus, Nombre del evento y Fecha del evento.</span>
+              <span>Acepta CSV, XLSX o XLS. Requiere Nombre del evento y Fecha del evento. Si no trae campus, se guarda como Monterrey.</span>
             </div>
             <button class="ghost-btn" id="uploadVivenciaEvents" type="button" ${editable && !vivenciaEventImporting ? "" : "disabled"}>
               ${vivenciaEventImporting ? "Procesando archivo..." : "Cargar CSV o Excel"}
