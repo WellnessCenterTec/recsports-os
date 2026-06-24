@@ -1761,26 +1761,26 @@ function parseVivenciaEventRows(rows, sourceName) {
       warnings.push({ row: rowNumber, message: "Fila omitida: la fecha final es anterior a la fecha del evento" });
       return;
     }
-    const hasFee = vivenciaBoolean(vivenciaValue(row, ["Evento con cobro", "Con cobro", "has_fee"]));
+    const hasFee = vivenciaBoolean(vivenciaValue(row, ["Evento con cobro", "Con cobro", "has_fee"]) || vivenciaCell(row, 9));
     const feeRaw = vivenciaValue(row, ["Costo de inscripcion", "Costo de inscripción", "Cuota", "fee_amount"]);
-    const feeAmount = vivenciaOptionalNumber(feeRaw);
+    const feeAmount = vivenciaOptionalNumber(feeRaw || vivenciaCell(row, 10));
     if (hasFee && feeAmount === null) warnings.push({ row: rowNumber, message: "Evento con cobro sin costo valido; se guardara en 0" });
     const goalRaw = vivenciaValue(row, ["Meta de captacion", "Meta de captación", "Meta de captación (número de estudiantes)", "Meta", "participation_goal"]);
-    const goal = vivenciaOptionalNumber(goalRaw);
+    const goal = vivenciaOptionalNumber(goalRaw || vivenciaCell(row, 8));
     if (String(goalRaw || "").trim() && goal === null) warnings.push({ row: rowNumber, message: "Meta invalida; se guardara vacia" });
     const result = {
       campus,
       event_name: eventName,
-      discipline: String(vivenciaValue(row, ["Disciplina deportiva", "Disciplina", "discipline"]) || "").trim() || null,
+      discipline: String(vivenciaValue(row, ["Disciplina deportiva", "Disciplina", "discipline"]) || vivenciaCell(row, 3) || "").trim() || null,
       classification: String(vivenciaValue(row, ["Clasificacion", "Clasificación", "classification"]) || "").trim() || null,
       event_date: eventDate,
       end_date: endDate || null,
-      branch: String(vivenciaValue(row, ["Rama", "branch"]) || "").trim() || null,
+      branch: String(vivenciaValue(row, ["Rama", "branch"]) || vivenciaCell(row, 6) || "").trim() || null,
       target_population: String(vivenciaValue(row, ["Poblacion que participa en el evento", "Población que participa en el evento", "Poblacion", "target_population"]) || "").trim() || null,
       participation_goal: goal === null ? null : Math.round(goal),
       has_fee: hasFee,
       fee_amount: hasFee ? (feeAmount ?? 0) : 0,
-      responsible_name: String(vivenciaValue(row, ["Nombre del responsable", "Responsable", "responsible_name"]) || "").trim() || null,
+      responsible_name: String(vivenciaValue(row, ["Nombre del responsable", "Responsable", "responsible_name"]) || vivenciaCell(row, 11) || "").trim() || null,
       description: String(vivenciaValue(row, ["Descripcion del evento", "Descripción del evento", "Descripcion", "description"]) || "").trim() || null,
       is_signature_event: vivenciaBoolean(vivenciaValue(row, ["Evento insignia", "Es evento insignia", "is_signature_event"])),
       status: vivenciaStatus(vivenciaValue(row, ["Estado", "Estatus", "status"])),
@@ -1790,6 +1790,16 @@ function parseVivenciaEventRows(rows, sourceName) {
       source_name: sourceName,
       created_by: currentUser?.id || null
     };
+    if (!result.classification) result.classification = String(vivenciaCell(row, 4) || "").trim() || null;
+    if (!result.target_population) result.target_population = String(vivenciaCell(row, 7) || "").trim() || null;
+    if (!result.description) result.description = String(vivenciaCell(row, 12) || "").trim() || null;
+    if (!result.is_signature_event) result.is_signature_event = vivenciaBoolean(vivenciaCell(row, 13));
+    if (result.reported_total_participants === null) result.reported_total_participants = vivenciaOptionalNumber(vivenciaCell(row, 14));
+    if (result.reported_men === null) result.reported_men = vivenciaOptionalNumber(vivenciaCell(row, 15));
+    if (result.reported_women === null) result.reported_women = vivenciaOptionalNumber(vivenciaCell(row, 16));
+    if (result.reported_total_participants === null && (result.reported_men !== null || result.reported_women !== null)) {
+      result.reported_total_participants = (result.reported_men || 0) + (result.reported_women || 0);
+    }
     ["reported_total_participants", "reported_men", "reported_women"].forEach((field) => {
       if (result[field] !== null) result[field] = Math.round(result[field]);
     });
@@ -1864,6 +1874,59 @@ function parseVivenciaParticipantRows(grid, fileName) {
   return { payload, warnings, omitted };
 }
 
+function parseVivenciaCombinedRows(grid, fileName) {
+  const rows = (grid || []).filter((row) => row.some((cell) => String(cell ?? "").trim()));
+  const warnings = [];
+  const participantsByEvent = new Map();
+  const totalsByEvent = new Map();
+  if (rows.length < 2) return { participantsByEvent, totalsByEvent, warnings, omitted: 0 };
+
+  const headers = rows[0].map((cell) => headerKey(cell));
+  const matriculaColumn = headers.findIndex((header) => ["matricula", "matriculas"].includes(header));
+  const activityColumns = headers
+    .map((header, index) => ({ header, index }))
+    .filter((entry) => ["nombredelaactividad", "actividad", "nombreactividad"].includes(entry.header))
+    .map((entry) => entry.index);
+  const participantActivityColumn = activityColumns[0] ?? -1;
+  const summaryActivityColumn = activityColumns.length > 1 ? activityColumns[activityColumns.length - 1] : -1;
+  const summaryTotalColumn = headers.findLastIndex((header) => ["datos", "total", "totalparticipantes", "numerototaldeparticipantes"].includes(header));
+  let omitted = 0;
+
+  rows.slice(1).forEach((row, index) => {
+    const rowNumber = index + 2;
+    const matricula = matriculaColumn >= 0 ? normalizeMatricula(row[matriculaColumn]) : "";
+    const participantEvent = participantActivityColumn >= 0 ? String(row[participantActivityColumn] || "").trim() : "";
+    if (matricula && participantEvent) {
+      const key = headerKey(participantEvent);
+      const list = participantsByEvent.get(key) || [];
+      if (!list.some((item) => item.matricula === matricula)) {
+        list.push({
+          matricula,
+          event_name: participantEvent,
+          source_name: fileName,
+          source_row_number: rowNumber,
+          created_by: currentUser?.id || null
+        });
+      }
+      participantsByEvent.set(key, list);
+    } else if (matricula || participantEvent) {
+      omitted += 1;
+      warnings.push({ row: rowNumber, message: "Fila de participante incompleta; se omitio" });
+    }
+
+    const summaryEvent = summaryActivityColumn >= 0 ? String(row[summaryActivityColumn] || "").trim() : "";
+    const summaryTotal = summaryTotalColumn >= 0 ? vivenciaOptionalNumber(row[summaryTotalColumn]) : null;
+    if (summaryEvent && summaryTotal !== null) {
+      totalsByEvent.set(headerKey(summaryEvent), {
+        event_name: summaryEvent,
+        reported_total_participants: Math.round(summaryTotal)
+      });
+    }
+  });
+
+  return { participantsByEvent, totalsByEvent, warnings, omitted };
+}
+
 async function saveVivenciaEvent(event) {
   event.preventDefault();
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("vivencia")) {
@@ -1935,9 +1998,11 @@ async function importVivenciaEvents(file) {
   vivenciaEventImportResult = null;
   render();
   try {
-    const rows = await vivenciaRowsFromFile(file);
+    const grid = await vivenciaGridFromFile(file);
+    const rows = vivenciaRowsFromGrid(grid);
     if (!rows.length) throw new Error("El archivo no contiene eventos");
     const parsed = parseVivenciaEventRows(rows, file.name);
+    const combined = parseVivenciaCombinedRows(grid, file.name);
     if (parsed.errors.length) {
       vivenciaEventImportResult = {
         loaded: 0,
@@ -1949,7 +2014,8 @@ async function importVivenciaEvents(file) {
       toast(`Archivo con errores: fila ${parsed.errors[0].row}, ${parsed.errors[0].message}`);
       return;
     }
-    if (!parsed.payload.length) {
+    const hasCombinedData = combined.participantsByEvent.size || combined.totalsByEvent.size;
+    if (!parsed.payload.length && !hasCombinedData) {
       vivenciaEventImportResult = {
         loaded: 0,
         omitted: parsed.omitted,
@@ -1960,29 +2026,69 @@ async function importVivenciaEvents(file) {
       toast("No encontre eventos con nombre y fecha valida en el archivo");
       return;
     }
-    const existingResult = await supabaseClient
-      .from("vivencia_events")
-      .select("source_row_key")
-      .eq("source_name", file.name)
-      .not("source_row_key", "is", null);
-    if (existingResult.error) throw existingResult.error;
-    const existingKeys = new Set((existingResult.data || []).map((row) => row.source_row_key));
-    const newRows = parsed.payload.filter((row) => !existingKeys.has(row.source_row_key));
-    const duplicateCount = parsed.payload.length - newRows.length;
     const chunkSize = 300;
-    for (let index = 0; index < newRows.length; index += chunkSize) {
-      const { error } = await supabaseClient.from("vivencia_events").insert(newRows.slice(index, index + chunkSize));
+    for (let index = 0; index < parsed.payload.length; index += chunkSize) {
+      const { error } = await supabaseClient
+        .from("vivencia_events")
+        .upsert(parsed.payload.slice(index, index + chunkSize), { onConflict: "source_name,source_row_key" });
       if (error) throw error;
     }
+
+    const eventsResult = await supabaseClient
+      .from("vivencia_events")
+      .select("id, event_name")
+      .is("archived_at", null)
+      .limit(5000);
+    if (eventsResult.error) throw eventsResult.error;
+    const eventLookup = new Map();
+    (eventsResult.data || []).forEach((row) => {
+      const key = headerKey(row.event_name);
+      if (!eventLookup.has(key)) eventLookup.set(key, row.id);
+    });
+
+    let totalsUpdated = 0;
+    for (const [key, totalRow] of combined.totalsByEvent.entries()) {
+      const eventId = eventLookup.get(key);
+      if (!eventId) continue;
+      const { error } = await supabaseClient
+        .from("vivencia_events")
+        .update({ reported_total_participants: totalRow.reported_total_participants })
+        .eq("id", eventId);
+      if (error) throw error;
+      totalsUpdated += 1;
+    }
+
+    let participantsLoaded = 0;
+    let participantsOmitted = 0;
+    for (const [key, participants] of combined.participantsByEvent.entries()) {
+      const eventId = eventLookup.get(key);
+      if (!eventId) {
+        participantsOmitted += participants.length;
+        combined.warnings.push({
+          row: 0,
+          message: `No encontre evento existente para "${participants[0]?.event_name || key}"; sus matriculas no se asociaron`
+        });
+        continue;
+      }
+      const payload = participants.map((row) => ({ ...row, event_id: eventId }));
+      const { data, error } = await supabaseClient
+        .from("vivencia_participants")
+        .upsert(payload, { onConflict: "event_id,matricula", ignoreDuplicates: true })
+        .select("id");
+      if (error) throw error;
+      participantsLoaded += data?.length || 0;
+      participantsOmitted += payload.length - (data?.length || 0);
+    }
+
     vivenciaEventImportResult = {
-      loaded: newRows.length,
-      omitted: parsed.omitted + duplicateCount,
-      warnings: parsed.warnings,
+      loaded: parsed.payload.length + totalsUpdated + participantsLoaded,
+      omitted: parsed.omitted + combined.omitted + participantsOmitted,
+      warnings: [...parsed.warnings, ...combined.warnings],
       source: file.name
     };
-    addAudit("vivencia", `${newRows.length} eventos importados desde ${file.name}`);
+    addAudit("vivencia", `${parsed.payload.length} eventos, ${totalsUpdated} totales y ${participantsLoaded} participantes procesados desde ${file.name}`);
     await loadVivenciaEvents();
-    toast(`Carga lista: ${newRows.length} eventos nuevos`);
+    toast(`Carga lista: ${parsed.payload.length} eventos, ${totalsUpdated} totales y ${participantsLoaded} participantes`);
   } catch (error) {
     console.error(error);
     vivenciaEventImportResult = {
