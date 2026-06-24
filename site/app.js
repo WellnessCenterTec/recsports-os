@@ -1721,10 +1721,18 @@ function vivenciaRowsFromGrid(grid) {
     return keys.some((key) => eventNameHeaders.has(key)) && keys.some((key) => eventDateHeaders.has(key));
   });
   const headers = rows[headerIndex >= 0 ? headerIndex : 0].map((header, index) => String(header || `columna_${index + 1}`).trim());
-  return rows.slice((headerIndex >= 0 ? headerIndex : 0) + 1).map((cells) => headers.reduce((row, header, index) => {
-    row[header] = cells[index] || "";
+  return rows.slice((headerIndex >= 0 ? headerIndex : 0) + 1).map((cells) => {
+    const row = { __cells: cells };
+    headers.forEach((header, index) => {
+      row[header] = cells[index] || "";
+      row[`columna_${index + 1}`] = cells[index] || "";
+    });
     return row;
-  }, {}));
+  });
+}
+
+function vivenciaCell(row, position) {
+  return row?.__cells?.[position - 1] ?? row?.[`columna_${position}`] ?? "";
 }
 
 function parseVivenciaEventRows(rows, sourceName) {
@@ -1732,23 +1740,12 @@ function parseVivenciaEventRows(rows, sourceName) {
   const warnings = [];
   const errors = [];
   const seen = new Set();
-  const headers = Object.keys(rows[0] || {}).map(headerKey);
-  const requiredColumns = [
-    ["Nombre del evento", ["nombre del evento", "nombre evento", "evento", "actividad", "nombre actividad", "event_name"]],
-    ["Fecha del evento", ["fecha del evento", "fecha", "event_date"]]
-  ];
-  requiredColumns.forEach(([label, aliases]) => {
-    if (!aliases.map(headerKey).some((alias) => headers.includes(alias))) {
-      errors.push({ row: 1, message: `Falta columna requerida: ${label}` });
-    }
-  });
-  if (errors.length) return { payload, warnings, errors, omitted: rows.length };
 
   rows.forEach((row, index) => {
     const rowNumber = index + 2;
-    const campus = String(vivenciaValue(row, ["Campus", "Nombre Campus"]) || "").trim() || "Monterrey";
-    const eventName = String(vivenciaValue(row, ["Nombre del evento", "Nombre evento", "Evento", "Actividad", "Nombre actividad", "event_name"]) || "").trim();
-    const eventDate = parseGymDate(vivenciaValue(row, ["Fecha del evento", "Fecha", "event_date"]));
+    const campus = String(vivenciaValue(row, ["Campus", "Nombre Campus"]) || vivenciaCell(row, 1)).trim() || "Monterrey";
+    const eventName = String(vivenciaValue(row, ["Nombre del evento", "Nombre evento", "Evento", "Actividad", "Nombre actividad", "event_name"]) || vivenciaCell(row, 2)).trim();
+    const eventDate = parseGymDate(vivenciaValue(row, ["Fecha del evento", "Fecha", "event_date"]) || vivenciaCell(row, 5));
     if (!eventName || !eventDate) {
       const missing = [
         !eventName ? "nombre del evento" : "",
