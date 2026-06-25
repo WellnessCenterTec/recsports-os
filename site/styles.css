@@ -741,6 +741,24 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 .module-card[data-tone="lav"] { border-left-color: var(--lav); }
 .module-card p { color: var(--muted); font-size: 13px; line-height: 1.38; margin-bottom: 12px; }
 
+.load-card {
+  min-height: 250px;
+}
+.load-card-count {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #eef7fb;
+  color: var(--blue);
+  font-weight: 800;
+}
+.load-center-action {
+  align-self: flex-start;
+}
+
 .charts-grid {
   display: grid;
   grid-template-columns: 1.2fr .8fr;

@@ -10,6 +10,16 @@ const areas = [
     reports: ["Resumen ejecutivo PDF", "Base agregada Excel", "Cruce de participación por área"]
   },
   {
+    id: "cargas",
+    name: "Centro de Cargas",
+    tone: "blue",
+    source: "Supabase + cargas operativas autorizadas",
+    capture: ["Archivo", "Modulo", "Usuario", "Estado", "Registros procesados"],
+    indicators: ["Ultima carga", "Registros cargados", "Errores", "Duplicados", "Fuente principal"],
+    charts: ["Estado por modulo", "Cargas recientes", "Calidad de datos"],
+    reports: ["Historial de cargas", "Errores por archivo", "Resumen de fuentes"]
+  },
+  {
     id: "clases",
     name: "Clases Deportivas",
     tone: "green",
@@ -3851,6 +3861,7 @@ function renderNav() {
   const allowed = visibleAreas();
   const areaIcons = {
     general: "layout-dashboard",
+    cargas: "upload-cloud",
     clases: "clipboard-list",
     gimnasio: "dumbbell",
     intramuros: "trophy",
@@ -4336,7 +4347,149 @@ function renderGymStudentRegistration() {
   `;
 }
 
+function dataLoadCenterRows() {
+  return [
+    {
+      id: "students",
+      module: "Ejecutivo general",
+      title: "Base de Datos de Alumnos",
+      table: "Base de datos_alumnos + students_minimal",
+      status: studentDatabaseLoaded ? "Conectado" : "Pendiente",
+      count: cloudStudentDatabase.length,
+      detail: "Reemplaza la base maestra autorizada: matricula, genero, carrera, semestre y nivel.",
+      action: "Cargar alumnos",
+      inputId: "loadCenterStudentDatabase",
+      accept: ".csv,text/csv",
+      disabled: !canUseAuthorizedUploads() || studentDatabaseImporting
+    },
+    {
+      id: "gym",
+      module: "Gimnasio",
+      title: "Asistencias de Gimnasio",
+      table: "gym_asistencias",
+      status: gymAsistencias.length ? "Con datos" : "Sin carga",
+      count: gymAsistencias.length,
+      detail: "CSV historico por visita: matricula, fecha, hora, sitio y observaciones.",
+      action: "Cargar asistencias",
+      inputId: "loadCenterGymAttendance",
+      accept: ".csv,text/csv",
+      disabled: !canEditArea("gimnasio") || gymAttendanceImporting
+    },
+    {
+      id: "vivencia",
+      module: "Vivencia",
+      title: "Eventos y Participantes",
+      table: "vivencia_events + vivencia_participants",
+      status: vivenciaEventsAvailable ? "Conectado" : "Falta estructura",
+      count: vivenciaEvents.length,
+      detail: "Carga eventos, resumen de participacion y matriculas por actividad cuando el archivo viene mixto.",
+      action: "Cargar vivencia",
+      inputId: "loadCenterVivenciaEvents",
+      accept: ".csv,.xlsx,.xls",
+      disabled: !canEditArea("vivencia") || vivenciaEventImporting
+    },
+    {
+      id: "horarios",
+      module: "Clases Deportivas",
+      title: "Horarios Maestro",
+      table: "Respaldo local de Horarios",
+      status: scheduleMasterRows().length ? "Cargado" : "Pendiente",
+      count: scheduleMasterRows().length,
+      detail: "Archivo maestro de Indicadores con hojas programacion clases y booking ofertados.",
+      action: "Cargar horarios",
+      inputId: "loadCenterScheduleMaster",
+      accept: ".xlsx,.xls",
+      disabled: !canEditArea("clases")
+    },
+    {
+      id: "collaborators",
+      module: "Colaboradores",
+      title: "Colaboradores y Uniformes",
+      table: "collaborators + storage de fotos",
+      status: cloudCollaborators.length ? "Conectado" : "Local",
+      count: collaboratorRows().length,
+      detail: "Base autorizada de colaboradores, uniformes, cursos y datos operativos.",
+      action: "Ir a colaboradores",
+      inputId: "",
+      accept: "",
+      disabled: !canEditArea("colaboradores")
+    }
+  ];
+}
+
+function renderLoadCenterDashboard() {
+  const rows = dataLoadCenterRows();
+  const totalLoaded = rows.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
+  const connected = rows.filter((row) => !["Pendiente", "Sin carga", "Falta estructura"].includes(row.status)).length;
+  const recentImports = auditLog
+    .filter((entry) => /import|carg|vivencia|gimnasio|alumnos|horarios/i.test(`${entry.action || ""} ${entry.detail || ""}`))
+    .slice(0, 8);
+  return `
+    <section class="ops-summary load-center-hero" aria-label="Resumen del centro de cargas">
+      <article>
+        <span>Fase 1</span>
+        <strong>Centro de Cargas</strong>
+        <p>Accesos centralizados para subir archivos sin mover la operacion actual de cada modulo.</p>
+      </article>
+      <article>
+        <span>Fuentes activas</span>
+        <strong>${connected} de ${rows.length}</strong>
+        <p>Tablas o respaldos detectados con informacion disponible.</p>
+      </article>
+      <article>
+        <span>Registros visibles</span>
+        <strong>${totalLoaded.toLocaleString("es-MX")}</strong>
+        <p>Conteo operativo entre alumnos, gimnasio, vivencia, horarios y colaboradores.</p>
+      </article>
+    </section>
+
+    <div class="module-grid load-center-grid">
+      ${rows.map((row) => `
+        <article class="module-card load-card" data-tone="${row.id === "gym" || row.id === "horarios" ? "gold" : row.id === "vivencia" ? "lav" : row.id === "students" ? "green" : "blue"}">
+          <div>
+            <div class="chart-title-row">
+              <div>
+                <p class="eyebrow">${escapeHtml(row.module)}</p>
+                <h3>${escapeHtml(row.title)}</h3>
+              </div>
+              <span>${escapeHtml(row.status)}</span>
+            </div>
+            <p>${escapeHtml(row.detail)}</p>
+            <p><strong>Destino:</strong> ${escapeHtml(row.table)}</p>
+            <div class="load-card-count">${Number(row.count || 0).toLocaleString("es-MX")} registros</div>
+          </div>
+          ${row.inputId ? `<input id="${row.inputId}" type="file" accept="${row.accept}" hidden />` : ""}
+          <button class="${row.inputId ? "primary-btn" : "ghost-btn"} load-center-action" data-load-action="${row.id}" type="button" ${row.disabled ? "disabled" : ""}>${escapeHtml(row.action)}</button>
+        </article>
+      `).join("")}
+    </div>
+
+    <section class="chart-panel">
+      <div class="chart-title-row">
+        <div>
+          <p class="eyebrow">Auditoria operativa</p>
+          <h3>Historial reciente de cargas</h3>
+        </div>
+        <span>${recentImports.length} movimientos</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th></tr></thead>
+          <tbody>${recentImports.length ? recentImports.map((entry) => `
+            <tr>
+              <td>${escapeHtml(String(entry.at || "").slice(0, 19).replace("T", " "))}</td>
+              <td>${escapeHtml(entry.action || "")}</td>
+              <td>${escapeHtml(entry.detail || "")}</td>
+            </tr>
+          `).join("") : `<tr><td colspan="3">Todavia no hay cargas registradas en esta bitacora.</td></tr>`}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
 function renderDashboard(area) {
+  if (area.id === "cargas") return renderLoadCenterDashboard();
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
   if (area.id === "configuracion") return renderConfigurationDashboard();
   if (area.id === "gimnasio") return renderGymDashboard();
@@ -6169,6 +6322,42 @@ function render() {
     addAudit("limpieza", "Capturas locales eliminadas");
     render();
     toast("Capturas locales eliminadas");
+  });
+  $$(".load-center-action").forEach((button) => button.addEventListener("click", () => {
+    const action = button.dataset.loadAction;
+    if (action === "students") $("#loadCenterStudentDatabase")?.click();
+    if (action === "gym") $("#loadCenterGymAttendance")?.click();
+    if (action === "vivencia") $("#loadCenterVivenciaEvents")?.click();
+    if (action === "horarios") $("#loadCenterScheduleMaster")?.click();
+    if (action === "collaborators") {
+      activeArea = "colaboradores";
+      activeView = "dashboard";
+      render();
+    }
+  }));
+  $("#loadCenterStudentDatabase")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await replaceStudentDatabaseFromCsv(file);
+    event.target.value = "";
+  });
+  $("#loadCenterGymAttendance")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importGymAttendanceCsv(file);
+    event.target.value = "";
+  });
+  $("#loadCenterVivenciaEvents")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importVivenciaEvents(file);
+    event.target.value = "";
+  });
+  $("#loadCenterScheduleMaster")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await handleScheduleUpload(file, "master");
+    event.target.value = "";
   });
   $("#uploadStudentDatabase")?.addEventListener("click", () => $("#studentDatabaseCsv")?.click());
   $("#studentDatabaseCsv")?.addEventListener("change", async (event) => {
