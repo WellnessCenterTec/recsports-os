@@ -4757,7 +4757,7 @@ function executiveHealthRows() {
   const collaboratorLog = latestImportLogFor("colaboradores", ["collaborators"]);
   const scheduleRows = scheduleMasterRows();
   const vivenciaEventsWithoutParticipants = vivenciaEvents.filter((event) => vivenciaMetricParticipants(event) === 0).length;
-  const classGradesRows = currentClassGradeRows();
+  const classGradesRows = allClassGradeRows();
   const pendingGrades = classGradesRows.filter((row) => classGradeStatus(row) === "pendiente").length;
   const rows = [];
 
