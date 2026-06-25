@@ -398,6 +398,9 @@ let cloudCaptures = [];
 let cloudStudentDatabase = [];
 let studentDatabaseLoaded = false;
 let studentDatabaseImporting = false;
+let importLogs = [];
+let importLogsAvailable = true;
+let loadCenterImportResult = null;
 let cloudCollaborators = [];
 let collaboratorsCloudLoaded = false;
 let physicalEvaluations = [];
@@ -659,6 +662,140 @@ function addAudit(action, detail = "") {
   };
   auditLog = [entry, ...auditLog].slice(0, 200);
   saveAuditLog();
+}
+
+function importLogStatus(loadedCount = 0, omittedCount = 0, warningCount = 0, errorMessage = "") {
+  if (errorMessage) return "failed";
+  if (omittedCount || warningCount) return "completed_with_warnings";
+  return "completed";
+}
+
+async function loadImportLogs() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const { data, error } = await supabaseClient
+    .from("import_logs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(80);
+  if (error) {
+    importLogsAvailable = false;
+    importLogs = [];
+    console.warn("Historial de cargas no disponible", error);
+    return;
+  }
+  importLogsAvailable = true;
+  importLogs = data || [];
+}
+
+async function saveImportLog({
+  moduleKey,
+  moduleName,
+  sourceName = "",
+  fileName = "",
+  loadedCount = 0,
+  omittedCount = 0,
+  warningCount = 0,
+  errorMessage = ""
+}) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !importLogsAvailable) return;
+  const payload = {
+    module_key: moduleKey,
+    module_name: moduleName || labelArea(moduleKey),
+    source_name: sourceName || null,
+    file_name: fileName || null,
+    status: importLogStatus(loadedCount, omittedCount, warningCount, errorMessage),
+    loaded_count: Number(loadedCount) || 0,
+    omitted_count: Number(omittedCount) || 0,
+    warning_count: Number(warningCount) || 0,
+    error_message: errorMessage || null,
+    uploaded_by: currentUser.id || null
+  };
+  const { error } = await supabaseClient.from("import_logs").insert(payload);
+  if (error) {
+    importLogsAvailable = false;
+    console.warn("No se pudo guardar historial de carga", error);
+    return;
+  }
+  importLogs = [{ ...payload, id: crypto.randomUUID(), created_at: new Date().toISOString() }, ...importLogs].slice(0, 80);
+}
+
+function setLoadCenterImportResult({
+  moduleKey = "general",
+  moduleName = "Centro de Cargas",
+  sourceName = "",
+  fileName = "",
+  loaded = 0,
+  omitted = 0,
+  warnings = [],
+  errors = [],
+  blocked = false
+}) {
+  loadCenterImportResult = {
+    moduleKey,
+    moduleName,
+    sourceName,
+    fileName,
+    loaded: Number(loaded) || 0,
+    omitted: Number(omitted) || 0,
+    warnings: warnings || [],
+    errors: errors || [],
+    blocked: Boolean(blocked),
+    at: new Date().toISOString()
+  };
+}
+
+function loadCenterResultStatus(result = loadCenterImportResult) {
+  if (!result) return "";
+  if (result.blocked || result.errors?.length) return "Carga detenida";
+  if (result.warnings?.length || result.omitted) return "Carga con alertas";
+  return "Carga correcta";
+}
+
+function renderLoadCenterResult() {
+  const result = loadCenterImportResult;
+  if (!result) return "";
+  const warnings = result.warnings || [];
+  const errors = result.errors || [];
+  const issues = [...errors, ...warnings].slice(0, 12);
+  return `
+    <section class="chart-panel load-result-panel" data-status="${result.blocked || errors.length ? "failed" : warnings.length || result.omitted ? "warning" : "success"}">
+      <div class="chart-title-row">
+        <div>
+          <p class="eyebrow">Resultado de carga</p>
+          <h3>${escapeHtml(loadCenterResultStatus(result))}</h3>
+        </div>
+        <span>${escapeHtml(String(result.at || "").slice(0, 19).replace("T", " "))}</span>
+      </div>
+      <div class="load-result-summary">
+        <article><span>Modulo</span><strong>${escapeHtml(result.moduleName)}</strong></article>
+        <article><span>Archivo</span><strong>${escapeHtml(result.fileName || "Sin archivo")}</strong></article>
+        <article><span>Cargados</span><strong>${Number(result.loaded || 0).toLocaleString("es-MX")}</strong></article>
+        <article><span>Omitidos</span><strong>${Number(result.omitted || 0).toLocaleString("es-MX")}</strong></article>
+        <article><span>Alertas</span><strong>${warnings.length.toLocaleString("es-MX")}</strong></article>
+        <article><span>Errores</span><strong>${errors.length.toLocaleString("es-MX")}</strong></article>
+      </div>
+      ${issues.length ? `
+        <div class="load-result-issues">
+          ${issues.map((issue) => `<p>${issue.row ? `Fila ${issue.row}: ` : ""}${escapeHtml(issue.message || issue)}</p>`).join("")}
+        </div>
+        <button class="ghost-btn" id="downloadLoadCenterResult" type="button">Descargar reporte de carga</button>
+      ` : `<p class="form-message">No se detectaron errores ni advertencias en esta carga.</p>`}
+    </section>
+  `;
+}
+
+function downloadLoadCenterResultReport() {
+  const result = loadCenterImportResult;
+  if (!result) return;
+  const rows = [
+    ["tipo", "fila", "mensaje"],
+    ...(result.errors || []).map((item) => ["error", item.row || "", item.message || item]),
+    ...(result.warnings || []).map((item) => ["advertencia", item.row || "", item.message || item])
+  ];
+  const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
+  const base = (result.fileName || result.moduleKey || "carga").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  downloadBlob(csv, `resultado-carga-${base || "wellsync"}.csv`);
+  toast("Reporte de carga descargado");
 }
 
 function profileToSession(profile, authUser) {
@@ -1584,10 +1721,32 @@ async function replaceStudentDatabaseFromCsv(file) {
     const text = await file.text();
     const { payload, minimalPayload, errors, warnings, omitted } = parseStudentDatabaseCsv(text);
     if (errors.length) {
+      setLoadCenterImportResult({
+        moduleKey: "general",
+        moduleName: "Ejecutivo general",
+        sourceName: "Base de datos_alumnos",
+        fileName: file.name,
+        loaded: 0,
+        omitted,
+        warnings,
+        errors,
+        blocked: true
+      });
       toast(`CSV con errores: fila ${errors[0].row}, ${errors[0].message}`);
       return;
     }
     if (!payload.length) {
+      setLoadCenterImportResult({
+        moduleKey: "general",
+        moduleName: "Ejecutivo general",
+        sourceName: "Base de datos_alumnos",
+        fileName: file.name,
+        loaded: 0,
+        omitted,
+        warnings: warnings.length ? warnings : [{ row: 0, message: "El CSV no tiene alumnos validos" }],
+        errors: [],
+        blocked: true
+      });
       toast("El CSV no tiene alumnos validos");
       return;
     }
@@ -1607,9 +1766,46 @@ async function replaceStudentDatabaseFromCsv(file) {
     const warningSummary = warnings.length ? `, ${warnings.length} advertencias` : "";
     const omittedSummary = omitted ? `, ${omitted} omitidos` : "";
     addAudit("importacion", `${payload.length} alumnos cargados en Base de datos_alumnos${omittedSummary}${warningSummary}`);
+    setLoadCenterImportResult({
+      moduleKey: "general",
+      moduleName: "Ejecutivo general",
+      sourceName: "Base de datos_alumnos",
+      fileName: file.name,
+      loaded: payload.length,
+      omitted,
+      warnings,
+      errors: []
+    });
+    await saveImportLog({
+      moduleKey: "general",
+      moduleName: "Ejecutivo general",
+      sourceName: "Base de datos_alumnos",
+      fileName: file.name,
+      loadedCount: payload.length,
+      omittedCount: omitted,
+      warningCount: warnings.length
+    });
     toast(`Carga lista: ${payload.length} cargados${omittedSummary}${warningSummary}`);
   } catch (error) {
     console.error(error);
+    setLoadCenterImportResult({
+      moduleKey: "general",
+      moduleName: "Ejecutivo general",
+      sourceName: "Base de datos_alumnos",
+      fileName: file.name,
+      loaded: 0,
+      omitted: 0,
+      warnings: [],
+      errors: [{ row: 0, message: supabaseErrorDetail(error) || error.message || "Error de carga" }],
+      blocked: true
+    });
+    await saveImportLog({
+      moduleKey: "general",
+      moduleName: "Ejecutivo general",
+      sourceName: "Base de datos_alumnos",
+      fileName: file.name,
+      errorMessage: supabaseErrorDetail(error) || error.message || "Error de carga"
+    });
     toast(`No se pudo cargar alumnos${supabaseErrorDetail(error) ? `: ${supabaseErrorDetail(error)}` : ""}`);
   } finally {
     studentDatabaseImporting = false;
@@ -2186,6 +2382,17 @@ async function importVivenciaEvents(file) {
         source: file.name,
         blocked: true
       };
+      setLoadCenterImportResult({
+        moduleKey: "vivencia",
+        moduleName: "Vivencia",
+        sourceName: "vivencia_events",
+        fileName: file.name,
+        loaded: 0,
+        omitted: parsed.omitted,
+        warnings: parsed.warnings,
+        errors: parsed.errors,
+        blocked: true
+      });
       toast(`Archivo con errores: fila ${parsed.errors[0].row}, ${parsed.errors[0].message}`);
       return;
     }
@@ -2197,6 +2404,17 @@ async function importVivenciaEvents(file) {
         source: file.name,
         blocked: true
       };
+      setLoadCenterImportResult({
+        moduleKey: "vivencia",
+        moduleName: "Vivencia",
+        sourceName: "vivencia_events",
+        fileName: file.name,
+        loaded: 0,
+        omitted: parsed.omitted,
+        warnings: parsed.warnings.length ? parsed.warnings : [{ row: 0, message: "No se encontraron eventos con nombre y fecha valida" }],
+        errors: [],
+        blocked: true
+      });
       toast("No encontre eventos con nombre y fecha valida en el archivo");
       return;
     }
@@ -2214,7 +2432,26 @@ async function importVivenciaEvents(file) {
 	      warnings: parsed.warnings,
 	      source: file.name
 	    };
+	    setLoadCenterImportResult({
+	      moduleKey: "vivencia",
+	      moduleName: "Vivencia",
+	      sourceName: "vivencia_events",
+	      fileName: file.name,
+	      loaded: parsed.payload.length,
+	      omitted: parsed.omitted,
+	      warnings: parsed.warnings,
+	      errors: []
+	    });
 	    addAudit("vivencia", `${parsed.payload.length} eventos procesados desde ${file.name}`);
+	    await saveImportLog({
+	      moduleKey: "vivencia",
+	      moduleName: "Vivencia",
+	      sourceName: "vivencia_events",
+	      fileName: file.name,
+	      loadedCount: parsed.payload.length,
+	      omittedCount: parsed.omitted,
+	      warningCount: parsed.warnings.length
+	    });
 	    await loadVivenciaEvents();
 	    toast(`Carga lista: ${parsed.payload.length} eventos`);
   } catch (error) {
@@ -2226,6 +2463,24 @@ async function importVivenciaEvents(file) {
       source: file.name,
       blocked: true
     };
+    setLoadCenterImportResult({
+      moduleKey: "vivencia",
+      moduleName: "Vivencia",
+      sourceName: "vivencia_events",
+      fileName: file.name,
+      loaded: 0,
+      omitted: 0,
+      warnings: [],
+      errors: [{ row: 0, message: supabaseErrorDetail(error) || error.message || "Error de carga" }],
+      blocked: true
+    });
+    await saveImportLog({
+      moduleKey: "vivencia",
+      moduleName: "Vivencia",
+      sourceName: "vivencia_events",
+      fileName: file.name,
+      errorMessage: supabaseErrorDetail(error) || error.message || "Error de carga"
+    });
     toast(`No se pudo cargar eventos: ${supabaseErrorDetail(error) || error.message}`);
   } finally {
     vivenciaEventImporting = false;
@@ -2302,6 +2557,15 @@ async function importVivenciaParticipants(file, eventId) {
       totalParticipants
     };
     addAudit("vivencia", `${loaded} participantes importados para ${eventRow.event_name}`);
+    await saveImportLog({
+      moduleKey: "vivencia",
+      moduleName: "Vivencia",
+      sourceName: `vivencia_participants: ${eventRow.event_name}`,
+      fileName: file.name,
+      loadedCount: loaded,
+      omittedCount: parsed.omitted + duplicates,
+      warningCount: parsed.warnings.length + (duplicates ? 1 : 0)
+    });
     await loadVivenciaEvents();
     toast(`Participantes cargados: ${loaded}. Duplicados ignorados: ${duplicates}`);
   } catch (error) {
@@ -2313,6 +2577,13 @@ async function importVivenciaParticipants(file, eventId) {
       source: file.name,
       blocked: true
     };
+    await saveImportLog({
+      moduleKey: "vivencia",
+      moduleName: "Vivencia",
+      sourceName: `vivencia_participants: ${eventRow.event_name}`,
+      fileName: file.name,
+      errorMessage: supabaseErrorDetail(error) || error.message || "Error de carga"
+    });
     toast(`No se pudo cargar participantes: ${supabaseErrorDetail(error) || error.message}`);
   } finally {
     vivenciaParticipantImporting = false;
@@ -3047,7 +3318,8 @@ async function loadSupabaseDataBundle() {
     ["Calificaciones", loadClassGrades],
     ["Gimnasio", loadGymData],
     ["Simulador de clases", loadClassScheduleSimulatorCloud],
-    ["Vivencia", loadVivenciaEvents]
+    ["Vivencia", loadVivenciaEvents],
+    ["Historial de cargas", loadImportLogs]
   ];
   const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
   results.forEach((result, index) => {
@@ -4357,6 +4629,9 @@ function dataLoadCenterRows() {
       status: studentDatabaseLoaded ? "Conectado" : "Pendiente",
       count: cloudStudentDatabase.length,
       detail: "Reemplaza la base maestra autorizada: matricula, genero, carrera, semestre y nivel.",
+      expected: "CSV con matricula obligatoria. Carrera, genero, nivel, semestre y periodo pueden venir vacios.",
+      logModule: "general",
+      logSources: ["Base de datos_alumnos"],
       action: "Cargar alumnos",
       inputId: "loadCenterStudentDatabase",
       accept: ".csv,text/csv",
@@ -4370,6 +4645,9 @@ function dataLoadCenterRows() {
       status: gymAsistencias.length ? "Con datos" : "Sin carga",
       count: gymAsistencias.length,
       detail: "CSV historico por visita: matricula, fecha, hora, sitio y observaciones.",
+      expected: "CSV del sistema con id, matricula, nombre completo, fecha, hora, Sitio y observaciones.",
+      logModule: "gimnasio",
+      logSources: ["gym_asistencias"],
       action: "Cargar asistencias",
       inputId: "loadCenterGymAttendance",
       accept: ".csv,text/csv",
@@ -4383,6 +4661,9 @@ function dataLoadCenterRows() {
       status: vivenciaEventsAvailable ? "Conectado" : "Falta estructura",
       count: vivenciaEvents.length,
       detail: "Carga eventos, resumen de participacion y matriculas por actividad cuando el archivo viene mixto.",
+      expected: "CSV o Excel de eventos. Campus puede omitirse y se guarda como Monterrey.",
+      logModule: "vivencia",
+      logSources: ["vivencia_events", "vivencia_participants"],
       action: "Cargar vivencia",
       inputId: "loadCenterVivenciaEvents",
       accept: ".csv,.xlsx,.xls",
@@ -4396,6 +4677,9 @@ function dataLoadCenterRows() {
       status: scheduleMasterRows().length ? "Cargado" : "Pendiente",
       count: scheduleMasterRows().length,
       detail: "Archivo maestro de Indicadores con hojas programacion clases y booking ofertados.",
+      expected: "Excel maestro con hojas programacion clases y booking ofertados.",
+      logModule: "clases",
+      logSources: ["Calendario maestro de horarios", "Programacion Oficial", "Booking"],
       action: "Cargar horarios",
       inputId: "loadCenterScheduleMaster",
       accept: ".xlsx,.xls",
@@ -4409,6 +4693,9 @@ function dataLoadCenterRows() {
       status: cloudCollaborators.length ? "Conectado" : "Local",
       count: collaboratorRows().length,
       detail: "Base autorizada de colaboradores, uniformes, cursos y datos operativos.",
+      expected: "Se administra desde Colaboradores. La carga de imagenes sigue en ese modulo.",
+      logModule: "colaboradores",
+      logSources: ["collaborators"],
       action: "Ir a colaboradores",
       inputId: "",
       accept: "",
@@ -4417,13 +4704,342 @@ function dataLoadCenterRows() {
   ];
 }
 
+function loadCenterLogsForRow(row) {
+  if (!importLogsAvailable || !importLogs.length) return [];
+  return importLogs.filter((entry) => {
+    if (entry.module_key !== row.logModule) return false;
+    if (!row.logSources?.length) return true;
+    const source = `${entry.source_name || ""} ${entry.file_name || ""}`;
+    return row.logSources.some((item) => source.toLowerCase().includes(String(item).toLowerCase()));
+  });
+}
+
+function loadCenterStatusLabel(status) {
+  if (status === "failed") return "Con error";
+  if (status === "completed_with_warnings") return "Con alertas";
+  return "Correcta";
+}
+
+function latestImportLogFor(moduleKey, sources = []) {
+  if (!importLogsAvailable || !importLogs.length) return null;
+  return importLogs.find((entry) => {
+    if (entry.module_key !== moduleKey) return false;
+    if (!sources.length) return true;
+    const source = `${entry.source_name || ""} ${entry.file_name || ""}`.toLowerCase();
+    return sources.some((item) => source.includes(String(item).toLowerCase()));
+  }) || null;
+}
+
+function daysSinceIso(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return Math.floor((Date.now() - date.getTime()) / 86400000);
+}
+
+function healthRow({ areaId, label, status = "yellow", reason, action, updatedAt = "", score = 0 }) {
+  return {
+    areaId,
+    label,
+    status,
+    reason,
+    action,
+    updatedAt,
+    score
+  };
+}
+
+function executiveHealthRows() {
+  const studentLog = latestImportLogFor("general", ["Base de datos_alumnos"]);
+  const gymLog = latestImportLogFor("gimnasio", ["gym_asistencias"]);
+  const vivenciaLog = latestImportLogFor("vivencia", ["vivencia_events", "vivencia_participants"]);
+  const scheduleLog = latestImportLogFor("clases", ["Calendario maestro de horarios", "Programacion Oficial", "Booking"]);
+  const collaboratorLog = latestImportLogFor("colaboradores", ["collaborators"]);
+  const scheduleRows = scheduleMasterRows();
+  const vivenciaEventsWithoutParticipants = vivenciaEvents.filter((event) => vivenciaMetricParticipants(event) === 0).length;
+  const classGradesRows = currentClassGradeRows();
+  const pendingGrades = classGradesRows.filter((row) => classGradeStatus(row) === "pendiente").length;
+  const rows = [];
+
+  rows.push(healthRow({
+    areaId: "general",
+    label: "Base de alumnos",
+    status: studentDatabaseLoaded && cloudStudentDatabase.length ? "green" : "red",
+    reason: studentDatabaseLoaded && cloudStudentDatabase.length
+      ? `${cloudStudentDatabase.length.toLocaleString("es-MX")} alumnos disponibles`
+      : "Falta cargar Base de datos_alumnos",
+    action: "Cargar base maestra desde Centro de Cargas",
+    updatedAt: studentLog?.created_at || "",
+    score: studentDatabaseLoaded && cloudStudentDatabase.length ? 95 : 20
+  }));
+
+  rows.push(healthRow({
+    areaId: "gimnasio",
+    label: "Gimnasio",
+    status: !gymAsistencias.length ? "red" : daysSinceIso(gymLog?.created_at) !== null && daysSinceIso(gymLog?.created_at) > 14 ? "yellow" : "green",
+    reason: gymAsistencias.length
+      ? `${gymAsistencias.length.toLocaleString("es-MX")} asistencias historicas`
+      : "Sin asistencias importadas",
+    action: gymAsistencias.length ? "Monitorear frecuencia de actualizacion" : "Subir CSV de asistencias",
+    updatedAt: gymLog?.created_at || "",
+    score: gymAsistencias.length ? 90 : 15
+  }));
+
+  rows.push(healthRow({
+    areaId: "vivencia",
+    label: "Vivencia",
+    status: !vivenciaEventsAvailable ? "red" : !vivenciaEvents.length ? "red" : vivenciaEventsWithoutParticipants ? "yellow" : "green",
+    reason: !vivenciaEventsAvailable
+      ? "Falta estructura de Vivencia en Supabase"
+      : vivenciaEventsWithoutParticipants
+        ? `${vivenciaEventsWithoutParticipants} eventos sin participantes`
+        : `${vivenciaEvents.length.toLocaleString("es-MX")} eventos con estructura activa`,
+    action: vivenciaEventsWithoutParticipants ? "Cargar matriculas por evento" : "Mantener calendario actualizado",
+    updatedAt: vivenciaLog?.created_at || "",
+    score: !vivenciaEventsAvailable || !vivenciaEvents.length ? 25 : vivenciaEventsWithoutParticipants ? 68 : 92
+  }));
+
+  rows.push(healthRow({
+    areaId: "clases",
+    label: "Clases Deportivas",
+    status: !scheduleRows.length ? "red" : pendingGrades ? "yellow" : "green",
+    reason: !scheduleRows.length
+      ? "Falta cargar calendario maestro"
+      : pendingGrades
+        ? `${pendingGrades.toLocaleString("es-MX")} calificaciones pendientes`
+        : `${scheduleRows.length.toLocaleString("es-MX")} registros de horario activos`,
+    action: !scheduleRows.length ? "Cargar archivo maestro de indicadores" : pendingGrades ? "Completar calificaciones pendientes" : "Revisar conflictos periodicamente",
+    updatedAt: scheduleLog?.created_at || scheduleState.updatedAt || "",
+    score: !scheduleRows.length ? 25 : pendingGrades ? 70 : 90
+  }));
+
+  rows.push(healthRow({
+    areaId: "colaboradores",
+    label: "Colaboradores",
+    status: collaboratorRows().length ? "green" : "yellow",
+    reason: collaboratorRows().length
+      ? `${collaboratorRows().length.toLocaleString("es-MX")} colaboradores visibles`
+      : "Pendiente importar colaboradores",
+    action: "Mantener fotos y datos operativos al dia",
+    updatedAt: collaboratorLog?.created_at || "",
+    score: collaboratorRows().length ? 88 : 50
+  }));
+
+  [
+    ["intramuros", "Intramuros"],
+    ["comunicacion", "Comunicacion"],
+    ["representativos", "Representativos"],
+    ["gamer", "Gamer"],
+    ["compras", "Compras y Presupuesto"]
+  ].forEach(([areaId, label]) => {
+    rows.push(healthRow({
+      areaId,
+      label,
+      status: "yellow",
+      reason: "Modulo pendiente de conectar al Centro de Cargas",
+      action: "Definir fuente principal y validaciones",
+      score: 45
+    }));
+  });
+
+  return rows;
+}
+
+function renderExecutiveHealthSemaphore({ compact = false } = {}) {
+  const rows = executiveHealthRows();
+  const counts = rows.reduce((acc, row) => {
+    acc[row.status] = (acc[row.status] || 0) + 1;
+    return acc;
+  }, {});
+  const statusLabel = { green: "Verde", yellow: "Amarillo", red: "Rojo" };
+  const statusText = { green: "Listo", yellow: "Atencion", red: "Critico" };
+  return `
+    <section class="chart-panel executive-health-panel ${compact ? "compact" : ""}">
+      <div class="chart-title-row">
+        <div>
+          <p class="eyebrow">Direccion Deportiva</p>
+          <h3>Semaforo ejecutivo por area</h3>
+        </div>
+        <span>${counts.green || 0} verdes - ${counts.yellow || 0} amarillos - ${counts.red || 0} rojos</span>
+      </div>
+      <div class="health-grid">
+        ${rows.map((row) => `
+          <article class="health-card" data-status="${row.status}">
+            <div class="health-card-head">
+              <span>${escapeHtml(statusLabel[row.status])}</span>
+              <strong>${escapeHtml(row.label)}</strong>
+            </div>
+            <div class="health-score">
+              <span style="width:${Math.max(6, Math.min(100, Number(row.score) || 0))}%"></span>
+            </div>
+            <p>${escapeHtml(row.reason)}</p>
+            <em>${escapeHtml(row.action)}</em>
+            <small>${row.updatedAt ? `Ultima carga: ${escapeHtml(String(row.updatedAt).slice(0, 10))}` : "Sin ultima carga registrada"}</small>
+            <button class="ghost-btn inline-action" data-jump="${escapeHtml(row.areaId)}" type="button">${escapeHtml(statusText[row.status])}</button>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function globalSearchTerm() {
+  return String($("#globalSearch")?.value || "").trim();
+}
+
+function searchIncludes(term, values) {
+  const haystack = values.map((value) => String(value || "")).join(" ").toLowerCase();
+  return haystack.includes(term.toLowerCase());
+}
+
+function uniqueBy(items, keyFn) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = keyFn(item);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function search360Results(term = globalSearchTerm()) {
+  const clean = term.trim().toLowerCase();
+  if (clean.length < 2) return null;
+  const participationRows = allParticipationRows();
+  const studentRows = uniqueBy([
+    ...cloudStudentDatabase,
+    ...participationRows.map((row) => ({
+      matricula: row.matricula,
+      genero: row.genero,
+      carrera: row.carrera,
+      semestre: row.semestre,
+      nivel: row.nivel
+    }))
+  ].filter((row) => searchIncludes(clean, [row.matricula, row.carrera, row.genero, row.nivel, row.semestre])), (row) => normalizeMatricula(row.matricula));
+
+  const gymRows = gymAsistencias
+    .filter((row) => searchIncludes(clean, [row.matricula, row.nombre_completo, row.sitio, row.fecha, row.hora]))
+    .slice(0, 8);
+  const eventRows = vivenciaEvents
+    .filter((row) => searchIncludes(clean, [row.event_name, row.discipline, row.classification, row.responsible_name, row.event_date]))
+    .slice(0, 8);
+  const participantRows = vivenciaParticipants
+    .filter((row) => searchIncludes(clean, [row.matricula, row.event_name, row.carrera, row.genero, row.nivel]))
+    .slice(0, 8);
+  const scheduleRows = scheduleMasterRows()
+    .filter((row) => searchIncludes(clean, [row.professor, row.discipline, row.installation, row.day, row.start, row.end]))
+    .slice(0, 8);
+  const collaboratorMatches = collaboratorRows()
+    .filter((row) => searchIncludes(clean, Object.values(row)))
+    .slice(0, 8);
+  const teacherRows = classTeacherPerformance
+    .filter((row) => searchIncludes(clean, [row.teacher]))
+    .slice(0, 8);
+
+  return {
+    term,
+    students: studentRows.slice(0, 8),
+    gym: gymRows,
+    events: eventRows,
+    participants: participantRows,
+    schedules: scheduleRows,
+    collaborators: collaboratorMatches,
+    teachers: teacherRows,
+    total:
+      studentRows.length +
+      gymRows.length +
+      eventRows.length +
+      participantRows.length +
+      scheduleRows.length +
+      collaboratorMatches.length +
+      teacherRows.length
+  };
+}
+
+function renderSearch360List(title, areaId, rows, renderRow, emptyText) {
+  return `
+    <article class="search360-card">
+      <div class="chart-title-row">
+        <div>
+          <p class="eyebrow">${escapeHtml(labelArea(areaId))}</p>
+          <h3>${escapeHtml(title)}</h3>
+        </div>
+        <button class="ghost-btn inline-action" data-jump="${escapeHtml(areaId)}" type="button">Abrir</button>
+      </div>
+      ${rows.length ? `<div class="search360-list">${rows.map(renderRow).join("")}</div>` : `<p class="form-message">${escapeHtml(emptyText)}</p>`}
+    </article>
+  `;
+}
+
+function renderSearch360Panel() {
+  const results = search360Results();
+  if (!results) return "";
+  return `
+    <section class="chart-panel search360-panel">
+      <div class="chart-title-row">
+        <div>
+          <p class="eyebrow">Buscador 360</p>
+          <h3>Resultados para "${escapeHtml(results.term)}"</h3>
+        </div>
+        <span>${results.total.toLocaleString("es-MX")} coincidencias visibles</span>
+      </div>
+      <div class="search360-grid">
+        ${renderSearch360List("Alumnos", "general", results.students, (row) => `
+          <div class="search360-row">
+            <strong>${escapeHtml(row.matricula || "Sin matricula")}</strong>
+            <span>${escapeHtml(row.carrera || "Sin carrera")} - ${escapeHtml(row.genero || "Sin genero")} - ${escapeHtml(row.nivel || "Sin nivel")}</span>
+          </div>
+        `, "No encontre alumnos con ese texto.")}
+        ${renderSearch360List("Gimnasio", "gimnasio", results.gym, (row) => `
+          <div class="search360-row">
+            <strong>${escapeHtml(row.matricula || row.nombre_completo || "Visita")}</strong>
+            <span>${escapeHtml(row.sitio || "Sin sitio")} - ${escapeHtml(row.fecha || "Sin fecha")} ${escapeHtml(row.hora || "")}</span>
+          </div>
+        `, "No encontre asistencias relacionadas.")}
+        ${renderSearch360List("Vivencia", "vivencia", [...results.events, ...results.participants].slice(0, 8), (row) => `
+          <div class="search360-row">
+            <strong>${escapeHtml(row.event_name || row.matricula || "Registro")}</strong>
+            <span>${escapeHtml(row.event_date || row.discipline || row.carrera || "Sin detalle")}</span>
+          </div>
+        `, "No encontre eventos o participantes relacionados.")}
+        ${renderSearch360List("Clases Deportivas", "clases", [...results.schedules, ...results.teachers].slice(0, 8), (row) => `
+          <div class="search360-row">
+            <strong>${escapeHtml(row.discipline || row.teacher || "Clase")}</strong>
+            <span>${escapeHtml(row.professor || row.teacher || "Sin profesor")} ${row.day ? `- ${escapeHtml(row.day)} ${escapeHtml(row.start)}-${escapeHtml(row.end)}` : ""}</span>
+          </div>
+        `, "No encontre clases, horarios o profesores.")}
+        ${renderSearch360List("Colaboradores", "colaboradores", results.collaborators, (row) => `
+          <div class="search360-row">
+            <strong>${escapeHtml(row.Colaboradores || row.colaborador || row.Nomina || row.__id || "Colaborador")}</strong>
+            <span>${escapeHtml(row.Puesto || row.puesto || "Sin puesto")} - ${escapeHtml(row.Coordinador || row.coordinador || "Sin coordinador")}</span>
+          </div>
+        `, "No encontre colaboradores relacionados.")}
+      </div>
+    </section>
+  `;
+}
+
 function renderLoadCenterDashboard() {
   const rows = dataLoadCenterRows();
   const totalLoaded = rows.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
   const connected = rows.filter((row) => !["Pendiente", "Sin carga", "Falta estructura"].includes(row.status)).length;
-  const recentImports = auditLog
+  const localRecentImports = auditLog
     .filter((entry) => /import|carg|vivencia|gimnasio|alumnos|horarios/i.test(`${entry.action || ""} ${entry.detail || ""}`))
     .slice(0, 8);
+  const recentImports = importLogsAvailable && importLogs.length ? importLogs.slice(0, 8) : localRecentImports;
+  const logDate = (entry) => String(entry.created_at || entry.at || "").slice(0, 19).replace("T", " ");
+  const logType = (entry) => entry.module_name || entry.action || "";
+  const logDetail = (entry) => {
+    if (!entry.module_name) return entry.detail || "";
+    const pieces = [
+      entry.file_name || entry.source_name || "Carga registrada",
+      `${Number(entry.loaded_count || 0).toLocaleString("es-MX")} cargados`,
+      `${Number(entry.omitted_count || 0).toLocaleString("es-MX")} omitidos`,
+      `${Number(entry.warning_count || 0).toLocaleString("es-MX")} alertas`
+    ];
+    if (entry.status === "failed" && entry.error_message) pieces.push(`Error: ${entry.error_message}`);
+    return pieces.join(" - ");
+  };
   return `
     <section class="ops-summary load-center-hero" aria-label="Resumen del centro de cargas">
       <article>
@@ -4441,10 +5057,24 @@ function renderLoadCenterDashboard() {
         <strong>${totalLoaded.toLocaleString("es-MX")}</strong>
         <p>Conteo operativo entre alumnos, gimnasio, vivencia, horarios y colaboradores.</p>
       </article>
+      <article>
+        <span>Historial compartido</span>
+        <strong>${importLogsAvailable ? "Listo" : "Pendiente"}</strong>
+        <p>${importLogsAvailable ? "Las cargas se registran en Supabase para todos los usuarios autorizados." : "Activa supabase/import-logs.sql para compartir la bitacora."}</p>
+      </article>
     </section>
 
+    ${!importLogsAvailable ? `<div class="permission-strip">Historial compartido pendiente: ejecuta supabase/import-logs.sql en Supabase para que todos vean las mismas cargas.</div>` : ""}
+
+    ${renderExecutiveHealthSemaphore({ compact: true })}
+
     <div class="module-grid load-center-grid">
-      ${rows.map((row) => `
+      ${rows.map((row) => {
+        const lastLog = loadCenterLogsForRow(row)[0];
+        const lastDate = lastLog ? logDate(lastLog) : "Sin registro compartido";
+        const lastStatus = lastLog ? loadCenterStatusLabel(lastLog.status) : "Pendiente";
+        const lastFile = lastLog?.file_name || "Aun no hay archivo registrado";
+        return `
         <article class="module-card load-card" data-tone="${row.id === "gym" || row.id === "horarios" ? "gold" : row.id === "vivencia" ? "lav" : row.id === "students" ? "green" : "blue"}">
           <div>
             <div class="chart-title-row">
@@ -4457,12 +5087,37 @@ function renderLoadCenterDashboard() {
             <p>${escapeHtml(row.detail)}</p>
             <p><strong>Destino:</strong> ${escapeHtml(row.table)}</p>
             <div class="load-card-count">${Number(row.count || 0).toLocaleString("es-MX")} registros</div>
+            <div class="load-card-meta">
+              <span>Ultima carga: <strong>${escapeHtml(lastDate)}</strong></span>
+              <span>Estado: <strong>${escapeHtml(lastStatus)}</strong></span>
+              <span>Archivo: <strong>${escapeHtml(lastFile)}</strong></span>
+            </div>
           </div>
           ${row.inputId ? `<input id="${row.inputId}" type="file" accept="${row.accept}" hidden />` : ""}
           <button class="${row.inputId ? "primary-btn" : "ghost-btn"} load-center-action" data-load-action="${row.id}" type="button" ${row.disabled ? "disabled" : ""}>${escapeHtml(row.action)}</button>
         </article>
-      `).join("")}
+      `; }).join("")}
     </div>
+
+    ${renderLoadCenterResult()}
+
+    <section class="chart-panel">
+      <div class="chart-title-row">
+        <div>
+          <p class="eyebrow">Control de formatos</p>
+          <h3>Que debe traer cada archivo</h3>
+        </div>
+        <span>Fase 3 local</span>
+      </div>
+      <div class="load-format-grid">
+        ${rows.map((row) => `
+          <article class="load-format-card">
+            <strong>${escapeHtml(row.title)}</strong>
+            <span>${escapeHtml(row.expected)}</span>
+          </article>
+        `).join("")}
+      </div>
+    </section>
 
     <section class="chart-panel">
       <div class="chart-title-row">
@@ -4470,16 +5125,16 @@ function renderLoadCenterDashboard() {
           <p class="eyebrow">Auditoria operativa</p>
           <h3>Historial reciente de cargas</h3>
         </div>
-        <span>${recentImports.length} movimientos</span>
+        <span>${recentImports.length} movimientos - ${importLogsAvailable && importLogs.length ? "Supabase" : "local"}</span>
       </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Fecha</th><th>Tipo</th><th>Detalle</th></tr></thead>
           <tbody>${recentImports.length ? recentImports.map((entry) => `
             <tr>
-              <td>${escapeHtml(String(entry.at || "").slice(0, 19).replace("T", " "))}</td>
-              <td>${escapeHtml(entry.action || "")}</td>
-              <td>${escapeHtml(entry.detail || "")}</td>
+              <td>${escapeHtml(logDate(entry))}</td>
+              <td>${escapeHtml(logType(entry))}</td>
+              <td>${escapeHtml(logDetail(entry))}</td>
             </tr>
           `).join("") : `<tr><td colspan="3">Todavia no hay cargas registradas en esta bitacora.</td></tr>`}</tbody>
         </table>
@@ -4515,6 +5170,7 @@ function renderDashboard(area) {
 
   const alertsMarkup = area.id === "general" ? renderAlertCenter(true) : "";
   const progressMarkup = area.id === "general" ? renderProjectProgress() : "";
+  const healthMarkup = area.id === "general" ? renderExecutiveHealthSemaphore() : "";
   const studentDatabaseMarkup = area.id === "general" ? `
     <section class="ops-summary student-database-loader" aria-label="Base de datos de alumnos">
       <article>
@@ -4559,6 +5215,7 @@ function renderDashboard(area) {
       </article>
     </section>
     ${studentDatabaseMarkup}
+    ${healthMarkup}
     ${progressMarkup}
     ${alertsMarkup}
     <div class="kpi-grid">
@@ -6289,7 +6946,7 @@ function render() {
   if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
   if (activeView === "simulator" && activeArea !== "clases") activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
-  $("#contentArea").innerHTML = activeView === "dashboard"
+  const viewMarkup = activeView === "dashboard"
     ? renderDashboard(area)
     : activeView === "capture"
       ? renderCapture(area)
@@ -6310,6 +6967,7 @@ function render() {
             : activeView === "evaluations"
               ? renderPhysicalEvaluationsDashboard()
               : renderBlueprint(area);
+  $("#contentArea").innerHTML = `${renderSearch360Panel()}${viewMarkup}`;
   $$("[data-jump]").forEach((button) => button.addEventListener("click", () => {
     activeArea = button.dataset.jump;
     activeView = "dashboard";
@@ -6359,6 +7017,7 @@ function render() {
     await handleScheduleUpload(file, "master");
     event.target.value = "";
   });
+  $("#downloadLoadCenterResult")?.addEventListener("click", downloadLoadCenterResultReport);
   $("#uploadStudentDatabase")?.addEventListener("click", () => $("#studentDatabaseCsv")?.click());
   $("#studentDatabaseCsv")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
@@ -6656,10 +7315,32 @@ async function importGymAttendanceCsv(file) {
     const text = await file.text();
     const { payload, warnings, errors, omitted } = parseGymAttendanceCsv(text);
     if (errors.length) {
+      setLoadCenterImportResult({
+        moduleKey: "gimnasio",
+        moduleName: "Gimnasio",
+        sourceName: "gym_asistencias",
+        fileName: file.name,
+        loaded: 0,
+        omitted,
+        warnings,
+        errors,
+        blocked: true
+      });
       toast(`CSV con errores: fila ${errors[0].row}, ${errors[0].message}`);
       return;
     }
     if (!payload.length) {
+      setLoadCenterImportResult({
+        moduleKey: "gimnasio",
+        moduleName: "Gimnasio",
+        sourceName: "gym_asistencias",
+        fileName: file.name,
+        loaded: 0,
+        omitted,
+        warnings: warnings.length ? warnings : [{ row: 0, message: "El CSV no tiene asistencias validas" }],
+        errors: [],
+        blocked: true
+      });
       toast("El CSV no tiene asistencias validas");
       return;
     }
@@ -6672,11 +7353,48 @@ async function importGymAttendanceCsv(file) {
     }
     await loadGymData();
     addAudit("gimnasio", `Archivo de asistencias cargado: ${payload.length} filas procesadas`);
+    setLoadCenterImportResult({
+      moduleKey: "gimnasio",
+      moduleName: "Gimnasio",
+      sourceName: "gym_asistencias",
+      fileName: file.name,
+      loaded: payload.length,
+      omitted,
+      warnings,
+      errors: []
+    });
+    await saveImportLog({
+      moduleKey: "gimnasio",
+      moduleName: "Gimnasio",
+      sourceName: "gym_asistencias",
+      fileName: file.name,
+      loadedCount: payload.length,
+      omittedCount: omitted,
+      warningCount: warnings.length
+    });
     const omittedSummary = omitted ? `, ${omitted} omitidas` : "";
     const warningSummary = warnings.length ? `, ${warnings.length} advertencias` : "";
     toast(`Asistencias cargadas: ${payload.length} procesadas${omittedSummary}${warningSummary}`);
   } catch (error) {
     console.error(error);
+    setLoadCenterImportResult({
+      moduleKey: "gimnasio",
+      moduleName: "Gimnasio",
+      sourceName: "gym_asistencias",
+      fileName: file.name,
+      loaded: 0,
+      omitted: 0,
+      warnings: [],
+      errors: [{ row: 0, message: supabaseErrorDetail(error) || error.message || "Error de carga" }],
+      blocked: true
+    });
+    await saveImportLog({
+      moduleKey: "gimnasio",
+      moduleName: "Gimnasio",
+      sourceName: "gym_asistencias",
+      fileName: file.name,
+      errorMessage: supabaseErrorDetail(error) || error.message || "Error de carga"
+    });
     toast(`No se pudo cargar asistencias${supabaseErrorDetail(error) ? `: ${supabaseErrorDetail(error)}` : ""}`);
   } finally {
     gymAttendanceImporting = false;
@@ -6918,7 +7636,31 @@ async function handleScheduleUpload(file, type) {
       saveSchedules();
       simulatorState = { rows: simulatorBaseRows(), scenarioName: "Escenario desde Calendario Maestro", updatedAt: new Date().toISOString() };
       saveSimulator();
+      const masterWarnings = [
+        ...(parsed.errors?.master || []),
+        ...(parsed.errors?.official || []),
+        ...(parsed.errors?.booking || [])
+      ];
       addAudit("horarios", `${file.name}: maestro con ${parsed.official.length} clases oficiales y ${parsed.booking.length} booking`);
+      setLoadCenterImportResult({
+        moduleKey: "clases",
+        moduleName: "Clases Deportivas",
+        sourceName: "Calendario maestro de horarios",
+        fileName: file.name,
+        loaded: parsed.official.length + parsed.booking.length,
+        omitted: 0,
+        warnings: masterWarnings,
+        errors: []
+      });
+      await saveImportLog({
+        moduleKey: "clases",
+        moduleName: "Clases Deportivas",
+        sourceName: "Calendario maestro de horarios",
+        fileName: file.name,
+        loadedCount: parsed.official.length + parsed.booking.length,
+        omittedCount: 0,
+        warningCount: masterWarnings.length
+      });
       render();
       toast("Archivo maestro consolidado en Horarios");
       return;
@@ -6934,6 +7676,25 @@ async function handleScheduleUpload(file, type) {
     simulatorState = { rows: simulatorBaseRows(), scenarioName: "Escenario desde Calendario Maestro", updatedAt: new Date().toISOString() };
     saveSimulator();
     addAudit("horarios", `${file.name}: ${parsed.validRows.length} registros validos, ${parsed.errors.length} errores`);
+    setLoadCenterImportResult({
+      moduleKey: "clases",
+      moduleName: "Clases Deportivas",
+      sourceName: type === "official" ? "Programacion Oficial" : "Booking",
+      fileName: file.name,
+      loaded: parsed.validRows.length,
+      omitted: 0,
+      warnings: parsed.errors,
+      errors: []
+    });
+    await saveImportLog({
+      moduleKey: "clases",
+      moduleName: "Clases Deportivas",
+      sourceName: type === "official" ? "Programacion Oficial" : "Booking",
+      fileName: file.name,
+      loadedCount: parsed.validRows.length,
+      omittedCount: 0,
+      warningCount: parsed.errors.length
+    });
     render();
     toast(`${type === "official" ? "Programacion Oficial" : "Booking"} cargado`);
   } catch (error) {
@@ -6944,6 +7705,24 @@ async function handleScheduleUpload(file, type) {
       scheduleState.errors[type] = [{ row: 0, message: "No pude leer el archivo. Usa Excel o CSV con encabezados." }];
     }
     saveSchedules();
+    setLoadCenterImportResult({
+      moduleKey: "clases",
+      moduleName: "Clases Deportivas",
+      sourceName: type === "master" ? "Calendario maestro de horarios" : type,
+      fileName: file.name,
+      loaded: 0,
+      omitted: 0,
+      warnings: [],
+      errors: [{ row: 0, message: error.message || "Error de carga" }],
+      blocked: true
+    });
+    await saveImportLog({
+      moduleKey: "clases",
+      moduleName: "Clases Deportivas",
+      sourceName: type === "master" ? "Calendario maestro de horarios" : type,
+      fileName: file.name,
+      errorMessage: error.message || "Error de carga"
+    });
     render();
     toast("No pude procesar el archivo de horarios");
   }
