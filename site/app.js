@@ -4562,6 +4562,17 @@ function vivenciaMetricParticipants(row) {
   return Number(row.unique_participants || row.participant_records || row.reported_total_participants || 0);
 }
 
+function vivenciaCompletionState(row, metrics) {
+  const participants = vivenciaMetricParticipants(metrics || row);
+  if (participants > 0) {
+    return { label: "Completado", className: "completado" };
+  }
+  return {
+    label: row.status || "planeado",
+    className: row.status || "planeado"
+  };
+}
+
 function vivenciaEventParticipants(eventId) {
   return vivenciaParticipants.filter((participant) => participant.event_id === eventId);
 }
@@ -5392,6 +5403,7 @@ function renderVivenciaEventHistory() {
           ${vivenciaEvents.map((row) => {
             const metrics = metricsByEvent.get(row.id);
             const calculated = vivenciaMetricParticipants(metrics || row);
+            const completion = vivenciaCompletionState(row, metrics);
             return `
               <tr>
                 <td>${escapeHtml(row.event_date || "")}</td>
@@ -5408,7 +5420,7 @@ function renderVivenciaEventHistory() {
                   <span>${Number(metrics?.unique_participants || 0) ? "por matriculas" : "reportados"}</span>
                 </td>
                 <td>${escapeHtml(row.responsible_name || "Sin asignar")}</td>
-                <td><span class="vivencia-status ${escapeHtml(row.status || "planeado")}">${escapeHtml(row.status || "planeado")}</span></td>
+                <td><span class="vivencia-status ${escapeHtml(completion.className)}">${escapeHtml(completion.label)}</span></td>
                 <td>${escapeHtml(row.source_name === "captura_manual" ? "Captura manual" : row.source_name || "Sin fuente")}</td>
                 <td>
                   <button class="ghost-btn compact-action" data-vivencia-detail="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Detalle</button>
