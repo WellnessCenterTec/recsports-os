@@ -192,6 +192,7 @@ const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
 const UNIFORMES_DATA_URL = "./uniformes-data.json";
 const CLASS_GRADES_DATA_URL = "./class-grades-data.json";
+const PLANNING_SEMESTRAL_CSV_URL = "https://docs.google.com/spreadsheets/d/1DL1GIPjzqPqXlJWlnWlAOWEiMJM9tPqknT6M4HCXEHM/gviz/tq?tqx=out:csv&sheet=Respuestas%20de%20formulario%201";
 const BASE_COLLABORATOR_COLUMNS = [
   "Nomina",
   "Colaboradores",
@@ -410,14 +411,17 @@ let gymHeatmapFacility = "Wellness";
 let vivenciaEvents = [];
 let vivenciaEventMetrics = [];
 let vivenciaParticipants = [];
+let vivenciaParticipantUploads = [];
 let vivenciaEventsLoaded = false;
 let vivenciaEventsAvailable = true;
 let vivenciaEventImporting = false;
 let vivenciaEventImportResult = null;
+let vivenciaPlanningSyncing = false;
 let vivenciaParticipantImporting = false;
 let vivenciaParticipantImportResult = null;
 let selectedVivenciaEventForParticipants = "";
 let selectedVivenciaEventForDetail = "";
+let vivenciaParticipantsModalOpen = false;
 let classGradePage = 1;
 let classGradeFilter = {
   search: "",
@@ -1634,10 +1638,11 @@ async function loadVivenciaEvents() {
     vivenciaEvents = [];
     vivenciaEventMetrics = [];
     vivenciaParticipants = [];
+    vivenciaParticipantUploads = [];
     console.error(error);
     return;
   }
-  const [metricsResult, participantsResult] = await Promise.all([
+  const [metricsResult, participantsResult, uploadsResult] = await Promise.all([
     supabaseClient
       .from("vivencia_event_metrics")
       .select("*")
@@ -1647,14 +1652,20 @@ async function loadVivenciaEvents() {
       .from("vivencia_participant_details")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(12000)
+      .limit(12000),
+    supabaseClient
+      .from("vivencia_participant_uploads")
+      .select("*")
+      .order("upload_date", { ascending: false })
+      .limit(200)
   ]);
-  if (metricsResult.error || participantsResult.error) {
-    console.warn(metricsResult.error || participantsResult.error);
+  if (metricsResult.error || participantsResult.error || uploadsResult.error) {
+    console.warn(metricsResult.error || participantsResult.error || uploadsResult.error);
   }
   vivenciaEventsAvailable = true;
   vivenciaEvents = data || [];
   vivenciaEventMetrics = metricsResult.error ? [] : (metricsResult.data || []);
+  vivenciaParticipantUploads = uploadsResult.error ? [] : (uploadsResult.data || []);
   vivenciaParticipants = (participantsResult.error ? [] : (participantsResult.data || [])).map((participant) => {
     const student = findStudentInDatabase(participant.matricula) || {};
     return {
@@ -1665,6 +1676,153 @@ async function loadVivenciaEvents() {
       nivel_escolar: participant.nivel_escolar || student.nivel || "Sin nivel"
     };
   });
+}
+
+function planningValue(row, aliases) {
+  const keys = Object.keys(row || {});
+  const wanted = aliases.map(headerKey);
+  const key = keys.find((candidate) => wanted.includes(headerKey(candidate)));
+  return key ? row[key] : "";
+}
+
+function getPlanningActivityId(row) {
+  const area = planningValue(row, ["Área", "Area", "area"]);
+  const specificDate = planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]);
+  const activity = planningValue(row, ["Actividad", "activity"]);
+  const rawId = [
+    "planeacion-semestral",
+    normalizeText(area),
+    normalizeText(specificDate),
+    normalizeText(activity)
+  ].join("|");
+  return btoa(unescape(encodeURIComponent(rawId))).replace(/=+$/, "");
+}
+
+function isVivenciaPlanningRow(row) {
+  return normalizeText(planningValue(row, ["Área", "Area", "area"])) === "vivencia";
+}
+
+function buildVivenciaEventPayloadFromPlanningRow(row) {
+  if (!isVivenciaPlanningRow(row)) return null;
+  const eventName = String(planningValue(row, ["Actividad", "activity"]) || "").trim();
+  const eventDate = parseGymDate(planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]));
+  if (!eventName || !eventDate) return null;
+  const planningActivityId = getPlanningActivityId(row);
+  return {
+    planning_activity_id: planningActivityId,
+    event_name: eventName,
+    event_date: eventDate,
+    campus: "Monterrey",
+    status: "planeado",
+    source_name: "planeacion_semestral",
+    source_row_key: planningActivityId,
+    sync_status: "active",
+    created_by: currentUser?.id || null
+  };
+}
+
+function planningRowsFromGrid(grid) {
+  const rows = (grid || []).filter((row) => row.some((cell) => String(cell ?? "").trim()));
+  if (!rows.length) return [];
+  const headers = rows[0].map((header, index) => String(header || `columna_${index + 1}`).trim());
+  return rows.slice(1).map((cells) => {
+    const row = { __cells: cells };
+    headers.forEach((header, index) => {
+      row[header] = cells[index] || "";
+      row[`columna_${index + 1}`] = cells[index] || "";
+    });
+    return row;
+  });
+}
+
+async function fetchPlanningSemestralRows() {
+  const response = await fetch(`${PLANNING_SEMESTRAL_CSV_URL}&cacheBust=${Date.now()}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`No se pudo leer Planeacion Semestral (${response.status})`);
+  const text = await response.text();
+  return planningRowsFromGrid(parseCsv(text));
+}
+
+async function syncVivenciaEventsFromPlanningRows(rows, client, currentUserId = currentUser?.id || null) {
+  const errors = [];
+  const payloadByPlanningId = new Map();
+  (rows || []).forEach((row) => {
+    const payload = buildVivenciaEventPayloadFromPlanningRow(row);
+    if (!payload?.planning_activity_id) return;
+    if (!payloadByPlanningId.has(payload.planning_activity_id)) {
+      payloadByPlanningId.set(payload.planning_activity_id, {
+        ...payload,
+        created_by: currentUserId
+      });
+    }
+  });
+  const payload = Array.from(payloadByPlanningId.values());
+  if (!payload.length) return { found: 0, created: 0, existing: 0, errors };
+
+  const ids = payload.map((row) => row.planning_activity_id);
+  const existingResult = await client
+    .from("vivencia_events")
+    .select("planning_activity_id")
+    .in("planning_activity_id", ids);
+  if (existingResult.error) {
+    errors.push(supabaseErrorDetail(existingResult.error) || existingResult.error.message || "No se pudo revisar duplicados");
+    return { found: payload.length, created: 0, existing: 0, errors };
+  }
+
+  const existingIds = new Set((existingResult.data || []).map((row) => row.planning_activity_id).filter(Boolean));
+  const toInsert = payload.filter((row) => !existingIds.has(row.planning_activity_id));
+  if (!toInsert.length) return { found: payload.length, created: 0, existing: existingIds.size, errors };
+
+  const insertResult = await client.from("vivencia_events").insert(toInsert);
+  if (insertResult.error) {
+    errors.push(supabaseErrorDetail(insertResult.error) || insertResult.error.message || "No se pudieron crear eventos");
+    return { found: payload.length, created: 0, existing: existingIds.size, errors };
+  }
+  return { found: payload.length, created: toInsert.length, existing: existingIds.size, errors };
+}
+
+async function syncVivenciaEventsFromPlanning() {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("vivencia")) {
+    toast("Necesitas permisos de Vivencia para sincronizar");
+    return;
+  }
+  vivenciaPlanningSyncing = true;
+  vivenciaEventImportResult = null;
+  render();
+  try {
+    const rows = await fetchPlanningSemestralRows();
+    const result = await syncVivenciaEventsFromPlanningRows(rows, supabaseClient, currentUser?.id || null);
+    vivenciaEventImportResult = {
+      source: "Sincronizacion desde Planeacion",
+      loaded: result.created,
+      omitted: result.existing,
+      warnings: result.errors.map((message) => ({ row: 0, message })),
+      found: result.found,
+      created: result.created,
+      existing: result.existing,
+      errors: result.errors,
+      blocked: Boolean(result.errors.length)
+    };
+    addAudit("vivencia-planeacion-sync", `${result.found} encontrados, ${result.created} creados, ${result.existing} existentes`);
+    await loadVivenciaEvents();
+    toast(result.errors.length ? "Sincronizacion terminada con errores" : `Sincronizacion lista: ${result.created} nuevos`);
+  } catch (error) {
+    console.error(error);
+    vivenciaEventImportResult = {
+      source: "Sincronizacion desde Planeacion",
+      loaded: 0,
+      omitted: 0,
+      warnings: [{ row: 0, message: error.message || "Error desconocido" }],
+      found: 0,
+      created: 0,
+      existing: 0,
+      errors: [error.message || "Error desconocido"],
+      blocked: true
+    };
+    toast(`No se pudo sincronizar: ${error.message || "revisa la conexion"}`);
+  } finally {
+    vivenciaPlanningSyncing = false;
+    render();
+  }
 }
 
 function vivenciaValue(row, aliases) {
@@ -1839,7 +1997,9 @@ function parseVivenciaParticipantRows(grid, fileName) {
     return { payload: [], warnings: [{ row: 0, message: "El archivo no contiene matriculas" }], omitted: 0 };
   }
   const firstRow = rows[0].map((cell) => headerKey(cell));
-  const matriculaColumn = firstRow.findIndex((header) => ["matricula", "matricula alumno", "matricula participante", "id", "alumno"].includes(header));
+  const matriculaAliases = ["matricula", "matrícula", "matricula alumno", "matricula participante", "alumno", "student_id"]
+    .map((alias) => headerKey(alias));
+  const matriculaColumn = firstRow.findIndex((header) => matriculaAliases.includes(header));
   const hasHeader = matriculaColumn >= 0;
   const columnIndex = hasHeader ? matriculaColumn : 0;
   const dataRows = hasHeader ? rows.slice(1) : rows;
@@ -2075,6 +2235,7 @@ async function importVivenciaParticipants(file, eventId) {
   }
   vivenciaParticipantImporting = true;
   vivenciaParticipantImportResult = null;
+  selectedVivenciaEventForParticipants = eventId;
   render();
   try {
     const grid = await vivenciaGridFromFile(file);
@@ -2098,6 +2259,26 @@ async function importVivenciaParticipants(file, eventId) {
     if (error) throw error;
     const loaded = data?.length || 0;
     const duplicates = payload.length - loaded;
+    const totalParticipants = vivenciaEventParticipants(eventId).length + loaded;
+    const uploadSummary = {
+      event_id: eventId,
+      upload_date: new Date().toISOString(),
+      total_processed: parsed.payload.length,
+      total_inserted: loaded,
+      duplicates_ignored: duplicates,
+      errors_detected: parsed.warnings.length,
+      source_name: file.name,
+      created_by: currentUser?.id || null
+    };
+    const { error: uploadError } = await supabaseClient
+      .from("vivencia_participant_uploads")
+      .insert(uploadSummary);
+    if (uploadError) console.warn(uploadError);
+    const { error: eventUpdateError } = await supabaseClient
+      .from("vivencia_events")
+      .update({ reported_total_participants: totalParticipants, updated_at: new Date().toISOString() })
+      .eq("id", eventId);
+    if (eventUpdateError) console.warn(eventUpdateError);
     vivenciaParticipantImportResult = {
       loaded,
       omitted: parsed.omitted + duplicates,
@@ -2105,11 +2286,14 @@ async function importVivenciaParticipants(file, eventId) {
         ...parsed.warnings,
         ...(duplicates ? [{ row: 0, message: `${duplicates} matriculas ya estaban cargadas en este evento; se omitieron duplicados` }] : [])
       ],
-      source: `${file.name} -> ${eventRow.event_name}`
+      source: `${file.name} -> ${eventRow.event_name}`,
+      processed: parsed.payload.length,
+      duplicates,
+      totalParticipants
     };
     addAudit("vivencia", `${loaded} participantes importados para ${eventRow.event_name}`);
     await loadVivenciaEvents();
-    toast(`Participantes cargados: ${loaded}`);
+    toast(`Participantes cargados: ${loaded}. Duplicados ignorados: ${duplicates}`);
   } catch (error) {
     console.error(error);
     vivenciaParticipantImportResult = {
@@ -2122,7 +2306,6 @@ async function importVivenciaParticipants(file, eventId) {
     toast(`No se pudo cargar participantes: ${supabaseErrorDetail(error) || error.message}`);
   } finally {
     vivenciaParticipantImporting = false;
-    selectedVivenciaEventForParticipants = "";
     render();
   }
 }
@@ -5056,6 +5239,8 @@ function renderCollaboratorsDashboard() {
 
 function renderVivenciaImportSummary(result = vivenciaEventImportResult) {
   if (!result) return "";
+  const planningSync = Number.isFinite(result.found);
+  const warnings = result.warnings || [];
   return `
     <div class="vivencia-import-summary ${result.blocked ? "blocked" : ""}">
       <div>
@@ -5063,16 +5248,105 @@ function renderVivenciaImportSummary(result = vivenciaEventImportResult) {
         <span>${result.blocked ? "Carga detenida por errores obligatorios" : "Carga procesada correctamente"}</span>
       </div>
       <div class="vivencia-import-counts">
-        <span><strong>${result.loaded}</strong> cargados</span>
-        <span><strong>${result.omitted}</strong> omitidos</span>
-        <span><strong>${result.warnings.length}</strong> advertencias</span>
+        ${planningSync ? `
+          <span><strong>${result.found}</strong> encontrados</span>
+          <span><strong>${result.created}</strong> nuevos creados</span>
+          <span><strong>${result.existing}</strong> existentes ignorados</span>
+          <span><strong>${result.errors.length}</strong> errores</span>
+        ` : `
+          <span><strong>${result.loaded}</strong> cargados</span>
+          <span><strong>${result.omitted}</strong> omitidos</span>
+          <span><strong>${warnings.length}</strong> advertencias</span>
+        `}
       </div>
-      ${result.warnings.length ? `
+      ${warnings.length ? `
         <details>
           <summary>Ver detalle</summary>
-          ${result.warnings.slice(0, 12).map((warning) => `<p>${warning.row ? `Fila ${warning.row}: ` : ""}${escapeHtml(warning.message)}</p>`).join("")}
+          ${warnings.slice(0, 12).map((warning) => `<p>${warning.row ? `Fila ${warning.row}: ` : ""}${escapeHtml(warning.message)}</p>`).join("")}
         </details>
       ` : ""}
+    </div>
+  `;
+}
+
+function vivenciaEventOptionLabel(row) {
+  const dateLabel = row.event_date ? `${row.event_date} · ` : "";
+  const sourceLabel = row.source_name === "planeacion_semestral" ? "Planeacion" : (row.source_name === "captura_manual" ? "Manual" : row.source_name || "Vivencia");
+  return `${dateLabel}${row.event_name || "Evento sin nombre"} · ${sourceLabel}`;
+}
+
+function renderVivenciaParticipantsModal(editable) {
+  if (!vivenciaParticipantsModalOpen) return "";
+  const eventOptions = vivenciaEvents
+    .slice()
+    .sort((a, b) => String(b.event_date || "").localeCompare(String(a.event_date || "")) || String(a.event_name || "").localeCompare(String(b.event_name || "")))
+    .map((row) => `<option value="${escapeHtml(row.id)}" ${selectedVivenciaEventForParticipants === row.id ? "selected" : ""}>${escapeHtml(vivenciaEventOptionLabel(row))}</option>`)
+    .join("");
+  return `
+    <div class="modal-backdrop" role="presentation">
+      <section class="vivencia-participants-modal" role="dialog" aria-modal="true" aria-labelledby="vivenciaParticipantsTitle">
+        <div class="vivencia-modal-heading">
+          <div>
+            <p class="eyebrow">Vivencia</p>
+            <h3 id="vivenciaParticipantsTitle">Cargar participantes</h3>
+          </div>
+          <button class="ghost-btn compact-action" id="closeVivenciaParticipantsModal" type="button">Cerrar</button>
+        </div>
+        <form id="vivenciaParticipantsForm" class="vivencia-participants-form">
+          <label class="full">Evento
+            <select name="event_id" required ${editable ? "" : "disabled"}>
+              <option value="">Selecciona un evento</option>
+              ${eventOptions}
+            </select>
+          </label>
+          <label class="full">Archivo CSV o Excel
+            <input name="participants_file" type="file" accept=".csv,.xlsx,.xls" required ${editable ? "" : "disabled"} />
+          </label>
+          <div class="vivencia-modal-help full">
+            <strong>Formato mínimo:</strong> una columna llamada <code>matricula</code>. También acepta <code>matrícula</code>, <code>alumno</code> o <code>student_id</code>.
+          </div>
+          <button class="primary-btn full" type="submit" ${editable && !vivenciaParticipantImporting ? "" : "disabled"}>
+            ${vivenciaParticipantImporting ? "Cargando participantes..." : "Cargar participantes"}
+          </button>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+function renderVivenciaParticipantUploadHistory() {
+  if (!vivenciaParticipantUploads.length) {
+    return `<div class="vivencia-empty-state compact">Todavia no hay cargas de participantes registradas.</div>`;
+  }
+  const eventsById = new Map(vivenciaEvents.map((row) => [row.id, row]));
+  return `
+    <div class="table-wrap vivencia-participants-history-wrap">
+      <table class="vivencia-participants-history-table">
+        <thead>
+          <tr>
+            <th>Evento</th>
+            <th>Fecha de carga</th>
+            <th>Total cargado</th>
+            <th>Duplicados ignorados</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${vivenciaParticipantUploads.slice(0, 12).map((row) => {
+            const eventRow = eventsById.get(row.event_id);
+            return `
+              <tr>
+                <td>
+                  <strong>${escapeHtml(eventRow?.event_name || "Evento no encontrado")}</strong>
+                  ${row.source_name ? `<span>${escapeHtml(row.source_name)}</span>` : ""}
+                </td>
+                <td>${escapeHtml(formatDate(row.upload_date || row.created_at))}</td>
+                <td>${Number(row.total_inserted || 0)}</td>
+                <td>${Number(row.duplicates_ignored || 0)}</td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
     </div>
   `;
 }
@@ -5165,6 +5439,7 @@ function renderVivenciaEventsView() {
       </div>
       ${renderVivenciaImportSummary()}
       ${renderVivenciaImportSummary(vivenciaParticipantImportResult)}
+      ${renderVivenciaParticipantsModal(editable)}
       <div class="vivencia-event-layout">
         <article class="form-panel vivencia-event-entry">
           <div class="vivencia-panel-heading">
@@ -5203,6 +5478,33 @@ function renderVivenciaEventsView() {
               ${vivenciaEventImporting ? "Procesando archivo..." : "Cargar CSV o Excel"}
             </button>
             <input id="vivenciaEventsFile" type="file" accept=".csv,.xlsx,.xls" hidden />
+          </div>
+          <div class="vivencia-bulk-upload">
+            <div>
+              <strong>Sincronizar eventos desde Planeacion</strong>
+              <span>Trae los registros historicos de Planeacion donde el area es Vivencia y evita duplicados.</span>
+            </div>
+            <button class="ghost-btn" id="syncVivenciaPlanningEvents" type="button" ${editable && !vivenciaPlanningSyncing ? "" : "disabled"}>
+              ${vivenciaPlanningSyncing ? "Sincronizando..." : "Sincronizar eventos"}
+            </button>
+          </div>
+          <div class="vivencia-bulk-upload">
+            <div>
+              <strong>Carga de participantes</strong>
+              <span>Selecciona un evento y sube matriculas. Se ignoran duplicados dentro del mismo evento.</span>
+            </div>
+            <button class="primary-btn" id="openVivenciaParticipantsModal" type="button" ${editable && vivenciaEvents.length ? "" : "disabled"}>
+              Cargar participantes
+            </button>
+          </div>
+          <div class="vivencia-upload-history">
+            <div class="vivencia-panel-heading compact">
+              <div>
+                <p class="eyebrow">Historial</p>
+                <h3>Cargas de participantes</h3>
+              </div>
+            </div>
+            ${renderVivenciaParticipantUploadHistory()}
           </div>
         </article>
         <article class="form-panel vivencia-event-history">
@@ -5875,10 +6177,27 @@ function render() {
     await importVivenciaEvents(file);
     event.target.value = "";
   });
-  $$("[data-vivencia-participants]").forEach((button) => button.addEventListener("click", () => {
-    selectedVivenciaEventForParticipants = button.dataset.vivenciaParticipants;
-    $("#vivenciaParticipantsFile")?.click();
-  }));
+  $("#syncVivenciaPlanningEvents")?.addEventListener("click", syncVivenciaEventsFromPlanning);
+  $("#openVivenciaParticipantsModal")?.addEventListener("click", () => {
+    vivenciaParticipantsModalOpen = true;
+    if (!selectedVivenciaEventForParticipants && vivenciaEvents[0]) selectedVivenciaEventForParticipants = vivenciaEvents[0].id;
+    render();
+  });
+  $("#closeVivenciaParticipantsModal")?.addEventListener("click", () => {
+    vivenciaParticipantsModalOpen = false;
+    render();
+  });
+  $("#vivenciaParticipantsForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const eventId = String(form.get("event_id") || "").trim();
+    const file = form.get("participants_file");
+    if (!eventId || !(file instanceof File) || !file.name) {
+      toast("Selecciona un evento y un archivo de participantes");
+      return;
+    }
+    await importVivenciaParticipants(file, eventId);
+  });
   $$("[data-vivencia-detail]").forEach((button) => button.addEventListener("click", () => {
     selectedVivenciaEventForDetail = button.dataset.vivenciaDetail;
     render();
@@ -5886,12 +6205,6 @@ function render() {
   $$("[data-vivencia-delete]").forEach((button) => button.addEventListener("click", () => {
     deleteVivenciaEvent(button.dataset.vivenciaDelete);
   }));
-  $("#vivenciaParticipantsFile")?.addEventListener("change", async (event) => {
-    const file = event.target.files?.[0];
-    if (!file || !selectedVivenciaEventForParticipants) return;
-    await importVivenciaParticipants(file, selectedVivenciaEventForParticipants);
-    event.target.value = "";
-  });
   $("#classSimulatorForm")?.addEventListener("submit", registerClassSimulator);
   $$("[data-delete-class-simulator]").forEach((button) => button.addEventListener("click", () => deleteClassSimulatorRow(button.dataset.deleteClassSimulator)));
   $$("[data-schedule-mode]").forEach((button) => button.addEventListener("click", () => {
@@ -6688,12 +7001,14 @@ $("#logoutButton").addEventListener("click", () => {
     vivenciaEvents = [];
     vivenciaEventMetrics = [];
     vivenciaParticipants = [];
+    vivenciaParticipantUploads = [];
     vivenciaEventsLoaded = false;
     vivenciaEventsAvailable = true;
     vivenciaEventImportResult = null;
     vivenciaParticipantImportResult = null;
     selectedVivenciaEventForParticipants = "";
     selectedVivenciaEventForDetail = "";
+    vivenciaParticipantsModalOpen = false;
     classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
     classScheduleSimulatorCloudReady = false;
     collaboratorsCloudLoaded = false;
