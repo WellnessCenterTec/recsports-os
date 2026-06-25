@@ -3108,6 +3108,89 @@ tbody tr:hover td {
   line-height: 1.45;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(6, 22, 34, .42);
+}
+
+.vivencia-participants-modal {
+  width: min(620px, 100%);
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 24px 70px rgba(8, 27, 40, .22);
+}
+
+.vivencia-modal-heading,
+.vivencia-panel-heading.compact {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.vivencia-modal-heading h3,
+.vivencia-panel-heading.compact h3 {
+  margin: 4px 0 0;
+}
+
+.vivencia-participants-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.vivencia-modal-help {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7fafc;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.vivencia-upload-history {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.vivencia-participants-history-wrap {
+  max-height: 240px;
+}
+
+.vivencia-participants-history-table {
+  min-width: 620px !important;
+}
+
+.vivencia-participants-history-table td:first-child strong,
+.vivencia-participants-history-table td:first-child span {
+  display: block;
+}
+
+.vivencia-participants-history-table td:first-child span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.vivencia-empty-state.compact {
+  min-height: 88px;
+  padding: 16px;
+}
+
 .vivencia-history-wrap {
   max-height: 760px;
 }
