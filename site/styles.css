@@ -3240,6 +3240,11 @@ tbody tr:hover td {
   color: #176b48;
 }
 
+.vivencia-status.completado {
+  background: #dff4e9;
+  color: #176b48;
+}
+
 .vivencia-status.cancelado {
   background: #fde8e8;
   color: #9b2c2c;
