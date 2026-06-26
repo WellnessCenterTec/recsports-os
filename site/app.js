@@ -3382,6 +3382,55 @@ function collaboratorInitials(name) {
     .toUpperCase();
 }
 
+function collaboratorMatchKey(value) {
+  return normalizeText(value)
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function collaboratorPhotoIndex() {
+  const byId = new Map();
+  const byNomina = new Map();
+  const byName = new Map();
+  collaboratorRows().forEach((row) => {
+    const profile = {
+      id: String(row.__id || row.id || "").trim(),
+      nomina: String(row.Nomina || row.nomina || "").trim(),
+      name: String(row.Colaboradores || row.full_name || row.nombre_completo || row.Nomina || "").trim(),
+      photoUrl: row.__photoUrl || "",
+      initials: collaboratorInitials(row.Colaboradores || row.full_name || row.nombre_completo || row.Nomina || "")
+    };
+    [row.__id, row.id].forEach((value) => {
+      const key = collaboratorMatchKey(value);
+      if (key && !byId.has(key)) byId.set(key, profile);
+    });
+    [row.Nomina, row.nomina].forEach((value) => {
+      const key = collaboratorMatchKey(value);
+      if (key && !byNomina.has(key)) byNomina.set(key, profile);
+    });
+    const nameKey = collaboratorMatchKey(row.Colaboradores || row.full_name || row.nombre_completo);
+    if (nameKey && !byName.has(nameKey)) byName.set(nameKey, profile);
+  });
+  return { byId, byNomina, byName };
+}
+
+function physicalHallCollaboratorProfile(row, fallbackName = "") {
+  const index = collaboratorPhotoIndex();
+  const idKey = collaboratorMatchKey(row.collaborator_id || row.collaborator_uuid || row.collaboratorId);
+  if (idKey && index.byId.has(idKey)) return index.byId.get(idKey);
+  const nominaKey = collaboratorMatchKey(row.collaborator_nomina || row.nomina);
+  if (nominaKey && index.byNomina.has(nominaKey)) return index.byNomina.get(nominaKey);
+  const nameKey = collaboratorMatchKey(row.captured_name || fallbackName);
+  if (nameKey && index.byName.has(nameKey)) return index.byName.get(nameKey);
+  return {
+    id: "",
+    nomina: row.collaborator_nomina || "",
+    name: fallbackName || row.captured_name || row.collaborator_nomina || "Sin datos reales",
+    photoUrl: "",
+    initials: collaboratorInitials(fallbackName || row.captured_name || row.collaborator_nomina || "Sin datos")
+  };
+}
+
 function collaboratorAvatar(row, editable) {
   const label = row.__photoUrl
     ? `<img src="${escapeHtml(row.__photoUrl)}" alt="Foto de ${escapeHtml(row.Colaboradores)}" />`
@@ -3746,6 +3795,7 @@ function physicalHallRanking(testKey) {
       const collaboratorName = String(row.captured_name || row.collaborator_nomina || "Sin identificar").trim();
       if (!collaboratorName || collaboratorName === "Sin identificar") return;
       const collaboratorKey = String(row.collaborator_nomina || collaboratorName).trim().toLowerCase();
+      const collaboratorProfile = physicalHallCollaboratorProfile(row, collaboratorName);
       const evaluatedAt = row.evaluated_at ? new Date(row.evaluated_at) : null;
       const previous = bestByCollaborator.get(collaboratorKey);
       const isBetter = !previous
@@ -3753,7 +3803,10 @@ function physicalHallRanking(testKey) {
         || (value === previous.value && evaluatedAt && previous.evaluatedAt && evaluatedAt > previous.evaluatedAt);
       if (isBetter) {
         bestByCollaborator.set(collaboratorKey, {
-          collaborator: collaboratorName,
+          collaborator: collaboratorProfile.name || collaboratorName,
+          collaboratorNomina: collaboratorProfile.nomina || row.collaborator_nomina || "",
+          photoUrl: collaboratorProfile.photoUrl || "",
+          initials: collaboratorProfile.initials || collaboratorInitials(collaboratorName),
           value,
           result: physicalHallResultLabel(testKey, value),
           year: physicalHallYear(row),
@@ -3772,6 +3825,23 @@ function physicalHallCards() {
     ...test,
     ranking: physicalHallRanking(test.id)
   }));
+}
+
+function physicalHallAvatar(leader) {
+  const name = leader?.collaborator || "Sin datos reales";
+  const initials = leader?.initials || collaboratorInitials(name);
+  if (leader?.photoUrl) {
+    return `
+      <span class="physical-hof-person-avatar has-photo" aria-label="Foto de ${escapeHtml(name)}">
+        <img src="${escapeHtml(leader.photoUrl)}" alt="Foto de ${escapeHtml(name)}" loading="lazy" />
+      </span>
+    `;
+  }
+  return `
+    <span class="physical-hof-person-avatar" aria-label="Iniciales de ${escapeHtml(name)}">
+      <span>${escapeHtml(initials)}</span>
+    </span>
+  `;
 }
 
 function renderPhysicalHallOfFame() {
@@ -3813,9 +3883,12 @@ function renderPhysicalHallOfFame() {
                 <p>${escapeHtml(item.capacity)}</p>
               </div>
             </div>
-            <div class="physical-hof-record-meta">
-              <span class="physical-hof-medal">🥇</span>
-              <strong class="physical-hof-leader">${leader ? escapeHtml(leader.collaborator) : "Sin datos reales"}</strong>
+            <div class="physical-hof-leader-row">
+              ${physicalHallAvatar(leader)}
+              <div class="physical-hof-record-meta">
+                <span class="physical-hof-medal">🥇</span>
+                <strong class="physical-hof-leader">${leader ? escapeHtml(leader.collaborator) : "Sin datos reales"}</strong>
+              </div>
             </div>
             <span class="physical-hof-result">${leader ? escapeHtml(leader.result) : "Pendiente"}</span>
             <span class="physical-hof-year">${leader ? escapeHtml(leader.year) : "Sin año"}</span>
