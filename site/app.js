@@ -3779,23 +3779,26 @@ function renderPhysicalHallOfFame() {
   const cards = physicalHallCards();
   const selectedTop = cards.find((item) => item.id === physicalHallOfFameTopTest);
   return `
-    <section class="physical-hof-panel" aria-label="Salón de la Fama de Evaluaciones Físicas">
+    <section class="physical-hof-panel physical-hof-view" aria-label="Salón de la Fama de Evaluaciones Físicas">
       <div class="physical-hof-heading">
         <div>
           <p class="eyebrow">WellSync Records</p>
           <h3>🏆 Salón de la Fama</h3>
           <p class="hero-copy">Los mejores resultados históricos de WellSync</p>
         </div>
-        <div class="physical-hof-segmented" aria-label="Filtro visual de género">
-          ${[
-            ["todos", "Todos"],
-            ["mujeres", "Mujeres"],
-            ["hombres", "Hombres"]
-          ].map(([value, label]) => `
-            <button type="button" data-physical-hof-gender="${value}" class="${physicalHallOfFameGender === value ? "active" : ""}">
-              ${label}
-            </button>
-          `).join("")}
+        <div class="physical-hof-header-actions">
+          <div class="physical-hof-segmented" aria-label="Filtro visual de género">
+            ${[
+              ["todos", "Todos"],
+              ["mujeres", "Mujeres"],
+              ["hombres", "Hombres"]
+            ].map(([value, label]) => `
+              <button type="button" data-physical-hof-gender="${value}" class="${physicalHallOfFameGender === value ? "active" : ""}">
+                ${label}
+              </button>
+            `).join("")}
+          </div>
+          <button class="ghost-btn physical-hof-back" id="closePhysicalHallOfFame" type="button">Volver a Evaluaciones Físicas</button>
         </div>
       </div>
       <div class="physical-hof-grid">
@@ -3810,11 +3813,14 @@ function renderPhysicalHallOfFame() {
                 <p>${escapeHtml(item.capacity)}</p>
               </div>
             </div>
-            <div class="physical-hof-medal">🥇</div>
-            <strong>${leader ? escapeHtml(leader.collaborator) : "Sin datos reales"}</strong>
-            <span class="physical-hof-result">${leader ? `${escapeHtml(leader.result)} <em>(${escapeHtml(leader.year)})</em>` : "Pendiente"}</span>
+            <div class="physical-hof-record-meta">
+              <span class="physical-hof-medal">🥇</span>
+              <strong class="physical-hof-leader">${leader ? escapeHtml(leader.collaborator) : "Sin datos reales"}</strong>
+            </div>
+            <span class="physical-hof-result">${leader ? escapeHtml(leader.result) : "Pendiente"}</span>
+            <span class="physical-hof-year">${leader ? escapeHtml(leader.year) : "Sin año"}</span>
             <p class="physical-hof-days">${leader?.days !== null && leader?.days !== undefined ? `🔥 ${leader.days} días sin ser superada` : "Sin fecha para calcular días"}</p>
-            <button class="ghost-btn compact-action" type="button" data-physical-hof-top="${escapeHtml(item.id)}">Ver Top 5</button>
+            <button class="ghost-btn compact-action" type="button" data-physical-hof-top="${escapeHtml(item.id)}">Top 5 →</button>
           </article>
         `;
         }).join("")}
@@ -3885,7 +3891,7 @@ function renderPhysicalEvaluationsDashboard() {
   const noData = !physicalEvaluationsLoaded
     ? `<div class="permission-strip">Activa el esquema de Evaluaciones Físicas en Supabase para mostrar información real.</div>`
     : "";
-  return `
+  const dashboardHeader = `
     ${noData}
     <div class="physical-dashboard-actions">
       <div>
@@ -3899,7 +3905,15 @@ function renderPhysicalEvaluationsDashboard() {
         <button class="ghost-btn" id="refreshPhysicalEvaluations" type="button">Actualizar datos</button>
       </div>
     </div>
-    ${renderPhysicalHallOfFame()}
+  `;
+  if (physicalHallOfFameOpen) {
+    return `
+      ${dashboardHeader}
+      ${renderPhysicalHallOfFame()}
+    `;
+  }
+  return `
+    ${dashboardHeader}
     <div class="physical-filter-grid">
       <label>Periodo
         <select class="physical-filter" data-filter="period">
@@ -6589,6 +6603,11 @@ function render() {
   });
   $("#openPhysicalHallOfFame")?.addEventListener("click", () => {
     physicalHallOfFameOpen = true;
+    physicalHallOfFameTopTest = "";
+    render();
+  });
+  $("#closePhysicalHallOfFame")?.addEventListener("click", () => {
+    physicalHallOfFameOpen = false;
     physicalHallOfFameTopTest = "";
     render();
   });
