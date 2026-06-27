@@ -648,6 +648,11 @@ async function deleteClassSimulatorRow(id) {
 function loadSession() {
   try {
     const session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    if (!session) {
+      const directorSession = { ...demoUsers[0] };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(directorSession));
+      return directorSession;
+    }
     if (session?.role === "coordinador" || session?.role === "consulta") {
       const directorSession = { ...demoUsers[0] };
       localStorage.setItem(SESSION_KEY, JSON.stringify(directorSession));
