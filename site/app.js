@@ -5613,6 +5613,13 @@ function renderVivenciaParticipantsModal(editable) {
   `;
 }
 
+function formatVivenciaUploadDate(value) {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString("es-MX");
+}
+
 function renderVivenciaParticipantUploadHistory() {
   if (!vivenciaParticipantUploads.length) {
     return `<div class="vivencia-empty-state compact">Todavia no hay cargas de participantes registradas.</div>`;
@@ -5638,7 +5645,7 @@ function renderVivenciaParticipantUploadHistory() {
                   <strong>${escapeHtml(eventRow?.event_name || "Evento no encontrado")}</strong>
                   ${row.source_name ? `<span>${escapeHtml(row.source_name)}</span>` : ""}
                 </td>
-                <td>${escapeHtml(formatDate(row.upload_date || row.created_at))}</td>
+                <td>${escapeHtml(formatVivenciaUploadDate(row.upload_date || row.created_at))}</td>
                 <td>${Number(row.total_inserted || 0)}</td>
                 <td>${Number(row.duplicates_ignored || 0)}</td>
               </tr>
