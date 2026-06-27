@@ -447,9 +447,9 @@ let gymDataLoaded = false;
 let gymAsistenciasLoadedCount = 0;
 let gymAttendanceImporting = false;
 let gymMasterStudent = null;
-let gymWeekSelection = { Wellness: 20, EMIS: 20 };
+let gymWeekSelection = { Wellness: 20, EMIS: 20, Ambas: 20 };
+let gymDashboardFacility = "Ambas";
 let gymHeatmapMode = "average";
-let gymHeatmapFacility = "Wellness";
 let vivenciaEvents = [];
 let vivenciaEventMetrics = [];
 let vivenciaParticipants = [];
@@ -835,6 +835,7 @@ async function loadGymData() {
   const highestWeek = Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
   gymWeekSelection.Wellness = Math.max(gymWeekSelection.Wellness, highestWeek);
   gymWeekSelection.EMIS = Math.max(gymWeekSelection.EMIS, highestWeek);
+  gymWeekSelection.Ambas = Math.max(gymWeekSelection.Ambas, highestWeek);
   gymDataLoaded = true;
 }
 
@@ -4280,6 +4281,22 @@ function gymSemesterWeekFromDate(dateValue, startDateValue) {
   return Math.max(1, Math.floor((dateTime - startTime) / (7 * 24 * 60 * 60 * 1000)) + 1);
 }
 
+function gymFacilityMatches(rowFacility, selectedFacility = gymDashboardFacility) {
+  const normalizedFacility = normalizeGymSite(rowFacility);
+  if (selectedFacility === "Ambas") return ["Wellness", "EMIS"].includes(normalizedFacility);
+  return normalizedFacility === selectedFacility;
+}
+
+function gymManualWeekForDate(dateValue, facility) {
+  const normalizedFacility = normalizeGymSite(facility);
+  const exactMatch = gymManualAttendanceRows.find((row) =>
+    row.attendance_date === dateValue && normalizeGymSite(row.facility) === normalizedFacility
+  );
+  const dateMatch = exactMatch || gymManualAttendanceRows.find((row) => row.attendance_date === dateValue);
+  const week = Number(dateMatch?.week_number);
+  return Number.isFinite(week) && week > 0 ? week : null;
+}
+
 function gymAsistenciasToAttendanceRecords(rows) {
   if (!rows.length) return [];
   const startDate = rows
@@ -4293,7 +4310,7 @@ function gymAsistenciasToAttendanceRecords(rows) {
     if (!acc[key]) {
       acc[key] = {
         attendance_date: row.fecha,
-        week_number: gymSemesterWeekFromDate(row.fecha, startDate),
+        week_number: gymManualWeekForDate(row.fecha, facility) || gymSemesterWeekFromDate(row.fecha, startDate),
         day_of_week: gymDayFromDate(row.fecha),
         facility,
         attendee_count: 0,
@@ -4346,13 +4363,14 @@ function gymBarRows(rows) {
 }
 
 function gymColumnBars(rows) {
-  const max = Math.max(1, ...rows.map((row) => Number(row.value) || 0));
+  const max = Math.max(1, ...rows.filter((row) => row.hasRecords !== false).map((row) => Number(row.value) || 0));
   return rows.map((row) => {
+    const hasRecords = row.hasRecords !== false;
     const value = Number(row.value) || 0;
-    const height = Math.max(value ? 10 : 2, Math.round(value / max * 100));
+    const height = hasRecords && value ? Math.max(10, Math.round(value / max * 100)) : 0;
     return `
-      <div class="gym-column-item">
-        <strong>${value.toLocaleString("es-MX", { maximumFractionDigits: 0 })}</strong>
+      <div class="gym-column-item ${hasRecords ? "" : "no-records"}">
+        <strong>${hasRecords ? value.toLocaleString("es-MX", { maximumFractionDigits: 0 }) : "Sin registros"}</strong>
         <div class="gym-column-track">
           <i style="height:${height}%"></i>
         </div>
@@ -4370,13 +4388,13 @@ function gymHeatmapHour(value) {
   return `${String(hour).padStart(2, "0")}:00`;
 }
 
-function gymHeatmapRows(facility = gymHeatmapFacility, mode = gymHeatmapMode) {
+function gymHeatmapRows(facility = gymDashboardFacility, mode = gymHeatmapMode) {
   const matrix = {};
   const dateCountsByDay = GYM_DAYS.reduce((acc, day) => {
     acc[day] = new Set();
     return acc;
   }, {});
-  gymAsistencias.filter((row) => normalizeGymSite(row.sitio) === facility).forEach((row) => {
+  gymAsistencias.filter((row) => gymFacilityMatches(row.sitio, facility)).forEach((row) => {
     const day = gymDayFromDate(row.fecha);
     const hour = gymHeatmapHour(row.hora);
     if (!day || !hour) return;
@@ -4406,10 +4424,10 @@ function gymHeatmapTone(value, max) {
 }
 
 function renderGymHeatmap() {
-  const rows = gymHeatmapRows(gymHeatmapFacility, gymHeatmapMode);
+  const rows = gymHeatmapRows(gymDashboardFacility, gymHeatmapMode);
   const max = Math.max(1, ...rows.flatMap((row) => Object.values(row.values)));
   const totalTimedVisits = gymAsistencias
-    .filter((row) => normalizeGymSite(row.sitio) === gymHeatmapFacility && gymHeatmapHour(row.hora))
+    .filter((row) => gymFacilityMatches(row.sitio, gymDashboardFacility) && gymHeatmapHour(row.hora))
     .length;
   const valueLabel = gymHeatmapMode === "average" ? "promedio por día equivalente" : "visitas acumuladas";
   const modeLabel = gymHeatmapMode === "average" ? "Promedio activo" : "Total acumulado activo";
@@ -4418,12 +4436,6 @@ function renderGymHeatmap() {
     : value.toLocaleString("es-MX", { maximumFractionDigits: 0 });
   const controls = `
     <div class="gym-heatmap-controls">
-      <div class="gym-heatmap-control-group">
-        <span>Instalaci&oacute;n</span>
-        <div class="segmented small" aria-label="Instalacion del mapa de calor">
-          ${["Wellness", "EMIS"].map((facility) => `<button type="button" class="${gymHeatmapFacility === facility ? "active" : ""}" data-gym-heatmap-facility="${facility}">${facility}</button>`).join("")}
-        </div>
-      </div>
       <label>C&aacute;lculo
         <select id="gymHeatmapMode" aria-label="Calculo del mapa de calor">
           <option value="average" ${gymHeatmapMode === "average" ? "selected" : ""}>Promedio</option>
@@ -4433,7 +4445,7 @@ function renderGymHeatmap() {
     </div>
   `;
   if (!rows.length) {
-    return `${controls}<p class="form-message">Aun no hay asistencias historicas con hora para ${gymHeatmapFacility}. Sube el CSV de asistencias con la columna hora.</p>`;
+    return `${controls}<p class="form-message">Aun no hay asistencias historicas con hora para ${gymDashboardFacility}. Sube el CSV de asistencias con la columna hora.</p>`;
   }
   return `
     ${controls}
@@ -4458,23 +4470,35 @@ function renderGymHeatmap() {
   `;
 }
 
-function gymWeeklyRows(facility) {
+function gymWeeklyRows(facility = gymDashboardFacility) {
   const lastWeek = gymWeekSelection[facility] || gymMaxWeek();
   return Array.from({ length: lastWeek }, (_, index) => {
     const week = index + 1;
-    const value = gymAttendanceRecords
-      .filter((row) => row.facility === facility && Number(row.week_number) === week)
+    const records = gymAttendanceRecords
+      .filter((row) => gymFacilityMatches(row.facility, facility) && Number(row.week_number) === week);
+    const value = records
       .reduce((sum, row) => sum + Number(row.attendee_count || 0), 0);
-    return { label: `S${week}`, value };
+    return { label: `S${week}`, value, hasRecords: records.length > 0 };
+  });
+}
+
+function gymDailyRows(facility = gymDashboardFacility) {
+  return GYM_DAYS.map((day) => {
+    const totalsByDate = gymAttendanceRecords
+      .filter((row) => row.day_of_week === day && gymFacilityMatches(row.facility, facility))
+      .reduce((acc, row) => {
+        const date = row.attendance_date || "Sin fecha";
+        acc[date] = (acc[date] || 0) + Number(row.attendee_count || 0);
+        return acc;
+      }, {});
+    const dailyTotals = Object.values(totalsByDate);
+    const total = dailyTotals.reduce((sum, value) => sum + value, 0);
+    return { label: day, value: dailyTotals.length ? total / dailyTotals.length : 0 };
   });
 }
 
 function renderGymDashboard() {
-  const dailyRows = GYM_DAYS.map((day) => {
-    const records = gymAttendanceRecords.filter((row) => row.day_of_week === day);
-    const total = records.reduce((sum, row) => sum + Number(row.attendee_count || 0), 0);
-    return { label: day, value: records.length ? total / records.length : 0 };
-  });
+  const dailyRows = gymDailyRows(gymDashboardFacility);
   const emptyMessage = !gymDataLoaded
     ? `<p class="form-message">Activa las tablas de Gimnasio en Supabase para comenzar.</p>`
     : !gymAttendanceRecords.length
@@ -4482,6 +4506,15 @@ function renderGymDashboard() {
       : "";
   return `
     <div class="gym-dashboard">
+      <div class="gym-dashboard-toolbar">
+        <div>
+          <span>Instalaci&oacute;n</span>
+          <div class="segmented small" aria-label="Instalacion del Dashboard de Gimnasio">
+            ${["Wellness", "EMIS", "Ambas"].map((facility) => `<button type="button" class="${gymDashboardFacility === facility ? "active" : ""}" data-gym-dashboard-facility="${facility}">${facility}</button>`).join("")}
+          </div>
+        </div>
+        <p>El filtro se aplica a todas las gr&aacute;ficas de asistencia.</p>
+      </div>
       <section class="chart-panel gym-daily-chart">
         <div class="gym-chart-heading">
           <div><p class="eyebrow">Asistencia</p><h3>Promedio diario</h3></div>
@@ -4490,17 +4523,15 @@ function renderGymDashboard() {
         ${emptyMessage}
         <div class="gym-bars">${gymBarRows(dailyRows)}</div>
       </section>
-      ${["Wellness", "EMIS"].map((facility) => `
-        <section class="chart-panel gym-week-chart">
-          <div class="gym-chart-heading">
-            <div><p class="eyebrow">${facility}</p><h3>Asistencia semanal</h3></div>
-            <select class="gym-week-filter" data-facility="${facility}" aria-label="Semanas visibles de ${facility}">
-              ${gymWeekOptions(gymWeekSelection[facility])}
-            </select>
-          </div>
-          <div class="gym-week-columns">${gymColumnBars(gymWeeklyRows(facility))}</div>
-        </section>
-      `).join("")}
+      <section class="chart-panel gym-week-chart">
+        <div class="gym-chart-heading">
+          <div><p class="eyebrow">${gymDashboardFacility}</p><h3>Asistencia semanal</h3></div>
+          <select class="gym-week-filter" data-facility="${gymDashboardFacility}" aria-label="Semanas visibles de ${gymDashboardFacility}">
+            ${gymWeekOptions(gymWeekSelection[gymDashboardFacility])}
+          </select>
+        </div>
+        <div class="gym-week-columns">${gymColumnBars(gymWeeklyRows(gymDashboardFacility))}</div>
+      </section>
       <section class="chart-panel gym-heatmap-panel">
         <div class="gym-chart-heading">
           <div><p class="eyebrow">Ocupaci&oacute;n</p><h3>Mapa de calor por horario</h3></div>
@@ -6584,8 +6615,8 @@ function render() {
     gymWeekSelection[event.target.dataset.facility] = Number(event.target.value);
     render();
   }));
-  $$("[data-gym-heatmap-facility]").forEach((button) => button.addEventListener("click", () => {
-    gymHeatmapFacility = button.dataset.gymHeatmapFacility;
+  $$("[data-gym-dashboard-facility]").forEach((button) => button.addEventListener("click", () => {
+    gymDashboardFacility = button.dataset.gymDashboardFacility;
     render();
   }));
   $("#gymHeatmapMode")?.addEventListener("change", (event) => {
