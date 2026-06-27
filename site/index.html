@@ -1,10 +1,10 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>WellSync | Wellness Center</title>
-    <link rel="stylesheet" href="./styles.css?v=20260625-load-center-phase5" />
+    <link rel="stylesheet" href="./styles.css?v=20260627-os-clases-merge" />
   </head>
   <body>
     <div id="loginRoot"></div>
@@ -16,7 +16,7 @@
           </div>
           <div>
             <strong>WellSync</strong>
-            <span>Dirección Deportiva</span>
+            <span>DirecciÃ³n Deportiva</span>
           </div>
         </div>
         <nav id="areaNav" class="nav-list"></nav>
@@ -25,8 +25,8 @@
       <main class="workspace">
         <header class="topbar">
           <div class="search-wrap">
-            <span class="search-icon">⌕</span>
-            <input id="globalSearch" type="search" placeholder="Buscar módulo, indicador, reporte o matrícula" />
+            <span class="search-icon">âŒ•</span>
+            <input id="globalSearch" type="search" placeholder="Buscar mÃ³dulo, indicador, reporte o matrÃ­cula" />
           </div>
           <div class="top-actions">
             <select id="themeSelect" aria-label="Tema visual">
@@ -35,16 +35,8 @@
               <option value="dark">Modo nocturno</option>
             </select>
             <select id="roleSelect" aria-label="Rol activo">
-              <option value="direccion">Dirección Deportiva</option>
-              <option value="clases">Coord. Clases Deportivas</option>
-              <option value="gimnasio">Coord. Gimnasio</option>
-              <option value="intramuros">Coord. Intramuros</option>
-              <option value="vivencia">Coord. Vivencia</option>
-              <option value="comunicacion">Coord. Comunicacion</option>
-              <option value="representativos">Coord. Representativos</option>
-              <option value="gamer">Coord. Gamer</option>
-              <option value="colaboradores">Coord. Colaboradores</option>
-              <option value="compras">Compras y Presupuesto</option>
+              <option value="dir">Direccion Deportiva</option>
+              <option value="maestro-clases">Maestro de Clases Deportivas</option>
             </select>
             <button class="ghost-btn" id="exportExcel">Exportar Excel</button>
             <button class="primary-btn" id="exportPdf">Exportar PDF</button>
@@ -62,7 +54,7 @@
           </div>
           <div class="hero-kpis" id="executiveKpis"></div>
           <div class="hero-actions">
-            <a class="planning-link" href="https://planeacion-semestral-recsports.vercel.app/" target="_blank" rel="noopener noreferrer">Planeación</a>
+            <a class="planning-link" href="https://planeacion-semestral-recsports.vercel.app/" target="_blank" rel="noopener noreferrer">PlaneaciÃ³n</a>
             <img class="hero-borregos-logo" src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
           </div>
         </section>
@@ -91,7 +83,7 @@
             </select>
           </label>
           <label>
-            Género
+            GÃ©nero
             <select id="genderFilter">
               <option value="todos">Todos</option>
               <option>Femenino</option>
@@ -115,9 +107,9 @@
                 <button data-view="schedules">Horarios</button>
                 <button id="simulatorViewButton" data-view="simulator" hidden>Simulador</button>
                 <button id="gymAttendanceViewButton" data-view="gym-attendance" hidden>Registro de Asistencia</button>
-                <button id="gymRegistrationsViewButton" data-view="gym-registrations" hidden>Registro de Matrículas</button>
+                <button id="gymRegistrationsViewButton" data-view="gym-registrations" hidden>Registro de MatrÃ­culas</button>
                 <button data-view="reports">Reportes</button>
-                <button id="evaluationsViewButton" data-view="evaluations" hidden>Evaluaciones Físicas</button>
+                <button id="evaluationsViewButton" data-view="evaluations" hidden>Evaluaciones FÃ­sicas</button>
                 <button data-view="blueprint">Sistema</button>
               </div>
             </div>
@@ -131,6 +123,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="./app.js?v=20260625-load-center-phase5"></script>
+    <script src="./app.js?v=20260627-os-clases-merge"></script>
   </body>
 </html>
+

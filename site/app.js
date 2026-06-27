@@ -1,31 +1,31 @@
-const areas = [
+﻿const areas = [
   {
     id: "general",
     name: "Ejecutivo general",
     tone: "blue",
     source: "Reporte final, Reporte Automatizado, Sofi 2",
-    capture: ["Periodo", "Matrícula", "Género", "Carrera", "Semestre", "Nivel escolar", "Área de participación"],
-    indicators: ["Alumnos únicos impactados", "Registros por servicio", "Participación cruzada", "Distribución por carrera", "Distribución por nivel", "Retención global"],
-    charts: ["Embudo de participación", "Participación por área", "Mapa de calor por semana", "Distribución por perfil académico"],
-    reports: ["Resumen ejecutivo PDF", "Base agregada Excel", "Cruce de participación por área"]
+    capture: ["Periodo", "MatrÃ­cula", "GÃ©nero", "Carrera", "Semestre", "Nivel escolar", "Ãrea de participaciÃ³n"],
+    indicators: ["Alumnos Ãºnicos impactados", "Registros por servicio", "ParticipaciÃ³n cruzada", "DistribuciÃ³n por carrera", "DistribuciÃ³n por nivel", "RetenciÃ³n global"],
+    charts: ["Embudo de participaciÃ³n", "ParticipaciÃ³n por Ã¡rea", "Mapa de calor por semana", "DistribuciÃ³n por perfil acadÃ©mico"],
+    reports: ["Resumen ejecutivo PDF", "Base agregada Excel", "Cruce de participaciÃ³n por Ã¡rea"]
   },
   {
     id: "clases",
     name: "Clases Deportivas",
     tone: "green",
     source: "Programacion Clases, CD Lista de Alumnos, CD Indicadores clases",
-    capture: ["Matrícula", "Disciplina", "CRN", "Grupo", "Calificación/estatus", "Periodo"],
-    indicators: ["Inscritos Banner", "Bajas", "NP", "Acreditados", "Ocupación", "Alumnos únicos"],
-    charts: ["Acreditados vs bajas", "Ocupación por disciplina", "Género por disciplina"],
-    reports: ["Lista por disciplina", "Reporte de acreditación", "Ocupación por horario"]
+    capture: ["MatrÃ­cula", "Disciplina", "CRN", "Grupo", "CalificaciÃ³n/estatus", "Periodo"],
+    indicators: ["Inscritos Banner", "Bajas", "NP", "Acreditados", "OcupaciÃ³n", "Alumnos Ãºnicos"],
+    charts: ["Acreditados vs bajas", "OcupaciÃ³n por disciplina", "GÃ©nero por disciplina"],
+    reports: ["Lista por disciplina", "Reporte de acreditaciÃ³n", "OcupaciÃ³n por horario"]
   },
   {
     id: "gimnasio",
     name: "Gimnasio",
     tone: "gold",
     source: "Gym Indicadores, Gym Lista de Alumnos",
-    capture: ["Matrícula", "Fecha de acceso", "Sede", "Tipo de servicio", "Periodo"],
-    indicators: ["Accesos diarios", "Accesos semanales", "Matrículas únicas", "Frecuencia promedio", "EMIS"],
+    capture: ["MatrÃ­cula", "Fecha de acceso", "Sede", "Tipo de servicio", "Periodo"],
+    indicators: ["Accesos diarios", "Accesos semanales", "MatrÃ­culas Ãºnicas", "Frecuencia promedio", "EMIS"],
     charts: ["Trafico por dia", "Semanas con mayor uso", "Profesional vs Posgrado"],
     reports: ["Bitacora de accesos", "Reporte semanal de asistencia", "Export de usuarios unicos"]
   },
@@ -34,7 +34,7 @@ const areas = [
     name: "Intramuros",
     tone: "red",
     source: "Intra Indicadores LiFE, Intra Lista de Alumnos, Intra Jornadas",
-    capture: ["Matrícula", "Torneo", "Equipo", "Rama", "Jornada", "Estatus"],
+    capture: ["MatrÃ­cula", "Torneo", "Equipo", "Rama", "Jornada", "Estatus"],
     indicators: ["Equipos inscritos", "Alumnos por torneo", "Juegos programados", "Juegos por default", "Retencion", "Bajas"],
     charts: ["Retencion por torneo", "Equipos por rama", "Juegos realizados vs default"],
     reports: ["Rol de jornadas", "Cedula de equipos", "Reporte de retencion"]
@@ -44,28 +44,28 @@ const areas = [
     name: "Vivencia",
     tone: "lav",
     source: "Vivencia Fechas, Vivencia Lista de Alumnos",
-    capture: ["Matrícula", "Evento", "Fecha", "Clasificación", "Meta", "Asistencia"],
+    capture: ["MatrÃ­cula", "Evento", "Fecha", "ClasificaciÃ³n", "Meta", "Asistencia"],
     indicators: ["Eventos realizados", "Participantes", "Cumplimiento de meta", "Hombres/Mujeres", "Eventos insignia"],
     charts: ["Meta vs asistencia", "Eventos por clasificacion", "Participacion por semestre"],
     reports: ["Calendario de eventos", "Reporte de cumplimiento", "Lista agregada por evento"]
   },
   {
     id: "comunicacion",
-    name: "Comunicación",
+    name: "ComunicaciÃ³n",
     tone: "blue",
     source: "Infografia Wellness LIVE, Servicios e inscritos",
-    capture: ["Campaña", "Canal", "Área", "Periodo", "Alcance", "Clics", "Conversiones"],
-    indicators: ["Alcance", "Conversión a registro", "Servicios promovidos", "Participación atribuida"],
-    charts: ["Conversión por canal", "Impacto por área", "Tendencia de campañas"],
-    reports: ["Reporte de campañas", "Conversión por área", "Resumen para dirección"]
+    capture: ["CampaÃ±a", "Canal", "Ãrea", "Periodo", "Alcance", "Clics", "Conversiones"],
+    indicators: ["Alcance", "ConversiÃ³n a registro", "Servicios promovidos", "ParticipaciÃ³n atribuida"],
+    charts: ["ConversiÃ³n por canal", "Impacto por Ã¡rea", "Tendencia de campaÃ±as"],
+    reports: ["Reporte de campaÃ±as", "ConversiÃ³n por Ã¡rea", "Resumen para direcciÃ³n"]
   },
   {
     id: "representativos",
     name: "Representativos",
     tone: "green",
     source: "Repres Lista, Uniformes",
-    capture: ["Matrícula", "Deporte", "Rama", "Coach", "Temporada", "Estatus"],
-    indicators: ["Atletas activos", "Equipos por deporte", "Distribución por género", "Uniformes pendientes"],
+    capture: ["MatrÃ­cula", "Deporte", "Rama", "Coach", "Temporada", "Estatus"],
+    indicators: ["Atletas activos", "Equipos por deporte", "DistribuciÃ³n por gÃ©nero", "Uniformes pendientes"],
     charts: ["Atletas por deporte", "Rama por equipo", "Estatus de uniforme"],
     reports: ["Roster por coach", "Uniformes por atleta", "Reporte de temporada"]
   },
@@ -74,9 +74,9 @@ const areas = [
     name: "Gamer",
     tone: "lav",
     source: "Gamer Lista",
-    capture: ["Matrícula", "Actividad gamer", "Torneo", "Fecha", "Estatus"],
-    indicators: ["Participantes únicos", "Eventos gamer", "Reincidencia", "Distribución por carrera"],
-    charts: ["Participación por torneo", "Perfil académico", "Tendencia mensual"],
+    capture: ["MatrÃ­cula", "Actividad gamer", "Torneo", "Fecha", "Estatus"],
+    indicators: ["Participantes Ãºnicos", "Eventos gamer", "Reincidencia", "DistribuciÃ³n por carrera"],
+    charts: ["ParticipaciÃ³n por torneo", "Perfil acadÃ©mico", "Tendencia mensual"],
     reports: ["Lista de participantes", "Reporte de torneos", "Ranking agregado"]
   },
   {
@@ -84,7 +84,7 @@ const areas = [
     name: "Colaboradores",
     tone: "blue",
     source: "Uniformes, Pruebas fisicas, Gimnasio, Historial de profesores, layouts AD26 y Verano26",
-    capture: ["Nómina", "Colaborador", "Puesto", "Coordinador", "Talla playera", "Talla pants", "Correo", "Cumpleaños", "Género", "Primeros auxilios", "Contacto de emergencia"],
+    capture: ["NÃ³mina", "Colaborador", "Puesto", "Coordinador", "Talla playera", "Talla pants", "Correo", "CumpleaÃ±os", "GÃ©nero", "Primeros auxilios", "Contacto de emergencia"],
     indicators: ["Colaboradores registrados", "Uniformes por talla", "Cursos completados", "Primeros auxilios", "Asistencia a gimnasio", "Contratos por layout"],
     charts: ["Tallas de playera", "Cursos por coordinador", "Primeros auxilios", "Asistencia a gimnasio", "Costo de contratos"],
     reports: ["Directorio de colaboradores", "Reporte de uniformes", "Pruebas fisicas", "Layouts de contratacion"]
@@ -101,7 +101,7 @@ const areas = [
   },
   {
     id: "configuracion",
-    name: "Configuración",
+    name: "ConfiguraciÃ³n",
     tone: "blue",
     source: "Administracion del sistema",
     capture: ["Usuario", "Rol", "Area", "Permiso", "Catalogo", "Estado"],
@@ -113,33 +113,33 @@ const areas = [
 
 const classTeacherPerformance = [
   { teacher: "Adrian Guadalupe Torres Sandoval", total: 312, approved: 251, failed: 61, approvedRate: 80, failedRate: 20 },
-  { teacher: "Arturo Yared Nájera Núñez", total: 60, approved: 46, failed: 14, approvedRate: 77, failedRate: 23 },
-  { teacher: "Esteban Pérez Martínez", total: 360, approved: 264, failed: 96, approvedRate: 73, failedRate: 27 },
-  { teacher: "Ventura Guadalupe Vázquez González", total: 359, approved: 257, failed: 102, approvedRate: 72, failedRate: 28 },
-  { teacher: "Hugo Sánchez Medina", total: 304, approved: 216, failed: 88, approvedRate: 71, failedRate: 29 },
-  { teacher: "Perla Limón Moreno", total: 240, approved: 171, failed: 69, approvedRate: 71, failedRate: 29 },
-  { teacher: "Milton Andres Páez Navarro", total: 160, approved: 114, failed: 46, approvedRate: 71, failedRate: 29 },
-  { teacher: "Kevin Antonio Ruíz García", total: 208, approved: 145, failed: 63, approvedRate: 70, failedRate: 30 },
+  { teacher: "Arturo Yared NÃ¡jera NÃºÃ±ez", total: 60, approved: 46, failed: 14, approvedRate: 77, failedRate: 23 },
+  { teacher: "Esteban PÃ©rez MartÃ­nez", total: 360, approved: 264, failed: 96, approvedRate: 73, failedRate: 27 },
+  { teacher: "Ventura Guadalupe VÃ¡zquez GonzÃ¡lez", total: 359, approved: 257, failed: 102, approvedRate: 72, failedRate: 28 },
+  { teacher: "Hugo SÃ¡nchez Medina", total: 304, approved: 216, failed: 88, approvedRate: 71, failedRate: 29 },
+  { teacher: "Perla LimÃ³n Moreno", total: 240, approved: 171, failed: 69, approvedRate: 71, failedRate: 29 },
+  { teacher: "Milton Andres PÃ¡ez Navarro", total: 160, approved: 114, failed: 46, approvedRate: 71, failedRate: 29 },
+  { teacher: "Kevin Antonio RuÃ­z GarcÃ­a", total: 208, approved: 145, failed: 63, approvedRate: 70, failedRate: 30 },
   { teacher: "Omar Alejandro Ruiz Garibay", total: 61, approved: 43, failed: 18, approvedRate: 70, failedRate: 30 },
   { teacher: "Miguel Angel Carranza Sauceda", total: 207, approved: 137, failed: 70, approvedRate: 66, failedRate: 34 },
   { teacher: "Carolina Esquivel Morales", total: 341, approved: 220, failed: 121, approvedRate: 65, failedRate: 35 },
   { teacher: "Ameyalli Rocha Espinoza", total: 359, approved: 222, failed: 137, approvedRate: 62, failedRate: 38 },
   { teacher: "Arturo Mario Najera Balleza", total: 239, approved: 149, failed: 90, approvedRate: 62, failedRate: 38 },
   { teacher: "Jose de Jesus Castillo Ortiz", total: 160, approved: 100, failed: 60, approvedRate: 62, failedRate: 38 },
-  { teacher: "Víctor Antonio Paz Villalobos", total: 120, approved: 73, failed: 47, approvedRate: 61, failedRate: 39 },
-  { teacher: "Alicia Domínguez Rodríguez", total: 208, approved: 125, failed: 83, approvedRate: 60, failedRate: 40 },
-  { teacher: "Yara Lisania Lira Martínez", total: 329, approved: 195, failed: 134, approvedRate: 59, failedRate: 41 },
-  { teacher: "María Teresa Medrano Reyes", total: 199, approved: 114, failed: 85, approvedRate: 57, failedRate: 43 },
-  { teacher: "Yulian Valdez Ramírez", total: 209, approved: 114, failed: 95, approvedRate: 55, failedRate: 45 },
-  { teacher: "Yveth Marion González Eguren", total: 260, approved: 140, failed: 120, approvedRate: 54, failedRate: 46 },
+  { teacher: "VÃ­ctor Antonio Paz Villalobos", total: 120, approved: 73, failed: 47, approvedRate: 61, failedRate: 39 },
+  { teacher: "Alicia DomÃ­nguez RodrÃ­guez", total: 208, approved: 125, failed: 83, approvedRate: 60, failedRate: 40 },
+  { teacher: "Yara Lisania Lira MartÃ­nez", total: 329, approved: 195, failed: 134, approvedRate: 59, failedRate: 41 },
+  { teacher: "MarÃ­a Teresa Medrano Reyes", total: 199, approved: 114, failed: 85, approvedRate: 57, failedRate: 43 },
+  { teacher: "Yulian Valdez RamÃ­rez", total: 209, approved: 114, failed: 95, approvedRate: 55, failedRate: 45 },
+  { teacher: "Yveth Marion GonzÃ¡lez Eguren", total: 260, approved: 140, failed: 120, approvedRate: 54, failedRate: 46 },
   { teacher: "Narda Dominick Lopez Copado", total: 110, approved: 57, failed: 53, approvedRate: 52, failedRate: 48 },
-  { teacher: "Martha Hernández Hernández", total: 64, approved: 31, failed: 33, approvedRate: 48, failedRate: 52 },
-  { teacher: "Cecilia Estefanía Valdez Palacios", total: 37, approved: 17, failed: 20, approvedRate: 46, failedRate: 54 },
+  { teacher: "Martha HernÃ¡ndez HernÃ¡ndez", total: 64, approved: 31, failed: 33, approvedRate: 48, failedRate: 52 },
+  { teacher: "Cecilia EstefanÃ­a Valdez Palacios", total: 37, approved: 17, failed: 20, approvedRate: 46, failedRate: 54 },
   { teacher: "Josue Fernando Silguero Urquiza", total: 360, approved: 161, failed: 199, approvedRate: 45, failedRate: 55 }
 ];
 
 const classDisciplineIndicators = [
-  { period: "PMT1", discipline: "Acondicionamiento físico PMT1", banner: 30, bajas: 5, np: 7, finished: 18 },
+  { period: "PMT1", discipline: "Acondicionamiento fÃ­sico PMT1", banner: 30, bajas: 5, np: 7, finished: 18 },
   { period: "PMT1", discipline: "Artes Marciales PMT1", banner: 30, bajas: 4, np: 6, finished: 20 },
   { period: "PMT1", discipline: "Basquetbol Femenil PMT1", banner: 27, bajas: 4, np: 0, finished: 23 },
   { period: "PMT1", discipline: "Basquetbol Varonil PMT1", banner: 28, bajas: 4, np: 0, finished: 24 },
@@ -148,17 +148,17 @@ const classDisciplineIndicators = [
   { period: "PMT1", discipline: "Cross training PMT1", banner: 180, bajas: 15, np: 16, finished: 149 },
   { period: "PMT1", discipline: "Escala Deportiva PMT1", banner: 192, bajas: 20, np: 21, finished: 151 },
   { period: "PMT1", discipline: "Fitness PMT1", banner: 130, bajas: 18, np: 16, finished: 96 },
-  { period: "PMT1", discipline: "Fútbol rápido femenil PMT1", banner: 30, bajas: 2, np: 0, finished: 28 },
-  { period: "PMT1", discipline: "Fútbol rápido varonil PMT1", banner: 30, bajas: 4, np: 0, finished: 26 },
-  { period: "PMT1", discipline: "Fútbol soccer femenil PMT1", banner: 32, bajas: 6, np: 1, finished: 25 },
-  { period: "PMT1", discipline: "Fútbol soccer varonil PMT1", banner: 32, bajas: 6, np: 0, finished: 26 },
-  { period: "PMT1", discipline: "Natación PMT1", banner: 547, bajas: 41, np: 42, finished: 464 },
+  { period: "PMT1", discipline: "FÃºtbol rÃ¡pido femenil PMT1", banner: 30, bajas: 2, np: 0, finished: 28 },
+  { period: "PMT1", discipline: "FÃºtbol rÃ¡pido varonil PMT1", banner: 30, bajas: 4, np: 0, finished: 26 },
+  { period: "PMT1", discipline: "FÃºtbol soccer femenil PMT1", banner: 32, bajas: 6, np: 1, finished: 25 },
+  { period: "PMT1", discipline: "FÃºtbol soccer varonil PMT1", banner: 32, bajas: 6, np: 0, finished: 26 },
+  { period: "PMT1", discipline: "NataciÃ³n PMT1", banner: 547, bajas: 41, np: 42, finished: 464 },
   { period: "PMT1", discipline: "Tenis PMT1", banner: 417, bajas: 37, np: 36, finished: 344 },
   { period: "PMT1", discipline: "Voleibol femenil PMT1", banner: 30, bajas: 1, np: 0, finished: 29 },
   { period: "PMT1", discipline: "Voleibol varonil PMT1", banner: 30, bajas: 0, np: 0, finished: 30 },
   { period: "PMT1", discipline: "Yoga PMT1", banner: 247, bajas: 28, np: 22, finished: 197 },
   { period: "PMT1", discipline: "Totales Periodo 1", banner: 2585, bajas: 280, np: 228, finished: 2077, total: true },
-  { period: "PMT2", discipline: "Acondicionamiento físico PMT2", banner: 30, bajas: 4, np: 9, finished: 17 },
+  { period: "PMT2", discipline: "Acondicionamiento fÃ­sico PMT2", banner: 30, bajas: 4, np: 9, finished: 17 },
   { period: "PMT2", discipline: "Artes Marciales PMT2", banner: 30, bajas: 6, np: 7, finished: 17 },
   { period: "PMT2", discipline: "Basquetbol Femenil PMT2", banner: 27, bajas: 7, np: 7, finished: 13 },
   { period: "PMT2", discipline: "Basquetbol Varonil PMT2", banner: 28, bajas: 5, np: 4, finished: 19 },
@@ -167,11 +167,11 @@ const classDisciplineIndicators = [
   { period: "PMT2", discipline: "Cross training PMT2", banner: 180, bajas: 32, np: 33, finished: 115 },
   { period: "PMT2", discipline: "Escala Deportiva PMT2", banner: 131, bajas: 34, np: 18, finished: 79 },
   { period: "PMT2", discipline: "Fitness PMT2", banner: 192, bajas: 27, np: 28, finished: 137 },
-  { period: "PMT2", discipline: "Fútbol rápido femenil PMT2", banner: 30, bajas: 10, np: 3, finished: 17 },
-  { period: "PMT2", discipline: "Fútbol rápido varonil PMT2", banner: 30, bajas: 6, np: 5, finished: 19 },
-  { period: "PMT2", discipline: "Fútbol soccer varonil PMT2", banner: 64, bajas: 7, np: 0, finished: 57 },
-  { period: "PMT2", discipline: "Fútbol soccer femenil PMT2", banner: 32, bajas: 4, np: 7, finished: 21 },
-  { period: "PMT2", discipline: "Natación PMT2", banner: 577, bajas: 89, np: 80, finished: 408 },
+  { period: "PMT2", discipline: "FÃºtbol rÃ¡pido femenil PMT2", banner: 30, bajas: 10, np: 3, finished: 17 },
+  { period: "PMT2", discipline: "FÃºtbol rÃ¡pido varonil PMT2", banner: 30, bajas: 6, np: 5, finished: 19 },
+  { period: "PMT2", discipline: "FÃºtbol soccer varonil PMT2", banner: 64, bajas: 7, np: 0, finished: 57 },
+  { period: "PMT2", discipline: "FÃºtbol soccer femenil PMT2", banner: 32, bajas: 4, np: 7, finished: 21 },
+  { period: "PMT2", discipline: "NataciÃ³n PMT2", banner: 577, bajas: 89, np: 80, finished: 408 },
   { period: "PMT2", discipline: "Tenis PMT2", banner: 415, bajas: 69, np: 81, finished: 265 },
   { period: "PMT2", discipline: "Voleibol femenil PMT2", banner: 31, bajas: 6, np: 4, finished: 21 },
   { period: "PMT2", discipline: "Voleibol varonil PMT2", banner: 30, bajas: 4, np: 4, finished: 22 },
@@ -187,6 +187,7 @@ const STORAGE_KEY = "recsports_os_local_captures";
 const SCHEDULE_KEY = "recsports_os_class_schedules";
 const SIMULATOR_KEY = "recsports_os_schedule_simulator";
 const CLASS_SIMULATOR_KEY = "wellsync_spinning_fitness_simulator";
+const CLASS_SCHEDULE_SNAPSHOT_KEY = "wellsync_class_schedule_snapshot";
 const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
@@ -235,11 +236,11 @@ const sampleBookingSchedule = [
   { source: "booking", professor: "Adrian Guadalupe Torres Sandoval", discipline: "Reserva equipo PMT1", day: "Miercoles", start: "13:00", end: "15:00", installation: "Sala Fitness", frequency: "Semanal", group: "", rowNumber: 4 },
   { source: "booking", professor: "Perla Limon Moreno", discipline: "Clase especial PMT1", day: "Sabado", start: "08:00", end: "10:00", installation: "Croata", frequency: "Semanal", group: "", rowNumber: 5 }
 ];
-const submenus = ["Dashboard", "Captura", "Participantes", "Calendario", "Indicadores", "Reportes", "Configuración"];
+const submenus = ["Dashboard", "Captura", "Participantes", "Calendario", "Indicadores", "Reportes", "ConfiguraciÃ³n"];
 const roleMatrix = [
-  ["Dirección Deportiva", "Todo el sistema", "Lectura global, descarga ejecutiva, aprobaciones y auditoría"],
-  ["Coordinador de área", "Su área", "Alta, edición y consulta de capturas propias"],
-  ["Compras y Presupuesto", "Compras, uniformes y presupuesto", "Gestión financiera y lectura de necesidades por área"],
+  ["DirecciÃ³n Deportiva", "Todo el sistema", "Lectura global, descarga ejecutiva, aprobaciones y auditorÃ­a"],
+  ["Coordinador de Ã¡rea", "Su Ã¡rea", "Alta, ediciÃ³n y consulta de capturas propias"],
+  ["Compras y Presupuesto", "Compras, uniformes y presupuesto", "GestiÃ³n financiera y lectura de necesidades por Ã¡rea"],
   ["Consulta", "Dashboards agregados", "Solo lectura sin descargas nominales"]
 ];
 const importPlan = [
@@ -254,33 +255,33 @@ const validationRules = [
   ["Alumnos", "Carrera", "Debe existir en catalogo de carreras"],
   ["Alumnos", "Semestre", "Numero entre 1 y 12"],
   ["Alumnos", "Nivel escolar", "Profesional o Posgrado"],
-  ["Colaboradores", "Nómina", "Debe iniciar con L0 o registrar excepción operativa"],
+  ["Colaboradores", "NÃ³mina", "Debe iniciar con L0 o registrar excepciÃ³n operativa"],
   ["Colaboradores", "Uniforme", "Tallas normalizadas para playera y pants"],
   ["Compras", "Monto", "Numero positivo y asociado a area"]
 ];
 const migrationBacklog = [
-  ["Alta", "Separar datos sensibles de Historial Clínico antes de cualquier importación", "Pendiente"],
-  ["Alta", "Definir catálogo oficial de disciplinas, torneos y eventos", "Pendiente"],
-  ["Media", "Homologar nombres de estatus: activo, baja, NP, acreditado", "En diseño"],
-  ["Media", "Revisar duplicados por matrícula y periodo", "Pendiente"],
-  ["Baja", "Definir etiquetas visuales por módulo", "Base creada"]
+  ["Alta", "Separar datos sensibles de Historial ClÃ­nico antes de cualquier importaciÃ³n", "Pendiente"],
+  ["Alta", "Definir catÃ¡logo oficial de disciplinas, torneos y eventos", "Pendiente"],
+  ["Media", "Homologar nombres de estatus: activo, baja, NP, acreditado", "En diseÃ±o"],
+  ["Media", "Revisar duplicados por matrÃ­cula y periodo", "Pendiente"],
+  ["Baja", "Definir etiquetas visuales por mÃ³dulo", "Base creada"]
 ];
 const alertRules = [
-  ["Alta", "Migración", "Historial clínico no debe importarse hasta separar datos sensibles"],
-  ["Alta", "Catálogos", "Falta cerrar catálogo oficial de disciplinas, torneos y eventos"],
+  ["Alta", "MigraciÃ³n", "Historial clÃ­nico no debe importarse hasta separar datos sensibles"],
+  ["Alta", "CatÃ¡logos", "Falta cerrar catÃ¡logo oficial de disciplinas, torneos y eventos"],
   ["Media", "Colaboradores", "Revisar colaboradores sin primeros auxilios"],
-  ["Media", "Importación", "Normalizar estatus antes de carga masiva"],
-  ["Baja", "Diseño", "Definir iconos finales por módulo"]
+  ["Media", "ImportaciÃ³n", "Normalizar estatus antes de carga masiva"],
+  ["Baja", "DiseÃ±o", "Definir iconos finales por mÃ³dulo"]
 ];
 const roadmapItems = [
-  ["Fase 1", "Piloto web inicial", "Dirección Deportiva", "Completado", "Validar módulos, permisos, colaboradores, configuración y alertas"],
-  ["Fase 2", "Base técnica Next.js", "Producto / TI", "En progreso", "Instalar dependencias, ejecutar app Next y ordenar componentes"],
+  ["Fase 1", "Piloto web inicial", "DirecciÃ³n Deportiva", "Completado", "Validar mÃ³dulos, permisos, colaboradores, configuraciÃ³n y alertas"],
+  ["Fase 2", "Base tÃ©cnica Next.js", "Producto / TI", "En progreso", "Instalar dependencias, ejecutar app Next y ordenar componentes"],
   ["Fase 3", "Supabase", "TI / Administrador", "Pendiente", "Crear proyecto, tablas, roles, RLS y variables de entorno"],
-  ["Fase 4", "Migración controlada", "Dirección / Coordinadores", "Pendiente", "Depurar Indicadores, importar Uniformes, cerrar catálogos"],
+  ["Fase 4", "MigraciÃ³n controlada", "DirecciÃ³n / Coordinadores", "Pendiente", "Depurar Indicadores, importar Uniformes, cerrar catÃ¡logos"],
   ["Fase 5", "Dashboards reales", "Producto", "Pendiente", "Reemplazar datos simulados por consultas a PostgreSQL"],
-  ["Fase 6", "Piloto operativo", "Coordinadores", "Pendiente", "Probar captura real por área durante un periodo corto"],
+  ["Fase 6", "Piloto operativo", "Coordinadores", "Pendiente", "Probar captura real por Ã¡rea durante un periodo corto"],
   ["Fase 7", "Vercel privado", "TI", "Pendiente", "Publicar entorno protegido para pruebas internas"],
-  ["Fase 8", "Liberación", "Dirección Deportiva", "Pendiente", "Capacitación, soporte y gobierno de datos"]
+  ["Fase 8", "LiberaciÃ³n", "DirecciÃ³n Deportiva", "Pendiente", "CapacitaciÃ³n, soporte y gobierno de datos"]
 ];
 const scheduledReports = [
   ["Ejecutivo general", "Resumen ejecutivo direccion", "PDF", "Semanal", "Direccion Deportiva", "Disenado"],
@@ -330,16 +331,8 @@ const dbTables = [
 ];
 
 const demoUsers = [
-  { id: "dir", name: "Dirección Deportiva", role: "direccion", area: "general", label: "Dirección Deportiva" },
-  { id: "coord-clases", name: "Coord. Clases Deportivas", role: "coordinador", area: "clases", label: "Clases Deportivas" },
-  { id: "coord-gym", name: "Coord. Gimnasio", role: "coordinador", area: "gimnasio", label: "Gimnasio" },
-  { id: "coord-intra", name: "Coord. Intramuros", role: "coordinador", area: "intramuros", label: "Intramuros" },
-  { id: "coord-vivencia", name: "Coord. Vivencia", role: "coordinador", area: "vivencia", label: "Vivencia" },
-  { id: "coord-com", name: "Coord. Comunicación", role: "coordinador", area: "comunicacion", label: "Comunicación" },
-  { id: "coord-rep", name: "Coord. Representativos", role: "coordinador", area: "representativos", label: "Representativos" },
-  { id: "coord-gamer", name: "Coord. Gamer", role: "coordinador", area: "gamer", label: "Gamer" },
-  { id: "coord-colab", name: "Coord. Colaboradores", role: "coordinador", area: "colaboradores", label: "Colaboradores" },
-  { id: "compras", name: "Compras y Presupuesto", role: "compras", area: "compras", label: "Compras y Presupuesto" }
+  { id: "dir", name: "Direccion Deportiva", role: "direccion", area: "general", label: "Direccion Deportiva" },
+  { id: "maestro-clases", name: "Maestro de Clases Deportivas", role: "maestro", area: "clases", label: "Clases Deportivas" }
 ];
 
 function getSystemCatalogs() {
@@ -369,42 +362,42 @@ const students = Array.from({ length: 180 }, (_, i) => ({
   baja: i % 11 === 0
 }));
 
-const GYM_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const GYM_DAYS = ["Lunes", "Martes", "MiÃ©rcoles", "Jueves", "Viernes", "SÃ¡bado", "Domingo"];
 
 const PHYSICAL_HALL_TESTS = [
   {
     id: "cooper_12m",
-    icon: "🏃",
+    icon: "ðŸƒ",
     test: "Cooper 12 min",
     capacity: "Resistencia cardiovascular"
   },
   {
     id: "abdominales",
-    icon: "💪",
+    icon: "ðŸ’ª",
     test: "Abdominales",
     capacity: "Fuerza y resistencia del core"
   },
   {
     id: "lagartijas",
-    icon: "🤸",
+    icon: "ðŸ¤¸",
     test: "Lagartijas",
     capacity: "Fuerza de tren superior"
   },
   {
     id: "saltos_cuerda",
-    icon: "🪢",
+    icon: "ðŸª¢",
     test: "Saltos con cuerda",
-    capacity: "Coordinación y resistencia"
+    capacity: "CoordinaciÃ³n y resistencia"
   },
   {
     id: "wall_ball",
-    icon: "🎯",
+    icon: "ðŸŽ¯",
     test: "Wall Ball",
     capacity: "Potencia funcional"
   },
   {
     id: "remo_distancia",
-    icon: "🚣",
+    icon: "ðŸš£",
     test: "Remo distancia",
     capacity: "Potencia y resistencia"
   }
@@ -439,6 +432,8 @@ let classGrades = [];
 let classGradesLoaded = false;
 let classGradesAvailable = true;
 let classGradesImporting = false;
+let classStudentSearch = "";
+let expandedClassTeacherRows = new Set();
 let gymAttendanceRecords = [];
 let gymAsistencias = [];
 let gymManualAttendanceRows = [];
@@ -496,7 +491,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function allowedDataText() {
-  return "La captura operativa solo usa matrícula, género, carrera, semestre y nivel escolar. Los campos de salud, nombre, correo y teléfono quedan fuera del sistema.";
+  return "La captura operativa solo usa matrÃ­cula, gÃ©nero, carrera, semestre y nivel escolar. Los campos de salud, nombre, correo y telÃ©fono quedan fuera del sistema.";
 }
 
 function loadCaptures() {
@@ -638,7 +633,7 @@ async function saveClassSimulatorRows(rows) {
 async function deleteClassSimulatorRow(id) {
   const row = classScheduleSimulatorRows.find((item) => item.id === id);
   if (!row) return;
-  if (!confirm("¿Seguro que deseas eliminar esta clase del simulador?")) return;
+  if (!confirm("Â¿Seguro que deseas eliminar esta clase del simulador?")) return;
   classScheduleSimulatorRows = classScheduleSimulatorRows.filter((item) => item.id !== id);
   saveClassScheduleSimulatorLocal();
   if (supabaseClient && currentUser?.auth === "supabase") {
@@ -652,7 +647,13 @@ async function deleteClassSimulatorRow(id) {
 
 function loadSession() {
   try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    const session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+    if (session?.role === "coordinador" || session?.role === "consulta") {
+      const directorSession = { ...demoUsers[0] };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(directorSession));
+      return directorSession;
+    }
+    return session;
   } catch {
     return null;
   }
@@ -694,7 +695,8 @@ function addAudit(action, detail = "") {
 }
 
 function profileToSession(profile, authUser) {
-  const role = profile?.role || "consulta";
+  const sourceRole = profile?.role || "consulta";
+  const role = ["admin", "direccion", "maestro"].includes(sourceRole) ? sourceRole : "direccion";
   const area = role === "direccion" || role === "admin" ? "general" : (profile?.area_key || "general");
   return {
     id: authUser?.id || profile?.id || "supabase-user",
@@ -702,7 +704,7 @@ function profileToSession(profile, authUser) {
     email: authUser?.email || profile?.email || "",
     role,
     area,
-    globalAccess: ["coordinador", "consulta"].includes(role) && !profile?.area_key,
+    globalAccess: false,
     label: profile?.display_name || authUser?.email || "Usuario Supabase",
     auth: "supabase"
   };
@@ -1404,12 +1406,12 @@ function parseStudentDatabaseCsv(text) {
   const headers = originalHeaders.map(headerKey);
   const columnFor = (aliases) => aliases.map(headerKey).map((alias) => headers.indexOf(alias)).find((index) => index >= 0);
   const columns = {
-    matricula: columnFor(["matricula", "matrícula"]),
-    genero: columnFor(["genero", "género", "sexo"]),
-    carrera: columnFor(["carrera", "programa", "programa academico", "programa académico"]),
+    matricula: columnFor(["matricula", "matrÃ­cula"]),
+    genero: columnFor(["genero", "gÃ©nero", "sexo"]),
+    carrera: columnFor(["carrera", "programa", "programa academico", "programa acadÃ©mico"]),
     campus: columnFor(["nombre campus", "campus"]),
-    periodoAcad: columnFor(["periodo acad", "periodo academico", "periodo académico"]),
-    programaDesc: columnFor(["desc programa acad", "desc programa académico", "programa academico", "programa académico"]),
+    periodoAcad: columnFor(["periodo acad", "periodo academico", "periodo acadÃ©mico"]),
+    programaDesc: columnFor(["desc programa acad", "desc programa acadÃ©mico", "programa academico", "programa acadÃ©mico"]),
     semestre: columnFor(["semestre"]),
     nivel: columnFor(["desc nivel acad alumno", "nivel", "nivel escolar", "grado escolar", "grado", "escolaridad"]),
     gradoEscolar: columnFor(["desc nivel acad alumno", "grado escolar", "grado", "nivel escolar"])
@@ -1610,7 +1612,7 @@ async function replaceStudentDatabaseFromCsv(file) {
     toast("Este perfil no tiene permiso para cargar la base de alumnos");
     return;
   }
-  if (!window.confirm("Esta carga sustituirá la Base Maestra de alumnos actual. ¿Deseas continuar?")) return;
+  if (!window.confirm("Esta carga sustituirÃ¡ la Base Maestra de alumnos actual. Â¿Deseas continuar?")) return;
   studentDatabaseImporting = true;
   render();
   try {
@@ -1729,8 +1731,8 @@ function planningValue(row, aliases) {
 }
 
 function getPlanningActivityId(row) {
-  const area = planningValue(row, ["Área", "Area", "area"]);
-  const specificDate = planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]);
+  const area = planningValue(row, ["Ãrea", "Area", "area"]);
+  const specificDate = planningValue(row, ["Fecha especÃ­fica", "Fecha especifica", "Fecha", "specificDate"]);
   const activity = planningValue(row, ["Actividad", "activity"]);
   const rawId = [
     "planeacion-semestral",
@@ -1742,13 +1744,13 @@ function getPlanningActivityId(row) {
 }
 
 function isVivenciaPlanningRow(row) {
-  return normalizeText(planningValue(row, ["Área", "Area", "area"])) === "vivencia";
+  return normalizeText(planningValue(row, ["Ãrea", "Area", "area"])) === "vivencia";
 }
 
 function buildVivenciaEventPayloadFromPlanningRow(row) {
   if (!isVivenciaPlanningRow(row)) return null;
   const eventName = String(planningValue(row, ["Actividad", "activity"]) || "").trim();
-  const eventDate = parseGymDate(planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]));
+  const eventDate = parseGymDate(planningValue(row, ["Fecha especÃ­fica", "Fecha especifica", "Fecha", "specificDate"]));
   if (!eventName || !eventDate) return null;
   const planningActivityId = getPlanningActivityId(row);
   return {
@@ -1878,7 +1880,7 @@ function vivenciaValue(row, aliases) {
 function vivenciaBoolean(value) {
   if (typeof value === "boolean") return value;
   const clean = normalizeText(value);
-  return ["si", "sí", "true", "1", "x", "con cobro", "insignia"].includes(clean);
+  return ["si", "sÃ­", "true", "1", "x", "con cobro", "insignia"].includes(clean);
 }
 
 function vivenciaOptionalNumber(value) {
@@ -1959,29 +1961,29 @@ function parseVivenciaEventRows(rows, sourceName) {
       return;
     }
     const hasFee = vivenciaBoolean(vivenciaValue(row, ["Evento con cobro", "Con cobro", "has_fee"]) || vivenciaCell(row, 9));
-    const feeRaw = vivenciaValue(row, ["Costo de inscripcion", "Costo de inscripción", "Cuota", "fee_amount"]);
+    const feeRaw = vivenciaValue(row, ["Costo de inscripcion", "Costo de inscripciÃ³n", "Cuota", "fee_amount"]);
     const feeAmount = vivenciaOptionalNumber(feeRaw || vivenciaCell(row, 10));
     if (hasFee && feeAmount === null) warnings.push({ row: rowNumber, message: "Evento con cobro sin costo valido; se guardara en 0" });
-    const goalRaw = vivenciaValue(row, ["Meta de captacion", "Meta de captación", "Meta de captación (número de estudiantes)", "Meta", "participation_goal"]);
+    const goalRaw = vivenciaValue(row, ["Meta de captacion", "Meta de captaciÃ³n", "Meta de captaciÃ³n (nÃºmero de estudiantes)", "Meta", "participation_goal"]);
     const goal = vivenciaOptionalNumber(goalRaw || vivenciaCell(row, 8));
     if (String(goalRaw || "").trim() && goal === null) warnings.push({ row: rowNumber, message: "Meta invalida; se guardara vacia" });
     const result = {
       campus,
       event_name: eventName,
       discipline: String(vivenciaValue(row, ["Disciplina deportiva", "Disciplina", "discipline"]) || vivenciaCell(row, 3) || "").trim() || null,
-      classification: String(vivenciaValue(row, ["Clasificacion", "Clasificación", "classification"]) || "").trim() || null,
+      classification: String(vivenciaValue(row, ["Clasificacion", "ClasificaciÃ³n", "classification"]) || "").trim() || null,
       event_date: eventDate,
       end_date: endDate || null,
       branch: String(vivenciaValue(row, ["Rama", "branch"]) || vivenciaCell(row, 6) || "").trim() || null,
-      target_population: String(vivenciaValue(row, ["Poblacion que participa en el evento", "Población que participa en el evento", "Poblacion", "target_population"]) || "").trim() || null,
+      target_population: String(vivenciaValue(row, ["Poblacion que participa en el evento", "PoblaciÃ³n que participa en el evento", "Poblacion", "target_population"]) || "").trim() || null,
       participation_goal: goal === null ? null : Math.round(goal),
       has_fee: hasFee,
       fee_amount: hasFee ? (feeAmount ?? 0) : 0,
       responsible_name: String(vivenciaValue(row, ["Nombre del responsable", "Responsable", "responsible_name"]) || vivenciaCell(row, 11) || "").trim() || null,
-      description: String(vivenciaValue(row, ["Descripcion del evento", "Descripción del evento", "Descripcion", "description"]) || "").trim() || null,
+      description: String(vivenciaValue(row, ["Descripcion del evento", "DescripciÃ³n del evento", "Descripcion", "description"]) || "").trim() || null,
       is_signature_event: vivenciaBoolean(vivenciaValue(row, ["Evento insignia", "Es evento insignia", "is_signature_event"])),
       status: vivenciaStatus(vivenciaValue(row, ["Estado", "Estatus", "status"])),
-      reported_total_participants: vivenciaOptionalNumber(vivenciaValue(row, ["Numero total de participantes", "Número total de participantes", "Total participantes"])),
+      reported_total_participants: vivenciaOptionalNumber(vivenciaValue(row, ["Numero total de participantes", "NÃºmero total de participantes", "Total participantes"])),
       reported_men: vivenciaOptionalNumber(vivenciaValue(row, ["Hombres", "Masculino"])),
       reported_women: vivenciaOptionalNumber(vivenciaValue(row, ["Mujeres", "Femenino"])),
       source_name: sourceName,
@@ -2040,7 +2042,7 @@ function parseVivenciaParticipantRows(grid, fileName) {
     return { payload: [], warnings: [{ row: 0, message: "El archivo no contiene matriculas" }], omitted: 0 };
   }
   const firstRow = rows[0].map((cell) => headerKey(cell));
-  const matriculaAliases = ["matricula", "matrícula", "matricula alumno", "matricula participante", "alumno", "student_id"]
+  const matriculaAliases = ["matricula", "matrÃ­cula", "matricula alumno", "matricula participante", "alumno", "student_id"]
     .map((alias) => headerKey(alias));
   const matriculaColumn = firstRow.findIndex((header) => matriculaAliases.includes(header));
   const hasHeader = matriculaColumn >= 0;
@@ -2393,7 +2395,7 @@ function collaboratorFromCloud(row) {
     "Playeras Joma": row.playera_joma || "",
     "Talla pants": row.talla_pants || "",
     "correo institucional": row.institutional_email || "",
-    "Fecha cumpleaños": row.birthdate_label || "",
+    "Fecha cumpleaÃ±os": row.birthdate_label || "",
     Genero: row.genero || "",
     "Primeros auxilios": row.first_aid === null ? "" : String(Boolean(row.first_aid)),
     "Asistencia a gimnasio de colaboradores": row.gym_attendance ?? "",
@@ -2408,7 +2410,7 @@ function collaboratorFromCloud(row) {
 function collaboratorToCloud(row) {
   const baseKeys = new Set([
     "__id", "__photoPath", "__photoUrl", "Nomina", "Colaboradores", "Puesto", "Coordinador", "% de cursos",
-    "Playeras Joma", "Talla pants", "correo institucional", "Fecha cumpleaños",
+    "Playeras Joma", "Talla pants", "correo institucional", "Fecha cumpleaÃ±os",
     "Genero", "Primeros auxilios", "Asistencia a gimnasio de colaboradores",
     "Contacto de emergencia", "Numero 1", "Contacto de emergencia 2", "Numero 2"
   ]);
@@ -2423,7 +2425,7 @@ function collaboratorToCloud(row) {
     playera_joma: row["Playeras Joma"] || null,
     talla_pants: row["Talla pants"] || null,
     institutional_email: row["correo institucional"] || null,
-    birthdate_label: row["Fecha cumpleaños"] || null,
+    birthdate_label: row["Fecha cumpleaÃ±os"] || null,
     genero: row["Genero"] || null,
     first_aid: firstAidValue === "true" ? true : firstAidValue === "false" ? false : null,
     gym_attendance: row["Asistencia a gimnasio de colaboradores"] === "" ? null : numberFrom(row["Asistencia a gimnasio de colaboradores"]),
@@ -2500,7 +2502,7 @@ async function loadClassGradeSeedData() {
   if (classGradeSeedRows.length) return classGradeSeedRows;
   try {
     const response = await fetch(CLASS_GRADES_DATA_URL);
-    if (!response.ok) throw new Error("No se encontró la base inicial de calificaciones");
+    if (!response.ok) throw new Error("No se encontrÃ³ la base inicial de calificaciones");
     classGradeSeedRows = await response.json();
   } catch (error) {
     console.error(error);
@@ -2575,7 +2577,7 @@ async function importInitialClassGrades() {
   } catch (error) {
     console.error(error);
     classGradesAvailable = false;
-    toast(`No se pudo importar: ${supabaseErrorDetail(error) || "revisa el código SQL"}`);
+    toast(`No se pudo importar: ${supabaseErrorDetail(error) || "revisa el cÃ³digo SQL"}`);
   } finally {
     classGradesImporting = false;
     render();
@@ -2626,7 +2628,7 @@ function normalizeClassGrade(value) {
 async function updateClassGrade(recordKey, rawValue) {
   const grade = normalizeClassGrade(rawValue);
   if (grade === null) {
-    toast("Usa una calificación de 0 a 100, BAJA, NP o deja vacío");
+    toast("Usa una calificaciÃ³n de 0 a 100, BAJA, NP o deja vacÃ­o");
     render();
     return;
   }
@@ -2644,29 +2646,29 @@ async function updateClassGrade(recordKey, rawValue) {
     .upsert(classGradeToCloud(row), { onConflict: "record_key" });
   if (error) {
     row.grade = previous;
-    toast(`No se guardó: ${supabaseErrorDetail(error) || "revisa permisos"}`);
+    toast(`No se guardÃ³: ${supabaseErrorDetail(error) || "revisa permisos"}`);
     render();
     return;
   }
   if (!classGradesLoaded) classGrades = classGradeSeedRows.map((item) => ({ ...item }));
   classGradesLoaded = true;
-  addAudit("calificacion", `${row.matricula} · ${row.subject_name}: ${grade || "pendiente"}`);
+  addAudit("calificacion", `${row.matricula} Â· ${row.subject_name}: ${grade || "pendiente"}`);
   render();
-  toast("Calificación guardada");
+  toast("CalificaciÃ³n guardada");
 }
 
 async function changePhysicalAccessCode() {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !isLeadership()) {
-    toast("Necesitas entrar como Dirección para cambiar el código");
+    toast("Necesitas entrar como DirecciÃ³n para cambiar el cÃ³digo");
     return;
   }
   const input = $("#newPhysicalAccessCode");
   const newCode = String(input?.value || "").trim();
   if (newCode.length < 4 || newCode.length > 20) {
-    toast("El código debe tener entre 4 y 20 caracteres");
+    toast("El cÃ³digo debe tener entre 4 y 20 caracteres");
     return;
   }
-  if (!window.confirm("¿Cambiar el código general? El código anterior dejará de funcionar.")) return;
+  if (!window.confirm("Â¿Cambiar el cÃ³digo general? El cÃ³digo anterior dejarÃ¡ de funcionar.")) return;
   const button = $("#savePhysicalAccessCode");
   if (button) {
     button.disabled = true;
@@ -2679,18 +2681,18 @@ async function changePhysicalAccessCode() {
     console.error(error);
     if (button) {
       button.disabled = false;
-      button.textContent = "Cambiar código";
+      button.textContent = "Cambiar cÃ³digo";
     }
-    toast(`No se pudo cambiar el código: ${supabaseErrorDetail(error)}`);
+    toast(`No se pudo cambiar el cÃ³digo: ${supabaseErrorDetail(error)}`);
     return;
   }
-  addAudit("evaluaciones", "Código general del formulario actualizado");
+  addAudit("evaluaciones", "CÃ³digo general del formulario actualizado");
   if (input) input.value = "";
   if (button) {
     button.disabled = false;
-    button.textContent = "Cambiar código";
+    button.textContent = "Cambiar cÃ³digo";
   }
-  toast("Código general actualizado");
+  toast("CÃ³digo general actualizado");
 }
 
 async function loadCollaboratorPhotoUrls() {
@@ -2737,7 +2739,7 @@ async function saveCollaboratorColumnOrder(columns) {
     }, { onConflict: "id" });
   if (error) {
     console.error(error);
-    toast("Falta activar la configuración de columnas en Supabase");
+    toast("Falta activar la configuraciÃ³n de columnas en Supabase");
     return false;
   }
   collaboratorSettingsLoaded = true;
@@ -2748,17 +2750,17 @@ async function updateCollaboratorCell(rowId, column, value) {
   if (!supabaseClient || !canManageStructure()) return;
   const row = cloudCollaborators.find((item) => item.__id === rowId);
   if (!row) {
-    toast("No encontré el registro para actualizar");
+    toast("No encontrÃ© el registro para actualizar");
     return;
   }
   const nextValue = typeof value === "string" ? value.trim() : value;
   if (column === "Nomina" && !nextValue) {
-    toast("La nómina no puede quedar vacía");
+    toast("La nÃ³mina no puede quedar vacÃ­a");
     render();
     return;
   }
   if (column === "Colaboradores" && !nextValue) {
-    toast("El nombre no puede quedar vacío");
+    toast("El nombre no puede quedar vacÃ­o");
     render();
     return;
   }
@@ -2772,19 +2774,19 @@ async function updateCollaboratorCell(rowId, column, value) {
   if (error) {
     row[column] = previousValue;
     console.error(error);
-    toast(error.code === "23505" ? "Esa nómina ya existe" : "No se pudo guardar el cambio");
+    toast(error.code === "23505" ? "Esa nÃ³mina ya existe" : "No se pudo guardar el cambio");
     render();
     return;
   }
   addAudit("colaboradores", `${column} actualizado para ${payload.nomina}`);
   await loadSupabaseCollaborators();
   render();
-  toast("Cambio guardado en línea");
+  toast("Cambio guardado en lÃ­nea");
 }
 
 async function addCollaboratorRow() {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
-  const nomina = String(window.prompt("Escribe la nómina del nuevo profesor:") || "").trim().toUpperCase();
+  const nomina = String(window.prompt("Escribe la nÃ³mina del nuevo profesor:") || "").trim().toUpperCase();
   if (!nomina) return;
   const fullName = String(window.prompt("Escribe el nombre completo:") || "").trim();
   if (!fullName) {
@@ -2809,14 +2811,14 @@ async function addCollaboratorRow() {
   if (error) {
     console.error(error);
     const detail = supabaseErrorDetail(error);
-    toast(error.code === "23505" ? "Esa nómina ya existe" : `No se pudo agregar el profesor${detail ? `: ${detail}` : ""}`);
+    toast(error.code === "23505" ? "Esa nÃ³mina ya existe" : `No se pudo agregar el profesor${detail ? `: ${detail}` : ""}`);
     return;
   }
   collaboratorFilter = { coordinator: "todos", shirt: "todos", firstAid: "todos" };
   addAudit("colaboradores", `Alta de ${nomina} - ${fullName}`);
   await loadSupabaseCollaborators();
   render();
-  toast("Profesor agregado y gráficas actualizadas");
+  toast("Profesor agregado y grÃ¡ficas actualizadas");
 }
 
 async function addCollaboratorColumn() {
@@ -2875,10 +2877,10 @@ async function moveCollaboratorColumn(column, direction) {
 async function deleteCollaboratorColumn(column) {
   if (!canManageStructure()) return;
   if (["Nomina", "Colaboradores"].includes(column)) {
-    toast("Nómina y colaborador son campos obligatorios");
+    toast("NÃ³mina y colaborador son campos obligatorios");
     return;
   }
-  if (!window.confirm(`¿Quitar la columna "${column}" de la tabla?`)) return;
+  if (!window.confirm(`Â¿Quitar la columna "${column}" de la tabla?`)) return;
   const nextColumns = collaboratorColumns().filter((item) => item !== column);
   const isCustom = !BASE_COLLABORATOR_COLUMNS.includes(column);
   if (isCustom && cloudCollaborators.length) {
@@ -2906,7 +2908,7 @@ async function deleteCollaboratorRow(rowId) {
   if (!supabaseClient || !canManageStructure()) return;
   const row = cloudCollaborators.find((item) => item.__id === rowId);
   if (!row) return;
-  if (!window.confirm(`¿Eliminar a ${row.Colaboradores || rowId}? Esta acción se guardará en la base.`)) return;
+  if (!window.confirm(`Â¿Eliminar a ${row.Colaboradores || rowId}? Esta acciÃ³n se guardarÃ¡ en la base.`)) return;
   const { error } = await supabaseClient.from("collaborators").delete().eq("nomina", rowId);
   if (error) {
     console.error(error);
@@ -2919,7 +2921,7 @@ async function deleteCollaboratorRow(rowId) {
   addAudit("colaboradores", `Baja de ${rowId} - ${row.Colaboradores || ""}`);
   await loadSupabaseCollaborators();
   render();
-  toast("Registro eliminado y gráficas actualizadas");
+  toast("Registro eliminado y grÃ¡ficas actualizadas");
 }
 
 async function prepareCollaboratorPhoto(file) {
@@ -2950,7 +2952,7 @@ async function uploadCollaboratorPhoto() {
     return;
   }
   if (file.size > 12 * 1024 * 1024) {
-    toast("La imagen supera el límite de 12 MB");
+    toast("La imagen supera el lÃ­mite de 12 MB");
     return;
   }
   const row = cloudCollaborators.find((item) => item.__id === nomina);
@@ -2983,14 +2985,14 @@ async function uploadCollaboratorPhoto() {
     selectedPhotoNomina = "";
     await loadSupabaseCollaborators();
     render();
-    toast("Fotografía guardada en Supabase");
+    toast("FotografÃ­a guardada en Supabase");
   } catch (error) {
     console.error(error);
     const detail = supabaseErrorDetail(error);
-    toast(`No se pudo guardar la fotografía${detail ? `: ${detail}` : ""}`);
+    toast(`No se pudo guardar la fotografÃ­a${detail ? `: ${detail}` : ""}`);
     if (button) {
       button.disabled = false;
-      button.textContent = "Guardar fotografía";
+      button.textContent = "Guardar fotografÃ­a";
     }
   }
 }
@@ -2999,17 +3001,17 @@ async function removeCollaboratorPhoto() {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
   const nomina = $("#collaboratorPhotoNomina")?.value;
   const row = cloudCollaborators.find((item) => item.__id === nomina);
-  if (!row?.__photoPath || !window.confirm(`¿Quitar la fotografía de ${row.Colaboradores}?`)) return;
+  if (!row?.__photoPath || !window.confirm(`Â¿Quitar la fotografÃ­a de ${row.Colaboradores}?`)) return;
   const update = await supabaseClient.from("collaborators").update({ photo_path: null }).eq("nomina", nomina);
   if (update.error) {
-    toast("No se pudo quitar la fotografía");
+    toast("No se pudo quitar la fotografÃ­a");
     return;
   }
   await supabaseClient.storage.from("collaborator-photos").remove([row.__photoPath]);
   addAudit("colaboradores", `Foto eliminada para ${nomina}`);
   await loadSupabaseCollaborators();
   render();
-  toast("Fotografía eliminada");
+  toast("FotografÃ­a eliminada");
 }
 
 async function importCollaboratorsToCloud() {
@@ -3018,17 +3020,17 @@ async function importCollaboratorsToCloud() {
     .filter((row) => String(row.Nomina || "").trim() && String(row.Colaboradores || "").trim())
     .map((row) => collaboratorToCloud({ ...row, __id: row.Nomina }));
   if (!sourceRows.length) {
-    toast("No encontré registros para importar");
+    toast("No encontrÃ© registros para importar");
     return;
   }
-  if (!window.confirm(`Se importarán ${sourceRows.length} profesores a la base central. ¿Continuar?`)) return;
+  if (!window.confirm(`Se importarÃ¡n ${sourceRows.length} profesores a la base central. Â¿Continuar?`)) return;
   const { error } = await supabaseClient.from("collaborators").upsert(sourceRows, { onConflict: "nomina" });
   if (error) {
     console.error(error);
-    toast("No se pudo completar la importación");
+    toast("No se pudo completar la importaciÃ³n");
     return;
   }
-  addAudit("colaboradores", `Importación inicial de ${sourceRows.length} registros`);
+  addAudit("colaboradores", `ImportaciÃ³n inicial de ${sourceRows.length} registros`);
   await loadSupabaseCollaborators();
   render();
   toast(`${sourceRows.length} profesores guardados en Supabase`);
@@ -3330,7 +3332,7 @@ function knownCollaboratorColumns() {
   collaboratorRows().forEach((row) => {
     Object.keys(row).forEach((key) => {
       if (!BASE_COLLABORATOR_COLUMNS.includes(key) && !key.startsWith("__") &&
-          !["Fecha cumpleaños", "Asistencia a gimnasio de colaboradores", "Contacto de emergencia", "Numero 1", "Contacto de emergencia 2", "Numero 2"].includes(key)) {
+          !["Fecha cumpleaÃ±os", "Asistencia a gimnasio de colaboradores", "Contacto de emergencia", "Numero 1", "Contacto de emergencia 2", "Numero 2"].includes(key)) {
         custom.add(key);
       }
     });
@@ -3367,7 +3369,7 @@ function collaboratorEditorControl(row, column, editable) {
   }
   if (column === "Primeros auxilios") {
     const normalized = String(value).toLowerCase() === "true" ? "true" : String(value).toLowerCase() === "false" ? "false" : "";
-    return `<select ${common}><option value="" ${!normalized ? "selected" : ""}>Sin dato</option><option value="true" ${normalized === "true" ? "selected" : ""}>Sí</option><option value="false" ${normalized === "false" ? "selected" : ""}>No</option></select>`;
+    return `<select ${common}><option value="" ${!normalized ? "selected" : ""}>Sin dato</option><option value="true" ${normalized === "true" ? "selected" : ""}>SÃ­</option><option value="false" ${normalized === "false" ? "selected" : ""}>No</option></select>`;
   }
   const type = column === "% de cursos" ? "number" : "text";
   return `<input ${common} type="${type}" ${type === "number" ? 'min="0" max="100" step="1"' : ""} value="${escapeHtml(value)}" />`;
@@ -3420,7 +3422,7 @@ function collaboratorAvatar(row, editable) {
   return `
     <button class="collaborator-avatar ${row.__photoUrl ? "has-photo" : ""}" type="button"
       data-photo-row="${escapeHtml(row.__id || row.Nomina)}" ${editable ? "" : "disabled"}
-      title="${editable ? "Cargar o cambiar fotografía" : "Fotografía del colaborador"}">
+      title="${editable ? "Cargar o cambiar fotografÃ­a" : "FotografÃ­a del colaborador"}">
       ${label}
     </button>
   `;
@@ -3432,7 +3434,7 @@ function renderCollaboratorPhotoUploader(rows, editable) {
   if (!selected) return "";
   selectedPhotoNomina = selected.__id;
   return `
-    <section class="photo-uploader-panel" aria-label="Cargar fotografía de colaborador">
+    <section class="photo-uploader-panel" aria-label="Cargar fotografÃ­a de colaborador">
       <div class="photo-uploader-preview">
         ${selected.__photoUrl
           ? `<img src="${escapeHtml(selected.__photoUrl)}" alt="Foto actual de ${escapeHtml(selected.Colaboradores)}" />`
@@ -3442,17 +3444,17 @@ function renderCollaboratorPhotoUploader(rows, editable) {
         <label>
           Profesor
           <select id="collaboratorPhotoNomina">
-            ${rows.map((row) => `<option value="${escapeHtml(row.__id)}" ${row.__id === selected.__id ? "selected" : ""}>${escapeHtml(row.Colaboradores)} · ${escapeHtml(row.Nomina)}</option>`).join("")}
+            ${rows.map((row) => `<option value="${escapeHtml(row.__id)}" ${row.__id === selected.__id ? "selected" : ""}>${escapeHtml(row.Colaboradores)} Â· ${escapeHtml(row.Nomina)}</option>`).join("")}
           </select>
         </label>
         <label>
           Imagen
           <input id="collaboratorPhotoFile" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" />
         </label>
-        <p>La imagen se optimiza automáticamente y se guarda en el espacio privado de Supabase.</p>
+        <p>La imagen se optimiza automÃ¡ticamente y se guarda en el espacio privado de Supabase.</p>
       </div>
       <div class="photo-uploader-actions">
-        <button class="primary-btn" id="saveCollaboratorPhoto" type="button">Guardar fotografía</button>
+        <button class="primary-btn" id="saveCollaboratorPhoto" type="button">Guardar fotografÃ­a</button>
         ${selected.__photoPath ? `<button class="ghost-btn danger-text" id="removeCollaboratorPhoto" type="button">Quitar foto</button>` : ""}
         <button class="ghost-btn" id="closeCollaboratorPhotoUploader" type="button">Cerrar</button>
       </div>
@@ -3468,9 +3470,9 @@ function collaboratorColumnHeader(column, index, columns, editable) {
       <div class="column-heading">
         <span>${escapeHtml(column)}</span>
         <div class="column-actions">
-          <button type="button" data-move-column="${escapeHtml(column)}" data-direction="-1" ${index === 0 ? "disabled" : ""} title="Mover a la izquierda" aria-label="Mover ${escapeHtml(column)} a la izquierda">←</button>
-          <button type="button" data-move-column="${escapeHtml(column)}" data-direction="1" ${index === columns.length - 1 ? "disabled" : ""} title="Mover a la derecha" aria-label="Mover ${escapeHtml(column)} a la derecha">→</button>
-          <button type="button" class="column-delete" data-delete-column="${escapeHtml(column)}" ${protectedColumn ? "disabled" : ""} title="${protectedColumn ? "Campo obligatorio" : "Eliminar columna"}" aria-label="Eliminar columna ${escapeHtml(column)}">×</button>
+          <button type="button" data-move-column="${escapeHtml(column)}" data-direction="-1" ${index === 0 ? "disabled" : ""} title="Mover a la izquierda" aria-label="Mover ${escapeHtml(column)} a la izquierda">â†</button>
+          <button type="button" data-move-column="${escapeHtml(column)}" data-direction="1" ${index === columns.length - 1 ? "disabled" : ""} title="Mover a la derecha" aria-label="Mover ${escapeHtml(column)} a la derecha">â†’</button>
+          <button type="button" class="column-delete" data-delete-column="${escapeHtml(column)}" ${protectedColumn ? "disabled" : ""} title="${protectedColumn ? "Campo obligatorio" : "Eliminar columna"}" aria-label="Eliminar columna ${escapeHtml(column)}">Ã—</button>
         </div>
       </div>
     </th>
@@ -3478,7 +3480,7 @@ function collaboratorColumnHeader(column, index, columns, editable) {
 }
 
 function genderLabel(row) {
-  const value = String(row["Genero"] || row["Género"] || "").trim().toLowerCase();
+  const value = String(row["Genero"] || row["GÃ©nero"] || "").trim().toLowerCase();
   if (value.startsWith("muj")) return "Mujer";
   if (value.startsWith("hom")) return "Hombre";
   return "Sin dato";
@@ -3529,7 +3531,7 @@ function renderGenderBars(rows, palette = "shirt") {
 
 function genderLegend(palette = "shirt") {
   return `
-    <div class="gender-legend ${palette}-palette" aria-label="Leyenda por género">
+    <div class="gender-legend ${palette}-palette" aria-label="Leyenda por gÃ©nero">
       <span><i class="legend-dot women"></i>Mujeres</span>
       <span><i class="legend-dot men"></i>Hombres</span>
       <span><i class="legend-dot unknown"></i>Sin dato</span>
@@ -3675,17 +3677,17 @@ function physicalTestStats(rows, testKey) {
 
 function physicalResultDisplay(row, testKey) {
   const result = physicalResult(row, testKey);
-  if (!result) return "—";
+  if (!result) return "â€”";
   if (result.numeric_value !== null && result.numeric_value !== undefined && result.numeric_value !== "") {
     return `${Number(result.numeric_value).toLocaleString("es-MX", { maximumFractionDigits: 2 })}`;
   }
   if (result.raw_value) return result.raw_value;
   return {
-    lesion: "Lesión",
-    contraindicacion: "Contraindicación",
+    lesion: "LesiÃ³n",
+    contraindicacion: "ContraindicaciÃ³n",
     otro: "Otro motivo",
     no_realizada: "No realizada"
-  }[result.result_status] || "—";
+  }[result.result_status] || "â€”";
 }
 
 function physicalTimeline(rows, testKey) {
@@ -3723,7 +3725,7 @@ function physicalNumericValue(result) {
     if (Number.isFinite(directValue)) return directValue;
   }
   const raw = String(result.raw_value || "").trim();
-  if (!raw || /^(na|n\/a|no aplica|lesion|lesionada|lesionado|contraindicacion|contraindicación)$/i.test(raw)) return null;
+  if (!raw || /^(na|n\/a|no aplica|lesion|lesionada|lesionado|contraindicacion|contraindicaciÃ³n)$/i.test(raw)) return null;
   const match = raw.replace(",", ".").match(/-?\d+(?:\.\d+)?/);
   if (!match) return null;
   const value = Number(match[0]);
@@ -3745,7 +3747,7 @@ function physicalHallGenderMatches(row, collaboratorIndex = collaboratorPhotoInd
 
 function physicalHallYear(row) {
   const date = row.evaluated_at ? new Date(row.evaluated_at) : null;
-  return date && !Number.isNaN(date.getTime()) ? String(date.getFullYear()) : "Sin año";
+  return date && !Number.isNaN(date.getTime()) ? String(date.getFullYear()) : "Sin aÃ±o";
 }
 
 function physicalHallDaysSince(row) {
@@ -3834,15 +3836,15 @@ function renderPhysicalHallOfFame() {
   const cards = physicalHallCards();
   const selectedTop = cards.find((item) => item.id === physicalHallOfFameTopTest);
   return `
-    <section class="physical-hof-panel physical-hof-view" aria-label="Salón de la Fama de Evaluaciones Físicas">
+    <section class="physical-hof-panel physical-hof-view" aria-label="SalÃ³n de la Fama de Evaluaciones FÃ­sicas">
       <div class="physical-hof-heading">
         <div>
           <p class="eyebrow">WellSync Records</p>
-          <h3>🏆 Salón de la Fama</h3>
-          <p class="hero-copy">Los mejores resultados históricos de WellSync</p>
+          <h3>ðŸ† SalÃ³n de la Fama</h3>
+          <p class="hero-copy">Los mejores resultados histÃ³ricos de WellSync</p>
         </div>
         <div class="physical-hof-header-actions">
-          <div class="physical-hof-segmented" aria-label="Filtro visual de género">
+          <div class="physical-hof-segmented" aria-label="Filtro visual de gÃ©nero">
             ${[
               ["todos", "Todos"],
               ["mujeres", "Mujeres"],
@@ -3853,7 +3855,7 @@ function renderPhysicalHallOfFame() {
               </button>
             `).join("")}
           </div>
-          <button class="ghost-btn physical-hof-back" id="closePhysicalHallOfFame" type="button">Volver a Evaluaciones Físicas</button>
+          <button class="ghost-btn physical-hof-back" id="closePhysicalHallOfFame" type="button">Volver a Evaluaciones FÃ­sicas</button>
         </div>
       </div>
       <div class="physical-hof-grid">
@@ -3871,14 +3873,14 @@ function renderPhysicalHallOfFame() {
             <div class="physical-hof-leader-row">
               ${physicalHallAvatar(leader)}
               <div class="physical-hof-record-meta">
-                <span class="physical-hof-medal">🥇</span>
+                <span class="physical-hof-medal">ðŸ¥‡</span>
                 <strong class="physical-hof-leader">${leader ? escapeHtml(leader.collaborator) : "Sin datos reales"}</strong>
               </div>
             </div>
             <span class="physical-hof-result">${leader ? escapeHtml(leader.result) : "Pendiente"}</span>
-            <span class="physical-hof-year">${leader ? escapeHtml(leader.year) : "Sin año"}</span>
-            <p class="physical-hof-days">${leader?.days !== null && leader?.days !== undefined ? `🔥 ${leader.days} días sin ser superada` : "Sin fecha para calcular días"}</p>
-            <button class="ghost-btn compact-action" type="button" data-physical-hof-top="${escapeHtml(item.id)}">Top 5 →</button>
+            <span class="physical-hof-year">${leader ? escapeHtml(leader.year) : "Sin aÃ±o"}</span>
+            <p class="physical-hof-days">${leader?.days !== null && leader?.days !== undefined ? `ðŸ”¥ ${leader.days} dÃ­as sin ser superada` : "Sin fecha para calcular dÃ­as"}</p>
+            <button class="ghost-btn compact-action" type="button" data-physical-hof-top="${escapeHtml(item.id)}">Top 5 â†’</button>
           </article>
         `;
         }).join("")}
@@ -3903,7 +3905,7 @@ function renderPhysicalHallOfFameModal(test) {
         <div class="table-wrap physical-hof-table-wrap">
           <table class="physical-hof-table">
             <thead>
-              <tr><th>Posición</th><th>Colaborador</th><th>Resultado</th><th>Año</th></tr>
+              <tr><th>PosiciÃ³n</th><th>Colaborador</th><th>Resultado</th><th>AÃ±o</th></tr>
             </thead>
             <tbody>
               ${ranking.map((item, index) => `
@@ -3913,7 +3915,7 @@ function renderPhysicalHallOfFameModal(test) {
                   <td>${escapeHtml(item.result)}</td>
                   <td>${escapeHtml(item.year)}</td>
                 </tr>
-              `).join("") || '<tr><td colspan="4">No hay resultados válidos para esta categoría.</td></tr>'}
+              `).join("") || '<tr><td colspan="4">No hay resultados vÃ¡lidos para esta categorÃ­a.</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -3947,19 +3949,19 @@ function renderPhysicalEvaluationsDashboard() {
   const timeline = physicalTimeline(rows, selectedTest);
   const timelineMax = Math.max(...timeline.map((item) => item.average), 1);
   const noData = !physicalEvaluationsLoaded
-    ? `<div class="permission-strip">Activa el esquema de Evaluaciones Físicas en Supabase para mostrar información real.</div>`
+    ? `<div class="permission-strip">Activa el esquema de Evaluaciones FÃ­sicas en Supabase para mostrar informaciÃ³n real.</div>`
     : "";
   const dashboardHeader = `
     ${noData}
     <div class="physical-dashboard-actions">
       <div>
         <p class="eyebrow">WellSync</p>
-        <h3>Evaluaciones físicas de colaboradores</h3>
-        <p class="hero-copy">Las capturas nuevas se guardan en Supabase; los históricos incompletos permanecen identificados como pendientes.</p>
+        <h3>Evaluaciones fÃ­sicas de colaboradores</h3>
+        <p class="hero-copy">Las capturas nuevas se guardan en Supabase; los histÃ³ricos incompletos permanecen identificados como pendientes.</p>
       </div>
       <div class="table-actions">
-        <a class="primary-btn physical-public-link" href="./evaluaciones-fisicas.html" target="_blank" rel="noopener">Abrir formulario público</a>
-        <button class="ghost-btn physical-hof-open" id="openPhysicalHallOfFame" type="button">🏆 Salón de la Fama</button>
+        <a class="primary-btn physical-public-link" href="./evaluaciones-fisicas.html" target="_blank" rel="noopener">Abrir formulario pÃºblico</a>
+        <button class="ghost-btn physical-hof-open" id="openPhysicalHallOfFame" type="button">ðŸ† SalÃ³n de la Fama</button>
         <button class="ghost-btn" id="refreshPhysicalEvaluations" type="button">Actualizar datos</button>
       </div>
     </div>
@@ -3997,20 +3999,20 @@ function renderPhysicalEvaluationsDashboard() {
           ${collaboratorOptions.map(([value, label]) => `<option value="${escapeHtml(value)}" ${physicalEvaluationFilter.collaborator === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
         </select>
       </label>
-      <label>Género
+      <label>GÃ©nero
         <select class="physical-filter" data-filter="gender">
           <option value="todos">Todos</option>
           ${physicalFilterOptions("gender").map((value) => `<option value="${escapeHtml(value)}" ${physicalEvaluationFilter.gender === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
         </select>
       </label>
-      <label>Clasificación
+      <label>ClasificaciÃ³n
         <select class="physical-filter" data-filter="classification">
           <option value="todos">Todas</option>
           <option value="clasificado" ${physicalEvaluationFilter.classification === "clasificado" ? "selected" : ""}>Clasificadas</option>
           <option value="pendiente" ${physicalEvaluationFilter.classification === "pendiente" ? "selected" : ""}>Pendientes</option>
         </select>
       </label>
-      <label>Prueba para evolución
+      <label>Prueba para evoluciÃ³n
         <select class="physical-filter" data-filter="test">
           ${Object.entries(PHYSICAL_TEST_LABELS).map(([value, label]) => `<option value="${value}" ${selectedTest === value ? "selected" : ""}>${label}</option>`).join("")}
         </select>
@@ -4018,14 +4020,14 @@ function renderPhysicalEvaluationsDashboard() {
     </div>
     <div class="kpi-grid physical-kpi-grid">
       <div class="kpi"><span>Evaluaciones</span><strong>${rows.length}</strong><em>registros filtrados</em></div>
-      <div class="kpi"><span>Colaboradores únicos</span><strong>${unique}</strong><em>por nómina o nombre</em></div>
-      <div class="kpi"><span>Iniciales / finales</span><strong>${initial} / ${final}</strong><em>comparación disponible</em></div>
-      <div class="kpi"><span>Pendientes</span><strong>${pending}</strong><em>históricos por clasificar</em></div>
+      <div class="kpi"><span>Colaboradores Ãºnicos</span><strong>${unique}</strong><em>por nÃ³mina o nombre</em></div>
+      <div class="kpi"><span>Iniciales / finales</span><strong>${initial} / ${final}</strong><em>comparaciÃ³n disponible</em></div>
+      <div class="kpi"><span>Pendientes</span><strong>${pending}</strong><em>histÃ³ricos por clasificar</em></div>
     </div>
     <div class="charts-grid">
       <div class="chart-panel">
-        <h3>Resultados históricos disponibles</h3>
-        <p class="hero-copy">Cantidad de resultados numéricos conservados por prueba.</p>
+        <h3>Resultados histÃ³ricos disponibles</h3>
+        <p class="hero-copy">Cantidad de resultados numÃ©ricos conservados por prueba.</p>
         ${comparisonRows.map((row) => `
           <div class="bar-row">
             <span>${PHYSICAL_TEST_LABELS[row.testKey]}</span>
@@ -4035,7 +4037,7 @@ function renderPhysicalEvaluationsDashboard() {
         `).join("")}
       </div>
       <div class="chart-panel">
-        <h3>Evolución: ${PHYSICAL_TEST_LABELS[selectedTest]}</h3>
+        <h3>EvoluciÃ³n: ${PHYSICAL_TEST_LABELS[selectedTest]}</h3>
         <p class="hero-copy">Promedio por fecha en ${PHYSICAL_TEST_UNITS[selectedTest]}.</p>
         <div class="physical-timeline">
           ${timeline.map((item) => `
@@ -4044,20 +4046,20 @@ function renderPhysicalEvaluationsDashboard() {
               <div class="bar-track"><div class="bar-fill physical-stage-bar" style="width:${Math.max(3, Math.round(item.average / timelineMax * 100))}%"></div></div>
               <strong>${item.average.toFixed(1)}</strong>
             </div>
-          `).join("") || "<p class='hero-copy'>Esta prueba todavía no tiene valores numéricos clasificables.</p>"}
+          `).join("") || "<p class='hero-copy'>Esta prueba todavÃ­a no tiene valores numÃ©ricos clasificables.</p>"}
         </div>
       </div>
     </div>
     <div class="table-wrap physical-comparison-table">
       <table>
-        <thead><tr><th>Prueba</th><th>Promedio histórico</th><th>Mínimo</th><th>Máximo</th><th>Resultados</th><th>Inicial</th><th>Final</th></tr></thead>
+        <thead><tr><th>Prueba</th><th>Promedio histÃ³rico</th><th>MÃ­nimo</th><th>MÃ¡ximo</th><th>Resultados</th><th>Inicial</th><th>Final</th></tr></thead>
         <tbody>
           ${comparisonRows.map((row) => `
             <tr>
               <td>${PHYSICAL_TEST_LABELS[row.testKey]} <small>${PHYSICAL_TEST_UNITS[row.testKey]}</small></td>
               <td><strong>${row.stats.average === null ? "Sin datos" : row.stats.average.toFixed(1)}</strong></td>
-              <td>${row.stats.min === null ? "—" : row.stats.min.toFixed(1)}</td>
-              <td>${row.stats.max === null ? "—" : row.stats.max.toFixed(1)}</td>
+              <td>${row.stats.min === null ? "â€”" : row.stats.min.toFixed(1)}</td>
+              <td>${row.stats.max === null ? "â€”" : row.stats.max.toFixed(1)}</td>
               <td>${row.stats.count}</td>
               <td>${row.initialAverage === null ? "Pendiente" : row.initialAverage.toFixed(1)}</td>
               <td>${row.finalAverage === null ? "Pendiente" : row.finalAverage.toFixed(1)}</td>
@@ -4069,8 +4071,8 @@ function renderPhysicalEvaluationsDashboard() {
     <div class="physical-dashboard-actions physical-history-heading">
       <div>
         <p class="eyebrow">Historial detallado</p>
-        <h3>Resultados de cada evaluación</h3>
-        <p class="hero-copy">Los valores de remo históricos se muestran tal como estaban escritos porque mezclaban calorías y metros.</p>
+        <h3>Resultados de cada evaluaciÃ³n</h3>
+        <p class="hero-copy">Los valores de remo histÃ³ricos se muestran tal como estaban escritos porque mezclaban calorÃ­as y metros.</p>
       </div>
       <button class="ghost-btn" id="exportPhysicalEvaluations" type="button">Exportar Excel</button>
     </div>
@@ -4100,14 +4102,14 @@ function renderPhysicalEvaluationsDashboard() {
     <section class="physical-code-panel">
       <div>
         <p class="eyebrow">Acceso del formulario</p>
-        <h3>Código general para profesores</h3>
-        <p class="hero-copy">Es el mismo código para todos. Al cambiarlo, el anterior deja de funcionar inmediatamente.</p>
+        <h3>CÃ³digo general para profesores</h3>
+        <p class="hero-copy">Es el mismo cÃ³digo para todos. Al cambiarlo, el anterior deja de funcionar inmediatamente.</p>
       </div>
       <div class="physical-code-controls">
-        <label>Nuevo código
+        <label>Nuevo cÃ³digo
           <input id="newPhysicalAccessCode" type="password" minlength="4" maxlength="20" autocomplete="new-password" placeholder="Entre 4 y 20 caracteres" />
         </label>
-        <button class="primary-btn" id="savePhysicalAccessCode" type="button">Cambiar código</button>
+        <button class="primary-btn" id="savePhysicalAccessCode" type="button">Cambiar cÃ³digo</button>
       </div>
     </section>
   `;
@@ -4189,9 +4191,9 @@ function renderLogin() {
             </div>
             <p class="eyebrow" style="color:#f0b323">Piloto web</p>
             <h1>WellSync</h1>
-            <p>Entra con un perfil demo para validar permisos, captura por área y dashboards antes de liberar la plataforma.</p>
+            <p>Entra con un perfil demo para validar permisos, captura por Ã¡rea y dashboards antes de liberar la plataforma.</p>
           </div>
-          <p>Privacidad por diseño: solo matrícula, género, carrera, semestre y nivel escolar.</p>
+          <p>Privacidad por diseÃ±o: solo matrÃ­cula, gÃ©nero, carrera, semestre y nivel escolar.</p>
         </div>
         <form id="loginForm">
           <p class="eyebrow">${cloudStatus}</p>
@@ -4205,18 +4207,18 @@ function renderLogin() {
           <button class="primary-btn" type="button" id="supabaseLoginButton" ${supabaseClient ? "" : "disabled"}>Entrar con Supabase</button>
           <p class="login-feedback" id="supabaseLoginFeedback">${supabaseClient ? "Listo para validar tu cuenta Supabase." : "Supabase no esta disponible en esta publicacion."}</p>
           <div class="login-divider">Modo demo</div>
-          <p class="eyebrow">Sesión de prueba</p>
+          <p class="eyebrow">SesiÃ³n de prueba</p>
           <h2>Selecciona un perfil</h2>
           <label>Perfil
             <select name="userId">
               ${demoUsers.map((user) => `<option value="${user.id}">${user.name}</option>`).join("")}
             </select>
           </label>
-          <label>Código de acceso
+          <label>CÃ³digo de acceso
             <input name="accessCode" value="demo" />
           </label>
           <button class="primary-btn" type="button" id="loginButton">Entrar al prototipo</button>
-          <p class="hero-copy">Código temporal: demo. En producción esto se reemplaza por Supabase Auth o SSO institucional.</p>
+          <p class="hero-copy">CÃ³digo temporal: demo. En producciÃ³n esto se reemplaza por Supabase Auth o SSO institucional.</p>
         </form>
       </section>
     </div>
@@ -4225,7 +4227,7 @@ function renderLogin() {
   $("#loginButton").addEventListener("click", () => {
     const form = new FormData($("#loginForm"));
     if (String(form.get("accessCode") || "").trim().toLowerCase() !== "demo") {
-      toast("Código incorrecto para el prototipo");
+      toast("CÃ³digo incorrecto para el prototipo");
       return;
     }
     const user = demoUsers.find((item) => item.id === form.get("userId")) || demoUsers[0];
@@ -4234,7 +4236,7 @@ function renderLogin() {
     activeArea = user.role === "direccion" ? "general" : user.area;
     activeView = "dashboard";
     render();
-    toast(`Sesión iniciada: ${user.name}`);
+    toast(`SesiÃ³n iniciada: ${user.name}`);
   });
 }
 
@@ -4256,10 +4258,10 @@ function renderCareers() {
 function renderExecutiveKpis() {
   const metrics = metricSet(allParticipationRows());
   $("#executiveKpis").innerHTML = [
-    ["Alumnos únicos", metrics.unique, "+12% vs periodo ant."],
+    ["Alumnos Ãºnicos", metrics.unique, "+12% vs periodo ant."],
     ["Registros", metrics.registers, `${cloudCaptures.length} nube / ${localCaptures.length} local`],
-    ["Retención", `${metrics.retention}%`, "sin datos sensibles"],
-    ["Áreas activas", areas.filter((area) => !["general", "configuracion"].includes(area.id)).length, "módulos operativos"]
+    ["RetenciÃ³n", `${metrics.retention}%`, "sin datos sensibles"],
+    ["Ãreas activas", areas.filter((area) => !["general", "configuracion"].includes(area.id)).length, "mÃ³dulos operativos"]
   ].map(([label, value, hint]) => `<div class="kpi"><span>${label}</span><strong>${value}</strong><em>${hint}</em></div>`).join("");
 }
 
@@ -4429,7 +4431,7 @@ function renderGymHeatmap() {
   const totalTimedVisits = gymAsistencias
     .filter((row) => gymFacilityMatches(row.sitio, gymDashboardFacility) && gymHeatmapHour(row.hora))
     .length;
-  const valueLabel = gymHeatmapMode === "average" ? "promedio por día equivalente" : "visitas acumuladas";
+  const valueLabel = gymHeatmapMode === "average" ? "promedio por dÃ­a equivalente" : "visitas acumuladas";
   const modeLabel = gymHeatmapMode === "average" ? "Promedio activo" : "Total acumulado activo";
   const formatHeatmapValue = (value) => gymHeatmapMode === "average"
     ? value.toLocaleString("es-MX", { maximumFractionDigits: 1 })
@@ -4453,7 +4455,7 @@ function renderGymHeatmap() {
       <span><i class="low"></i>Baja</span>
       <span><i class="medium"></i>Media</span>
       <span><i class="high"></i>Alta</span>
-      <strong>${totalTimedVisits.toLocaleString("es-MX")} visitas con hora · ${modeLabel}</strong>
+      <strong>${totalTimedVisits.toLocaleString("es-MX")} visitas con hora Â· ${modeLabel}</strong>
     </div>
     <div class="gym-heatmap" role="table" aria-label="Mapa de calor de ocupacion por dia y hora">
       <div class="gym-heatmap-cell gym-heatmap-head">Hora</div>
@@ -4502,7 +4504,7 @@ function renderGymDashboard() {
   const emptyMessage = !gymDataLoaded
     ? `<p class="form-message">Activa las tablas de Gimnasio en Supabase para comenzar.</p>`
     : !gymAttendanceRecords.length
-      ? `<p class="form-message">Aún no hay asistencias. Captura el primer registro para alimentar las gráficas.</p>`
+      ? `<p class="form-message">AÃºn no hay asistencias. Captura el primer registro para alimentar las grÃ¡ficas.</p>`
       : "";
   return `
     <div class="gym-dashboard">
@@ -4559,24 +4561,24 @@ function renderGymAttendanceRegistration() {
         <form id="gymAttendanceForm">
           <label>Semana<input name="week_number" type="number" min="1" value="${gymLatestWeek()}" required /></label>
           <label>Fecha<input id="gymAttendanceDate" name="attendance_date" type="date" value="${today}" required /></label>
-          <label>Día<input id="gymAttendanceDay" name="day_of_week" value="${gymDayFromDate(today)}" readonly required /></label>
-          <label>Instalación
+          <label>DÃ­a<input id="gymAttendanceDay" name="day_of_week" value="${gymDayFromDate(today)}" readonly required /></label>
+          <label>InstalaciÃ³n
             <select name="facility" required><option>Wellness</option><option>EMIS</option></select>
           </label>
           <label>Cantidad de asistentes<input name="attendee_count" type="number" min="0" required /></label>
           <label class="wide-field">Observaciones<textarea name="notes" rows="3" placeholder="Opcional"></textarea></label>
           <button class="primary-btn wide-field" type="submit">Guardar asistencia</button>
         </form>
-        <p class="form-message">Respaldo manual. Si ya existe CSV para la misma fecha e instalación, el dashboard usa el CSV y omite este registro.</p>
+        <p class="form-message">Respaldo manual. Si ya existe CSV para la misma fecha e instalaciÃ³n, el dashboard usa el CSV y omite este registro.</p>
       </section>
       <section class="chart-panel">
         <div class="gym-chart-heading">
           <div><p class="eyebrow">Historial de cargas</p><h3>Registros manuales</h3></div>
           <strong>${manualRecords.length}</strong>
         </div>
-        <p class="form-message">Puedes eliminar una captura incorrecta. Las asistencias históricas importadas permanecen protegidas.</p>
+        <p class="form-message">Puedes eliminar una captura incorrecta. Las asistencias histÃ³ricas importadas permanecen protegidas.</p>
         <div class="table-wrap">
-          <table><thead><tr><th>Fecha</th><th>Semana</th><th>Día</th><th>Instalación</th><th>Asistentes</th><th>Observaciones</th><th>Acción</th></tr></thead>
+          <table><thead><tr><th>Fecha</th><th>Semana</th><th>DÃ­a</th><th>InstalaciÃ³n</th><th>Asistentes</th><th>Observaciones</th><th>AcciÃ³n</th></tr></thead>
           <tbody>${manualRecords.length ? manualRecords.map((row) => `
             <tr>
               <td>${escapeHtml(row.attendance_date)}</td>
@@ -4595,7 +4597,7 @@ function renderGymAttendanceRegistration() {
                 >Eliminar</button>
               </td>
             </tr>
-          `).join("") : `<tr><td colspan="7">Sin cargas manuales todavía.</td></tr>`}</tbody></table>
+          `).join("") : `<tr><td colspan="7">Sin cargas manuales todavÃ­a.</td></tr>`}</tbody></table>
         </div>
       </section>
     </div>
@@ -4612,14 +4614,14 @@ function safeGymStudentSnapshot(student) {
 }
 
 function renderGymStudentDetails(student) {
-  if (!student) return `<p class="form-message">Escribe una matrícula para consultar la Base Maestra.</p>`;
+  if (!student) return `<p class="form-message">Escribe una matrÃ­cula para consultar la Base Maestra.</p>`;
   const preferredKeys = ["Matricula", "Nombre Campus", "Desc Nivel Acad Alumno", "Desc Programa Acad", "Periodo acad", "Genero", "Semestre"];
   const entries = preferredKeys.filter((key) => student[key] !== undefined && student[key] !== null && student[key] !== "");
   return `
     <div class="gym-student-details">
       ${entries.map((key) => `<div><span>${escapeHtml(key)}</span><strong>${escapeHtml(student[key])}</strong></div>`).join("")}
     </div>
-    <button class="primary-btn" id="saveGymStudentRegistration" type="button">Registrar matrícula en Gimnasio</button>
+    <button class="primary-btn" id="saveGymStudentRegistration" type="button">Registrar matrÃ­cula en Gimnasio</button>
   `;
 }
 
@@ -4629,26 +4631,26 @@ function renderGymStudentRegistration() {
     <div class="gym-form-layout">
       <section class="form-panel">
         <p class="eyebrow">Base Maestra de Alumnos</p>
-        <h3>Registro de Matrículas</h3>
+        <h3>Registro de MatrÃ­culas</h3>
         <form id="gymStudentLookupForm" class="gym-lookup-form">
-          <label>Matrícula<input name="matricula" autocomplete="off" placeholder="A01234567" required /></label>
-          <button class="primary-btn" type="submit">Buscar matrícula</button>
+          <label>MatrÃ­cula<input name="matricula" autocomplete="off" placeholder="A01234567" required /></label>
+          <button class="primary-btn" type="submit">Buscar matrÃ­cula</button>
         </form>
         <div id="gymStudentLookupResult">${renderGymStudentDetails(gymMasterStudent)}</div>
       </section>
       <section class="chart-panel">
-        <div class="gym-chart-heading"><div><p class="eyebrow">Gimnasio</p><h3>Matrículas registradas</h3></div><strong>${gymStudentRegistrations.length}</strong></div>
+        <div class="gym-chart-heading"><div><p class="eyebrow">Gimnasio</p><h3>MatrÃ­culas registradas</h3></div><strong>${gymStudentRegistrations.length}</strong></div>
         <div class="gym-upload-actions">
           <input id="gymAttendanceCsv" type="file" accept=".csv,text/csv" hidden />
           <button class="primary-btn" id="uploadGymAttendanceCsv" type="button" ${gymAttendanceImporting ? "disabled" : ""}>${gymAttendanceImporting ? "Cargando archivo..." : "Cargar Archivo de Asistencias"}</button>
-          <span>${gymAsistencias.length.toLocaleString("es-MX")} asistencias históricas</span>
+          <span>${gymAsistencias.length.toLocaleString("es-MX")} asistencias histÃ³ricas</span>
         </div>
         <div class="table-wrap">
-          <table><thead><tr><th>Matrícula</th><th>Campus</th><th>Nivel</th><th>Fecha</th></tr></thead>
+          <table><thead><tr><th>MatrÃ­cula</th><th>Campus</th><th>Nivel</th><th>Fecha</th></tr></thead>
           <tbody>${rows.length ? rows.map((row) => {
             const snapshot = row.student_snapshot || {};
             return `<tr><td>${escapeHtml(row.matricula)}</td><td>${escapeHtml(snapshot["Nombre Campus"] || "")}</td><td>${escapeHtml(snapshot["Desc Nivel Acad Alumno"] || "")}</td><td>${escapeHtml(String(row.registered_at || "").slice(0, 10))}</td></tr>`;
-          }).join("") : `<tr><td colspan="4">Sin matrículas registradas todavía.</td></tr>`}</tbody></table>
+          }).join("") : `<tr><td colspan="4">Sin matrÃ­culas registradas todavÃ­a.</td></tr>`}</tbody></table>
         </div>
       </section>
     </div>
@@ -4690,13 +4692,13 @@ function renderDashboard(area) {
       </article>
       <article>
         <span>CSV autorizado</span>
-        <strong>Matrícula + datos académicos</strong>
-        <p>Columnas esperadas: matrícula, género, carrera, semestre y nivel o grado escolar.</p>
+        <strong>MatrÃ­cula + datos acadÃ©micos</strong>
+        <p>Columnas esperadas: matrÃ­cula, gÃ©nero, carrera, semestre y nivel o grado escolar.</p>
       </article>
       <article>
         <span>Reemplazo total</span>
         <strong>Carga controlada</strong>
-        <p>Cada archivo sustituye la base anterior y alimenta módulos que usan matrícula.</p>
+        <p>Cada archivo sustituye la base anterior y alimenta mÃ³dulos que usan matrÃ­cula.</p>
         <input id="studentDatabaseCsv" type="file" accept=".csv,text/csv" hidden />
         <button class="primary-btn" id="uploadStudentDatabase" type="button" ${canUseAuthorizedUploads() && !studentDatabaseImporting ? "" : "disabled"}>${studentDatabaseImporting ? "Cargando..." : "Cargar Base de Datos de Alumnos"}</button>
       </article>
@@ -4710,16 +4712,16 @@ function renderDashboard(area) {
     <section class="ops-summary" aria-label="Resumen operativo">
       <article>
         <span>Gobierno de datos</span>
-        <strong>Datos mínimos</strong>
-        <p>Alumnos identificados por matrícula y segmentación académica permitida.</p>
+        <strong>Datos mÃ­nimos</strong>
+        <p>Alumnos identificados por matrÃ­cula y segmentaciÃ³n acadÃ©mica permitida.</p>
       </article>
       <article>
-        <span>Automatización</span>
+        <span>AutomatizaciÃ³n</span>
         <strong>Indicadores al guardar</strong>
-        <p>Registros, alumnos únicos, retención, participación y reportes se recalculan automáticamente.</p>
+        <p>Registros, alumnos Ãºnicos, retenciÃ³n, participaciÃ³n y reportes se recalculan automÃ¡ticamente.</p>
       </article>
       <article>
-        <span>Siguiente decisión</span>
+        <span>Siguiente decisiÃ³n</span>
         <strong>Base de datos</strong>
         <p>Conectar Supabase y activar permisos reales por coordinador.</p>
       </article>
@@ -4728,14 +4730,14 @@ function renderDashboard(area) {
     ${progressMarkup}
     ${alertsMarkup}
     <div class="kpi-grid">
-      <div class="kpi"><span>Alumnos únicos</span><strong>${metrics.unique}</strong><em>por matrícula</em></div>
+      <div class="kpi"><span>Alumnos Ãºnicos</span><strong>${metrics.unique}</strong><em>por matrÃ­cula</em></div>
       <div class="kpi"><span>Registros</span><strong>${metrics.registers}</strong><em>asistencias, eventos o inscripciones</em></div>
-      <div class="kpi"><span>Acreditados / activos</span><strong>${metrics.accredited}</strong><em>según área</em></div>
-      <div class="kpi"><span>Retención</span><strong>${metrics.retention}%</strong><em>bajas excluidas</em></div>
+      <div class="kpi"><span>Acreditados / activos</span><strong>${metrics.accredited}</strong><em>segÃºn Ã¡rea</em></div>
+      <div class="kpi"><span>RetenciÃ³n</span><strong>${metrics.retention}%</strong><em>bajas excluidas</em></div>
     </div>
     <div class="charts-grid">
       <div class="chart-panel">
-        <h3>Participación por área</h3>
+        <h3>ParticipaciÃ³n por Ã¡rea</h3>
         ${byArea.map((row) => `
           <div class="bar-row">
             <span>${row.name}</span>
@@ -4746,8 +4748,8 @@ function renderDashboard(area) {
       </div>
       <div class="chart-panel">
         <h3>Perfil academico</h3>
-        <div class="donut" data-label="${metrics.unique} únicos"></div>
-        <p class="hero-copy">Segmentación sugerida: género, carrera, semestre, nivel escolar, periodo, área, disciplina, evento y estatus.</p>
+        <div class="donut" data-label="${metrics.unique} Ãºnicos"></div>
+        <p class="hero-copy">SegmentaciÃ³n sugerida: gÃ©nero, carrera, semestre, nivel escolar, periodo, Ã¡rea, disciplina, evento y estatus.</p>
       </div>
       ${area.id === "general" ? `
         <div class="chart-panel career-participation-panel">
@@ -4765,7 +4767,7 @@ function renderDashboard(area) {
     <div class="module-grid">${moduleCards}</div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Matrícula</th><th>Género</th><th>Carrera</th><th>Semestre</th><th>Nivel</th><th>Área</th><th>Registros</th></tr></thead>
+        <thead><tr><th>MatrÃ­cula</th><th>GÃ©nero</th><th>Carrera</th><th>Semestre</th><th>Nivel</th><th>Ãrea</th><th>Registros</th></tr></thead>
         <tbody>${data.slice(0, 14).map((s) => `<tr><td>${s.matricula}</td><td>${s.genero}</td><td>${s.carrera}</td><td>${s.semestre}</td><td>${s.nivel}</td><td>${labelArea(s.area)}</td><td>${s.registros}</td></tr>`).join("")}</tbody>
       </table>
     </div>
@@ -4773,19 +4775,137 @@ function renderDashboard(area) {
 }
 
 function renderClassesDashboard() {
+  const summary = classOperationalSummary();
   return `
-    <section class="permission-strip">
-      <div>
-        <p class="eyebrow">Clases Deportivas</p>
-        <strong>Indicadores específicos del área</strong>
-        <p class="hero-copy">Este espacio queda preparado exclusivamente para gráficas de programación, inscripción, acreditación, ocupación y desempeño de clases.</p>
+        <strong>Indicadores especÃ­ficos del Ã¡rea</strong>
+        <p class="hero-copy">Este espacio queda preparado exclusivamente para grÃ¡ficas de programaciÃ³n, inscripciÃ³n, acreditaciÃ³n, ocupaciÃ³n y desempeÃ±o de clases.</p>
+    ${renderClassExecutiveKpis(summary)}
+    ${renderClassStudentLookup()}
+    ${renderClassDisciplineIndicators()}
+    ${renderClassTeacherPerformance()}
+    ${renderClassScheduleComparison()}
+    ${renderClassAlertsPanel()}
+  `;
+}
+
+function renderClassExecutiveKpis(summary) {
+  return `
+    <section class="class-executive-kpis">
+      <article class="kpi"><span>Inscritos Banner</span><strong>${summary.banner.toLocaleString("es-MX")}</strong><em>PMT1 + PMT2</em></article>
+      <article class="kpi"><span>Acreditados</span><strong>${summary.finished.toLocaleString("es-MX")}</strong><em>${summary.approvedRate}% global</em></article>
+      <article class="kpi"><span>Bajas + NP</span><strong>${(summary.bajas + summary.np).toLocaleString("es-MX")}</strong><em>${summary.issueRate}% incidencia</em></article>
+      <article class="kpi risk-red"><span>Grupos criticos</span><strong>${summary.riskCounts.red}</strong><em>requieren accion</em></article>
+      <article class="kpi risk-yellow"><span>En atencion</span><strong>${summary.riskCounts.yellow}</strong><em>monitoreo</em></article>
+      <article class="kpi risk-green"><span>Saludables</span><strong>${summary.riskCounts.green}</strong><em>mantener</em></article>
+    </section>
+  `;
+}
+
+function renderClassRiskBoard() {
+  const rows = classDisciplineRows()
+    .sort((a, b) => a.approvedRate - b.approvedRate || b.issueRate - a.issueRate)
+    .slice(0, 12);
+  return `
+    <section class="class-risk-board">
+      <div class="section-title compact">
+        <div><p class="eyebrow">Semaforo operativo</p><h2>Disciplinas que requieren seguimiento</h2></div>
+        <span class="session-pill">verde / amarillo / rojo</span>
+      </div>
+      <div class="class-risk-grid">
+        ${rows.map((row) => {
+          const risk = classRiskLevel(row);
+          return `
+            <article class="class-risk-card ${risk}">
+              <div><span>${classRiskLabel(risk)}</span><strong>${row.discipline}</strong></div>
+              <div class="class-risk-meter"><i style="width:${row.approvedRate}%"></i></div>
+              <dl>
+                <div><dt>Acreditacion</dt><dd>${row.approvedRate}%</dd></div>
+                <div><dt>Bajas</dt><dd>${row.bajasRate}%</dd></div>
+                <div><dt>NP</dt><dd>${row.npRate}%</dd></div>
+              </dl>
+              ${renderClassTeacherSummary(row.discipline, "card")}
+              <p>${classOfferRecommendation(row)}</p>
+            </article>
+          `;
+        }).join("")}
       </div>
     </section>
-    ${renderClassTeacherPerformance()}
+  `;
+}
+
+function renderClassAlertsPanel() {
+  const alerts = classOperationalAlerts();
+  return `
+    <section class="class-alert-panel">
+      <div class="section-title compact">
+        <div><p class="eyebrow">Alertas inteligentes</p><h2>Prioridades de intervencion</h2></div>
+        <span class="session-pill">${alerts.length} alertas activas</span>
+      </div>
+      <div class="class-alert-list">
+        ${alerts.length ? alerts.map((alert) => `
+          <article class="class-alert ${alert.level}">
+            <strong>${alert.type}</strong>
+            <span>${alert.title}</span>
+            <p>${alert.detail}</p>
+            ${alert.discipline ? renderClassTeacherSummary(alert.discipline, "alert") : ""}
+            <em>${alert.action}</em>
+          </article>
+        `).join("") : `<div class="empty-state">No hay alertas criticas con los umbrales actuales.</div>`}
+      </div>
+    </section>
+  `;
+}
+
+function renderClassStudentLookup() {
+  const rows = classStudentProfile(classStudentSearch);
+  const summary = classStudentProfileSummary(rows);
+  return `
+    <section class="class-student-lookup">
+      <div class="section-title compact">
+        <div><p class="eyebrow">Perfil rapido</p><h2>Consulta por matricula</h2></div>
+        <span class="session-pill">${summary.total ? `${summary.total} registros encontrados` : "CD Lista de Alumnos"}</span>
+      </div>
+      <div class="class-student-search">
+        <label>Matricula<input id="classStudentSearch" value="${escapeHtml(classStudentSearch)}" placeholder="A01234567" /></label>
+        <button class="ghost-btn" type="button" id="clearClassStudentSearch">Limpiar</button>
+      </div>
+      ${classStudentSearch ? renderClassStudentProfile(rows, summary) : `<div class="empty-state">Escribe una matricula para ver profesor, materia, CRN, periodo y estatus.</div>`}
+    </section>
+  `;
+}
+
+function renderClassStudentProfile(rows, summary) {
+  if (!rows.length) return `<div class="empty-state">No se encontraron registros para ${escapeHtml(classStudentSearch)}.</div>`;
+  return `
+    <div class="class-student-summary">
+      <div><strong>${summary.total}</strong><span>Registros</span></div>
+      <div><strong>${summary.captured}</strong><span>Capturadas</span></div>
+      <div><strong>${summary.bajas}</strong><span>Bajas</span></div>
+      <div><strong>${summary.np}</strong><span>NP</span></div>
+      <div><strong>${summary.pending}</strong><span>Pendientes</span></div>
+    </div>
+    <div class="table-wrap class-student-table">
+      <table>
+        <thead><tr><th>Materia</th><th>CRN / Grupo</th><th>Profesor</th><th>Periodo</th><th>Carrera</th><th>Calificacion</th></tr></thead>
+        <tbody>${rows.map((row) => `
+          <tr>
+            <td><strong>${escapeHtml(row.subject_name)}</strong><small>${escapeHtml(row.subject_code)}</small></td>
+            <td>${escapeHtml(row.crn)} / ${escapeHtml(row.group_number)}</td>
+            <td>${escapeHtml(row.teacher_name)}</td>
+            <td>${escapeHtml(row.period_label)}</td>
+            <td>${escapeHtml(row.career_code)} ${escapeHtml(row.semester_label)}</td>
+            <td><span class="class-grade-pill ${classGradeStatus(row)}">${escapeHtml(row.grade || "Pendiente")}</span></td>
+          </tr>
+        `).join("")}</tbody>
+      </table>
+    </div>
   `;
 }
 
 function renderClassDisciplineIndicators() {
+  const rows = classDisciplineRows();
+  const worst = [...rows].sort((a, b) => a.approvedRate - b.approvedRate).slice(0, 6);
+  const best = [...rows].sort((a, b) => b.approvedRate - a.approvedRate).slice(0, 6);
   return `
     <section class="class-indicators-panel">
       <div class="section-title compact">
@@ -4794,6 +4914,16 @@ function renderClassDisciplineIndicators() {
           <h2>Indicadores por disciplina y periodo</h2>
         </div>
         <span class="session-pill">PMT1 + PMT2</span>
+      </div>
+      <div class="class-discipline-rankings">
+        <article>
+          <h3>Mayor riesgo</h3>
+          ${worst.map((row) => renderClassDisciplineBar(row)).join("")}
+        </article>
+        <article>
+          <h3>Mejor desempeno</h3>
+          ${best.map((row) => renderClassDisciplineBar(row)).join("")}
+        </article>
       </div>
       <div class="table-wrap class-indicators-table">
         <table>
@@ -4804,6 +4934,7 @@ function renderClassDisciplineIndicators() {
               <th>Bajas</th>
               <th>NP</th>
               <th>Alumnos que finalizaron y acreditaron</th>
+              <th>Profesor responsable</th>
             </tr>
           </thead>
           <tbody>
@@ -4814,12 +4945,103 @@ function renderClassDisciplineIndicators() {
                 <td>${row.bajas}</td>
                 <td>${row.np}</td>
                 <td>${row.finished}</td>
+                <td>${renderClassResponsibleTeacherCell(row)}</td>
               </tr>
             `).join("")}
           </tbody>
         </table>
       </div>
     </section>
+  `;
+}
+
+function renderClassDisciplineBar(row) {
+  const risk = classRiskLevel(row);
+  return `
+    <div class="class-discipline-bar ${risk}">
+      <div>
+        <strong>${row.discipline}</strong>
+        <span>${row.approvedRate}% acreditacion / ${row.issueRate}% incidencia</span>
+        ${renderClassTeacherSummary(row.discipline, "bar")}
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${row.approvedRate}%"></div></div>
+      <em>${classRiskLabel(risk)}</em>
+    </div>
+  `;
+}
+
+function classResponsibleTeachers(discipline) {
+  const clean = normalizeText(discipline);
+  if (!clean || clean.includes("totales periodo")) return [];
+  const counts = new Map();
+  allClassGradeRows().forEach((row) => {
+    if (normalizeText(row.subject_name) !== clean || !row.teacher_name) return;
+    counts.set(row.teacher_name, (counts.get(row.teacher_name) || 0) + 1);
+  });
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))
+    .map(([name, count]) => ({ name, count }));
+}
+
+function renderClassTeacherSummary(discipline, variant = "card") {
+  const teachers = classResponsibleTeachers(discipline);
+  if (!teachers.length) return `<div class="class-teacher-summary ${variant}"><span>Responsable</span><strong>Por asignar</strong></div>`;
+  const visible = teachers.slice(0, variant === "bar" ? 1 : 2);
+  const extra = teachers.length - visible.length;
+  return `
+    <div class="class-teacher-summary ${variant}">
+      <span>Responsable${teachers.length > 1 ? "s" : ""}</span>
+      <div>
+        ${visible.map((teacher) => `<strong>${escapeHtml(teacher.name)} <em>${teacher.count} alumnos</em></strong>`).join("")}
+        ${extra > 0 ? `<small>+${extra} profesor${extra === 1 ? "" : "es"}</small>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderClassResponsibleTeacherCell(row) {
+  if (row.total) {
+    const total = Number(row.banner || 0);
+    const finished = Number(row.finished || 0);
+    const bajas = Number(row.bajas || 0);
+    const np = Number(row.np || 0);
+    const effectiveness = total ? Math.round((finished / total) * 100) : 0;
+    return `
+      <div class="class-period-effectiveness">
+        <span>Efectividad del periodo</span>
+        <strong>${effectiveness}%</strong>
+        <em>${finished} acreditados de ${total} inscritos</em>
+        <small>${bajas + np} bajas / NP</small>
+      </div>
+    `;
+  }
+  const teachers = classResponsibleTeachers(row.discipline);
+  if (!teachers.length) return `<span class="class-teacher-mini muted">Por asignar</span>`;
+  const visible = teachers.slice(0, 2);
+  const hidden = teachers.slice(2);
+  const extra = hidden.length;
+  const rowKey = normalizeText(row.discipline);
+  const expanded = expandedClassTeacherRows.has(rowKey);
+  return `
+    <div class="class-teacher-mini-list">
+      ${visible.map((teacher) => `
+        <span class="class-teacher-mini">
+          ${escapeHtml(teacher.name)}
+          <em>${teacher.count} alumnos</em>
+        </span>
+      `).join("")}
+      ${extra > 0 ? `
+        <button class="class-teacher-more" type="button" data-class-teachers="${escapeHtml(rowKey)}" aria-expanded="${expanded ? "true" : "false"}">
+          ${expanded ? "Ocultar" : `+${extra} profesor${extra === 1 ? "" : "es"}`}
+        </button>
+        ${expanded ? hidden.map((teacher) => `
+          <span class="class-teacher-mini extra">
+            ${escapeHtml(teacher.name)}
+            <em>${teacher.count} alumnos</em>
+          </span>
+        `).join("") : ""}
+      ` : ""}
+    </div>
   `;
 }
 
@@ -4832,6 +5054,8 @@ function renderClassTeacherPerformance() {
   }, { total: 0, approved: 0, failed: 0 });
   const approvedRate = totals.total ? Math.round((totals.approved / totals.total) * 100) : 0;
   const failedRate = totals.total ? 100 - approvedRate : 0;
+  const bestTeachers = [...classTeacherPerformance].sort((a, b) => b.approvedRate - a.approvedRate).slice(0, 8);
+  const focusTeachers = [...classTeacherPerformance].sort((a, b) => a.approvedRate - b.approvedRate).slice(0, 8);
   return `
     <section class="teacher-performance">
       <div class="section-title compact">
@@ -4839,7 +5063,7 @@ function renderClassTeacherPerformance() {
           <p class="eyebrow">CD Lista de Alumnos</p>
           <h2>Profesores por % de aprobados y reprobados</h2>
         </div>
-        <span class="session-pill">${classTeacherPerformance.length} profesores · ${totals.total} registros</span>
+        <span class="session-pill">${classTeacherPerformance.length} profesores Â· ${totals.total} registros</span>
       </div>
       <div class="teacher-summary">
         <div><strong>${approvedRate}%</strong><span>Aprobados global</span></div>
@@ -4847,12 +5071,12 @@ function renderClassTeacherPerformance() {
         <div><strong>${totals.approved}</strong><span>Aprobados</span></div>
         <div><strong>${totals.failed}</strong><span>Reprobados</span></div>
       </div>
-      <div class="teacher-list">
+      <div class="teacher-list" hidden>
         ${classTeacherPerformance.map((row) => `
           <article class="teacher-row">
             <div class="teacher-meta">
               <strong>${row.teacher}</strong>
-              <span>${row.total} alumnos · ${row.approved} aprobados · ${row.failed} reprobados/bajas</span>
+              <span>${row.total} alumnos Â· ${row.approved} aprobados Â· ${row.failed} reprobados/bajas</span>
             </div>
             <div class="teacher-bar" aria-label="${row.teacher}: ${row.approvedRate}% aprobados, ${row.failedRate}% reprobados">
               <span class="teacher-bar-approved" style="width:${row.approvedRate}%"></span>
@@ -4865,7 +5089,40 @@ function renderClassTeacherPerformance() {
           </article>
         `).join("")}
       </div>
+      <div class="teacher-performance-columns">
+        ${renderTeacherPerformanceColumn("Mejor desempeno", "Referencias para replicar", bestTeachers, "best")}
+        ${renderTeacherPerformanceColumn("Bajo desempeno", "Seguimiento prioritario", focusTeachers, "focus")}
+      </div>
     </section>
+  `;
+}
+
+function renderTeacherPerformanceColumn(title, subtitle, rows, tone) {
+  return `
+    <article class="teacher-rank-panel ${tone}">
+      <div class="teacher-rank-heading">
+        <div>
+          <h3>${title}</h3>
+          <span>${subtitle}</span>
+        </div>
+        <em>${rows.length} profesores</em>
+      </div>
+      <div class="teacher-compact-list">
+        ${rows.map((row, index) => `
+          <div class="teacher-compact-row">
+            <div class="teacher-rank-number">${index + 1}</div>
+            <div class="teacher-compact-meta">
+              <strong>${row.teacher}</strong>
+              <span>${row.total} alumnos Â· ${row.approved} aprobados Â· ${row.failed} reprobados/bajas</span>
+            </div>
+            <div class="teacher-score ${tone}" style="--score:${row.approvedRate}%">
+              <strong>${row.approvedRate}%</strong>
+              <span>${row.failedRate}% riesgo</span>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </article>
   `;
 }
 
@@ -4875,6 +5132,149 @@ function classGradeStatus(row) {
   if (value === "BAJA") return "baja";
   if (value === "NP") return "np";
   return "capturada";
+}
+
+function classDisciplineScore(row) {
+  const total = Number(row.banner || 0);
+  const bajas = Number(row.bajas || 0);
+  const np = Number(row.np || 0);
+  const finished = Number(row.finished || 0);
+  const approvedRate = total ? Math.round((finished / total) * 100) : 0;
+  const npRate = total ? Math.round((np / total) * 100) : 0;
+  const bajasRate = total ? Math.round((bajas / total) * 100) : 0;
+  const issueRate = total ? Math.round(((bajas + np) / total) * 100) : 0;
+  return { ...row, total, bajas, np, finished, approvedRate, npRate, bajasRate, issueRate };
+}
+
+function classRiskLevel(row) {
+  const score = classDisciplineScore(row);
+  if (score.approvedRate < 60 || score.issueRate >= 30) return "red";
+  if (score.approvedRate < 75 || score.issueRate >= 18) return "yellow";
+  return "green";
+}
+
+function classRiskLabel(level) {
+  return level === "red" ? "Critico" : level === "yellow" ? "Atencion" : "Saludable";
+}
+
+function classOfferRecommendation(row) {
+  const score = classDisciplineScore(row);
+  const risk = classRiskLevel(row);
+  if (risk === "red") {
+    if (score.npRate >= 20) return "Revisar seguimiento de asistencia y contacto temprano.";
+    if (score.bajasRate >= 18) return "Revisar horario, profesor, cupo o permanencia del grupo.";
+    return "Priorizar intervencion de coordinacion antes del siguiente periodo.";
+  }
+  if (risk === "yellow") return "Monitorear semanalmente y reforzar comunicacion con alumnos.";
+  return "Mantener oferta y usar como referencia de buenas practicas.";
+}
+
+function classDisciplineRows() {
+  return classDisciplineIndicators.filter((row) => !row.total).map(classDisciplineScore);
+}
+
+function classOperationalSummary() {
+  const totals = classDisciplineRows().reduce((acc, row) => {
+    acc.banner += row.total;
+    acc.bajas += row.bajas;
+    acc.np += row.np;
+    acc.finished += row.finished;
+    return acc;
+  }, { banner: 0, bajas: 0, np: 0, finished: 0 });
+  const approvedRate = totals.banner ? Math.round((totals.finished / totals.banner) * 100) : 0;
+  const issueRate = totals.banner ? Math.round(((totals.bajas + totals.np) / totals.banner) * 100) : 0;
+  const riskCounts = classDisciplineRows().reduce((acc, row) => {
+    acc[classRiskLevel(row)] += 1;
+    return acc;
+  }, { green: 0, yellow: 0, red: 0 });
+  return { ...totals, approvedRate, issueRate, riskCounts };
+}
+
+function classOperationalAlerts() {
+  const disciplineAlerts = classDisciplineRows().flatMap((row) => {
+    const alerts = [];
+    if (row.npRate >= 20) alerts.push({ type: "NP alto", level: "red", title: row.discipline, discipline: row.discipline, detail: `${row.npRate}% NP (${row.np} alumnos)`, action: "Revisar asistencia y comunicacion temprana" });
+    if (row.bajasRate >= 18) alerts.push({ type: "Bajas altas", level: row.bajasRate >= 25 ? "red" : "yellow", title: row.discipline, discipline: row.discipline, detail: `${row.bajasRate}% bajas (${row.bajas} alumnos)`, action: "Analizar horario, cupo y profesor" });
+    if (row.approvedRate < 65) alerts.push({ type: "Acreditacion baja", level: "red", title: row.discipline, discipline: row.discipline, detail: `${row.approvedRate}% acreditacion`, action: "Priorizar intervencion operativa" });
+    return alerts;
+  });
+  const teacherAlerts = classTeacherPerformance
+    .filter((row) => row.approvedRate < 60)
+    .map((row) => ({ type: "Profesor en seguimiento", level: row.approvedRate < 50 ? "red" : "yellow", title: row.teacher, detail: `${row.approvedRate}% aprobados / ${row.failedRate}% reprobados`, action: "Revisar contexto del grupo y carga semanal" }));
+  return [...disciplineAlerts, ...teacherAlerts]
+    .sort((a, b) => (a.level === "red" ? 0 : 1) - (b.level === "red" ? 0 : 1))
+    .slice(0, 12);
+}
+
+function classStudentProfile(matricula) {
+  const clean = normalizeMatricula(matricula);
+  if (!clean) return [];
+  return allClassGradeRows()
+    .filter((row) => normalizeMatricula(row.matricula) === clean)
+    .sort((a, b) => String(b.period_label).localeCompare(String(a.period_label)) || String(a.subject_name).localeCompare(String(b.subject_name), "es"));
+}
+
+function classStudentProfileSummary(rows) {
+  const total = rows.length;
+  const captured = rows.filter((row) => classGradeStatus(row) === "capturada").length;
+  const bajas = rows.filter((row) => classGradeStatus(row) === "baja").length;
+  const np = rows.filter((row) => classGradeStatus(row) === "np").length;
+  const pending = rows.filter((row) => classGradeStatus(row) === "pendiente").length;
+  return { total, captured, bajas, np, pending };
+}
+
+function scheduleSnapshotKey(row) {
+  return [row.source, row.professor, row.discipline, row.day, row.start, row.end, row.installation, row.group].map((value) => normalizeText(value)).join("|");
+}
+
+function loadClassScheduleComparison() {
+  try {
+    return JSON.parse(localStorage.getItem(CLASS_SCHEDULE_SNAPSHOT_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function saveClassScheduleSnapshot(rows, meta = {}) {
+  const snapshot = {
+    at: new Date().toISOString(),
+    ...meta,
+    rows: rows.map((row) => ({
+      source: row.source,
+      professor: row.professor,
+      discipline: row.discipline,
+      day: row.day,
+      start: row.start,
+      end: row.end,
+      installation: row.installation,
+      group: row.group || ""
+    }))
+  };
+  localStorage.setItem(CLASS_SCHEDULE_SNAPSHOT_KEY, JSON.stringify(snapshot));
+}
+
+function compareScheduleSnapshot(previousRows, nextRows) {
+  const previous = new Map((previousRows || []).map((row) => [scheduleSnapshotKey(row), row]));
+  const next = new Map((nextRows || []).map((row) => [scheduleSnapshotKey(row), row]));
+  const added = [...next.entries()].filter(([key]) => !previous.has(key)).map(([, row]) => row);
+  const removed = [...previous.entries()].filter(([key]) => !next.has(key)).map(([, row]) => row);
+  return { added, removed, unchanged: nextRows.length - added.length };
+}
+
+function classScheduleComparisonSummary() {
+  if (classScheduleComparison) return classScheduleComparison;
+  const snapshot = loadClassScheduleComparison();
+  if (!snapshot?.rows?.length) {
+    return { hasSnapshot: false, added: [], removed: [], unchanged: 0, previousCount: 0, currentCount: scheduleMasterRows().length, at: "" };
+  }
+  const currentRows = scheduleMasterRows();
+  return {
+    hasSnapshot: true,
+    ...compareScheduleSnapshot(snapshot.rows, currentRows),
+    previousCount: snapshot.rows.length,
+    currentCount: currentRows.length,
+    at: snapshot.at || ""
+  };
 }
 
 function vivenciaMetricParticipants(row) {
@@ -4950,7 +5350,7 @@ function renderVivenciaGoalBars(rows) {
 }
 
 function renderVivenciaUpcoming(events) {
-  if (!events.length) return `<div class="vivencia-empty-mini">No hay eventos próximos en los siguientes 15 días.</div>`;
+  if (!events.length) return `<div class="vivencia-empty-mini">No hay eventos prÃ³ximos en los siguientes 15 dÃ­as.</div>`;
   return `
     <div class="vivencia-upcoming-list">
       ${events.map((event) => `
@@ -4958,7 +5358,7 @@ function renderVivenciaUpcoming(events) {
           <time>${escapeHtml(event.event_date)}</time>
           <div>
             <strong>${escapeHtml(event.event_name || "")}</strong>
-            <span>${escapeHtml(event.responsible_name || "Responsable pendiente")} · Meta ${event.participation_goal ?? "sin meta"}</span>
+            <span>${escapeHtml(event.responsible_name || "Responsable pendiente")} Â· Meta ${event.participation_goal ?? "sin meta"}</span>
           </div>
           <em>${event.is_signature_event ? "Insignia" : escapeHtml(event.status || "planeado")}</em>
         </article>
@@ -5016,7 +5416,7 @@ function renderVivenciaDashboard() {
     <section class="vivencia-dashboard">
       <div class="permission-strip">
         <span>Dashboard conectado a Supabase: eventos + matriculas por evento + Base de datos_alumnos.</span>
-        <span>${vivenciaEvents.length} eventos · ${uniqueMatriculas.size} participantes unicos</span>
+        <span>${vivenciaEvents.length} eventos Â· ${uniqueMatriculas.size} participantes unicos</span>
       </div>
       <div class="kpi-grid">
         <div class="kpi"><span>Eventos realizados</span><strong>${realized.length}</strong><em>realizados o con fecha vencida</em></div>
@@ -5120,11 +5520,11 @@ function renderClassGrades() {
       </div>
       ${!classGradesAvailable ? `
         <div class="permission-strip grade-warning">
-          La lista histórica está visible, pero falta activar la tabla de calificaciones en Supabase para poder guardar cambios.
+          La lista histÃ³rica estÃ¡ visible, pero falta activar la tabla de calificaciones en Supabase para poder guardar cambios.
         </div>
       ` : ""}
       ${classGradesImporting ? `
-        <div class="permission-strip">Cargando los 7,939 registros históricos en la base central. Esta operación se realiza una sola vez.</div>
+        <div class="permission-strip">Cargando los 7,939 registros histÃ³ricos en la base central. Esta operaciÃ³n se realiza una sola vez.</div>
       ` : ""}
       <div class="class-grade-kpis">
         <article class="kpi"><span>Registros</span><strong>${totalRows.length.toLocaleString("es-MX")}</strong><em>CD Lista de Alumnos</em></article>
@@ -5134,7 +5534,7 @@ function renderClassGrades() {
       </div>
       <div class="class-grade-filters">
         <label>Buscar
-          <input class="class-grade-filter" data-filter="search" value="${escapeHtml(classGradeFilter.search)}" placeholder="Matrícula, materia o profesor" />
+          <input class="class-grade-filter" data-filter="search" value="${escapeHtml(classGradeFilter.search)}" placeholder="MatrÃ­cula, materia o profesor" />
         </label>
         <label>Periodo
           <select class="class-grade-filter" data-filter="period">
@@ -5172,19 +5572,19 @@ function renderClassGrades() {
       </div>
       <div class="class-grade-table-header">
         <span><strong>${rows.length.toLocaleString("es-MX")}</strong> registros filtrados</span>
-        <span>${editable ? "Edita la calificación y presiona Enter para guardar." : "Vista de consulta."}</span>
+        <span>${editable ? "Edita la calificaciÃ³n y presiona Enter para guardar." : "Vista de consulta."}</span>
       </div>
       <div class="table-wrap class-grade-table-wrap">
         <table class="class-grade-table">
           <thead>
             <tr>
-              <th>Matrícula</th>
+              <th>MatrÃ­cula</th>
               <th>Materia</th>
               <th>CRN / Grupo</th>
               <th>Profesor</th>
               <th>Carrera</th>
               <th>Periodo</th>
-              <th>Calificación</th>
+              <th>CalificaciÃ³n</th>
             </tr>
           </thead>
           <tbody>
@@ -5202,7 +5602,7 @@ function renderClassGrades() {
                     data-grade-key="${escapeHtml(row.record_key)}"
                     value="${escapeHtml(row.grade)}"
                     inputmode="decimal"
-                    aria-label="Calificación de ${escapeHtml(row.matricula)}"
+                    aria-label="CalificaciÃ³n de ${escapeHtml(row.matricula)}"
                     placeholder="Pendiente"
                     ${editable ? "" : "disabled"}
                   />
@@ -5213,9 +5613,9 @@ function renderClassGrades() {
         </table>
       </div>
       <div class="class-grade-pagination">
-        <button type="button" class="ghost-btn" data-grade-page="${classGradePage - 1}" ${classGradePage <= 1 ? "disabled" : ""} aria-label="Página anterior">←</button>
-        <span>Página ${classGradePage} de ${pageCount}</span>
-        <button type="button" class="ghost-btn" data-grade-page="${classGradePage + 1}" ${classGradePage >= pageCount ? "disabled" : ""} aria-label="Página siguiente">→</button>
+        <button type="button" class="ghost-btn" data-grade-page="${classGradePage - 1}" ${classGradePage <= 1 ? "disabled" : ""} aria-label="PÃ¡gina anterior">â†</button>
+        <span>PÃ¡gina ${classGradePage} de ${pageCount}</span>
+        <button type="button" class="ghost-btn" data-grade-page="${classGradePage + 1}" ${classGradePage >= pageCount ? "disabled" : ""} aria-label="PÃ¡gina siguiente">â†’</button>
       </div>
     </section>
   `;
@@ -5228,7 +5628,7 @@ function renderProjectProgress() {
       <div class="section-title compact">
         <div>
           <p class="eyebrow">Avance del proyecto</p>
-          <h2>${progress.percent}% listo para piloto técnico</h2>
+          <h2>${progress.percent}% listo para piloto tÃ©cnico</h2>
         </div>
         <span class="session-pill">Siguiente: ${progress.next ? progress.next[1] : "Por definir"}</span>
       </div>
@@ -5522,18 +5922,18 @@ function renderCollaboratorsDashboard() {
     </div>
     ${authorizedUpload && collaboratorsCloudLoaded && !cloudCollaborators.length ? `
       <div class="permission-strip import-collaborators-callout">
-        La tabla central está vacía. Importa una sola vez los registros actuales del archivo Uniformes.
+        La tabla central estÃ¡ vacÃ­a. Importa una sola vez los registros actuales del archivo Uniformes.
         <button class="primary-btn inline-action" id="importCollaboratorsToCloud" type="button">Importar datos iniciales</button>
       </div>
     ` : ""}
     <div class="collaborator-table-header">
       <div>
-        <p class="eyebrow">Archivo máster</p>
+        <p class="eyebrow">Archivo mÃ¡ster</p>
         <h3>Profesores y colaboradores</h3>
-        <span class="editor-status">${directEdit ? "Edición administrativa activa." : operationalEntry ? "Modo operativo: altas, cargas y consulta autorizadas." : "Modo consulta."}</span>
+        <span class="editor-status">${directEdit ? "EdiciÃ³n administrativa activa." : operationalEntry ? "Modo operativo: altas, cargas y consulta autorizadas." : "Modo consulta."}</span>
       </div>
       <div class="table-actions">
-        <button class="primary-btn" id="openCollaboratorPhotoUploader" type="button" ${authorizedUpload ? "" : "disabled"}>Cargar imágenes</button>
+        <button class="primary-btn" id="openCollaboratorPhotoUploader" type="button" ${authorizedUpload ? "" : "disabled"}>Cargar imÃ¡genes</button>
         <button class="ghost-btn" id="exportCollaboratorBackup" type="button">Exportar respaldo</button>
       </div>
     </div>
@@ -5548,7 +5948,7 @@ function renderCollaboratorsDashboard() {
             <tr data-row-id="${escapeHtml(row.__id || row.Nomina)}">
               <td class="photo-cell">${collaboratorAvatar(row, authorizedUpload)}</td>
               ${columns.map((column) => `<td>${collaboratorEditorControl(row, column, directEdit)}</td>`).join("")}
-              <td class="row-actions-cell"><button class="delete-row-btn" data-delete-row="${escapeHtml(row.__id || row.Nomina)}" type="button" ${directEdit ? "" : "disabled"} title="Eliminar fila">×</button></td>
+              <td class="row-actions-cell"><button class="delete-row-btn" data-delete-row="${escapeHtml(row.__id || row.Nomina)}" type="button" ${directEdit ? "" : "disabled"} title="Eliminar fila">Ã—</button></td>
             </tr>
           `).join("") || `<tr><td colspan="${columns.length + 2}">No hay registros con los filtros seleccionados.</td></tr>`}
         </tbody>
@@ -5600,9 +6000,9 @@ function renderVivenciaImportSummary(result = vivenciaEventImportResult) {
 }
 
 function vivenciaEventOptionLabel(row) {
-  const dateLabel = row.event_date ? `${row.event_date} · ` : "";
+  const dateLabel = row.event_date ? `${row.event_date} Â· ` : "";
   const sourceLabel = row.source_name === "planeacion_semestral" ? "Planeacion" : (row.source_name === "captura_manual" ? "Manual" : row.source_name || "Vivencia");
-  return `${dateLabel}${row.event_name || "Evento sin nombre"} · ${sourceLabel}`;
+  return `${dateLabel}${row.event_name || "Evento sin nombre"} Â· ${sourceLabel}`;
 }
 
 function renderVivenciaParticipantsModal(editable) {
@@ -5633,7 +6033,7 @@ function renderVivenciaParticipantsModal(editable) {
             <input name="participants_file" type="file" accept=".csv,.xlsx,.xls" required ${editable ? "" : "disabled"} />
           </label>
           <div class="vivencia-modal-help full">
-            <strong>Formato mínimo:</strong> una columna llamada <code>matricula</code>. También acepta <code>matrícula</code>, <code>alumno</code> o <code>student_id</code>.
+            <strong>Formato mÃ­nimo:</strong> una columna llamada <code>matricula</code>. TambiÃ©n acepta <code>matrÃ­cula</code>, <code>alumno</code> o <code>student_id</code>.
           </div>
           <button class="primary-btn full" type="submit" ${editable && !vivenciaParticipantImporting ? "" : "disabled"}>
             ${vivenciaParticipantImporting ? "Cargando participantes..." : "Cargar participantes"}
@@ -5871,19 +6271,19 @@ function renderCapture(area) {
       <div class="form-panel">
         <h3>Formulario de captura: ${selected.name}</h3>
         <form id="captureForm">
-          <label>Matrícula<input name="matricula" value="A0841027" pattern="A0[0-9]{6,8}" ${editable ? "" : "disabled"} /></label>
-          <label>Género<select name="genero" ${editable ? "" : "disabled"}><option>Femenino</option><option>Masculino</option><option>No especificado</option></select></label>
+          <label>MatrÃ­cula<input name="matricula" value="A0841027" pattern="A0[0-9]{6,8}" ${editable ? "" : "disabled"} /></label>
+          <label>GÃ©nero<select name="genero" ${editable ? "" : "disabled"}><option>Femenino</option><option>Masculino</option><option>No especificado</option></select></label>
           <label>Carrera<select name="carrera" ${editable ? "" : "disabled"}>${careers.map((c) => `<option>${c}</option>`).join("")}</select></label>
           <label>Semestre<input name="semestre" type="number" min="1" max="12" value="4" ${editable ? "" : "disabled"} /></label>
           <label>Nivel escolar<select name="nivel" ${editable ? "" : "disabled"}><option>Profesional</option><option>Posgrado</option></select></label>
           <label>Periodo<select name="periodo" ${editable ? "" : "disabled"}><option>AD26</option><option>FJ26</option><option>IN26</option></select></label>
-          <label class="full">Dato operativo del área<select name="operacion" ${editable ? "" : "disabled"}>${selected.capture.filter(x => !["Matricula","Matrícula","Genero","Género","Carrera","Semestre","Nivel escolar","Periodo"].includes(x)).map((x) => `<option>${x}</option>`).join("")}</select></label>
+          <label class="full">Dato operativo del Ã¡rea<select name="operacion" ${editable ? "" : "disabled"}>${selected.capture.filter(x => !["Matricula","MatrÃ­cula","Genero","GÃ©nero","Carrera","Semestre","Nivel escolar","Periodo"].includes(x)).map((x) => `<option>${x}</option>`).join("")}</select></label>
           <label class="full">Estatus<select name="estatus" ${editable ? "" : "disabled"}><option>Activo</option><option>Asistio</option><option>No asistio</option><option>Baja</option><option>Acreditado</option></select></label>
           <button class="primary-btn full" type="button" id="saveMock" ${editable ? "" : "disabled"}>Guardar captura</button>
         </form>
       </div>
       <div class="form-panel">
-        <h3>Campos por área</h3>
+        <h3>Campos por Ã¡rea</h3>
         <table>
           <thead><tr><th>Campo</th><th>Uso</th></tr></thead>
           <tbody>${selected.capture.map((field) => `<tr><td>${field}</td><td>${fieldPurpose(field)}</td></tr>`).join("")}</tbody>
@@ -5895,21 +6295,21 @@ function renderCapture(area) {
 
 function renderPhysicalEvaluationsCapture() {
   return `
-    <div class="permission-strip">La captura de profesores se realiza desde un enlace general sin iniciar sesión. El código común controla el acceso y cada persona selecciona su nombre.</div>
+    <div class="permission-strip">La captura de profesores se realiza desde un enlace general sin iniciar sesiÃ³n. El cÃ³digo comÃºn controla el acceso y cada persona selecciona su nombre.</div>
     <div class="form-grid">
       <div class="form-panel physical-capture-launcher">
         <p class="eyebrow">Enlace para profesores</p>
-        <h3>Formulario de Evaluación Física</h3>
-        <p>Incluye las siete pruebas, motivos de no realización, revisión final y guardado directo en Supabase.</p>
-        <a class="primary-btn physical-public-link" href="./evaluaciones-fisicas.html" target="_blank" rel="noopener">Abrir formulario público</a>
+        <h3>Formulario de EvaluaciÃ³n FÃ­sica</h3>
+        <p>Incluye las siete pruebas, motivos de no realizaciÃ³n, revisiÃ³n final y guardado directo en Supabase.</p>
+        <a class="primary-btn physical-public-link" href="./evaluaciones-fisicas.html" target="_blank" rel="noopener">Abrir formulario pÃºblico</a>
       </div>
       <div class="form-panel">
         <h3>Flujo aprobado</h3>
         <ol class="physical-flow-list">
-          <li>Escribe el código general.</li>
+          <li>Escribe el cÃ³digo general.</li>
           <li>Selecciona su nombre.</li>
           <li>Captura las siete pruebas.</li>
-          <li>Indica lesión, contraindicación u otro motivo cuando corresponda.</li>
+          <li>Indica lesiÃ³n, contraindicaciÃ³n u otro motivo cuando corresponda.</li>
           <li>Revisa y guarda.</li>
         </ol>
       </div>
@@ -5968,7 +6368,7 @@ function renderCollaboratorsCapture(area) {
       <div class="form-panel">
         <h3>Fuentes disponibles</h3>
         <table>
-          <thead><tr><th>Pestaña</th><th>Registros</th></tr></thead>
+          <thead><tr><th>PestaÃ±a</th><th>Registros</th></tr></thead>
           <tbody>${Object.entries(uniformesData).map(([sheet, table]) => `<tr><td>${sheet}</td><td>${table.records?.length || 0}</td></tr>`).join("")}</tbody>
         </table>
       </div>
@@ -5991,7 +6391,7 @@ function renderSchedules(area) {
   return `
     <div class="permission-strip">
       <span>Calendario Maestro: Programacion Oficial + Booking. Vista de solo lectura; cualquier cambio se realiza en el archivo fuente y se vuelve a cargar.</span>
-      <span>${rows.length} eventos PMT1 · ${conflicts.length} conflictos</span>
+      <span>${rows.length} eventos PMT1 Â· ${conflicts.length} conflictos</span>
     </div>
     <section class="schedule-upload-grid">
       ${renderMasterScheduleUploader(rows.length, scheduleState.errors.master)}
@@ -6046,7 +6446,7 @@ function renderScheduleUploader(type, title, count, errors) {
   return `
     <article class="schedule-upload-card">
       <div>
-        <p class="eyebrow">Respaldo manual · ${sourceLabel}</p>
+        <p class="eyebrow">Respaldo manual Â· ${sourceLabel}</p>
         <h3>${title}</h3>
         <p>Usar solo si el archivo maestro no trae esta hoja o si se quiere actualizar esta fuente manualmente.</p>
       </div>
@@ -6084,7 +6484,7 @@ function renderProfessorScheduleView() {
     <section class="schedule-panel">
       <div class="section-title compact">
         <div><p class="eyebrow">Horarios de profesores</p><h2>Calendario semanal</h2></div>
-        <span class="session-pill">Solido = oficial · Transparente = booking</span>
+        <span class="session-pill">Solido = oficial Â· Transparente = booking</span>
       </div>
       ${renderScheduleFilters("professors")}
       ${renderWeeklyCalendar(filteredScheduleRows(), "professor")}
@@ -6186,7 +6586,7 @@ function renderConflictView() {
             <strong>${conflict.type}</strong>
             <span>${conflict.label}</span>
             <p>${conflict.day} ${conflict.a.start}-${conflict.a.end}: ${conflict.a.discipline} / ${conflict.b.discipline}</p>
-            <em>${conflict.a.installation} · ${conflict.b.installation}</em>
+            <em>${conflict.a.installation} Â· ${conflict.b.installation}</em>
           </article>
         `).join("") : `<div class="empty-state">No se detectan traslapes con los archivos cargados.</div>`}
       </div>
@@ -6241,7 +6641,7 @@ function renderScheduleSimulatorView() {
           <p class="eyebrow">Simulador visual</p>
           <h2>Spinning y Fitness</h2>
         </div>
-        <span class="session-pill">${rows.length} clases planeadas · ${classScheduleSimulatorCloudReady ? "Supabase activo" : "respaldo local"}</span>
+        <span class="session-pill">${rows.length} clases planeadas Â· ${classScheduleSimulatorCloudReady ? "Supabase activo" : "respaldo local"}</span>
       </div>
       <div class="permission-strip class-simulator-note">
         Este simulador es solo para planeacion visual. No modifica Calificaciones, alumnos, reportes ni la oferta oficial.
@@ -6342,7 +6742,7 @@ function renderClassSimulatorBlock(row) {
   const teacherConflict = classSimulatorTeacherConflictIds.has(row.id);
   return `
     <div class="class-simulator-class ${tone} ${teacherConflict ? "teacher-conflict" : ""}" data-class-simulator-id="${escapeHtml(row.id)}">
-      ${teacherConflict ? `<span class="class-simulator-conflict-badge" title="Empalme de profesor">⚠ Empalme de profesor</span>` : ""}
+      ${teacherConflict ? `<span class="class-simulator-conflict-badge" title="Empalme de profesor">âš  Empalme de profesor</span>` : ""}
       <strong>${escapeHtml(row.discipline)}</strong>
       ${row.teacher_name ? `<span>${escapeHtml(row.teacher_name)}</span>` : ""}
       <em>${classSimulatorTimeLabel(row.start_time)} - ${classSimulatorTimeLabel(row.end_time)}</em>
@@ -6352,6 +6752,52 @@ function renderClassSimulatorBlock(row) {
     </div>
   `;
 }
+
+function renderClassScheduleComparison() {
+  const comparison = classScheduleComparisonSummary();
+  const changed = comparison.added.length + comparison.removed.length;
+  return `
+    <section class="class-schedule-comparison">
+      <div class="section-title compact">
+        <div>
+          <p class="eyebrow">Comparador de cargas</p>
+          <h2>Cambios contra la ultima carga guardada</h2>
+        </div>
+        <span class="session-pill">${comparison.hasSnapshot ? `${changed} cambios` : "sin snapshot"}</span>
+      </div>
+      ${comparison.hasSnapshot ? `
+        <div class="class-comparison-kpis">
+          <div><strong>${comparison.previousCount}</strong><span>Carga anterior</span></div>
+          <div><strong>${comparison.currentCount}</strong><span>Carga actual</span></div>
+          <div><strong>${comparison.added.length}</strong><span>Nuevos</span></div>
+          <div><strong>${comparison.removed.length}</strong><span>Retirados</span></div>
+          <div><strong>${comparison.unchanged}</strong><span>Sin cambio</span></div>
+        </div>
+        <div class="class-comparison-grid">
+          ${renderScheduleChangeList("Nuevos registros", comparison.added)}
+          ${renderScheduleChangeList("Registros retirados", comparison.removed)}
+        </div>
+      ` : `<div class="empty-state">Sube o conserva una carga de horarios para empezar a comparar cambios operativos.</div>`}
+    </section>
+  `;
+}
+
+function renderScheduleChangeList(title, rows) {
+  return `
+    <article>
+      <h3>${title}</h3>
+      ${rows.length ? rows.slice(0, 8).map((row) => `
+        <div class="class-change-row">
+          <strong>${escapeHtml(row.discipline || "Sin disciplina")}</strong>
+          <span>${escapeHtml(row.professor || "Sin profesor")} Â· ${escapeHtml(row.day || "")} ${escapeHtml(row.start || "")}-${escapeHtml(row.end || "")}</span>
+          <em>${escapeHtml(row.installation || "Sin instalacion")}</em>
+        </div>
+      `).join("") : `<div class="empty-state">Sin cambios en esta categoria.</div>`}
+    </article>
+  `;
+}
+
+
 
 function renderReports(area) {
   const selected = area.id === "general" ? areas[0] : area;
@@ -6395,11 +6841,11 @@ function labelArea(id) {
 function fieldPurpose(field) {
   const map = {
     Matricula: "Identificador base",
-    "Matrícula": "Identificador base",
-    Genero: "Segmentación agregada",
-    "Género": "Segmentación agregada",
-    Carrera: "Análisis académico",
-    Semestre: "Análisis por avance",
+    "MatrÃ­cula": "Identificador base",
+    Genero: "SegmentaciÃ³n agregada",
+    "GÃ©nero": "SegmentaciÃ³n agregada",
+    Carrera: "AnÃ¡lisis acadÃ©mico",
+    Semestre: "AnÃ¡lisis por avance",
     "Nivel escolar": "Profesional o posgrado",
     Periodo: "Corte institucional",
     Disciplina: "Oferta deportiva",
@@ -6407,7 +6853,7 @@ function fieldPurpose(field) {
     Evento: "Vivencia y activaciones",
     Monto: "Presupuesto"
   };
-  return map[field] || "Operación del módulo";
+  return map[field] || "OperaciÃ³n del mÃ³dulo";
 }
 
 function toast(text) {
@@ -6489,6 +6935,24 @@ function render() {
     render();
   }));
   $("#saveMock")?.addEventListener("click", saveCaptureFromForm);
+  $("#classStudentSearch")?.addEventListener("input", (event) => {
+    classStudentSearch = event.target.value;
+    render();
+  });
+  $("#clearClassStudentSearch")?.addEventListener("click", () => {
+    classStudentSearch = "";
+    render();
+  });
+  $$("[data-class-teachers]").forEach((button) => button.addEventListener("click", () => {
+    const key = button.dataset.classTeachers;
+    if (!key) return;
+    if (expandedClassTeacherRows.has(key)) {
+      expandedClassTeacherRows.delete(key);
+    } else {
+      expandedClassTeacherRows.add(key);
+    }
+    render();
+  }));
   $("#clearLocal")?.addEventListener("click", () => {
     localCaptures = [];
     saveCaptures();
@@ -6703,7 +7167,7 @@ function render() {
     }).length;
     render();
     toast(unlinkedCount
-      ? `Datos actualizados. ${unlinkedCount} evaluaciones sin nómina vinculada no se incluyen en el Salón de la Fama.`
+      ? `Datos actualizados. ${unlinkedCount} evaluaciones sin nÃ³mina vinculada no se incluyen en el SalÃ³n de la Fama.`
       : "Evaluaciones y colaboradores actualizados");
   });
   $("#openPhysicalHallOfFame")?.addEventListener("click", () => {
@@ -6781,14 +7245,14 @@ async function saveGymAttendance(event) {
     .upsert(payload, { onConflict: "attendance_date,facility" });
   if (error) {
     console.error(error);
-    toast(`No se pudo guardar: ${supabaseErrorDetail(error) || "revisa la activación de Gimnasio"}`);
+    toast(`No se pudo guardar: ${supabaseErrorDetail(error) || "revisa la activaciÃ³n de Gimnasio"}`);
     return;
   }
   addAudit("gimnasio", `Asistencia ${payload.facility}: ${payload.attendee_count}`);
   await loadGymData();
   activeView = "dashboard";
   render();
-  toast("Asistencia guardada y gráficas actualizadas");
+  toast("Asistencia guardada y grÃ¡ficas actualizadas");
 }
 
 async function deleteGymAttendance(recordId) {
@@ -6798,7 +7262,7 @@ async function deleteGymAttendance(recordId) {
     return;
   }
   const description = `${record.facility}, semana ${record.week_number}, ${record.attendance_date}, ${record.attendee_count} asistentes`;
-  if (!window.confirm(`¿Eliminar la carga de ${description}? Las gráficas se actualizarán automáticamente.`)) return;
+  if (!window.confirm(`Â¿Eliminar la carga de ${description}? Las grÃ¡ficas se actualizarÃ¡n automÃ¡ticamente.`)) return;
   const { error } = await supabaseClient
     .from("gym_attendance_records")
     .delete()
@@ -6811,7 +7275,7 @@ async function deleteGymAttendance(recordId) {
   addAudit("gimnasio", `Carga de asistencia eliminada: ${description}`);
   await loadGymData();
   render();
-  toast("Carga eliminada y gráficas actualizadas");
+  toast("Carga eliminada y grÃ¡ficas actualizadas");
 }
 
 async function importGymAttendanceCsv(file) {
@@ -6858,7 +7322,7 @@ async function lookupGymStudent(event) {
   const matricula = String(new FormData(event.currentTarget).get("matricula") || "").trim().toUpperCase();
   if (!matricula) return;
   if (!supabaseClient || currentUser?.auth !== "supabase") {
-    toast("La búsqueda requiere una sesión Supabase");
+    toast("La bÃºsqueda requiere una sesiÃ³n Supabase");
     return;
   }
   const result = await supabaseClient
@@ -6875,7 +7339,7 @@ async function lookupGymStudent(event) {
   gymMasterStudent = result.data || null;
   $("#gymStudentLookupResult").innerHTML = gymMasterStudent
     ? renderGymStudentDetails(gymMasterStudent)
-    : `<p class="form-message error">La matrícula ${escapeHtml(matricula)} no existe en Base de datos_alumnos.</p>`;
+    : `<p class="form-message error">La matrÃ­cula ${escapeHtml(matricula)} no existe en Base de datos_alumnos.</p>`;
   $("#saveGymStudentRegistration")?.addEventListener("click", saveGymStudentRegistration);
 }
 
@@ -6895,14 +7359,14 @@ async function saveGymStudentRegistration() {
     .upsert(payload, { onConflict: "matricula" });
   if (error) {
     console.error(error);
-    toast(`No se pudo registrar: ${supabaseErrorDetail(error) || "revisa la activación de Gimnasio"}`);
+    toast(`No se pudo registrar: ${supabaseErrorDetail(error) || "revisa la activaciÃ³n de Gimnasio"}`);
     return;
   }
-  addAudit("gimnasio", `Matrícula registrada: ${matricula}`);
+  addAudit("gimnasio", `MatrÃ­cula registrada: ${matricula}`);
   gymMasterStudent = null;
   await loadGymData();
   render();
-  toast("Matrícula vinculada con la Base Maestra");
+  toast("MatrÃ­cula vinculada con la Base Maestra");
 }
 
 async function saveCaptureFromForm() {
@@ -7033,7 +7497,7 @@ function downloadPhysicalEvaluationsCsv() {
     })
   ].join("\n");
   downloadBlob(csv, `evaluaciones-fisicas-${new Date().toISOString().slice(0, 10)}.csv`);
-  addAudit("exportacion", "Evaluaciones físicas");
+  addAudit("exportacion", "Evaluaciones fÃ­sicas");
   toast("Evaluaciones exportadas");
 }
 
@@ -7406,3 +7870,4 @@ document.addEventListener("mock-config-save", () => {
 
 loadUniformesData();
 loadClassGradeSeedData().then(() => render());
+
