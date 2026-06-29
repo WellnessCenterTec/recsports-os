@@ -6236,6 +6236,184 @@ function renderVivenciaUpcoming(events) {
   `;
 }
 
+function isVisibleVivenciaEvent(event) {
+  return event?.archived_at == null
+    && !String(event?.event_name || "").startsWith("__OCULTAR_ACTIVIDAD__");
+}
+
+function vivenciaEventMetricMap() {
+  return new Map(vivenciaEventMetrics.map((row) => [row.event_id, row]));
+}
+
+function vivenciaEventDate(event) {
+  const date = new Date(`${event?.event_date || ""}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function vivenciaEventParticipantsCount(event, metricsByEvent = vivenciaEventMetricMap()) {
+  return vivenciaMetricParticipants(metricsByEvent.get(event.id) || event);
+}
+
+function vivenciaEventGoal(event, metricsByEvent = vivenciaEventMetricMap()) {
+  return Number((metricsByEvent.get(event.id) || event)?.participation_goal || 0);
+}
+
+function vivenciaStateLabel(status) {
+  const labels = {
+    planeado: "Planeado",
+    realizado: "Realizado",
+    cancelado: "Cancelado",
+    pospuesto: "Pospuesto",
+    completado: "Completado"
+  };
+  return labels[status] || status || "Planeado";
+}
+
+function vivenciaVisibleEvents() {
+  return vivenciaEvents
+    .filter(isVisibleVivenciaEvent)
+    .sort((a, b) => String(a.event_date || "").localeCompare(String(b.event_date || "")));
+}
+
+function vivenciaVisibleMetrics() {
+  const visibleIds = new Set(vivenciaVisibleEvents().map((event) => event.id));
+  return vivenciaEventMetrics.filter((row) => visibleIds.has(row.event_id));
+}
+
+function vivenciaCalendarBaseDate(events) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const next = events
+    .map(vivenciaEventDate)
+    .filter((date) => date && date >= today)
+    .sort((a, b) => a - b)[0];
+  return next || today;
+}
+
+function renderVivenciaCalendar(events, baseDate) {
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  const days = [];
+  for (let i = 0; i < startOffset; i += 1) days.push(null);
+  for (let day = 1; day <= lastDay.getDate(); day += 1) days.push(new Date(year, month, day));
+  while (days.length % 7 !== 0) days.push(null);
+  const eventsByDay = new Map();
+  events.forEach((event) => {
+    const date = vivenciaEventDate(event);
+    if (!date || date.getFullYear() !== year || date.getMonth() !== month) return;
+    const key = String(date.getDate());
+    if (!eventsByDay.has(key)) eventsByDay.set(key, []);
+    eventsByDay.get(key).push(event);
+  });
+  return `
+    <article class="chart-panel vivencia-calendar-panel">
+      <div class="chart-title-row">
+        <div>
+          <p class="eyebrow">Calendario mensual</p>
+          <h3>${baseDate.toLocaleDateString("es-MX", { month: "long", year: "numeric" })}</h3>
+        </div>
+        <span>Solo Vivencia</span>
+      </div>
+      <div class="vivencia-calendar">
+        ${["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((label) => `<strong>${label}</strong>`).join("")}
+        ${days.map((date) => {
+          if (!date) return `<div class="vivencia-calendar-day muted"></div>`;
+          const dayEvents = eventsByDay.get(String(date.getDate())) || [];
+          return `
+            <div class="vivencia-calendar-day">
+              <time>${date.getDate()}</time>
+              ${dayEvents.slice(0, 3).map((event) => `<button type="button" data-vivencia-detail="${escapeHtml(event.id)}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`).join("")}
+              ${dayEvents.length > 3 ? `<em>+${dayEvents.length - 3}</em>` : ""}
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function renderVivenciaEventCards(events, metricsByEvent) {
+  if (!events.length) return `<div class="vivencia-empty-mini">No hay eventos próximos registrados.</div>`;
+  return `
+    <div class="vivencia-event-card-list">
+      ${events.slice(0, 6).map((event) => `
+        <article class="vivencia-event-card" data-vivencia-detail="${escapeHtml(event.id)}">
+          <time>${escapeHtml(event.event_date || "Sin fecha")}</time>
+          <div>
+            <strong>${escapeHtml(event.event_name || "Evento sin nombre")}</strong>
+            <span>${escapeHtml(event.responsible_name || "Responsable pendiente")}</span>
+          </div>
+          <em class="${escapeHtml(event.status || "planeado")}">${vivenciaStateLabel(event.status)}</em>
+          <small>Meta ${vivenciaEventGoal(event, metricsByEvent) || "sin meta"} · ${vivenciaEventParticipantsCount(event, metricsByEvent)} participantes</small>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderVivenciaTopEvents(events, metricsByEvent) {
+  const rows = events
+    .map((event) => ({
+      event,
+      participants: vivenciaEventParticipantsCount(event, metricsByEvent),
+      goal: vivenciaEventGoal(event, metricsByEvent)
+    }))
+    .sort((a, b) => b.participants - a.participants || b.goal - a.goal || String(a.event.event_date).localeCompare(String(b.event.event_date)))
+    .slice(0, 5);
+  if (!rows.length) return `<div class="vivencia-empty-mini">Sin eventos para ranking.</div>`;
+  const max = Math.max(...rows.map((row) => row.participants || row.goal), 1);
+  return `
+    <div class="vivencia-top-list">
+      ${rows.map((row, index) => `
+        <article>
+          <span>${index + 1}</span>
+          <div>
+            <strong>${escapeHtml(row.event.event_name || "Evento sin nombre")}</strong>
+            <small>${row.participants ? `${row.participants} participantes` : `Meta ${row.goal || "sin meta"}`}</small>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(5, Math.round(((row.participants || row.goal) / max) * 100))}%"></div></div>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function vivenciaOperationalAlerts(events, metricsByEvent) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const sevenDays = new Date(today);
+  sevenDays.setDate(today.getDate() + 7);
+  const alerts = [];
+  events.forEach((event) => {
+    const date = vivenciaEventDate(event);
+    const participants = vivenciaEventParticipantsCount(event, metricsByEvent);
+    if (!event.responsible_name) alerts.push({ event, label: "Evento sin responsable" });
+    if (!Number(event.participation_goal || 0)) alerts.push({ event, label: "Evento sin meta" });
+    if (!participants) alerts.push({ event, label: "Evento sin participantes" });
+    if (date && date >= today && date <= sevenDays && (!event.responsible_name || !Number(event.participation_goal || 0))) {
+      alerts.push({ event, label: "Evento próximo incompleto" });
+    }
+  });
+  return alerts.slice(0, 8);
+}
+
+function renderVivenciaAlerts(alerts) {
+  if (!alerts.length) return `<div class="vivencia-empty-mini">Sin alertas operativas por ahora.</div>`;
+  return `
+    <div class="vivencia-alert-list">
+      ${alerts.map((alert) => `
+        <article>
+          <strong>${escapeHtml(alert.label)}</strong>
+          <span>${escapeHtml(alert.event.event_name || "Evento sin nombre")} · ${escapeHtml(alert.event.event_date || "Sin fecha")}</span>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
 function renderVivenciaDashboard() {
   if (currentUser?.auth !== "supabase") {
     return `<section class="permission-strip">Inicia sesion con Supabase para ver el Dashboard de Vivencia compartido.</section>`;
@@ -6248,87 +6426,101 @@ function renderVivenciaDashboard() {
       </section>
     `;
   }
+  const events = vivenciaVisibleEvents();
+  const metrics = vivenciaVisibleMetrics();
+  const metricsByEvent = new Map(metrics.map((row) => [row.event_id, row]));
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const inFifteen = new Date(today);
   inFifteen.setDate(today.getDate() + 15);
-  const realized = vivenciaEventMetrics.filter((row) => row.status === "realizado" || new Date(`${row.event_date}T12:00:00`) <= today);
-  const upcoming = vivenciaEvents
+  const upcoming = events
     .filter((event) => {
-      const date = new Date(`${event.event_date}T12:00:00`);
+      const date = vivenciaEventDate(event);
       return !Number.isNaN(date.getTime()) && date >= today && date <= inFifteen;
     })
     .sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)));
+  const nextEvent = upcoming[0] || events.find((event) => {
+    const date = vivenciaEventDate(event);
+    return date && date >= today;
+  });
   const uniqueMatriculas = new Set(vivenciaParticipants.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean));
-  const participantTotal = vivenciaEventMetrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
-  const studentBaseTotal = cloudStudentDatabase.length || uniqueMatriculas.size || 1;
-  const impact = Math.round((uniqueMatriculas.size / studentBaseTotal) * 100);
-  const eventRows = vivenciaEventMetrics
-    .map((row) => ({ label: row.event_name || "Evento sin nombre", value: vivenciaMetricParticipants(row) }))
-    .filter((row) => row.value > 0)
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 10);
-  const goalRows = vivenciaEventMetrics
-    .filter((row) => Number(row.participation_goal || 0) > 0)
-    .map((row) => ({ label: row.event_name || "Evento sin nombre", goal: Number(row.participation_goal || 0), result: vivenciaMetricParticipants(row) }))
-    .sort((a, b) => b.result - a.result)
-    .slice(0, 8);
+  const participantTotal = metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
+  const totalGoal = events.reduce((sum, event) => sum + vivenciaEventGoal(event, metricsByEvent), 0);
+  const goalProgress = totalGoal ? Math.round((participantTotal / totalGoal) * 100) : 0;
   const monthRowsMap = new Map();
-  vivenciaEventMetrics.forEach((row) => {
-    const key = vivenciaMonthLabel(row.event_date);
-    monthRowsMap.set(key, (monthRowsMap.get(key) || 0) + vivenciaMetricParticipants(row));
+  events.forEach((event) => {
+    const key = vivenciaMonthLabel(event.event_date);
+    const participants = vivenciaEventParticipantsCount(event, metricsByEvent);
+    monthRowsMap.set(key, (monthRowsMap.get(key) || 0) + (participantTotal ? participants : 1));
   });
   const monthRows = [...monthRowsMap.entries()].map(([label, value]) => ({ label, value }));
-  const careerRows = groupVivenciaParticipants("carrera").slice(0, 10);
-  const genderRows = groupVivenciaParticipants("genero").slice(0, 8);
+  const calendarDate = vivenciaCalendarBaseDate(events);
+  const alerts = vivenciaOperationalAlerts(events, metricsByEvent);
   return `
     <section class="vivencia-dashboard">
-      <div class="permission-strip">
-        <span>Dashboard conectado a Supabase: eventos + matriculas por evento + Base de datos_alumnos.</span>
-        <span>${vivenciaEvents.length} eventos  -  ${uniqueMatriculas.size} participantes unicos</span>
+      <div class="vivencia-hero">
+        <div>
+          <p class="eyebrow">Dashboard ejecutivo</p>
+          <h3>Vivencia</h3>
+          <p>Gestión de eventos, impacto y participación estudiantil</p>
+        </div>
+        <span>${events.length} eventos desde Planeación/Vivencia</span>
       </div>
+
+      <article class="vivencia-next-event">
+        <div>
+          <p class="eyebrow">Próximo evento</p>
+          ${nextEvent ? `
+            <h3>${escapeHtml(nextEvent.event_name || "Evento sin nombre")}</h3>
+            <p>${escapeHtml(nextEvent.description || "Seguimiento operativo desde Planeación Semestral y Vivencia.")}</p>
+            <div class="vivencia-next-meta">
+              <span>${escapeHtml(nextEvent.event_date || "Sin fecha")}</span>
+              <span>${escapeHtml(nextEvent.responsible_name || "Responsable pendiente")}</span>
+              <span>Meta ${vivenciaEventGoal(nextEvent, metricsByEvent) || "sin meta"}</span>
+              <span>${vivenciaStateLabel(nextEvent.status)}</span>
+            </div>
+          ` : `
+            <h3>No hay eventos próximos registrados</h3>
+            <p>Sincroniza Planeación Semestral o revisa la carga de eventos de Vivencia.</p>
+          `}
+        </div>
+        ${nextEvent ? `<button class="ghost-btn compact-action" type="button" data-vivencia-detail="${escapeHtml(nextEvent.id)}">Ver detalle</button>` : ""}
+      </article>
+
       <div class="kpi-grid vivencia-kpi-strip">
-        <div class="kpi"><span>Eventos realizados</span><strong>${realized.length}</strong><em>realizados o con fecha vencida</em></div>
-        <div class="kpi"><span>Participantes acumulados</span><strong>${participantTotal}</strong><em>por evento</em></div>
-        <div class="kpi"><span>Participantes unicos</span><strong>${uniqueMatriculas.size}</strong><em>por matricula</em></div>
-        <div class="kpi"><span>% impacto alumnado</span><strong>${impact}%</strong><em>vs Base Maestra</em></div>
-        <div class="kpi"><span>Proximos 15 dias</span><strong>${upcoming.length}</strong><em>eventos calendarizados</em></div>
-        <div class="kpi"><span>Eventos insignia</span><strong>${realized.filter((row) => row.is_signature_event).length}</strong><em>realizados</em></div>
+        <div class="kpi"><span>Eventos del semestre</span><strong>${events.length}</strong><em>desde Planeación/Vivencia</em></div>
+        <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
+        <div class="kpi"><span>Alumnos únicos impactados</span><strong>${uniqueMatriculas.size}</strong><em>por matrícula</em></div>
+        <div class="kpi"><span>Avance de meta</span><strong>${goalProgress}%</strong><em>${totalGoal || "sin metas capturadas"}</em></div>
       </div>
-      <div class="charts-grid vivencia-dashboard-grid">
-        <article class="chart-panel">
-          <h3>Participacion por evento</h3>
-          ${renderVivenciaBars(eventRows)}
-        </article>
-        <article class="chart-panel">
-          <h3>Meta vs resultado</h3>
-          ${renderVivenciaGoalBars(goalRows)}
-        </article>
-        <article class="chart-panel">
-          <h3>Participacion por carrera</h3>
-          ${renderVivenciaBars(careerRows, { total: uniqueMatriculas.size })}
-        </article>
-        <article class="chart-panel">
-          <h3>Participacion por genero</h3>
-          ${renderVivenciaBars(genderRows, { total: uniqueMatriculas.size, compact: true })}
-        </article>
-        <article class="chart-panel">
-          <h3>Top eventos con mayor impacto</h3>
-          ${renderVivenciaBars(eventRows.slice(0, 6), { compact: true })}
-        </article>
-        <article class="chart-panel">
-          <h3>Participacion por mes</h3>
-          ${renderVivenciaBars(monthRows)}
-        </article>
+
+      <div class="vivencia-dashboard-grid">
+        ${renderVivenciaCalendar(events, calendarDate)}
         <article class="chart-panel vivencia-upcoming-panel">
           <div class="chart-title-row">
-            <div>
-              <p class="eyebrow">Calendario</p>
-              <h3>Proximos eventos</h3>
-            </div>
-            <span>15 dias</span>
+            <div><p class="eyebrow">Agenda</p><h3>Próximos eventos</h3></div>
+            <span>15 días</span>
           </div>
-          ${renderVivenciaUpcoming(upcoming)}
+          ${renderVivenciaEventCards(upcoming, metricsByEvent)}
+        </article>
+        <article class="chart-panel">
+          <div class="chart-title-row">
+            <div><p class="eyebrow">Impacto mensual</p><h3>${participantTotal ? "Participaciones por mes" : "Eventos por mes"}</h3></div>
+          </div>
+          ${renderVivenciaBars(monthRows)}
+        </article>
+        <article class="chart-panel">
+          <div class="chart-title-row">
+            <div><p class="eyebrow">Top eventos</p><h3>Top eventos del semestre</h3></div>
+          </div>
+          ${renderVivenciaTopEvents(events, metricsByEvent)}
+        </article>
+        <article class="chart-panel vivencia-alert-panel">
+          <div class="chart-title-row">
+            <div><p class="eyebrow">Pendientes y alertas</p><h3>Seguimiento operativo</h3></div>
+            <span>${alerts.length} alertas</span>
+          </div>
+          ${renderVivenciaAlerts(alerts)}
         </article>
       </div>
     </section>
@@ -7931,6 +8123,7 @@ function render() {
   });
   $$("[data-vivencia-detail]").forEach((button) => button.addEventListener("click", () => {
     selectedVivenciaEventForDetail = button.dataset.vivenciaDetail;
+    activeView = "vivencia-events";
     render();
   }));
   $$("[data-vivencia-delete]").forEach((button) => button.addEventListener("click", () => {
