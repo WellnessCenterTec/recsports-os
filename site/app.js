@@ -4,28 +4,28 @@
     name: "Ejecutivo general",
     tone: "blue",
     source: "Reporte final, Reporte Automatizado, Sofi 2",
-    capture: ["Periodo", "MatrÃ­cula", "GÃ©nero", "Carrera", "Semestre", "Nivel escolar", "Ãrea de participaciÃ³n"],
-    indicators: ["Alumnos Ãºnicos impactados", "Registros por servicio", "ParticipaciÃ³n cruzada", "DistribuciÃ³n por carrera", "DistribuciÃ³n por nivel", "RetenciÃ³n global"],
-    charts: ["Embudo de participaciÃ³n", "ParticipaciÃ³n por Ã¡rea", "Mapa de calor por semana", "DistribuciÃ³n por perfil acadÃ©mico"],
-    reports: ["Resumen ejecutivo PDF", "Base agregada Excel", "Cruce de participaciÃ³n por Ã¡rea"]
+    capture: ["Periodo", "Matrícula", "Género", "Carrera", "Semestre", "Nivel escolar", "Área de participación"],
+    indicators: ["Alumnos únicos impactados", "Registros por servicio", "Participación cruzada", "Distribución por carrera", "Distribución por nivel", "Retención global"],
+    charts: ["Embudo de participación", "Participación por área", "Mapa de calor por semana", "Distribución por perfil académico"],
+    reports: ["Resumen ejecutivo PDF", "Base agregada Excel", "Cruce de participación por área"]
   },
   {
     id: "clases",
     name: "Clases Deportivas",
     tone: "green",
     source: "Programacion Clases, CD Lista de Alumnos, CD Indicadores clases",
-    capture: ["MatrÃ­cula", "Disciplina", "CRN", "Grupo", "CalificaciÃ³n/estatus", "Periodo"],
-    indicators: ["Inscritos Banner", "Bajas", "NP", "Acreditados", "OcupaciÃ³n", "Alumnos Ãºnicos"],
-    charts: ["Acreditados vs bajas", "OcupaciÃ³n por disciplina", "GÃ©nero por disciplina"],
-    reports: ["Lista por disciplina", "Reporte de acreditaciÃ³n", "OcupaciÃ³n por horario"]
+    capture: ["Matrícula", "Disciplina", "CRN", "Grupo", "Calificación/estatus", "Periodo"],
+    indicators: ["Inscritos Banner", "Bajas", "NP", "Acreditados", "Ocupación", "Alumnos únicos"],
+    charts: ["Acreditados vs bajas", "Ocupación por disciplina", "Género por disciplina"],
+    reports: ["Lista por disciplina", "Reporte de acreditación", "Ocupación por horario"]
   },
   {
     id: "gimnasio",
     name: "Gimnasio",
     tone: "gold",
     source: "Gym Indicadores, Gym Lista de Alumnos",
-    capture: ["MatrÃ­cula", "Fecha de acceso", "Sede", "Tipo de servicio", "Periodo"],
-    indicators: ["Accesos diarios", "Accesos semanales", "MatrÃ­culas Ãºnicas", "Frecuencia promedio", "EMIS"],
+    capture: ["Matrícula", "Fecha de acceso", "Sede", "Tipo de servicio", "Periodo"],
+    indicators: ["Accesos diarios", "Accesos semanales", "Matrículas únicas", "Frecuencia promedio", "EMIS"],
     charts: ["Trafico por dia", "Semanas con mayor uso", "Profesional vs Posgrado"],
     reports: ["Bitacora de accesos", "Reporte semanal de asistencia", "Export de usuarios unicos"]
   },
@@ -34,7 +34,7 @@
     name: "Intramuros",
     tone: "red",
     source: "Intra Indicadores LiFE, Intra Lista de Alumnos, Intra Jornadas",
-    capture: ["MatrÃ­cula", "Torneo", "Equipo", "Rama", "Jornada", "Estatus"],
+    capture: ["Matrícula", "Torneo", "Equipo", "Rama", "Jornada", "Estatus"],
     indicators: ["Equipos inscritos", "Alumnos por torneo", "Juegos programados", "Juegos por default", "Retencion", "Bajas"],
     charts: ["Retencion por torneo", "Equipos por rama", "Juegos realizados vs default"],
     reports: ["Rol de jornadas", "Cedula de equipos", "Reporte de retencion"]
@@ -44,28 +44,28 @@
     name: "Vivencia",
     tone: "lav",
     source: "Vivencia Fechas, Vivencia Lista de Alumnos",
-    capture: ["MatrÃ­cula", "Evento", "Fecha", "ClasificaciÃ³n", "Meta", "Asistencia"],
+    capture: ["Matrícula", "Evento", "Fecha", "Clasificación", "Meta", "Asistencia"],
     indicators: ["Eventos realizados", "Participantes", "Cumplimiento de meta", "Hombres/Mujeres", "Eventos insignia"],
     charts: ["Meta vs asistencia", "Eventos por clasificacion", "Participacion por semestre"],
     reports: ["Calendario de eventos", "Reporte de cumplimiento", "Lista agregada por evento"]
   },
   {
     id: "comunicacion",
-    name: "ComunicaciÃ³n",
+    name: "Comunicación",
     tone: "blue",
     source: "Infografia Wellness LIVE, Servicios e inscritos",
-    capture: ["CampaÃ±a", "Canal", "Ãrea", "Periodo", "Alcance", "Clics", "Conversiones"],
-    indicators: ["Alcance", "ConversiÃ³n a registro", "Servicios promovidos", "ParticipaciÃ³n atribuida"],
-    charts: ["ConversiÃ³n por canal", "Impacto por Ã¡rea", "Tendencia de campaÃ±as"],
-    reports: ["Reporte de campaÃ±as", "ConversiÃ³n por Ã¡rea", "Resumen para direcciÃ³n"]
+    capture: ["Campaña", "Canal", "Área", "Periodo", "Alcance", "Clics", "Conversiones"],
+    indicators: ["Alcance", "Conversión a registro", "Servicios promovidos", "Participación atribuida"],
+    charts: ["Conversión por canal", "Impacto por área", "Tendencia de campañas"],
+    reports: ["Reporte de campañas", "Conversión por área", "Resumen para dirección"]
   },
   {
     id: "representativos",
     name: "Representativos",
     tone: "green",
     source: "Repres Lista, Uniformes",
-    capture: ["MatrÃ­cula", "Deporte", "Rama", "Coach", "Temporada", "Estatus"],
-    indicators: ["Atletas activos", "Equipos por deporte", "DistribuciÃ³n por gÃ©nero", "Uniformes pendientes"],
+    capture: ["Matrícula", "Deporte", "Rama", "Coach", "Temporada", "Estatus"],
+    indicators: ["Atletas activos", "Equipos por deporte", "Distribución por género", "Uniformes pendientes"],
     charts: ["Atletas por deporte", "Rama por equipo", "Estatus de uniforme"],
     reports: ["Roster por coach", "Uniformes por atleta", "Reporte de temporada"]
   },
@@ -74,9 +74,9 @@
     name: "Gamer",
     tone: "lav",
     source: "Gamer Lista",
-    capture: ["MatrÃ­cula", "Actividad gamer", "Torneo", "Fecha", "Estatus"],
-    indicators: ["Participantes Ãºnicos", "Eventos gamer", "Reincidencia", "DistribuciÃ³n por carrera"],
-    charts: ["ParticipaciÃ³n por torneo", "Perfil acadÃ©mico", "Tendencia mensual"],
+    capture: ["Matrícula", "Actividad gamer", "Torneo", "Fecha", "Estatus"],
+    indicators: ["Participantes únicos", "Eventos gamer", "Reincidencia", "Distribución por carrera"],
+    charts: ["Participación por torneo", "Perfil académico", "Tendencia mensual"],
     reports: ["Lista de participantes", "Reporte de torneos", "Ranking agregado"]
   },
   {
@@ -84,7 +84,7 @@
     name: "Colaboradores",
     tone: "blue",
     source: "Uniformes, Pruebas fisicas, Gimnasio, Historial de profesores, layouts AD26 y Verano26",
-    capture: ["NÃ³mina", "Colaborador", "Puesto", "Coordinador", "Talla playera", "Talla pants", "Correo", "CumpleaÃ±os", "GÃ©nero", "Primeros auxilios", "Contacto de emergencia"],
+    capture: ["Nómina", "Colaborador", "Puesto", "Coordinador", "Talla playera", "Talla pants", "Correo", "Cumpleaños", "Género", "Primeros auxilios", "Contacto de emergencia"],
     indicators: ["Colaboradores registrados", "Uniformes por talla", "Cursos completados", "Primeros auxilios", "Asistencia a gimnasio", "Contratos por layout"],
     charts: ["Tallas de playera", "Cursos por coordinador", "Primeros auxilios", "Asistencia a gimnasio", "Costo de contratos"],
     reports: ["Directorio de colaboradores", "Reporte de uniformes", "Pruebas fisicas", "Layouts de contratacion"]
@@ -101,7 +101,7 @@
   },
   {
     id: "configuracion",
-    name: "ConfiguraciÃ³n",
+    name: "Configuración",
     tone: "blue",
     source: "Administracion del sistema",
     capture: ["Usuario", "Rol", "Area", "Permiso", "Catalogo", "Estado"],
@@ -113,33 +113,33 @@
 
 const classTeacherPerformance = [
   { teacher: "Adrian Guadalupe Torres Sandoval", total: 312, approved: 251, failed: 61, approvedRate: 80, failedRate: 20 },
-  { teacher: "Arturo Yared NÃ¡jera NÃºÃ±ez", total: 60, approved: 46, failed: 14, approvedRate: 77, failedRate: 23 },
-  { teacher: "Esteban PÃ©rez MartÃ­nez", total: 360, approved: 264, failed: 96, approvedRate: 73, failedRate: 27 },
-  { teacher: "Ventura Guadalupe VÃ¡zquez GonzÃ¡lez", total: 359, approved: 257, failed: 102, approvedRate: 72, failedRate: 28 },
-  { teacher: "Hugo SÃ¡nchez Medina", total: 304, approved: 216, failed: 88, approvedRate: 71, failedRate: 29 },
-  { teacher: "Perla LimÃ³n Moreno", total: 240, approved: 171, failed: 69, approvedRate: 71, failedRate: 29 },
-  { teacher: "Milton Andres PÃ¡ez Navarro", total: 160, approved: 114, failed: 46, approvedRate: 71, failedRate: 29 },
-  { teacher: "Kevin Antonio RuÃ­z GarcÃ­a", total: 208, approved: 145, failed: 63, approvedRate: 70, failedRate: 30 },
+  { teacher: "Arturo Yared Nájera Núñez", total: 60, approved: 46, failed: 14, approvedRate: 77, failedRate: 23 },
+  { teacher: "Esteban Pérez Martínez", total: 360, approved: 264, failed: 96, approvedRate: 73, failedRate: 27 },
+  { teacher: "Ventura Guadalupe Vázquez González", total: 359, approved: 257, failed: 102, approvedRate: 72, failedRate: 28 },
+  { teacher: "Hugo Sánchez Medina", total: 304, approved: 216, failed: 88, approvedRate: 71, failedRate: 29 },
+  { teacher: "Perla Limón Moreno", total: 240, approved: 171, failed: 69, approvedRate: 71, failedRate: 29 },
+  { teacher: "Milton Andres Páez Navarro", total: 160, approved: 114, failed: 46, approvedRate: 71, failedRate: 29 },
+  { teacher: "Kevin Antonio Ruíz García", total: 208, approved: 145, failed: 63, approvedRate: 70, failedRate: 30 },
   { teacher: "Omar Alejandro Ruiz Garibay", total: 61, approved: 43, failed: 18, approvedRate: 70, failedRate: 30 },
   { teacher: "Miguel Angel Carranza Sauceda", total: 207, approved: 137, failed: 70, approvedRate: 66, failedRate: 34 },
   { teacher: "Carolina Esquivel Morales", total: 341, approved: 220, failed: 121, approvedRate: 65, failedRate: 35 },
   { teacher: "Ameyalli Rocha Espinoza", total: 359, approved: 222, failed: 137, approvedRate: 62, failedRate: 38 },
   { teacher: "Arturo Mario Najera Balleza", total: 239, approved: 149, failed: 90, approvedRate: 62, failedRate: 38 },
   { teacher: "Jose de Jesus Castillo Ortiz", total: 160, approved: 100, failed: 60, approvedRate: 62, failedRate: 38 },
-  { teacher: "VÃ­ctor Antonio Paz Villalobos", total: 120, approved: 73, failed: 47, approvedRate: 61, failedRate: 39 },
-  { teacher: "Alicia DomÃ­nguez RodrÃ­guez", total: 208, approved: 125, failed: 83, approvedRate: 60, failedRate: 40 },
-  { teacher: "Yara Lisania Lira MartÃ­nez", total: 329, approved: 195, failed: 134, approvedRate: 59, failedRate: 41 },
-  { teacher: "MarÃ­a Teresa Medrano Reyes", total: 199, approved: 114, failed: 85, approvedRate: 57, failedRate: 43 },
-  { teacher: "Yulian Valdez RamÃ­rez", total: 209, approved: 114, failed: 95, approvedRate: 55, failedRate: 45 },
-  { teacher: "Yveth Marion GonzÃ¡lez Eguren", total: 260, approved: 140, failed: 120, approvedRate: 54, failedRate: 46 },
+  { teacher: "Víctor Antonio Paz Villalobos", total: 120, approved: 73, failed: 47, approvedRate: 61, failedRate: 39 },
+  { teacher: "Alicia Domínguez Rodríguez", total: 208, approved: 125, failed: 83, approvedRate: 60, failedRate: 40 },
+  { teacher: "Yara Lisania Lira Martínez", total: 329, approved: 195, failed: 134, approvedRate: 59, failedRate: 41 },
+  { teacher: "María Teresa Medrano Reyes", total: 199, approved: 114, failed: 85, approvedRate: 57, failedRate: 43 },
+  { teacher: "Yulian Valdez Ramírez", total: 209, approved: 114, failed: 95, approvedRate: 55, failedRate: 45 },
+  { teacher: "Yveth Marion González Eguren", total: 260, approved: 140, failed: 120, approvedRate: 54, failedRate: 46 },
   { teacher: "Narda Dominick Lopez Copado", total: 110, approved: 57, failed: 53, approvedRate: 52, failedRate: 48 },
-  { teacher: "Martha HernÃ¡ndez HernÃ¡ndez", total: 64, approved: 31, failed: 33, approvedRate: 48, failedRate: 52 },
-  { teacher: "Cecilia EstefanÃ­a Valdez Palacios", total: 37, approved: 17, failed: 20, approvedRate: 46, failedRate: 54 },
+  { teacher: "Martha Hernández Hernández", total: 64, approved: 31, failed: 33, approvedRate: 48, failedRate: 52 },
+  { teacher: "Cecilia Estefanía Valdez Palacios", total: 37, approved: 17, failed: 20, approvedRate: 46, failedRate: 54 },
   { teacher: "Josue Fernando Silguero Urquiza", total: 360, approved: 161, failed: 199, approvedRate: 45, failedRate: 55 }
 ];
 
 const classDisciplineIndicators = [
-  { period: "PMT1", discipline: "Acondicionamiento fÃ­sico PMT1", banner: 30, bajas: 5, np: 7, finished: 18 },
+  { period: "PMT1", discipline: "Acondicionamiento físico PMT1", banner: 30, bajas: 5, np: 7, finished: 18 },
   { period: "PMT1", discipline: "Artes Marciales PMT1", banner: 30, bajas: 4, np: 6, finished: 20 },
   { period: "PMT1", discipline: "Basquetbol Femenil PMT1", banner: 27, bajas: 4, np: 0, finished: 23 },
   { period: "PMT1", discipline: "Basquetbol Varonil PMT1", banner: 28, bajas: 4, np: 0, finished: 24 },
@@ -148,17 +148,17 @@ const classDisciplineIndicators = [
   { period: "PMT1", discipline: "Cross training PMT1", banner: 180, bajas: 15, np: 16, finished: 149 },
   { period: "PMT1", discipline: "Escala Deportiva PMT1", banner: 192, bajas: 20, np: 21, finished: 151 },
   { period: "PMT1", discipline: "Fitness PMT1", banner: 130, bajas: 18, np: 16, finished: 96 },
-  { period: "PMT1", discipline: "FÃºtbol rÃ¡pido femenil PMT1", banner: 30, bajas: 2, np: 0, finished: 28 },
-  { period: "PMT1", discipline: "FÃºtbol rÃ¡pido varonil PMT1", banner: 30, bajas: 4, np: 0, finished: 26 },
-  { period: "PMT1", discipline: "FÃºtbol soccer femenil PMT1", banner: 32, bajas: 6, np: 1, finished: 25 },
-  { period: "PMT1", discipline: "FÃºtbol soccer varonil PMT1", banner: 32, bajas: 6, np: 0, finished: 26 },
-  { period: "PMT1", discipline: "NataciÃ³n PMT1", banner: 547, bajas: 41, np: 42, finished: 464 },
+  { period: "PMT1", discipline: "Fútbol rápido femenil PMT1", banner: 30, bajas: 2, np: 0, finished: 28 },
+  { period: "PMT1", discipline: "Fútbol rápido varonil PMT1", banner: 30, bajas: 4, np: 0, finished: 26 },
+  { period: "PMT1", discipline: "Fútbol soccer femenil PMT1", banner: 32, bajas: 6, np: 1, finished: 25 },
+  { period: "PMT1", discipline: "Fútbol soccer varonil PMT1", banner: 32, bajas: 6, np: 0, finished: 26 },
+  { period: "PMT1", discipline: "Natación PMT1", banner: 547, bajas: 41, np: 42, finished: 464 },
   { period: "PMT1", discipline: "Tenis PMT1", banner: 417, bajas: 37, np: 36, finished: 344 },
   { period: "PMT1", discipline: "Voleibol femenil PMT1", banner: 30, bajas: 1, np: 0, finished: 29 },
   { period: "PMT1", discipline: "Voleibol varonil PMT1", banner: 30, bajas: 0, np: 0, finished: 30 },
   { period: "PMT1", discipline: "Yoga PMT1", banner: 247, bajas: 28, np: 22, finished: 197 },
   { period: "PMT1", discipline: "Totales Periodo 1", banner: 2585, bajas: 280, np: 228, finished: 2077, total: true },
-  { period: "PMT2", discipline: "Acondicionamiento fÃ­sico PMT2", banner: 30, bajas: 4, np: 9, finished: 17 },
+  { period: "PMT2", discipline: "Acondicionamiento físico PMT2", banner: 30, bajas: 4, np: 9, finished: 17 },
   { period: "PMT2", discipline: "Artes Marciales PMT2", banner: 30, bajas: 6, np: 7, finished: 17 },
   { period: "PMT2", discipline: "Basquetbol Femenil PMT2", banner: 27, bajas: 7, np: 7, finished: 13 },
   { period: "PMT2", discipline: "Basquetbol Varonil PMT2", banner: 28, bajas: 5, np: 4, finished: 19 },
@@ -167,11 +167,11 @@ const classDisciplineIndicators = [
   { period: "PMT2", discipline: "Cross training PMT2", banner: 180, bajas: 32, np: 33, finished: 115 },
   { period: "PMT2", discipline: "Escala Deportiva PMT2", banner: 131, bajas: 34, np: 18, finished: 79 },
   { period: "PMT2", discipline: "Fitness PMT2", banner: 192, bajas: 27, np: 28, finished: 137 },
-  { period: "PMT2", discipline: "FÃºtbol rÃ¡pido femenil PMT2", banner: 30, bajas: 10, np: 3, finished: 17 },
-  { period: "PMT2", discipline: "FÃºtbol rÃ¡pido varonil PMT2", banner: 30, bajas: 6, np: 5, finished: 19 },
-  { period: "PMT2", discipline: "FÃºtbol soccer varonil PMT2", banner: 64, bajas: 7, np: 0, finished: 57 },
-  { period: "PMT2", discipline: "FÃºtbol soccer femenil PMT2", banner: 32, bajas: 4, np: 7, finished: 21 },
-  { period: "PMT2", discipline: "NataciÃ³n PMT2", banner: 577, bajas: 89, np: 80, finished: 408 },
+  { period: "PMT2", discipline: "Fútbol rápido femenil PMT2", banner: 30, bajas: 10, np: 3, finished: 17 },
+  { period: "PMT2", discipline: "Fútbol rápido varonil PMT2", banner: 30, bajas: 6, np: 5, finished: 19 },
+  { period: "PMT2", discipline: "Fútbol soccer varonil PMT2", banner: 64, bajas: 7, np: 0, finished: 57 },
+  { period: "PMT2", discipline: "Fútbol soccer femenil PMT2", banner: 32, bajas: 4, np: 7, finished: 21 },
+  { period: "PMT2", discipline: "Natación PMT2", banner: 577, bajas: 89, np: 80, finished: 408 },
   { period: "PMT2", discipline: "Tenis PMT2", banner: 415, bajas: 69, np: 81, finished: 265 },
   { period: "PMT2", discipline: "Voleibol femenil PMT2", banner: 31, bajas: 6, np: 4, finished: 21 },
   { period: "PMT2", discipline: "Voleibol varonil PMT2", banner: 30, bajas: 4, np: 4, finished: 22 },
@@ -188,6 +188,8 @@ const SCHEDULE_KEY = "recsports_os_class_schedules";
 const SIMULATOR_KEY = "recsports_os_schedule_simulator";
 const CLASS_SIMULATOR_KEY = "wellsync_spinning_fitness_simulator";
 const CLASS_SCHEDULE_SNAPSHOT_KEY = "wellsync_class_schedule_snapshot";
+const BUDGET_AREAS_KEY = "wellsync_budget_areas";
+const BUDGET_REQUESTS_KEY = "wellsync_budget_requests";
 const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
@@ -236,11 +238,11 @@ const sampleBookingSchedule = [
   { source: "booking", professor: "Adrian Guadalupe Torres Sandoval", discipline: "Reserva equipo PMT1", day: "Miercoles", start: "13:00", end: "15:00", installation: "Sala Fitness", frequency: "Semanal", group: "", rowNumber: 4 },
   { source: "booking", professor: "Perla Limon Moreno", discipline: "Clase especial PMT1", day: "Sabado", start: "08:00", end: "10:00", installation: "Croata", frequency: "Semanal", group: "", rowNumber: 5 }
 ];
-const submenus = ["Dashboard", "Captura", "Participantes", "Calendario", "Indicadores", "Reportes", "ConfiguraciÃ³n"];
+const submenus = ["Dashboard", "Captura", "Participantes", "Calendario", "Indicadores", "Reportes", "Configuración"];
 const roleMatrix = [
-  ["DirecciÃ³n Deportiva", "Todo el sistema", "Lectura global, descarga ejecutiva, aprobaciones y auditorÃ­a"],
-  ["Coordinador de Ã¡rea", "Su Ã¡rea", "Alta, ediciÃ³n y consulta de capturas propias"],
-  ["Compras y Presupuesto", "Compras, uniformes y presupuesto", "GestiÃ³n financiera y lectura de necesidades por Ã¡rea"],
+  ["Dirección Deportiva", "Todo el sistema", "Lectura global, descarga ejecutiva, aprobaciones y auditoría"],
+  ["Coordinador de área", "Su área", "Alta, edición y consulta de capturas propias"],
+  ["Compras y Presupuesto", "Compras, uniformes y presupuesto", "Gestión financiera y lectura de necesidades por área"],
   ["Consulta", "Dashboards agregados", "Solo lectura sin descargas nominales"]
 ];
 const importPlan = [
@@ -255,33 +257,33 @@ const validationRules = [
   ["Alumnos", "Carrera", "Debe existir en catalogo de carreras"],
   ["Alumnos", "Semestre", "Numero entre 1 y 12"],
   ["Alumnos", "Nivel escolar", "Profesional o Posgrado"],
-  ["Colaboradores", "NÃ³mina", "Debe iniciar con L0 o registrar excepciÃ³n operativa"],
+  ["Colaboradores", "Nómina", "Debe iniciar con L0 o registrar excepción operativa"],
   ["Colaboradores", "Uniforme", "Tallas normalizadas para playera y pants"],
   ["Compras", "Monto", "Numero positivo y asociado a area"]
 ];
 const migrationBacklog = [
-  ["Alta", "Separar datos sensibles de Historial ClÃ­nico antes de cualquier importaciÃ³n", "Pendiente"],
-  ["Alta", "Definir catÃ¡logo oficial de disciplinas, torneos y eventos", "Pendiente"],
-  ["Media", "Homologar nombres de estatus: activo, baja, NP, acreditado", "En diseÃ±o"],
-  ["Media", "Revisar duplicados por matrÃ­cula y periodo", "Pendiente"],
-  ["Baja", "Definir etiquetas visuales por mÃ³dulo", "Base creada"]
+  ["Alta", "Separar datos sensibles de Historial Clínico antes de cualquier importación", "Pendiente"],
+  ["Alta", "Definir catálogo oficial de disciplinas, torneos y eventos", "Pendiente"],
+  ["Media", "Homologar nombres de estatus: activo, baja, NP, acreditado", "En diseño"],
+  ["Media", "Revisar duplicados por matrícula y periodo", "Pendiente"],
+  ["Baja", "Definir etiquetas visuales por módulo", "Base creada"]
 ];
 const alertRules = [
-  ["Alta", "MigraciÃ³n", "Historial clÃ­nico no debe importarse hasta separar datos sensibles"],
-  ["Alta", "CatÃ¡logos", "Falta cerrar catÃ¡logo oficial de disciplinas, torneos y eventos"],
+  ["Alta", "Migración", "Historial clínico no debe importarse hasta separar datos sensibles"],
+  ["Alta", "Catálogos", "Falta cerrar catálogo oficial de disciplinas, torneos y eventos"],
   ["Media", "Colaboradores", "Revisar colaboradores sin primeros auxilios"],
-  ["Media", "ImportaciÃ³n", "Normalizar estatus antes de carga masiva"],
-  ["Baja", "DiseÃ±o", "Definir iconos finales por mÃ³dulo"]
+  ["Media", "Importación", "Normalizar estatus antes de carga masiva"],
+  ["Baja", "Diseño", "Definir iconos finales por módulo"]
 ];
 const roadmapItems = [
-  ["Fase 1", "Piloto web inicial", "DirecciÃ³n Deportiva", "Completado", "Validar mÃ³dulos, permisos, colaboradores, configuraciÃ³n y alertas"],
-  ["Fase 2", "Base tÃ©cnica Next.js", "Producto / TI", "En progreso", "Instalar dependencias, ejecutar app Next y ordenar componentes"],
+  ["Fase 1", "Piloto web inicial", "Dirección Deportiva", "Completado", "Validar módulos, permisos, colaboradores, configuración y alertas"],
+  ["Fase 2", "Base técnica Next.js", "Producto / TI", "En progreso", "Instalar dependencias, ejecutar app Next y ordenar componentes"],
   ["Fase 3", "Supabase", "TI / Administrador", "Pendiente", "Crear proyecto, tablas, roles, RLS y variables de entorno"],
-  ["Fase 4", "MigraciÃ³n controlada", "DirecciÃ³n / Coordinadores", "Pendiente", "Depurar Indicadores, importar Uniformes, cerrar catÃ¡logos"],
+  ["Fase 4", "Migración controlada", "Dirección / Coordinadores", "Pendiente", "Depurar Indicadores, importar Uniformes, cerrar catálogos"],
   ["Fase 5", "Dashboards reales", "Producto", "Pendiente", "Reemplazar datos simulados por consultas a PostgreSQL"],
-  ["Fase 6", "Piloto operativo", "Coordinadores", "Pendiente", "Probar captura real por Ã¡rea durante un periodo corto"],
+  ["Fase 6", "Piloto operativo", "Coordinadores", "Pendiente", "Probar captura real por área durante un periodo corto"],
   ["Fase 7", "Vercel privado", "TI", "Pendiente", "Publicar entorno protegido para pruebas internas"],
-  ["Fase 8", "LiberaciÃ³n", "DirecciÃ³n Deportiva", "Pendiente", "CapacitaciÃ³n, soporte y gobierno de datos"]
+  ["Fase 8", "Liberación", "Dirección Deportiva", "Pendiente", "Capacitación, soporte y gobierno de datos"]
 ];
 const scheduledReports = [
   ["Ejecutivo general", "Resumen ejecutivo direccion", "PDF", "Semanal", "Direccion Deportiva", "Disenado"],
@@ -362,42 +364,75 @@ const students = Array.from({ length: 180 }, (_, i) => ({
   baja: i % 11 === 0
 }));
 
-const GYM_DAYS = ["Lunes", "Martes", "MiÃ©rcoles", "Jueves", "Viernes", "SÃ¡bado", "Domingo"];
+const GYM_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+const budgetFilters = { period: "AD26", area: "todos", status: "todos" };
+
+const BUDGET_VISIBLE_AREAS = [
+  { key: "clases", label: "Clases Deportivas", owner: "Coordinación Clases", icon: "activity" },
+  { key: "gimnasio", label: "Gimnasio", owner: "Coordinación Gimnasio", icon: "dumbbell" },
+  { key: "intramuros", label: "Intramuros", owner: "Coordinación Intramuros", icon: "trophy" },
+  { key: "vivencia", label: "Vivencia", owner: "Coordinación Vivencia", icon: "users" },
+  { key: "comunicacion", label: "Comunicación", owner: "Coordinación Comunicación", icon: "megaphone" },
+  { key: "direccion", label: "Dirección", owner: "Dirección Deportiva", icon: "briefcase-business" }
+];
+
+const defaultBudgetAreas = [
+  { area: "clases", assigned: 820000, owner: "Coordinación Clases", threshold: 78 },
+  { area: "gimnasio", assigned: 1180000, owner: "Coordinación Gimnasio", threshold: 82 },
+  { area: "intramuros", assigned: 640000, owner: "Coordinación Intramuros", threshold: 76 },
+  { area: "vivencia", assigned: 520000, owner: "Coordinación Vivencia", threshold: 70 },
+  { area: "comunicacion", assigned: 0, owner: "Coordinación Comunicación", threshold: 80 },
+  { area: "direccion", assigned: 0, owner: "Dirección Deportiva", threshold: 80 }
+];
+
+const defaultBudgetRequests = [
+  { id: "P-001", period: "AD26", date: "2026-08-05", area: "clases", concept: "Material funcional para clases PMT1", provider: "Deportes MX", amount: 118500, status: "autorizado", priority: "Alta", type: "Equipamiento" },
+  { id: "P-002", period: "AD26", date: "2026-08-09", area: "gimnasio", concept: "Mantenimiento preventivo de caminadoras", provider: "Fitness Service", amount: 215000, status: "comprometido", priority: "Alta", type: "Mantenimiento" },
+  { id: "P-003", period: "AD26", date: "2026-08-12", area: "intramuros", concept: "Arbitraje y operación de torneos", provider: "Liga Operativa", amount: 146000, status: "pendiente", priority: "Media", type: "Servicio" },
+  { id: "P-004", period: "AD26", date: "2026-08-14", area: "vivencia", concept: "Activación de bienvenida", provider: "Eventos Campus", amount: 98500, status: "ejercido", priority: "Media", type: "Evento" },
+  { id: "P-005", period: "AD26", date: "2026-08-18", area: "representativos", concept: "Uniformes competencia nacional", provider: "Uniformes Norte", amount: 330000, status: "comprometido", priority: "Alta", type: "Uniformes" },
+  { id: "P-006", period: "AD26", date: "2026-08-21", area: "gamer", concept: "Periféricos para torneo interno", provider: "Tech Arena", amount: 64000, status: "pendiente", priority: "Baja", type: "Equipamiento" },
+  { id: "P-007", period: "AD26", date: "2026-08-25", area: "colaboradores", concept: "Capacitación primeros auxilios", provider: "Safety Pro", amount: 72500, status: "ejercido", priority: "Alta", type: "Capacitación" },
+  { id: "P-008", period: "AD26", date: "2026-09-02", area: "clases", concept: "Reposición de material de yoga", provider: "Wellness Supply", amount: 46000, status: "rechazado", priority: "Baja", type: "Material" },
+  { id: "P-009", period: "AD26", date: "2026-09-06", area: "gimnasio", concept: "Kit de limpieza especializada", provider: "Facility Clean", amount: 38500, status: "ejercido", priority: "Media", type: "Insumos" },
+  { id: "P-010", period: "AD26", date: "2026-09-10", area: "vivencia", concept: "Premiación eventos insignia", provider: "Reconocimientos MTY", amount: 54500, status: "autorizado", priority: "Media", type: "Reconocimientos" }
+];
 
 const PHYSICAL_HALL_TESTS = [
   {
     id: "cooper_12m",
-    icon: "ðŸƒ",
+    icon: "🏃",
     test: "Cooper 12 min",
     capacity: "Resistencia cardiovascular"
   },
   {
     id: "abdominales",
-    icon: "ðŸ’ª",
+    icon: "💪",
     test: "Abdominales",
     capacity: "Fuerza y resistencia del core"
   },
   {
     id: "lagartijas",
-    icon: "ðŸ¤¸",
+    icon: "⬆",
     test: "Lagartijas",
     capacity: "Fuerza de tren superior"
   },
   {
     id: "saltos_cuerda",
-    icon: "ðŸª¢",
+    icon: "⤴",
     test: "Saltos con cuerda",
-    capacity: "CoordinaciÃ³n y resistencia"
+    capacity: "Coordinación y resistencia"
   },
   {
     id: "wall_ball",
-    icon: "ðŸŽ¯",
+    icon: "●",
     test: "Wall Ball",
     capacity: "Potencia funcional"
   },
   {
     id: "remo_distancia",
-    icon: "ðŸš£",
+    icon: "↔",
     test: "Remo distancia",
     capacity: "Potencia y resistencia"
   }
@@ -413,6 +448,7 @@ let scheduleState = loadSchedules();
 let scheduleFilters = { professor: "todos", day: "todos", discipline: "todos", installation: "todos", mode: "professors", timeDay: "Lunes", time: "09:00", reportProfessor: "todos" };
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
+let classScheduleComparison = null;
 let classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
 let classScheduleSimulatorCloudReady = false;
 let classSimulatorTeacherConflictIds = new Set();
@@ -477,6 +513,10 @@ let physicalEvaluationFilter = {
   classification: "todos",
   test: "cooper_12m"
 };
+let budgetAreaPlans = loadBudgetAreaPlans();
+let budgetRequestRows = loadBudgetRequestRows();
+let budgetCloudReady = false;
+let budgetCloudMessage = "Modo local";
 let collaboratorColumnOrder = [];
 let collaboratorSettingsLoaded = false;
 let photoUploaderOpen = false;
@@ -491,7 +531,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function allowedDataText() {
-  return "La captura operativa solo usa matrÃ­cula, gÃ©nero, carrera, semestre y nivel escolar. Los campos de salud, nombre, correo y telÃ©fono quedan fuera del sistema.";
+  return "La captura operativa solo usa matrícula, género, carrera, semestre y nivel escolar. Los campos de salud, nombre, correo y teléfono quedan fuera del sistema.";
 }
 
 function loadCaptures() {
@@ -504,6 +544,153 @@ function loadCaptures() {
 
 function saveCaptures() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(localCaptures));
+}
+
+function normalizeBudgetAreaPlan(row) {
+  const area = String(row?.area || "").trim();
+  if (!area) return null;
+  return {
+    area,
+    assigned: Math.max(0, Number(row.assigned || 0)),
+    owner: String(row.owner || "").trim() || "Responsable de área",
+    threshold: Math.min(100, Math.max(1, Number(row.threshold || 80)))
+  };
+}
+
+function normalizeBudgetRequest(row) {
+  const area = String(row?.area || "").trim();
+  const concept = String(row?.concept || "").trim();
+  if (!area || !concept) return null;
+  return {
+    id: String(row.id || `P-${Date.now()}`),
+    period: String(row.period || "AD26").trim(),
+    date: String(row.date || new Date().toISOString().slice(0, 10)).slice(0, 10),
+    area,
+    concept,
+    provider: String(row.provider || "").trim() || "Sin proveedor",
+    amount: Math.max(0, Number(row.amount || 0)),
+    status: String(row.status || "pendiente").trim(),
+    priority: String(row.priority || "Media").trim(),
+    type: String(row.type || "General").trim()
+  };
+}
+
+function loadBudgetAreaPlans() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BUDGET_AREAS_KEY) || "[]");
+    const rows = Array.isArray(saved) ? saved.map(normalizeBudgetAreaPlan).filter(Boolean) : [];
+    return rows.length ? rows : defaultBudgetAreas.map(normalizeBudgetAreaPlan);
+  } catch {
+    return defaultBudgetAreas.map(normalizeBudgetAreaPlan);
+  }
+}
+
+function saveBudgetAreaPlans() {
+  localStorage.setItem(BUDGET_AREAS_KEY, JSON.stringify(budgetAreaPlans));
+}
+
+function loadBudgetRequestRows() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BUDGET_REQUESTS_KEY) || "[]");
+    const rows = Array.isArray(saved) ? saved.map(normalizeBudgetRequest).filter(Boolean) : [];
+    return rows.length ? rows : defaultBudgetRequests.map(normalizeBudgetRequest);
+  } catch {
+    return defaultBudgetRequests.map(normalizeBudgetRequest);
+  }
+}
+
+function saveBudgetRequestRows() {
+  localStorage.setItem(BUDGET_REQUESTS_KEY, JSON.stringify(budgetRequestRows));
+}
+
+function budgetPlanFromCloud(row) {
+  return normalizeBudgetAreaPlan({
+    area: row.area_key,
+    assigned: row.assigned_amount,
+    owner: row.owner_name,
+    threshold: row.alert_threshold
+  });
+}
+
+function budgetRequestFromCloud(row) {
+  return normalizeBudgetRequest({
+    id: row.id,
+    period: row.period_key,
+    date: row.request_date,
+    area: row.area_key,
+    concept: row.concept,
+    provider: row.provider,
+    amount: row.amount,
+    status: row.status,
+    priority: row.priority,
+    type: row.request_type
+  });
+}
+
+async function loadBudgetData() {
+  budgetCloudReady = false;
+  budgetCloudMessage = "Modo local";
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const [plansResult, requestsResult] = await Promise.all([
+    supabaseClient
+      .from("budget_area_plans")
+      .select("area_key, assigned_amount, owner_name, alert_threshold")
+      .order("area_key", { ascending: true }),
+    supabaseClient
+      .from("budget_requests")
+      .select("id, period_key, request_date, area_key, concept, provider, amount, status, priority, request_type")
+      .order("request_date", { ascending: false })
+  ]);
+  if (plansResult.error || requestsResult.error) {
+    console.warn(plansResult.error || requestsResult.error);
+    budgetCloudMessage = "Activa las tablas de Presupuesto en Supabase";
+    return;
+  }
+  const cloudPlans = (plansResult.data || []).map(budgetPlanFromCloud).filter(Boolean);
+  const cloudRequests = (requestsResult.data || []).map(budgetRequestFromCloud).filter(Boolean);
+  if (cloudPlans.length) budgetAreaPlans = cloudPlans;
+  if (cloudRequests.length) budgetRequestRows = cloudRequests;
+  budgetCloudReady = true;
+  budgetCloudMessage = "Supabase activo";
+}
+
+async function saveBudgetAllocationToCloud(plan) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !budgetCloudReady) return false;
+  const { error } = await supabaseClient.from("budget_area_plans").upsert({
+    area_key: plan.area,
+    assigned_amount: plan.assigned,
+    owner_name: plan.owner,
+    alert_threshold: plan.threshold,
+    updated_by: currentUser.id
+  }, { onConflict: "area_key" });
+  if (error) {
+    console.warn(error);
+    toast("No se pudo guardar en Supabase; se conserva local");
+    return false;
+  }
+  return true;
+}
+
+async function saveBudgetRequestToCloud(request) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !budgetCloudReady) return null;
+  const { data, error } = await supabaseClient.from("budget_requests").insert({
+    period_key: request.period,
+    request_date: request.date,
+    area_key: request.area,
+    concept: request.concept,
+    provider: request.provider,
+    amount: request.amount,
+    status: request.status,
+    priority: request.priority,
+    request_type: request.type,
+    created_by: currentUser.id
+  }).select("id").single();
+  if (error) {
+    console.warn(error);
+    toast("No se pudo guardar en Supabase; se conserva local");
+    return null;
+  }
+  return data?.id || request.id;
 }
 
 function loadSchedules() {
@@ -633,7 +820,7 @@ async function saveClassSimulatorRows(rows) {
 async function deleteClassSimulatorRow(id) {
   const row = classScheduleSimulatorRows.find((item) => item.id === id);
   if (!row) return;
-  if (!confirm("Â¿Seguro que deseas eliminar esta clase del simulador?")) return;
+  if (!confirm("¿Seguro que deseas eliminar esta clase del simulador?")) return;
   classScheduleSimulatorRows = classScheduleSimulatorRows.filter((item) => item.id !== id);
   saveClassScheduleSimulatorLocal();
   if (supabaseClient && currentUser?.auth === "supabase") {
@@ -1411,12 +1598,12 @@ function parseStudentDatabaseCsv(text) {
   const headers = originalHeaders.map(headerKey);
   const columnFor = (aliases) => aliases.map(headerKey).map((alias) => headers.indexOf(alias)).find((index) => index >= 0);
   const columns = {
-    matricula: columnFor(["matricula", "matrÃ­cula"]),
-    genero: columnFor(["genero", "gÃ©nero", "sexo"]),
-    carrera: columnFor(["carrera", "programa", "programa academico", "programa acadÃ©mico"]),
+    matricula: columnFor(["matricula", "matrícula"]),
+    genero: columnFor(["genero", "género", "sexo"]),
+    carrera: columnFor(["carrera", "programa", "programa academico", "programa académico"]),
     campus: columnFor(["nombre campus", "campus"]),
-    periodoAcad: columnFor(["periodo acad", "periodo academico", "periodo acadÃ©mico"]),
-    programaDesc: columnFor(["desc programa acad", "desc programa acadÃ©mico", "programa academico", "programa acadÃ©mico"]),
+    periodoAcad: columnFor(["periodo acad", "periodo academico", "periodo académico"]),
+    programaDesc: columnFor(["desc programa acad", "desc programa académico", "programa academico", "programa académico"]),
     semestre: columnFor(["semestre"]),
     nivel: columnFor(["desc nivel acad alumno", "nivel", "nivel escolar", "grado escolar", "grado", "escolaridad"]),
     gradoEscolar: columnFor(["desc nivel acad alumno", "grado escolar", "grado", "nivel escolar"])
@@ -1617,7 +1804,7 @@ async function replaceStudentDatabaseFromCsv(file) {
     toast("Este perfil no tiene permiso para cargar la base de alumnos");
     return;
   }
-  if (!window.confirm("Esta carga sustituirÃ¡ la Base Maestra de alumnos actual. Â¿Deseas continuar?")) return;
+  if (!window.confirm("Esta carga sustituirá la Base Maestra de alumnos actual. ¿Deseas continuar?")) return;
   studentDatabaseImporting = true;
   render();
   try {
@@ -1736,8 +1923,8 @@ function planningValue(row, aliases) {
 }
 
 function getPlanningActivityId(row) {
-  const area = planningValue(row, ["Ãrea", "Area", "area"]);
-  const specificDate = planningValue(row, ["Fecha especÃ­fica", "Fecha especifica", "Fecha", "specificDate"]);
+  const area = planningValue(row, ["Área", "Area", "area"]);
+  const specificDate = planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]);
   const activity = planningValue(row, ["Actividad", "activity"]);
   const rawId = [
     "planeacion-semestral",
@@ -1749,13 +1936,13 @@ function getPlanningActivityId(row) {
 }
 
 function isVivenciaPlanningRow(row) {
-  return normalizeText(planningValue(row, ["Ãrea", "Area", "area"])) === "vivencia";
+  return normalizeText(planningValue(row, ["Área", "Area", "area"])) === "vivencia";
 }
 
 function buildVivenciaEventPayloadFromPlanningRow(row) {
   if (!isVivenciaPlanningRow(row)) return null;
   const eventName = String(planningValue(row, ["Actividad", "activity"]) || "").trim();
-  const eventDate = parseGymDate(planningValue(row, ["Fecha especÃ­fica", "Fecha especifica", "Fecha", "specificDate"]));
+  const eventDate = parseGymDate(planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]));
   if (!eventName || !eventDate) return null;
   const planningActivityId = getPlanningActivityId(row);
   return {
@@ -1885,7 +2072,7 @@ function vivenciaValue(row, aliases) {
 function vivenciaBoolean(value) {
   if (typeof value === "boolean") return value;
   const clean = normalizeText(value);
-  return ["si", "sÃ­", "true", "1", "x", "con cobro", "insignia"].includes(clean);
+  return ["si", "sí", "true", "1", "x", "con cobro", "insignia"].includes(clean);
 }
 
 function vivenciaOptionalNumber(value) {
@@ -1966,29 +2153,29 @@ function parseVivenciaEventRows(rows, sourceName) {
       return;
     }
     const hasFee = vivenciaBoolean(vivenciaValue(row, ["Evento con cobro", "Con cobro", "has_fee"]) || vivenciaCell(row, 9));
-    const feeRaw = vivenciaValue(row, ["Costo de inscripcion", "Costo de inscripciÃ³n", "Cuota", "fee_amount"]);
+    const feeRaw = vivenciaValue(row, ["Costo de inscripcion", "Costo de inscripción", "Cuota", "fee_amount"]);
     const feeAmount = vivenciaOptionalNumber(feeRaw || vivenciaCell(row, 10));
     if (hasFee && feeAmount === null) warnings.push({ row: rowNumber, message: "Evento con cobro sin costo valido; se guardara en 0" });
-    const goalRaw = vivenciaValue(row, ["Meta de captacion", "Meta de captaciÃ³n", "Meta de captaciÃ³n (nÃºmero de estudiantes)", "Meta", "participation_goal"]);
+    const goalRaw = vivenciaValue(row, ["Meta de captacion", "Meta de captación", "Meta de captación (número de estudiantes)", "Meta", "participation_goal"]);
     const goal = vivenciaOptionalNumber(goalRaw || vivenciaCell(row, 8));
     if (String(goalRaw || "").trim() && goal === null) warnings.push({ row: rowNumber, message: "Meta invalida; se guardara vacia" });
     const result = {
       campus,
       event_name: eventName,
       discipline: String(vivenciaValue(row, ["Disciplina deportiva", "Disciplina", "discipline"]) || vivenciaCell(row, 3) || "").trim() || null,
-      classification: String(vivenciaValue(row, ["Clasificacion", "ClasificaciÃ³n", "classification"]) || "").trim() || null,
+      classification: String(vivenciaValue(row, ["Clasificacion", "Clasificación", "classification"]) || "").trim() || null,
       event_date: eventDate,
       end_date: endDate || null,
       branch: String(vivenciaValue(row, ["Rama", "branch"]) || vivenciaCell(row, 6) || "").trim() || null,
-      target_population: String(vivenciaValue(row, ["Poblacion que participa en el evento", "PoblaciÃ³n que participa en el evento", "Poblacion", "target_population"]) || "").trim() || null,
+      target_population: String(vivenciaValue(row, ["Poblacion que participa en el evento", "Población que participa en el evento", "Poblacion", "target_population"]) || "").trim() || null,
       participation_goal: goal === null ? null : Math.round(goal),
       has_fee: hasFee,
       fee_amount: hasFee ? (feeAmount ?? 0) : 0,
       responsible_name: String(vivenciaValue(row, ["Nombre del responsable", "Responsable", "responsible_name"]) || vivenciaCell(row, 11) || "").trim() || null,
-      description: String(vivenciaValue(row, ["Descripcion del evento", "DescripciÃ³n del evento", "Descripcion", "description"]) || "").trim() || null,
+      description: String(vivenciaValue(row, ["Descripcion del evento", "Descripción del evento", "Descripcion", "description"]) || "").trim() || null,
       is_signature_event: vivenciaBoolean(vivenciaValue(row, ["Evento insignia", "Es evento insignia", "is_signature_event"])),
       status: vivenciaStatus(vivenciaValue(row, ["Estado", "Estatus", "status"])),
-      reported_total_participants: vivenciaOptionalNumber(vivenciaValue(row, ["Numero total de participantes", "NÃºmero total de participantes", "Total participantes"])),
+      reported_total_participants: vivenciaOptionalNumber(vivenciaValue(row, ["Numero total de participantes", "Número total de participantes", "Total participantes"])),
       reported_men: vivenciaOptionalNumber(vivenciaValue(row, ["Hombres", "Masculino"])),
       reported_women: vivenciaOptionalNumber(vivenciaValue(row, ["Mujeres", "Femenino"])),
       source_name: sourceName,
@@ -2047,7 +2234,7 @@ function parseVivenciaParticipantRows(grid, fileName) {
     return { payload: [], warnings: [{ row: 0, message: "El archivo no contiene matriculas" }], omitted: 0 };
   }
   const firstRow = rows[0].map((cell) => headerKey(cell));
-  const matriculaAliases = ["matricula", "matrÃ­cula", "matricula alumno", "matricula participante", "alumno", "student_id"]
+  const matriculaAliases = ["matricula", "matrícula", "matricula alumno", "matricula participante", "alumno", "student_id"]
     .map((alias) => headerKey(alias));
   const matriculaColumn = firstRow.findIndex((header) => matriculaAliases.includes(header));
   const hasHeader = matriculaColumn >= 0;
@@ -2400,7 +2587,7 @@ function collaboratorFromCloud(row) {
     "Playeras Joma": row.playera_joma || "",
     "Talla pants": row.talla_pants || "",
     "correo institucional": row.institutional_email || "",
-    "Fecha cumpleaÃ±os": row.birthdate_label || "",
+    "Fecha cumpleaños": row.birthdate_label || "",
     Genero: row.genero || "",
     "Primeros auxilios": row.first_aid === null ? "" : String(Boolean(row.first_aid)),
     "Asistencia a gimnasio de colaboradores": row.gym_attendance ?? "",
@@ -2415,7 +2602,7 @@ function collaboratorFromCloud(row) {
 function collaboratorToCloud(row) {
   const baseKeys = new Set([
     "__id", "__photoPath", "__photoUrl", "Nomina", "Colaboradores", "Puesto", "Coordinador", "% de cursos",
-    "Playeras Joma", "Talla pants", "correo institucional", "Fecha cumpleaÃ±os",
+    "Playeras Joma", "Talla pants", "correo institucional", "Fecha cumpleaños",
     "Genero", "Primeros auxilios", "Asistencia a gimnasio de colaboradores",
     "Contacto de emergencia", "Numero 1", "Contacto de emergencia 2", "Numero 2"
   ]);
@@ -2430,7 +2617,7 @@ function collaboratorToCloud(row) {
     playera_joma: row["Playeras Joma"] || null,
     talla_pants: row["Talla pants"] || null,
     institutional_email: row["correo institucional"] || null,
-    birthdate_label: row["Fecha cumpleaÃ±os"] || null,
+    birthdate_label: row["Fecha cumpleaños"] || null,
     genero: row["Genero"] || null,
     first_aid: firstAidValue === "true" ? true : firstAidValue === "false" ? false : null,
     gym_attendance: row["Asistencia a gimnasio de colaboradores"] === "" ? null : numberFrom(row["Asistencia a gimnasio de colaboradores"]),
@@ -2507,7 +2694,7 @@ async function loadClassGradeSeedData() {
   if (classGradeSeedRows.length) return classGradeSeedRows;
   try {
     const response = await fetch(CLASS_GRADES_DATA_URL);
-    if (!response.ok) throw new Error("No se encontrÃ³ la base inicial de calificaciones");
+    if (!response.ok) throw new Error("No se encontró la base inicial de calificaciones");
     classGradeSeedRows = await response.json();
   } catch (error) {
     console.error(error);
@@ -2582,7 +2769,7 @@ async function importInitialClassGrades() {
   } catch (error) {
     console.error(error);
     classGradesAvailable = false;
-    toast(`No se pudo importar: ${supabaseErrorDetail(error) || "revisa el cÃ³digo SQL"}`);
+    toast(`No se pudo importar: ${supabaseErrorDetail(error) || "revisa el código SQL"}`);
   } finally {
     classGradesImporting = false;
     render();
@@ -2633,7 +2820,7 @@ function normalizeClassGrade(value) {
 async function updateClassGrade(recordKey, rawValue) {
   const grade = normalizeClassGrade(rawValue);
   if (grade === null) {
-    toast("Usa una calificaciÃ³n de 0 a 100, BAJA, NP o deja vacÃ­o");
+    toast("Usa una calificación de 0 a 100, BAJA, NP o deja vacío");
     render();
     return;
   }
@@ -2651,29 +2838,29 @@ async function updateClassGrade(recordKey, rawValue) {
     .upsert(classGradeToCloud(row), { onConflict: "record_key" });
   if (error) {
     row.grade = previous;
-    toast(`No se guardÃ³: ${supabaseErrorDetail(error) || "revisa permisos"}`);
+    toast(`No se guardó: ${supabaseErrorDetail(error) || "revisa permisos"}`);
     render();
     return;
   }
   if (!classGradesLoaded) classGrades = classGradeSeedRows.map((item) => ({ ...item }));
   classGradesLoaded = true;
-  addAudit("calificacion", `${row.matricula} Â· ${row.subject_name}: ${grade || "pendiente"}`);
+  addAudit("calificacion", `${row.matricula}  -  ${row.subject_name}: ${grade || "pendiente"}`);
   render();
-  toast("CalificaciÃ³n guardada");
+  toast("Calificación guardada");
 }
 
 async function changePhysicalAccessCode() {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !isLeadership()) {
-    toast("Necesitas entrar como DirecciÃ³n para cambiar el cÃ³digo");
+    toast("Necesitas entrar como Dirección para cambiar el código");
     return;
   }
   const input = $("#newPhysicalAccessCode");
   const newCode = String(input?.value || "").trim();
   if (newCode.length < 4 || newCode.length > 20) {
-    toast("El cÃ³digo debe tener entre 4 y 20 caracteres");
+    toast("El código debe tener entre 4 y 20 caracteres");
     return;
   }
-  if (!window.confirm("Â¿Cambiar el cÃ³digo general? El cÃ³digo anterior dejarÃ¡ de funcionar.")) return;
+  if (!window.confirm("¿Cambiar el código general? El código anterior dejará de funcionar.")) return;
   const button = $("#savePhysicalAccessCode");
   if (button) {
     button.disabled = true;
@@ -2686,18 +2873,18 @@ async function changePhysicalAccessCode() {
     console.error(error);
     if (button) {
       button.disabled = false;
-      button.textContent = "Cambiar cÃ³digo";
+      button.textContent = "Cambiar código";
     }
-    toast(`No se pudo cambiar el cÃ³digo: ${supabaseErrorDetail(error)}`);
+    toast(`No se pudo cambiar el código: ${supabaseErrorDetail(error)}`);
     return;
   }
-  addAudit("evaluaciones", "CÃ³digo general del formulario actualizado");
+  addAudit("evaluaciones", "Código general del formulario actualizado");
   if (input) input.value = "";
   if (button) {
     button.disabled = false;
-    button.textContent = "Cambiar cÃ³digo";
+    button.textContent = "Cambiar código";
   }
-  toast("CÃ³digo general actualizado");
+  toast("Código general actualizado");
 }
 
 async function loadCollaboratorPhotoUrls() {
@@ -2744,7 +2931,7 @@ async function saveCollaboratorColumnOrder(columns) {
     }, { onConflict: "id" });
   if (error) {
     console.error(error);
-    toast("Falta activar la configuraciÃ³n de columnas en Supabase");
+    toast("Falta activar la configuración de columnas en Supabase");
     return false;
   }
   collaboratorSettingsLoaded = true;
@@ -2755,17 +2942,17 @@ async function updateCollaboratorCell(rowId, column, value) {
   if (!supabaseClient || !canManageStructure()) return;
   const row = cloudCollaborators.find((item) => item.__id === rowId);
   if (!row) {
-    toast("No encontrÃ© el registro para actualizar");
+    toast("No encontré el registro para actualizar");
     return;
   }
   const nextValue = typeof value === "string" ? value.trim() : value;
   if (column === "Nomina" && !nextValue) {
-    toast("La nÃ³mina no puede quedar vacÃ­a");
+    toast("La nómina no puede quedar vacía");
     render();
     return;
   }
   if (column === "Colaboradores" && !nextValue) {
-    toast("El nombre no puede quedar vacÃ­o");
+    toast("El nombre no puede quedar vacío");
     render();
     return;
   }
@@ -2779,19 +2966,19 @@ async function updateCollaboratorCell(rowId, column, value) {
   if (error) {
     row[column] = previousValue;
     console.error(error);
-    toast(error.code === "23505" ? "Esa nÃ³mina ya existe" : "No se pudo guardar el cambio");
+    toast(error.code === "23505" ? "Esa nómina ya existe" : "No se pudo guardar el cambio");
     render();
     return;
   }
   addAudit("colaboradores", `${column} actualizado para ${payload.nomina}`);
   await loadSupabaseCollaborators();
   render();
-  toast("Cambio guardado en lÃ­nea");
+  toast("Cambio guardado en línea");
 }
 
 async function addCollaboratorRow() {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
-  const nomina = String(window.prompt("Escribe la nÃ³mina del nuevo profesor:") || "").trim().toUpperCase();
+  const nomina = String(window.prompt("Escribe la nómina del nuevo profesor:") || "").trim().toUpperCase();
   if (!nomina) return;
   const fullName = String(window.prompt("Escribe el nombre completo:") || "").trim();
   if (!fullName) {
@@ -2816,14 +3003,14 @@ async function addCollaboratorRow() {
   if (error) {
     console.error(error);
     const detail = supabaseErrorDetail(error);
-    toast(error.code === "23505" ? "Esa nÃ³mina ya existe" : `No se pudo agregar el profesor${detail ? `: ${detail}` : ""}`);
+    toast(error.code === "23505" ? "Esa nómina ya existe" : `No se pudo agregar el profesor${detail ? `: ${detail}` : ""}`);
     return;
   }
   collaboratorFilter = { coordinator: "todos", shirt: "todos", firstAid: "todos" };
   addAudit("colaboradores", `Alta de ${nomina} - ${fullName}`);
   await loadSupabaseCollaborators();
   render();
-  toast("Profesor agregado y grÃ¡ficas actualizadas");
+  toast("Profesor agregado y gráficas actualizadas");
 }
 
 async function addCollaboratorColumn() {
@@ -2882,10 +3069,10 @@ async function moveCollaboratorColumn(column, direction) {
 async function deleteCollaboratorColumn(column) {
   if (!canManageStructure()) return;
   if (["Nomina", "Colaboradores"].includes(column)) {
-    toast("NÃ³mina y colaborador son campos obligatorios");
+    toast("Nómina y colaborador son campos obligatorios");
     return;
   }
-  if (!window.confirm(`Â¿Quitar la columna "${column}" de la tabla?`)) return;
+  if (!window.confirm(`¿Quitar la columna "${column}" de la tabla?`)) return;
   const nextColumns = collaboratorColumns().filter((item) => item !== column);
   const isCustom = !BASE_COLLABORATOR_COLUMNS.includes(column);
   if (isCustom && cloudCollaborators.length) {
@@ -2913,7 +3100,7 @@ async function deleteCollaboratorRow(rowId) {
   if (!supabaseClient || !canManageStructure()) return;
   const row = cloudCollaborators.find((item) => item.__id === rowId);
   if (!row) return;
-  if (!window.confirm(`Â¿Eliminar a ${row.Colaboradores || rowId}? Esta acciÃ³n se guardarÃ¡ en la base.`)) return;
+  if (!window.confirm(`¿Eliminar a ${row.Colaboradores || rowId}? Esta acción se guardará en la base.`)) return;
   const { error } = await supabaseClient.from("collaborators").delete().eq("nomina", rowId);
   if (error) {
     console.error(error);
@@ -2926,7 +3113,7 @@ async function deleteCollaboratorRow(rowId) {
   addAudit("colaboradores", `Baja de ${rowId} - ${row.Colaboradores || ""}`);
   await loadSupabaseCollaborators();
   render();
-  toast("Registro eliminado y grÃ¡ficas actualizadas");
+  toast("Registro eliminado y gráficas actualizadas");
 }
 
 async function prepareCollaboratorPhoto(file) {
@@ -2957,7 +3144,7 @@ async function uploadCollaboratorPhoto() {
     return;
   }
   if (file.size > 12 * 1024 * 1024) {
-    toast("La imagen supera el lÃ­mite de 12 MB");
+    toast("La imagen supera el límite de 12 MB");
     return;
   }
   const row = cloudCollaborators.find((item) => item.__id === nomina);
@@ -2990,14 +3177,14 @@ async function uploadCollaboratorPhoto() {
     selectedPhotoNomina = "";
     await loadSupabaseCollaborators();
     render();
-    toast("FotografÃ­a guardada en Supabase");
+    toast("Fotografía guardada en Supabase");
   } catch (error) {
     console.error(error);
     const detail = supabaseErrorDetail(error);
-    toast(`No se pudo guardar la fotografÃ­a${detail ? `: ${detail}` : ""}`);
+    toast(`No se pudo guardar la fotografía${detail ? `: ${detail}` : ""}`);
     if (button) {
       button.disabled = false;
-      button.textContent = "Guardar fotografÃ­a";
+      button.textContent = "Guardar fotografía";
     }
   }
 }
@@ -3006,17 +3193,17 @@ async function removeCollaboratorPhoto() {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("colaboradores")) return;
   const nomina = $("#collaboratorPhotoNomina")?.value;
   const row = cloudCollaborators.find((item) => item.__id === nomina);
-  if (!row?.__photoPath || !window.confirm(`Â¿Quitar la fotografÃ­a de ${row.Colaboradores}?`)) return;
+  if (!row?.__photoPath || !window.confirm(`¿Quitar la fotografía de ${row.Colaboradores}?`)) return;
   const update = await supabaseClient.from("collaborators").update({ photo_path: null }).eq("nomina", nomina);
   if (update.error) {
-    toast("No se pudo quitar la fotografÃ­a");
+    toast("No se pudo quitar la fotografía");
     return;
   }
   await supabaseClient.storage.from("collaborator-photos").remove([row.__photoPath]);
   addAudit("colaboradores", `Foto eliminada para ${nomina}`);
   await loadSupabaseCollaborators();
   render();
-  toast("FotografÃ­a eliminada");
+  toast("Fotografía eliminada");
 }
 
 async function importCollaboratorsToCloud() {
@@ -3025,17 +3212,17 @@ async function importCollaboratorsToCloud() {
     .filter((row) => String(row.Nomina || "").trim() && String(row.Colaboradores || "").trim())
     .map((row) => collaboratorToCloud({ ...row, __id: row.Nomina }));
   if (!sourceRows.length) {
-    toast("No encontrÃ© registros para importar");
+    toast("No encontré registros para importar");
     return;
   }
-  if (!window.confirm(`Se importarÃ¡n ${sourceRows.length} profesores a la base central. Â¿Continuar?`)) return;
+  if (!window.confirm(`Se importarán ${sourceRows.length} profesores a la base central. ¿Continuar?`)) return;
   const { error } = await supabaseClient.from("collaborators").upsert(sourceRows, { onConflict: "nomina" });
   if (error) {
     console.error(error);
-    toast("No se pudo completar la importaciÃ³n");
+    toast("No se pudo completar la importación");
     return;
   }
-  addAudit("colaboradores", `ImportaciÃ³n inicial de ${sourceRows.length} registros`);
+  addAudit("colaboradores", `Importación inicial de ${sourceRows.length} registros`);
   await loadSupabaseCollaborators();
   render();
   toast(`${sourceRows.length} profesores guardados en Supabase`);
@@ -3087,7 +3274,8 @@ async function loadSupabaseDataBundle() {
     ["Calificaciones", loadClassGrades],
     ["Gimnasio", loadGymData],
     ["Simulador de clases", loadClassScheduleSimulatorCloud],
-    ["Vivencia", loadVivenciaEvents]
+    ["Vivencia", loadVivenciaEvents],
+    ["Presupuesto", loadBudgetData]
   ];
   const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
   results.forEach((result, index) => {
@@ -3337,7 +3525,7 @@ function knownCollaboratorColumns() {
   collaboratorRows().forEach((row) => {
     Object.keys(row).forEach((key) => {
       if (!BASE_COLLABORATOR_COLUMNS.includes(key) && !key.startsWith("__") &&
-          !["Fecha cumpleaÃ±os", "Asistencia a gimnasio de colaboradores", "Contacto de emergencia", "Numero 1", "Contacto de emergencia 2", "Numero 2"].includes(key)) {
+          !["Fecha cumpleaños", "Asistencia a gimnasio de colaboradores", "Contacto de emergencia", "Numero 1", "Contacto de emergencia 2", "Numero 2"].includes(key)) {
         custom.add(key);
       }
     });
@@ -3374,7 +3562,7 @@ function collaboratorEditorControl(row, column, editable) {
   }
   if (column === "Primeros auxilios") {
     const normalized = String(value).toLowerCase() === "true" ? "true" : String(value).toLowerCase() === "false" ? "false" : "";
-    return `<select ${common}><option value="" ${!normalized ? "selected" : ""}>Sin dato</option><option value="true" ${normalized === "true" ? "selected" : ""}>SÃ­</option><option value="false" ${normalized === "false" ? "selected" : ""}>No</option></select>`;
+    return `<select ${common}><option value="" ${!normalized ? "selected" : ""}>Sin dato</option><option value="true" ${normalized === "true" ? "selected" : ""}>Sí</option><option value="false" ${normalized === "false" ? "selected" : ""}>No</option></select>`;
   }
   const type = column === "% de cursos" ? "number" : "text";
   return `<input ${common} type="${type}" ${type === "number" ? 'min="0" max="100" step="1"' : ""} value="${escapeHtml(value)}" />`;
@@ -3427,7 +3615,7 @@ function collaboratorAvatar(row, editable) {
   return `
     <button class="collaborator-avatar ${row.__photoUrl ? "has-photo" : ""}" type="button"
       data-photo-row="${escapeHtml(row.__id || row.Nomina)}" ${editable ? "" : "disabled"}
-      title="${editable ? "Cargar o cambiar fotografÃ­a" : "FotografÃ­a del colaborador"}">
+      title="${editable ? "Cargar o cambiar fotografía" : "Fotografía del colaborador"}">
       ${label}
     </button>
   `;
@@ -3439,7 +3627,7 @@ function renderCollaboratorPhotoUploader(rows, editable) {
   if (!selected) return "";
   selectedPhotoNomina = selected.__id;
   return `
-    <section class="photo-uploader-panel" aria-label="Cargar fotografÃ­a de colaborador">
+    <section class="photo-uploader-panel" aria-label="Cargar fotografía de colaborador">
       <div class="photo-uploader-preview">
         ${selected.__photoUrl
           ? `<img src="${escapeHtml(selected.__photoUrl)}" alt="Foto actual de ${escapeHtml(selected.Colaboradores)}" />`
@@ -3449,17 +3637,17 @@ function renderCollaboratorPhotoUploader(rows, editable) {
         <label>
           Profesor
           <select id="collaboratorPhotoNomina">
-            ${rows.map((row) => `<option value="${escapeHtml(row.__id)}" ${row.__id === selected.__id ? "selected" : ""}>${escapeHtml(row.Colaboradores)} Â· ${escapeHtml(row.Nomina)}</option>`).join("")}
+            ${rows.map((row) => `<option value="${escapeHtml(row.__id)}" ${row.__id === selected.__id ? "selected" : ""}>${escapeHtml(row.Colaboradores)}  -  ${escapeHtml(row.Nomina)}</option>`).join("")}
           </select>
         </label>
         <label>
           Imagen
           <input id="collaboratorPhotoFile" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" />
         </label>
-        <p>La imagen se optimiza automÃ¡ticamente y se guarda en el espacio privado de Supabase.</p>
+        <p>La imagen se optimiza automáticamente y se guarda en el espacio privado de Supabase.</p>
       </div>
       <div class="photo-uploader-actions">
-        <button class="primary-btn" id="saveCollaboratorPhoto" type="button">Guardar fotografÃ­a</button>
+        <button class="primary-btn" id="saveCollaboratorPhoto" type="button">Guardar fotografía</button>
         ${selected.__photoPath ? `<button class="ghost-btn danger-text" id="removeCollaboratorPhoto" type="button">Quitar foto</button>` : ""}
         <button class="ghost-btn" id="closeCollaboratorPhotoUploader" type="button">Cerrar</button>
       </div>
@@ -3475,9 +3663,9 @@ function collaboratorColumnHeader(column, index, columns, editable) {
       <div class="column-heading">
         <span>${escapeHtml(column)}</span>
         <div class="column-actions">
-          <button type="button" data-move-column="${escapeHtml(column)}" data-direction="-1" ${index === 0 ? "disabled" : ""} title="Mover a la izquierda" aria-label="Mover ${escapeHtml(column)} a la izquierda">â†</button>
-          <button type="button" data-move-column="${escapeHtml(column)}" data-direction="1" ${index === columns.length - 1 ? "disabled" : ""} title="Mover a la derecha" aria-label="Mover ${escapeHtml(column)} a la derecha">â†’</button>
-          <button type="button" class="column-delete" data-delete-column="${escapeHtml(column)}" ${protectedColumn ? "disabled" : ""} title="${protectedColumn ? "Campo obligatorio" : "Eliminar columna"}" aria-label="Eliminar columna ${escapeHtml(column)}">Ã—</button>
+          <button type="button" data-move-column="${escapeHtml(column)}" data-direction="-1" ${index === 0 ? "disabled" : ""} title="Mover a la izquierda" aria-label="Mover ${escapeHtml(column)} a la izquierda"><</button>
+          <button type="button" data-move-column="${escapeHtml(column)}" data-direction="1" ${index === columns.length - 1 ? "disabled" : ""} title="Mover a la derecha" aria-label="Mover ${escapeHtml(column)} a la derecha">></button>
+          <button type="button" class="column-delete" data-delete-column="${escapeHtml(column)}" ${protectedColumn ? "disabled" : ""} title="${protectedColumn ? "Campo obligatorio" : "Eliminar columna"}" aria-label="Eliminar columna ${escapeHtml(column)}">x</button>
         </div>
       </div>
     </th>
@@ -3485,7 +3673,7 @@ function collaboratorColumnHeader(column, index, columns, editable) {
 }
 
 function genderLabel(row) {
-  const value = String(row["Genero"] || row["GÃ©nero"] || "").trim().toLowerCase();
+  const value = String(row["Genero"] || row["Género"] || "").trim().toLowerCase();
   if (value.startsWith("muj")) return "Mujer";
   if (value.startsWith("hom")) return "Hombre";
   return "Sin dato";
@@ -3536,7 +3724,7 @@ function renderGenderBars(rows, palette = "shirt") {
 
 function genderLegend(palette = "shirt") {
   return `
-    <div class="gender-legend ${palette}-palette" aria-label="Leyenda por gÃ©nero">
+    <div class="gender-legend ${palette}-palette" aria-label="Leyenda por género">
       <span><i class="legend-dot women"></i>Mujeres</span>
       <span><i class="legend-dot men"></i>Hombres</span>
       <span><i class="legend-dot unknown"></i>Sin dato</span>
@@ -3682,17 +3870,17 @@ function physicalTestStats(rows, testKey) {
 
 function physicalResultDisplay(row, testKey) {
   const result = physicalResult(row, testKey);
-  if (!result) return "â€”";
+  if (!result) return "-";
   if (result.numeric_value !== null && result.numeric_value !== undefined && result.numeric_value !== "") {
     return `${Number(result.numeric_value).toLocaleString("es-MX", { maximumFractionDigits: 2 })}`;
   }
   if (result.raw_value) return result.raw_value;
   return {
-    lesion: "LesiÃ³n",
-    contraindicacion: "ContraindicaciÃ³n",
+    lesion: "Lesión",
+    contraindicacion: "Contraindicación",
     otro: "Otro motivo",
     no_realizada: "No realizada"
-  }[result.result_status] || "â€”";
+  }[result.result_status] || "-";
 }
 
 function physicalTimeline(rows, testKey) {
@@ -3730,7 +3918,7 @@ function physicalNumericValue(result) {
     if (Number.isFinite(directValue)) return directValue;
   }
   const raw = String(result.raw_value || "").trim();
-  if (!raw || /^(na|n\/a|no aplica|lesion|lesionada|lesionado|contraindicacion|contraindicaciÃ³n)$/i.test(raw)) return null;
+  if (!raw || /^(na|n\/a|no aplica|lesion|lesionada|lesionado|contraindicacion|contraindicación)$/i.test(raw)) return null;
   const match = raw.replace(",", ".").match(/-?\d+(?:\.\d+)?/);
   if (!match) return null;
   const value = Number(match[0]);
@@ -3752,7 +3940,7 @@ function physicalHallGenderMatches(row, collaboratorIndex = collaboratorPhotoInd
 
 function physicalHallYear(row) {
   const date = row.evaluated_at ? new Date(row.evaluated_at) : null;
-  return date && !Number.isNaN(date.getTime()) ? String(date.getFullYear()) : "Sin aÃ±o";
+  return date && !Number.isNaN(date.getTime()) ? String(date.getFullYear()) : "Sin año";
 }
 
 function physicalHallDaysSince(row) {
@@ -3841,15 +4029,15 @@ function renderPhysicalHallOfFame() {
   const cards = physicalHallCards();
   const selectedTop = cards.find((item) => item.id === physicalHallOfFameTopTest);
   return `
-    <section class="physical-hof-panel physical-hof-view" aria-label="SalÃ³n de la Fama de Evaluaciones FÃ­sicas">
+    <section class="physical-hof-panel physical-hof-view" aria-label="Salón de la Fama de Evaluaciones Físicas">
       <div class="physical-hof-heading">
         <div>
           <p class="eyebrow">WellSync Records</p>
-          <h3>ðŸ† SalÃ³n de la Fama</h3>
-          <p class="hero-copy">Los mejores resultados histÃ³ricos de WellSync</p>
+          <h3>Top Salón de la Fama</h3>
+          <p class="hero-copy">Los mejores resultados históricos de WellSync</p>
         </div>
         <div class="physical-hof-header-actions">
-          <div class="physical-hof-segmented" aria-label="Filtro visual de gÃ©nero">
+          <div class="physical-hof-segmented" aria-label="Filtro visual de género">
             ${[
               ["todos", "Todos"],
               ["mujeres", "Mujeres"],
@@ -3860,7 +4048,7 @@ function renderPhysicalHallOfFame() {
               </button>
             `).join("")}
           </div>
-          <button class="ghost-btn physical-hof-back" id="closePhysicalHallOfFame" type="button">Volver a Evaluaciones FÃ­sicas</button>
+          <button class="ghost-btn physical-hof-back" id="closePhysicalHallOfFame" type="button">Volver a Evaluaciones Físicas</button>
         </div>
       </div>
       <div class="physical-hof-grid">
@@ -3878,14 +4066,14 @@ function renderPhysicalHallOfFame() {
             <div class="physical-hof-leader-row">
               ${physicalHallAvatar(leader)}
               <div class="physical-hof-record-meta">
-                <span class="physical-hof-medal">ðŸ¥‡</span>
+                <span class="physical-hof-medal">#1</span>
                 <strong class="physical-hof-leader">${leader ? escapeHtml(leader.collaborator) : "Sin datos reales"}</strong>
               </div>
             </div>
             <span class="physical-hof-result">${leader ? escapeHtml(leader.result) : "Pendiente"}</span>
-            <span class="physical-hof-year">${leader ? escapeHtml(leader.year) : "Sin aÃ±o"}</span>
-            <p class="physical-hof-days">${leader?.days !== null && leader?.days !== undefined ? `ðŸ”¥ ${leader.days} dÃ­as sin ser superada` : "Sin fecha para calcular dÃ­as"}</p>
-            <button class="ghost-btn compact-action" type="button" data-physical-hof-top="${escapeHtml(item.id)}">Top 5 â†’</button>
+            <span class="physical-hof-year">${leader ? escapeHtml(leader.year) : "Sin año"}</span>
+            <p class="physical-hof-days">${leader?.days !== null && leader?.days !== undefined ? ` ${leader.days} días sin ser superada` : "Sin fecha para calcular días"}</p>
+            <button class="ghost-btn compact-action" type="button" data-physical-hof-top="${escapeHtml(item.id)}">Top 5 ></button>
           </article>
         `;
         }).join("")}
@@ -3910,7 +4098,7 @@ function renderPhysicalHallOfFameModal(test) {
         <div class="table-wrap physical-hof-table-wrap">
           <table class="physical-hof-table">
             <thead>
-              <tr><th>PosiciÃ³n</th><th>Colaborador</th><th>Resultado</th><th>AÃ±o</th></tr>
+              <tr><th>Posición</th><th>Colaborador</th><th>Resultado</th><th>Año</th></tr>
             </thead>
             <tbody>
               ${ranking.map((item, index) => `
@@ -3920,7 +4108,7 @@ function renderPhysicalHallOfFameModal(test) {
                   <td>${escapeHtml(item.result)}</td>
                   <td>${escapeHtml(item.year)}</td>
                 </tr>
-              `).join("") || '<tr><td colspan="4">No hay resultados vÃ¡lidos para esta categorÃ­a.</td></tr>'}
+              `).join("") || '<tr><td colspan="4">No hay resultados válidos para esta categoría.</td></tr>'}
             </tbody>
           </table>
         </div>
@@ -3954,19 +4142,19 @@ function renderPhysicalEvaluationsDashboard() {
   const timeline = physicalTimeline(rows, selectedTest);
   const timelineMax = Math.max(...timeline.map((item) => item.average), 1);
   const noData = !physicalEvaluationsLoaded
-    ? `<div class="permission-strip">Activa el esquema de Evaluaciones FÃ­sicas en Supabase para mostrar informaciÃ³n real.</div>`
+    ? `<div class="permission-strip">Activa el esquema de Evaluaciones Físicas en Supabase para mostrar información real.</div>`
     : "";
   const dashboardHeader = `
     ${noData}
     <div class="physical-dashboard-actions">
       <div>
         <p class="eyebrow">WellSync</p>
-        <h3>Evaluaciones fÃ­sicas de colaboradores</h3>
-        <p class="hero-copy">Las capturas nuevas se guardan en Supabase; los histÃ³ricos incompletos permanecen identificados como pendientes.</p>
+        <h3>Evaluaciones físicas de colaboradores</h3>
+        <p class="hero-copy">Las capturas nuevas se guardan en Supabase; los históricos incompletos permanecen identificados como pendientes.</p>
       </div>
       <div class="table-actions">
-        <a class="primary-btn physical-public-link" href="./evaluaciones-fisicas.html" target="_blank" rel="noopener">Abrir formulario pÃºblico</a>
-        <button class="ghost-btn physical-hof-open" id="openPhysicalHallOfFame" type="button">ðŸ† SalÃ³n de la Fama</button>
+        <a class="primary-btn physical-public-link" href="./evaluaciones-fisicas.html" target="_blank" rel="noopener">Abrir formulario público</a>
+        <button class="ghost-btn physical-hof-open" id="openPhysicalHallOfFame" type="button">Top Salón de la Fama</button>
         <button class="ghost-btn" id="refreshPhysicalEvaluations" type="button">Actualizar datos</button>
       </div>
     </div>
@@ -4004,20 +4192,20 @@ function renderPhysicalEvaluationsDashboard() {
           ${collaboratorOptions.map(([value, label]) => `<option value="${escapeHtml(value)}" ${physicalEvaluationFilter.collaborator === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
         </select>
       </label>
-      <label>GÃ©nero
+      <label>Género
         <select class="physical-filter" data-filter="gender">
           <option value="todos">Todos</option>
           ${physicalFilterOptions("gender").map((value) => `<option value="${escapeHtml(value)}" ${physicalEvaluationFilter.gender === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
         </select>
       </label>
-      <label>ClasificaciÃ³n
+      <label>Clasificación
         <select class="physical-filter" data-filter="classification">
           <option value="todos">Todas</option>
           <option value="clasificado" ${physicalEvaluationFilter.classification === "clasificado" ? "selected" : ""}>Clasificadas</option>
           <option value="pendiente" ${physicalEvaluationFilter.classification === "pendiente" ? "selected" : ""}>Pendientes</option>
         </select>
       </label>
-      <label>Prueba para evoluciÃ³n
+      <label>Prueba para evolución
         <select class="physical-filter" data-filter="test">
           ${Object.entries(PHYSICAL_TEST_LABELS).map(([value, label]) => `<option value="${value}" ${selectedTest === value ? "selected" : ""}>${label}</option>`).join("")}
         </select>
@@ -4025,14 +4213,14 @@ function renderPhysicalEvaluationsDashboard() {
     </div>
     <div class="kpi-grid physical-kpi-grid">
       <div class="kpi"><span>Evaluaciones</span><strong>${rows.length}</strong><em>registros filtrados</em></div>
-      <div class="kpi"><span>Colaboradores Ãºnicos</span><strong>${unique}</strong><em>por nÃ³mina o nombre</em></div>
-      <div class="kpi"><span>Iniciales / finales</span><strong>${initial} / ${final}</strong><em>comparaciÃ³n disponible</em></div>
-      <div class="kpi"><span>Pendientes</span><strong>${pending}</strong><em>histÃ³ricos por clasificar</em></div>
+      <div class="kpi"><span>Colaboradores únicos</span><strong>${unique}</strong><em>por nómina o nombre</em></div>
+      <div class="kpi"><span>Iniciales / finales</span><strong>${initial} / ${final}</strong><em>comparación disponible</em></div>
+      <div class="kpi"><span>Pendientes</span><strong>${pending}</strong><em>históricos por clasificar</em></div>
     </div>
     <div class="charts-grid">
       <div class="chart-panel">
-        <h3>Resultados histÃ³ricos disponibles</h3>
-        <p class="hero-copy">Cantidad de resultados numÃ©ricos conservados por prueba.</p>
+        <h3>Resultados históricos disponibles</h3>
+        <p class="hero-copy">Cantidad de resultados numéricos conservados por prueba.</p>
         ${comparisonRows.map((row) => `
           <div class="bar-row">
             <span>${PHYSICAL_TEST_LABELS[row.testKey]}</span>
@@ -4042,7 +4230,7 @@ function renderPhysicalEvaluationsDashboard() {
         `).join("")}
       </div>
       <div class="chart-panel">
-        <h3>EvoluciÃ³n: ${PHYSICAL_TEST_LABELS[selectedTest]}</h3>
+        <h3>Evolución: ${PHYSICAL_TEST_LABELS[selectedTest]}</h3>
         <p class="hero-copy">Promedio por fecha en ${PHYSICAL_TEST_UNITS[selectedTest]}.</p>
         <div class="physical-timeline">
           ${timeline.map((item) => `
@@ -4051,20 +4239,20 @@ function renderPhysicalEvaluationsDashboard() {
               <div class="bar-track"><div class="bar-fill physical-stage-bar" style="width:${Math.max(3, Math.round(item.average / timelineMax * 100))}%"></div></div>
               <strong>${item.average.toFixed(1)}</strong>
             </div>
-          `).join("") || "<p class='hero-copy'>Esta prueba todavÃ­a no tiene valores numÃ©ricos clasificables.</p>"}
+          `).join("") || "<p class='hero-copy'>Esta prueba todavía no tiene valores numéricos clasificables.</p>"}
         </div>
       </div>
     </div>
     <div class="table-wrap physical-comparison-table">
       <table>
-        <thead><tr><th>Prueba</th><th>Promedio histÃ³rico</th><th>MÃ­nimo</th><th>MÃ¡ximo</th><th>Resultados</th><th>Inicial</th><th>Final</th></tr></thead>
+        <thead><tr><th>Prueba</th><th>Promedio histórico</th><th>Mínimo</th><th>Máximo</th><th>Resultados</th><th>Inicial</th><th>Final</th></tr></thead>
         <tbody>
           ${comparisonRows.map((row) => `
             <tr>
               <td>${PHYSICAL_TEST_LABELS[row.testKey]} <small>${PHYSICAL_TEST_UNITS[row.testKey]}</small></td>
               <td><strong>${row.stats.average === null ? "Sin datos" : row.stats.average.toFixed(1)}</strong></td>
-              <td>${row.stats.min === null ? "â€”" : row.stats.min.toFixed(1)}</td>
-              <td>${row.stats.max === null ? "â€”" : row.stats.max.toFixed(1)}</td>
+              <td>${row.stats.min === null ? "-" : row.stats.min.toFixed(1)}</td>
+              <td>${row.stats.max === null ? "-" : row.stats.max.toFixed(1)}</td>
               <td>${row.stats.count}</td>
               <td>${row.initialAverage === null ? "Pendiente" : row.initialAverage.toFixed(1)}</td>
               <td>${row.finalAverage === null ? "Pendiente" : row.finalAverage.toFixed(1)}</td>
@@ -4076,8 +4264,8 @@ function renderPhysicalEvaluationsDashboard() {
     <div class="physical-dashboard-actions physical-history-heading">
       <div>
         <p class="eyebrow">Historial detallado</p>
-        <h3>Resultados de cada evaluaciÃ³n</h3>
-        <p class="hero-copy">Los valores de remo histÃ³ricos se muestran tal como estaban escritos porque mezclaban calorÃ­as y metros.</p>
+        <h3>Resultados de cada evaluación</h3>
+        <p class="hero-copy">Los valores de remo históricos se muestran tal como estaban escritos porque mezclaban calorías y metros.</p>
       </div>
       <button class="ghost-btn" id="exportPhysicalEvaluations" type="button">Exportar Excel</button>
     </div>
@@ -4107,14 +4295,14 @@ function renderPhysicalEvaluationsDashboard() {
     <section class="physical-code-panel">
       <div>
         <p class="eyebrow">Acceso del formulario</p>
-        <h3>CÃ³digo general para profesores</h3>
-        <p class="hero-copy">Es el mismo cÃ³digo para todos. Al cambiarlo, el anterior deja de funcionar inmediatamente.</p>
+        <h3>Código general para profesores</h3>
+        <p class="hero-copy">Es el mismo código para todos. Al cambiarlo, el anterior deja de funcionar inmediatamente.</p>
       </div>
       <div class="physical-code-controls">
-        <label>Nuevo cÃ³digo
+        <label>Nuevo código
           <input id="newPhysicalAccessCode" type="password" minlength="4" maxlength="20" autocomplete="new-password" placeholder="Entre 4 y 20 caracteres" />
         </label>
-        <button class="primary-btn" id="savePhysicalAccessCode" type="button">Cambiar cÃ³digo</button>
+        <button class="primary-btn" id="savePhysicalAccessCode" type="button">Cambiar código</button>
       </div>
     </section>
   `;
@@ -4196,9 +4384,9 @@ function renderLogin() {
             </div>
             <p class="eyebrow" style="color:#f0b323">Piloto web</p>
             <h1>WellSync</h1>
-            <p>Entra con un perfil demo para validar permisos, captura por Ã¡rea y dashboards antes de liberar la plataforma.</p>
+            <p>Entra con un perfil demo para validar permisos, captura por área y dashboards antes de liberar la plataforma.</p>
           </div>
-          <p>Privacidad por diseÃ±o: solo matrÃ­cula, gÃ©nero, carrera, semestre y nivel escolar.</p>
+          <p>Privacidad por diseño: solo matrícula, género, carrera, semestre y nivel escolar.</p>
         </div>
         <form id="loginForm">
           <p class="eyebrow">${cloudStatus}</p>
@@ -4212,18 +4400,18 @@ function renderLogin() {
           <button class="primary-btn" type="button" id="supabaseLoginButton" ${supabaseClient ? "" : "disabled"}>Entrar con Supabase</button>
           <p class="login-feedback" id="supabaseLoginFeedback">${supabaseClient ? "Listo para validar tu cuenta Supabase." : "Supabase no esta disponible en esta publicacion."}</p>
           <div class="login-divider">Modo demo</div>
-          <p class="eyebrow">SesiÃ³n de prueba</p>
+          <p class="eyebrow">Sesión de prueba</p>
           <h2>Selecciona un perfil</h2>
           <label>Perfil
             <select name="userId">
               ${demoUsers.map((user) => `<option value="${user.id}">${user.name}</option>`).join("")}
             </select>
           </label>
-          <label>CÃ³digo de acceso
+          <label>Código de acceso
             <input name="accessCode" value="demo" />
           </label>
           <button class="primary-btn" type="button" id="loginButton">Entrar al prototipo</button>
-          <p class="hero-copy">CÃ³digo temporal: demo. En producciÃ³n esto se reemplaza por Supabase Auth o SSO institucional.</p>
+          <p class="hero-copy">Código temporal: demo. En producción esto se reemplaza por Supabase Auth o SSO institucional.</p>
         </form>
       </section>
     </div>
@@ -4232,7 +4420,7 @@ function renderLogin() {
   $("#loginButton").addEventListener("click", () => {
     const form = new FormData($("#loginForm"));
     if (String(form.get("accessCode") || "").trim().toLowerCase() !== "demo") {
-      toast("CÃ³digo incorrecto para el prototipo");
+      toast("Código incorrecto para el prototipo");
       return;
     }
     const user = demoUsers.find((item) => item.id === form.get("userId")) || demoUsers[0];
@@ -4241,7 +4429,7 @@ function renderLogin() {
     activeArea = user.role === "direccion" ? "general" : user.area;
     activeView = "dashboard";
     render();
-    toast(`SesiÃ³n iniciada: ${user.name}`);
+    toast(`Sesión iniciada: ${user.name}`);
   });
 }
 
@@ -4263,10 +4451,10 @@ function renderCareers() {
 function renderExecutiveKpis() {
   const metrics = metricSet(allParticipationRows());
   $("#executiveKpis").innerHTML = [
-    ["Alumnos Ãºnicos", metrics.unique, "+12% vs periodo ant."],
+    ["Alumnos únicos", metrics.unique, "+12% vs periodo ant."],
     ["Registros", metrics.registers, `${cloudCaptures.length} nube / ${localCaptures.length} local`],
-    ["RetenciÃ³n", `${metrics.retention}%`, "sin datos sensibles"],
-    ["Ãreas activas", areas.filter((area) => !["general", "configuracion"].includes(area.id)).length, "mÃ³dulos operativos"]
+    ["Retención", `${metrics.retention}%`, "sin datos sensibles"],
+    ["Áreas activas", areas.filter((area) => !["general", "configuracion"].includes(area.id)).length, "módulos operativos"]
   ].map(([label, value, hint]) => `<div class="kpi"><span>${label}</span><strong>${value}</strong><em>${hint}</em></div>`).join("");
 }
 
@@ -4436,7 +4624,7 @@ function renderGymHeatmap() {
   const totalTimedVisits = gymAsistencias
     .filter((row) => gymFacilityMatches(row.sitio, gymDashboardFacility) && gymHeatmapHour(row.hora))
     .length;
-  const valueLabel = gymHeatmapMode === "average" ? "promedio por dÃ­a equivalente" : "visitas acumuladas";
+  const valueLabel = gymHeatmapMode === "average" ? "promedio por día equivalente" : "visitas acumuladas";
   const modeLabel = gymHeatmapMode === "average" ? "Promedio activo" : "Total acumulado activo";
   const formatHeatmapValue = (value) => gymHeatmapMode === "average"
     ? value.toLocaleString("es-MX", { maximumFractionDigits: 1 })
@@ -4460,7 +4648,7 @@ function renderGymHeatmap() {
       <span><i class="low"></i>Baja</span>
       <span><i class="medium"></i>Media</span>
       <span><i class="high"></i>Alta</span>
-      <strong>${totalTimedVisits.toLocaleString("es-MX")} visitas con hora Â· ${modeLabel}</strong>
+      <strong>${totalTimedVisits.toLocaleString("es-MX")} visitas con hora  -  ${modeLabel}</strong>
     </div>
     <div class="gym-heatmap" role="table" aria-label="Mapa de calor de ocupacion por dia y hora">
       <div class="gym-heatmap-cell gym-heatmap-head">Hora</div>
@@ -4509,7 +4697,7 @@ function renderGymDashboard() {
   const emptyMessage = !gymDataLoaded
     ? `<p class="form-message">Activa las tablas de Gimnasio en Supabase para comenzar.</p>`
     : !gymAttendanceRecords.length
-      ? `<p class="form-message">AÃºn no hay asistencias. Captura el primer registro para alimentar las grÃ¡ficas.</p>`
+      ? `<p class="form-message">Aún no hay asistencias. Captura el primer registro para alimentar las gráficas.</p>`
       : "";
   return `
     <div class="gym-dashboard">
@@ -4566,24 +4754,24 @@ function renderGymAttendanceRegistration() {
         <form id="gymAttendanceForm">
           <label>Semana<input name="week_number" type="number" min="1" value="${gymLatestWeek()}" required /></label>
           <label>Fecha<input id="gymAttendanceDate" name="attendance_date" type="date" value="${today}" required /></label>
-          <label>DÃ­a<input id="gymAttendanceDay" name="day_of_week" value="${gymDayFromDate(today)}" readonly required /></label>
-          <label>InstalaciÃ³n
+          <label>Día<input id="gymAttendanceDay" name="day_of_week" value="${gymDayFromDate(today)}" readonly required /></label>
+          <label>Instalación
             <select name="facility" required><option>Wellness</option><option>EMIS</option></select>
           </label>
           <label>Cantidad de asistentes<input name="attendee_count" type="number" min="0" required /></label>
           <label class="wide-field">Observaciones<textarea name="notes" rows="3" placeholder="Opcional"></textarea></label>
           <button class="primary-btn wide-field" type="submit">Guardar asistencia</button>
         </form>
-        <p class="form-message">Respaldo manual. Si ya existe CSV para la misma fecha e instalaciÃ³n, el dashboard usa el CSV y omite este registro.</p>
+        <p class="form-message">Respaldo manual. Si ya existe CSV para la misma fecha e instalación, el dashboard usa el CSV y omite este registro.</p>
       </section>
       <section class="chart-panel">
         <div class="gym-chart-heading">
           <div><p class="eyebrow">Historial de cargas</p><h3>Registros manuales</h3></div>
           <strong>${manualRecords.length}</strong>
         </div>
-        <p class="form-message">Puedes eliminar una captura incorrecta. Las asistencias histÃ³ricas importadas permanecen protegidas.</p>
+        <p class="form-message">Puedes eliminar una captura incorrecta. Las asistencias históricas importadas permanecen protegidas.</p>
         <div class="table-wrap">
-          <table><thead><tr><th>Fecha</th><th>Semana</th><th>DÃ­a</th><th>InstalaciÃ³n</th><th>Asistentes</th><th>Observaciones</th><th>AcciÃ³n</th></tr></thead>
+          <table><thead><tr><th>Fecha</th><th>Semana</th><th>Día</th><th>Instalación</th><th>Asistentes</th><th>Observaciones</th><th>Acción</th></tr></thead>
           <tbody>${manualRecords.length ? manualRecords.map((row) => `
             <tr>
               <td>${escapeHtml(row.attendance_date)}</td>
@@ -4602,7 +4790,7 @@ function renderGymAttendanceRegistration() {
                 >Eliminar</button>
               </td>
             </tr>
-          `).join("") : `<tr><td colspan="7">Sin cargas manuales todavÃ­a.</td></tr>`}</tbody></table>
+          `).join("") : `<tr><td colspan="7">Sin cargas manuales todavía.</td></tr>`}</tbody></table>
         </div>
       </section>
     </div>
@@ -4619,14 +4807,14 @@ function safeGymStudentSnapshot(student) {
 }
 
 function renderGymStudentDetails(student) {
-  if (!student) return `<p class="form-message">Escribe una matrÃ­cula para consultar la Base Maestra.</p>`;
+  if (!student) return `<p class="form-message">Escribe una matrícula para consultar la Base Maestra.</p>`;
   const preferredKeys = ["Matricula", "Nombre Campus", "Desc Nivel Acad Alumno", "Desc Programa Acad", "Periodo acad", "Genero", "Semestre"];
   const entries = preferredKeys.filter((key) => student[key] !== undefined && student[key] !== null && student[key] !== "");
   return `
     <div class="gym-student-details">
       ${entries.map((key) => `<div><span>${escapeHtml(key)}</span><strong>${escapeHtml(student[key])}</strong></div>`).join("")}
     </div>
-    <button class="primary-btn" id="saveGymStudentRegistration" type="button">Registrar matrÃ­cula en Gimnasio</button>
+    <button class="primary-btn" id="saveGymStudentRegistration" type="button">Registrar matrícula en Gimnasio</button>
   `;
 }
 
@@ -4636,26 +4824,26 @@ function renderGymStudentRegistration() {
     <div class="gym-form-layout">
       <section class="form-panel">
         <p class="eyebrow">Base Maestra de Alumnos</p>
-        <h3>Registro de MatrÃ­culas</h3>
+        <h3>Registro de Matrículas</h3>
         <form id="gymStudentLookupForm" class="gym-lookup-form">
-          <label>MatrÃ­cula<input name="matricula" autocomplete="off" placeholder="A01234567" required /></label>
-          <button class="primary-btn" type="submit">Buscar matrÃ­cula</button>
+          <label>Matrícula<input name="matricula" autocomplete="off" placeholder="A01234567" required /></label>
+          <button class="primary-btn" type="submit">Buscar matrícula</button>
         </form>
         <div id="gymStudentLookupResult">${renderGymStudentDetails(gymMasterStudent)}</div>
       </section>
       <section class="chart-panel">
-        <div class="gym-chart-heading"><div><p class="eyebrow">Gimnasio</p><h3>MatrÃ­culas registradas</h3></div><strong>${gymStudentRegistrations.length}</strong></div>
+        <div class="gym-chart-heading"><div><p class="eyebrow">Gimnasio</p><h3>Matrículas registradas</h3></div><strong>${gymStudentRegistrations.length}</strong></div>
         <div class="gym-upload-actions">
           <input id="gymAttendanceCsv" type="file" accept=".csv,text/csv" hidden />
           <button class="primary-btn" id="uploadGymAttendanceCsv" type="button" ${gymAttendanceImporting ? "disabled" : ""}>${gymAttendanceImporting ? "Cargando archivo..." : "Cargar Archivo de Asistencias"}</button>
-          <span>${gymAsistencias.length.toLocaleString("es-MX")} asistencias histÃ³ricas</span>
+          <span>${gymAsistencias.length.toLocaleString("es-MX")} asistencias históricas</span>
         </div>
         <div class="table-wrap">
-          <table><thead><tr><th>MatrÃ­cula</th><th>Campus</th><th>Nivel</th><th>Fecha</th></tr></thead>
+          <table><thead><tr><th>Matrícula</th><th>Campus</th><th>Nivel</th><th>Fecha</th></tr></thead>
           <tbody>${rows.length ? rows.map((row) => {
             const snapshot = row.student_snapshot || {};
             return `<tr><td>${escapeHtml(row.matricula)}</td><td>${escapeHtml(snapshot["Nombre Campus"] || "")}</td><td>${escapeHtml(snapshot["Desc Nivel Acad Alumno"] || "")}</td><td>${escapeHtml(String(row.registered_at || "").slice(0, 10))}</td></tr>`;
-          }).join("") : `<tr><td colspan="4">Sin matrÃ­culas registradas todavÃ­a.</td></tr>`}</tbody></table>
+          }).join("") : `<tr><td colspan="4">Sin matrículas registradas todavía.</td></tr>`}</tbody></table>
         </div>
       </section>
     </div>
@@ -4668,6 +4856,7 @@ function renderDashboard(area) {
   if (area.id === "gimnasio") return renderGymDashboard();
   if (area.id === "clases") return renderClassesDashboard();
   if (area.id === "vivencia") return renderVivenciaDashboard();
+  if (area.id === "compras") return renderBudgetDashboard();
   const data = filteredStudents();
   const metrics = metricSet(data);
   const byArea = areas.filter(a => a.id !== "general").map(a => ({
@@ -4697,13 +4886,13 @@ function renderDashboard(area) {
       </article>
       <article>
         <span>CSV autorizado</span>
-        <strong>MatrÃ­cula + datos acadÃ©micos</strong>
-        <p>Columnas esperadas: matrÃ­cula, gÃ©nero, carrera, semestre y nivel o grado escolar.</p>
+        <strong>Matrícula + datos académicos</strong>
+        <p>Columnas esperadas: matrícula, género, carrera, semestre y nivel o grado escolar.</p>
       </article>
       <article>
         <span>Reemplazo total</span>
         <strong>Carga controlada</strong>
-        <p>Cada archivo sustituye la base anterior y alimenta mÃ³dulos que usan matrÃ­cula.</p>
+        <p>Cada archivo sustituye la base anterior y alimenta módulos que usan matrícula.</p>
         <input id="studentDatabaseCsv" type="file" accept=".csv,text/csv" hidden />
         <button class="primary-btn" id="uploadStudentDatabase" type="button" ${canUseAuthorizedUploads() && !studentDatabaseImporting ? "" : "disabled"}>${studentDatabaseImporting ? "Cargando..." : "Cargar Base de Datos de Alumnos"}</button>
       </article>
@@ -4717,16 +4906,16 @@ function renderDashboard(area) {
     <section class="ops-summary" aria-label="Resumen operativo">
       <article>
         <span>Gobierno de datos</span>
-        <strong>Datos mÃ­nimos</strong>
-        <p>Alumnos identificados por matrÃ­cula y segmentaciÃ³n acadÃ©mica permitida.</p>
+        <strong>Datos mínimos</strong>
+        <p>Alumnos identificados por matrícula y segmentación académica permitida.</p>
       </article>
       <article>
-        <span>AutomatizaciÃ³n</span>
+        <span>Automatización</span>
         <strong>Indicadores al guardar</strong>
-        <p>Registros, alumnos Ãºnicos, retenciÃ³n, participaciÃ³n y reportes se recalculan automÃ¡ticamente.</p>
+        <p>Registros, alumnos únicos, retención, participación y reportes se recalculan automáticamente.</p>
       </article>
       <article>
-        <span>Siguiente decisiÃ³n</span>
+        <span>Siguiente decisión</span>
         <strong>Base de datos</strong>
         <p>Conectar Supabase y activar permisos reales por coordinador.</p>
       </article>
@@ -4735,14 +4924,14 @@ function renderDashboard(area) {
     ${progressMarkup}
     ${alertsMarkup}
     <div class="kpi-grid">
-      <div class="kpi"><span>Alumnos Ãºnicos</span><strong>${metrics.unique}</strong><em>por matrÃ­cula</em></div>
+      <div class="kpi"><span>Alumnos únicos</span><strong>${metrics.unique}</strong><em>por matrícula</em></div>
       <div class="kpi"><span>Registros</span><strong>${metrics.registers}</strong><em>asistencias, eventos o inscripciones</em></div>
-      <div class="kpi"><span>Acreditados / activos</span><strong>${metrics.accredited}</strong><em>segÃºn Ã¡rea</em></div>
-      <div class="kpi"><span>RetenciÃ³n</span><strong>${metrics.retention}%</strong><em>bajas excluidas</em></div>
+      <div class="kpi"><span>Acreditados / activos</span><strong>${metrics.accredited}</strong><em>según área</em></div>
+      <div class="kpi"><span>Retención</span><strong>${metrics.retention}%</strong><em>bajas excluidas</em></div>
     </div>
     <div class="charts-grid">
       <div class="chart-panel">
-        <h3>ParticipaciÃ³n por Ã¡rea</h3>
+        <h3>Participación por área</h3>
         ${byArea.map((row) => `
           <div class="bar-row">
             <span>${row.name}</span>
@@ -4753,8 +4942,8 @@ function renderDashboard(area) {
       </div>
       <div class="chart-panel">
         <h3>Perfil academico</h3>
-        <div class="donut" data-label="${metrics.unique} Ãºnicos"></div>
-        <p class="hero-copy">SegmentaciÃ³n sugerida: gÃ©nero, carrera, semestre, nivel escolar, periodo, Ã¡rea, disciplina, evento y estatus.</p>
+        <div class="donut" data-label="${metrics.unique} únicos"></div>
+        <p class="hero-copy">Segmentación sugerida: género, carrera, semestre, nivel escolar, periodo, área, disciplina, evento y estatus.</p>
       </div>
       ${area.id === "general" ? `
         <div class="chart-panel career-participation-panel">
@@ -4772,18 +4961,468 @@ function renderDashboard(area) {
     <div class="module-grid">${moduleCards}</div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>MatrÃ­cula</th><th>GÃ©nero</th><th>Carrera</th><th>Semestre</th><th>Nivel</th><th>Ãrea</th><th>Registros</th></tr></thead>
+        <thead><tr><th>Matrícula</th><th>Género</th><th>Carrera</th><th>Semestre</th><th>Nivel</th><th>Área</th><th>Registros</th></tr></thead>
         <tbody>${data.slice(0, 14).map((s) => `<tr><td>${s.matricula}</td><td>${s.genero}</td><td>${s.carrera}</td><td>${s.semestre}</td><td>${s.nivel}</td><td>${labelArea(s.area)}</td><td>${s.registros}</td></tr>`).join("")}</tbody>
       </table>
     </div>
   `;
 }
 
+function money(value) {
+  return Number(value || 0).toLocaleString("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    maximumFractionDigits: 0
+  });
+}
+
+function isVisibleBudgetArea(areaKey) {
+  return BUDGET_VISIBLE_AREAS.some((area) => area.key === areaKey);
+}
+
+function budgetAreaDefinition(areaKey) {
+  return BUDGET_VISIBLE_AREAS.find((area) => area.key === areaKey);
+}
+
+function budgetAreaLabel(areaKey) {
+  return budgetAreaDefinition(areaKey)?.label || labelArea(areaKey);
+}
+
+function visibleBudgetAreaPlans() {
+  return BUDGET_VISIBLE_AREAS.map((definition) => (
+    budgetAreaPlans.find((row) => row.area === definition.key)
+    || normalizeBudgetAreaPlan({
+      area: definition.key,
+      assigned: 0,
+      owner: definition.owner,
+      threshold: 80
+    })
+  ));
+}
+
+function budgetAreaOptions() {
+  return visibleBudgetAreaPlans().map((row) => [row.area, budgetAreaLabel(row.area)]);
+}
+
+function filteredBudgetRequests() {
+  return budgetRequestRows.filter((row) => (
+    isVisibleBudgetArea(row.area)
+    && row.period === budgetFilters.period
+    && (budgetFilters.area === "todos" || row.area === budgetFilters.area)
+    && (budgetFilters.status === "todos" || row.status === budgetFilters.status)
+  ));
+}
+
+function filteredBudgetAreas() {
+  return visibleBudgetAreaPlans().filter((row) => budgetFilters.area === "todos" || row.area === budgetFilters.area);
+}
+
+function budgetAreaSummary(areaKey) {
+  const definition = budgetAreaDefinition(areaKey);
+  const plan = budgetAreaPlans.find((row) => row.area === areaKey) || {
+    assigned: 0,
+    threshold: 80,
+    owner: definition?.owner || ""
+  };
+  const rows = budgetRequestRows.filter((row) => row.period === budgetFilters.period && row.area === areaKey && row.status !== "rechazado");
+  const spent = rows.filter((row) => row.status === "ejercido").reduce((sum, row) => sum + row.amount, 0);
+  const committed = rows.filter((row) => ["autorizado", "comprometido", "pendiente"].includes(row.status)).reduce((sum, row) => sum + row.amount, 0);
+  const used = spent + committed;
+  const available = Math.max(0, plan.assigned - used);
+  const usage = plan.assigned ? Math.round((used / plan.assigned) * 100) : 0;
+  const tone = usage >= 95 ? "red" : usage >= plan.threshold ? "yellow" : "green";
+  return { ...plan, area: areaKey, rows, spent, committed, used, available, usage, tone };
+}
+
+function budgetStatusLabel(status) {
+  const labels = {
+    pendiente: "Pendiente",
+    autorizado: "Autorizado",
+    comprometido: "Comprometido",
+    ejercido: "Ejercido",
+    rechazado: "Rechazado"
+  };
+  return labels[status] || status;
+}
+
+function budgetToneLabel(tone) {
+  return tone === "green" ? "Óptimo" : tone === "yellow" ? "En riesgo" : "Crítico";
+}
+
+function budgetAreaIcon(areaKey) {
+  return budgetAreaDefinition(areaKey)?.icon || "wallet-cards";
+}
+
+function budgetKpiCard(icon, title, value, meta, tone = "blue") {
+  return `
+    <article class="kpi budget-kpi-card ${tone}">
+      <span class="budget-kpi-icon"><i data-lucide="${icon}" aria-hidden="true"></i></span>
+      <div>
+        <span>${title}</span>
+        <strong>${value}</strong>
+        <em>${meta}</em>
+      </div>
+    </article>
+  `;
+}
+
+async function saveBudgetAllocation(event) {
+  event.preventDefault();
+  if (!isLeadership()) {
+    toast("Solo Dirección/Admin puede modificar presupuesto asignado");
+    return;
+  }
+  const form = new FormData(event.currentTarget);
+  const area = String(form.get("area") || "").trim();
+  const assigned = Number(form.get("assigned") || 0);
+  const threshold = Number(form.get("threshold") || 80);
+  const owner = String(form.get("owner") || "").trim();
+  const current = budgetAreaPlans.find((row) => row.area === area);
+  const next = normalizeBudgetAreaPlan({
+    area,
+    assigned,
+    threshold,
+    owner: owner || current?.owner || "Responsable de área"
+  });
+  if (!next || !isVisibleBudgetArea(area)) {
+    toast("Selecciona un área válida");
+    return;
+  }
+  budgetAreaPlans = budgetAreaPlans.some((row) => row.area === area)
+    ? budgetAreaPlans.map((row) => row.area === area ? next : row)
+    : [...budgetAreaPlans, next];
+  const savedCloud = await saveBudgetAllocationToCloud(next);
+  if (!savedCloud) saveBudgetAreaPlans();
+  addAudit("presupuesto", `Presupuesto actualizado para ${budgetAreaLabel(area)}: ${money(assigned)}`);
+  if (savedCloud) await loadBudgetData();
+  render();
+  toast(savedCloud ? "Presupuesto actualizado en Supabase" : "Presupuesto actualizado localmente");
+}
+
+async function saveBudgetRequest(event) {
+  event.preventDefault();
+  if (!canEditArea("compras")) {
+    toast("Sin permiso para crear solicitudes");
+    return;
+  }
+  const form = new FormData(event.currentTarget);
+  const request = normalizeBudgetRequest({
+    id: `P-${String(Date.now()).slice(-6)}`,
+    period: form.get("period"),
+    date: form.get("date"),
+    area: form.get("area"),
+    concept: form.get("concept"),
+    provider: form.get("provider"),
+    amount: form.get("amount"),
+    status: form.get("status"),
+    priority: form.get("priority"),
+    type: form.get("type")
+  });
+  if (!request || !request.amount) {
+    toast("Completa concepto, área y monto");
+    return;
+  }
+  const cloudId = await saveBudgetRequestToCloud(request);
+  const savedRequest = cloudId ? { ...request, id: cloudId } : request;
+  budgetRequestRows = [savedRequest, ...budgetRequestRows];
+  if (!cloudId) saveBudgetRequestRows();
+  addAudit("presupuesto", `Solicitud creada: ${request.concept}`);
+  if (cloudId) await loadBudgetData();
+  render();
+  toast(cloudId ? "Solicitud creada en Supabase" : "Solicitud creada localmente");
+}
+
+async function updateBudgetRequestStatus(id, status) {
+  if (!canEditArea("compras")) {
+    toast("Sin permiso para cambiar estatus");
+    return;
+  }
+  if (supabaseClient && currentUser?.auth === "supabase" && budgetCloudReady) {
+    const { error } = await supabaseClient.from("budget_requests").update({ status }).eq("id", id);
+    if (error) {
+      console.warn(error);
+      toast("No se pudo actualizar en Supabase");
+      return;
+    }
+    await loadBudgetData();
+  } else {
+    budgetRequestRows = budgetRequestRows.map((row) => row.id === id ? { ...row, status } : row);
+    saveBudgetRequestRows();
+  }
+  addAudit("presupuesto", `Estatus actualizado en ${id}: ${budgetStatusLabel(status)}`);
+  render();
+  toast("Estatus actualizado");
+}
+
+async function deleteBudgetRequest(id) {
+  if (!isLeadership()) {
+    toast("Solo Dirección/Admin puede borrar");
+    return;
+  }
+  const row = budgetRequestRows.find((item) => item.id === id);
+  if (supabaseClient && currentUser?.auth === "supabase" && budgetCloudReady) {
+    const { error } = await supabaseClient.from("budget_requests").delete().eq("id", id);
+    if (error) {
+      console.warn(error);
+      toast("No se pudo borrar en Supabase");
+      return;
+    }
+    await loadBudgetData();
+  } else {
+    budgetRequestRows = budgetRequestRows.filter((item) => item.id !== id);
+    saveBudgetRequestRows();
+  }
+  addAudit("presupuesto", `Solicitud eliminada: ${row?.concept || id}`);
+  render();
+  toast("Solicitud eliminada");
+}
+
+function renderBudgetAllocationView() {
+  const visiblePlans = visibleBudgetAreaPlans();
+  const selectedPlan = visiblePlans.find((row) => row.area === (budgetFilters.area === "todos" ? "clases" : budgetFilters.area)) || visiblePlans[0];
+  return `
+    <section class="budget-dashboard">
+      <div class="permission-strip budget-strip">
+        <span>Edición de presupuesto asignado por área.</span>
+        <span>${budgetCloudReady ? "Supabase activo" : budgetCloudMessage}</span>
+      </div>
+      <article class="form-panel budget-editor-panel budget-standalone-panel">
+        <div class="budget-table-heading">
+          <div>
+            <p class="eyebrow">Dirección/Admin</p>
+            <h3>Editar presupuesto asignado</h3>
+          </div>
+          <span>${isLeadership() ? "Edición activa" : "Solo lectura"}</span>
+        </div>
+        <form id="budgetAllocationForm" class="budget-form">
+          <label>Área
+            <select name="area" ${isLeadership() ? "" : "disabled"}>
+              ${budgetAreaOptions().map(([value, label]) => `<option value="${value}" ${selectedPlan?.area === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+            </select>
+          </label>
+          <label>Presupuesto asignado
+            <input name="assigned" type="number" min="0" step="1000" value="${Math.round(selectedPlan?.assigned || 0)}" ${isLeadership() ? "" : "disabled"} />
+          </label>
+          <label>Responsable
+            <input name="owner" value="${escapeHtml(selectedPlan?.owner || "")}" ${isLeadership() ? "" : "disabled"} />
+          </label>
+          <label>Alerta amarilla %
+            <input name="threshold" type="number" min="1" max="100" value="${Math.round(selectedPlan?.threshold || 80)}" ${isLeadership() ? "" : "disabled"} />
+          </label>
+          <button class="primary-btn" type="submit" ${isLeadership() ? "" : "disabled"}>Guardar presupuesto</button>
+        </form>
+      </article>
+    </section>
+  `;
+}
+
+function renderBudgetRequestView() {
+  const editable = canEditArea("compras");
+  return `
+    <section class="budget-dashboard">
+      <div class="permission-strip budget-strip">
+        <span>Captura de solicitudes y movimientos presupuestales.</span>
+        <span>${budgetCloudReady ? "Supabase activo" : budgetCloudMessage}</span>
+      </div>
+      <article class="form-panel budget-editor-panel budget-standalone-panel">
+        <div class="budget-table-heading">
+          <div>
+            <p class="eyebrow">Nueva solicitud</p>
+            <h3>Registrar movimiento</h3>
+          </div>
+          <span>${editable ? "Captura habilitada" : "Solo lectura"}</span>
+        </div>
+        <form id="budgetRequestForm" class="budget-form">
+          <label>Fecha<input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" ${editable ? "" : "disabled"} /></label>
+          <label>Periodo
+            <select name="period" ${editable ? "" : "disabled"}>
+              ${["AD26", "FJ26", "IN26"].map((value) => `<option value="${value}" ${budgetFilters.period === value ? "selected" : ""}>${value}</option>`).join("")}
+            </select>
+          </label>
+          <label>Área
+            <select name="area" ${editable ? "" : "disabled"}>
+              ${budgetAreaOptions().map(([value, label]) => `<option value="${value}" ${budgetFilters.area === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+            </select>
+          </label>
+          <label>Concepto<input name="concept" placeholder="Ej. Material deportivo" ${editable ? "" : "disabled"} /></label>
+          <label>Proveedor<input name="provider" placeholder="Proveedor o pendiente" ${editable ? "" : "disabled"} /></label>
+          <label>Monto<input name="amount" type="number" min="0" step="100" placeholder="0" ${editable ? "" : "disabled"} /></label>
+          <label>Tipo<input name="type" placeholder="Servicio, material, uniforme..." ${editable ? "" : "disabled"} /></label>
+          <label>Prioridad
+            <select name="priority" ${editable ? "" : "disabled"}>
+              ${["Alta", "Media", "Baja"].map((value) => `<option>${value}</option>`).join("")}
+            </select>
+          </label>
+          <label>Estatus
+            <select name="status" ${editable ? "" : "disabled"}>
+              ${["pendiente", "autorizado", "comprometido", "ejercido", "rechazado"].map((value) => `<option value="${value}">${budgetStatusLabel(value)}</option>`).join("")}
+            </select>
+          </label>
+          <button class="primary-btn" type="submit" ${editable ? "" : "disabled"}>Crear solicitud</button>
+        </form>
+      </article>
+    </section>
+  `;
+}
+
+function renderBudgetDashboard() {
+  const selectedAreas = filteredBudgetAreas();
+  const summaries = selectedAreas.map((row) => budgetAreaSummary(row.area));
+  const requests = filteredBudgetRequests();
+  const assigned = summaries.reduce((sum, row) => sum + row.assigned, 0);
+  const spent = summaries.reduce((sum, row) => sum + row.spent, 0);
+  const committed = summaries.reduce((sum, row) => sum + row.committed, 0);
+  const available = Math.max(0, assigned - spent - committed);
+  const usage = assigned ? Math.round(((spent + committed) / assigned) * 100) : 0;
+  const pending = requests.filter((row) => row.status === "pendiente").length;
+  const maxAssigned = Math.max(...summaries.map((row) => row.assigned), 1);
+  const editable = canEditArea("compras");
+  return `
+    <section class="budget-dashboard">
+      <div class="permission-strip budget-strip">
+        <span>Control presupuestal por area. Dirección/Admin puede editar todo; compras valida proveedores, estatus y comprobación.</span>
+        <span>${budgetCloudReady ? "Supabase activo" : budgetCloudMessage} · ${requests.length} solicitudes filtradas</span>
+      </div>
+
+      <div class="budget-filters">
+        <label>Periodo
+          <select class="budget-filter" data-filter="period">
+            ${["AD26", "FJ26", "IN26"].map((value) => `<option value="${value}" ${budgetFilters.period === value ? "selected" : ""}>${value}</option>`).join("")}
+          </select>
+        </label>
+        <label>Area
+          <select class="budget-filter" data-filter="area">
+            <option value="todos" ${budgetFilters.area === "todos" ? "selected" : ""}>Todas</option>
+            ${budgetAreaOptions().map(([value, label]) => `<option value="${value}" ${budgetFilters.area === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Estatus
+          <select class="budget-filter" data-filter="status">
+            <option value="todos" ${budgetFilters.status === "todos" ? "selected" : ""}>Todos</option>
+            ${["pendiente", "autorizado", "comprometido", "ejercido", "rechazado"].map((value) => `<option value="${value}" ${budgetFilters.status === value ? "selected" : ""}>${budgetStatusLabel(value)}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+
+      <div class="kpi-grid budget-kpi-strip">
+        ${budgetKpiCard("circle-dollar-sign", "Presupuesto asignado", money(assigned), "base del periodo", "blue")}
+        ${budgetKpiCard("trending-up", "Ejercido", money(spent), `${assigned ? Math.round(spent / assigned * 100) : 0}% del presupuesto`, "green")}
+        ${budgetKpiCard("clipboard-list", "Comprometido", money(committed), "pendiente de cierre", "gold")}
+        ${budgetKpiCard("wallet-cards", "Disponible", money(available), "saldo operativo", "teal")}
+        ${budgetKpiCard("pie-chart", "% de uso", `${usage}%`, "ejercido + comprometido", "blue")}
+        ${budgetKpiCard("clipboard-check", "Solicitudes pendientes", pending, "requieren decisión", "lav")}
+      </div>
+
+      <div class="budget-main-grid">
+        <article class="chart-panel budget-chart-panel">
+          <div class="chart-title-row">
+            <div>
+              <p class="eyebrow">Presupuesto vs real</p>
+              <h3>Asignado, ejercido y comprometido por área</h3>
+            </div>
+            <span>${usage}% uso global</span>
+          </div>
+          <div class="budget-chart-legend">
+            <span class="assigned"></span> Asignado
+            <span class="spent"></span> Ejercido
+            <span class="committed"></span> Comprometido
+          </div>
+          <div class="budget-column-chart">
+            ${summaries.map((row) => `
+              <div class="budget-column-group">
+                <div class="budget-columns">
+                  <span class="assigned" style="height:${Math.max(8, Math.round(row.assigned / maxAssigned * 100))}%"><em>${money(row.assigned)}</em></span>
+                  <span class="spent" style="height:${Math.max(5, Math.round(row.spent / maxAssigned * 100))}%"><em>${money(row.spent)}</em></span>
+                  <span class="committed" style="height:${Math.max(5, Math.round(row.committed / maxAssigned * 100))}%"><em>${money(row.committed)}</em></span>
+                </div>
+                <strong>${escapeHtml(budgetAreaLabel(row.area))}</strong>
+              </div>
+            `).join("")}
+          </div>
+        </article>
+
+        <article class="chart-panel budget-semaphore-panel">
+          <div class="chart-title-row">
+            <div>
+              <p class="eyebrow">Semáforo financiero</p>
+              <h3>Áreas que requieren seguimiento</h3>
+            </div>
+          </div>
+          <table class="budget-semaphore-table">
+            <thead><tr><th>Área</th><th>% uso</th><th>Estatus</th><th>Disponible</th></tr></thead>
+            <tbody>
+              ${summaries.map((row) => `
+                <tr>
+                  <td><span class="budget-dot ${row.tone}"></span>${escapeHtml(budgetAreaLabel(row.area))}</td>
+                  <td>${row.usage}%</td>
+                  <td><span class="budget-health ${row.tone}">${budgetToneLabel(row.tone)}</span></td>
+                  <td>${money(row.available)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </article>
+      </div>
+
+      <div class="budget-area-grid">
+        ${summaries.map((row) => `
+          <article class="budget-area-card ${row.tone}">
+            <div>
+              <span class="budget-area-icon"><i data-lucide="${budgetAreaIcon(row.area)}" aria-hidden="true"></i></span>
+              <h3>${escapeHtml(budgetAreaLabel(row.area))}</h3>
+            </div>
+            <dl>
+              <div><dt>Asignado</dt><dd>${money(row.assigned)}</dd></div>
+              <div><dt>Ejercido</dt><dd>${money(row.spent)}</dd></div>
+              <div><dt>Disponible</dt><dd>${money(row.available)}</dd></div>
+            </dl>
+            <span class="budget-health ${row.tone}">${budgetToneLabel(row.tone)}</span>
+            <div class="budget-area-track"><span style="width:${Math.min(100, row.usage)}%"></span></div>
+            <footer>
+              <span>Responsable: ${escapeHtml(row.owner)}</span>
+              <em>${row.rows.length} solicitudes</em>
+            </footer>
+          </article>
+        `).join("")}
+      </div>
+
+      <div class="table-wrap budget-table-wrap">
+        <div class="budget-table-heading">
+          <div>
+            <p class="eyebrow">Solicitudes recientes</p>
+            <h3>Control de movimientos presupuestales</h3>
+          </div>
+          <button class="primary-btn compact-action" type="button" data-budget-new-request>Nueva solicitud</button>
+        </div>
+        <table>
+          <thead><tr><th>Fecha</th><th>Área</th><th>Concepto</th><th>Proveedor</th><th>Monto</th><th>Estatus</th><th>Prioridad</th><th>Acciones</th></tr></thead>
+          <tbody>
+            ${requests.length ? requests.map((row) => `
+              <tr>
+                <td>${escapeHtml(row.date)}</td>
+                <td>${escapeHtml(budgetAreaLabel(row.area))}</td>
+                <td><strong>${escapeHtml(row.concept)}</strong><span>${escapeHtml(row.type)}</span></td>
+                <td>${escapeHtml(row.provider)}</td>
+                <td>${money(row.amount)}</td>
+                <td>
+                  <select class="budget-status-select budget-status ${escapeHtml(row.status)}" data-budget-status="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>
+                    ${["pendiente", "autorizado", "comprometido", "ejercido", "rechazado"].map((status) => `<option value="${status}" ${row.status === status ? "selected" : ""}>${budgetStatusLabel(status)}</option>`).join("")}
+                  </select>
+                </td>
+                <td>${escapeHtml(row.priority)}</td>
+                <td><button class="danger-btn compact-action" type="button" data-budget-delete="${escapeHtml(row.id)}" ${isLeadership() ? "" : "disabled"}>Borrar</button></td>
+              </tr>
+            `).join("") : `<tr><td colspan="8">Sin solicitudes para los filtros seleccionados.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
 function renderClassesDashboard() {
   const summary = classOperationalSummary();
   return `
-        <strong>Indicadores especÃ­ficos del Ã¡rea</strong>
-        <p class="hero-copy">Este espacio queda preparado exclusivamente para grÃ¡ficas de programaciÃ³n, inscripciÃ³n, acreditaciÃ³n, ocupaciÃ³n y desempeÃ±o de clases.</p>
     ${renderClassExecutiveKpis(summary)}
     ${renderClassStudentLookup()}
     ${renderClassDisciplineIndicators()}
@@ -5068,7 +5707,7 @@ function renderClassTeacherPerformance() {
           <p class="eyebrow">CD Lista de Alumnos</p>
           <h2>Profesores por % de aprobados y reprobados</h2>
         </div>
-        <span class="session-pill">${classTeacherPerformance.length} profesores Â· ${totals.total} registros</span>
+        <span class="session-pill">${classTeacherPerformance.length} profesores  -  ${totals.total} registros</span>
       </div>
       <div class="teacher-summary">
         <div><strong>${approvedRate}%</strong><span>Aprobados global</span></div>
@@ -5081,7 +5720,7 @@ function renderClassTeacherPerformance() {
           <article class="teacher-row">
             <div class="teacher-meta">
               <strong>${row.teacher}</strong>
-              <span>${row.total} alumnos Â· ${row.approved} aprobados Â· ${row.failed} reprobados/bajas</span>
+              <span>${row.total} alumnos  -  ${row.approved} aprobados  -  ${row.failed} reprobados/bajas</span>
             </div>
             <div class="teacher-bar" aria-label="${row.teacher}: ${row.approvedRate}% aprobados, ${row.failedRate}% reprobados">
               <span class="teacher-bar-approved" style="width:${row.approvedRate}%"></span>
@@ -5118,7 +5757,7 @@ function renderTeacherPerformanceColumn(title, subtitle, rows, tone) {
             <div class="teacher-rank-number">${index + 1}</div>
             <div class="teacher-compact-meta">
               <strong>${row.teacher}</strong>
-              <span>${row.total} alumnos Â· ${row.approved} aprobados Â· ${row.failed} reprobados/bajas</span>
+              <span>${row.total} alumnos  -  ${row.approved} aprobados  -  ${row.failed} reprobados/bajas</span>
             </div>
             <div class="teacher-score ${tone}" style="--score:${row.approvedRate}%">
               <strong>${row.approvedRate}%</strong>
@@ -5355,7 +5994,7 @@ function renderVivenciaGoalBars(rows) {
 }
 
 function renderVivenciaUpcoming(events) {
-  if (!events.length) return `<div class="vivencia-empty-mini">No hay eventos prÃ³ximos en los siguientes 15 dÃ­as.</div>`;
+  if (!events.length) return `<div class="vivencia-empty-mini">No hay eventos próximos en los siguientes 15 días.</div>`;
   return `
     <div class="vivencia-upcoming-list">
       ${events.map((event) => `
@@ -5363,7 +6002,7 @@ function renderVivenciaUpcoming(events) {
           <time>${escapeHtml(event.event_date)}</time>
           <div>
             <strong>${escapeHtml(event.event_name || "")}</strong>
-            <span>${escapeHtml(event.responsible_name || "Responsable pendiente")} Â· Meta ${event.participation_goal ?? "sin meta"}</span>
+            <span>${escapeHtml(event.responsible_name || "Responsable pendiente")}  -  Meta ${event.participation_goal ?? "sin meta"}</span>
           </div>
           <em>${event.is_signature_event ? "Insignia" : escapeHtml(event.status || "planeado")}</em>
         </article>
@@ -5421,9 +6060,9 @@ function renderVivenciaDashboard() {
     <section class="vivencia-dashboard">
       <div class="permission-strip">
         <span>Dashboard conectado a Supabase: eventos + matriculas por evento + Base de datos_alumnos.</span>
-        <span>${vivenciaEvents.length} eventos Â· ${uniqueMatriculas.size} participantes unicos</span>
+        <span>${vivenciaEvents.length} eventos  -  ${uniqueMatriculas.size} participantes unicos</span>
       </div>
-      <div class="kpi-grid">
+      <div class="kpi-grid vivencia-kpi-strip">
         <div class="kpi"><span>Eventos realizados</span><strong>${realized.length}</strong><em>realizados o con fecha vencida</em></div>
         <div class="kpi"><span>Participantes acumulados</span><strong>${participantTotal}</strong><em>por evento</em></div>
         <div class="kpi"><span>Participantes unicos</span><strong>${uniqueMatriculas.size}</strong><em>por matricula</em></div>
@@ -5525,11 +6164,11 @@ function renderClassGrades() {
       </div>
       ${!classGradesAvailable ? `
         <div class="permission-strip grade-warning">
-          La lista histÃ³rica estÃ¡ visible, pero falta activar la tabla de calificaciones en Supabase para poder guardar cambios.
+          La lista histórica está visible, pero falta activar la tabla de calificaciones en Supabase para poder guardar cambios.
         </div>
       ` : ""}
       ${classGradesImporting ? `
-        <div class="permission-strip">Cargando los 7,939 registros histÃ³ricos en la base central. Esta operaciÃ³n se realiza una sola vez.</div>
+        <div class="permission-strip">Cargando los 7,939 registros históricos en la base central. Esta operación se realiza una sola vez.</div>
       ` : ""}
       <div class="class-grade-kpis">
         <article class="kpi"><span>Registros</span><strong>${totalRows.length.toLocaleString("es-MX")}</strong><em>CD Lista de Alumnos</em></article>
@@ -5539,7 +6178,7 @@ function renderClassGrades() {
       </div>
       <div class="class-grade-filters">
         <label>Buscar
-          <input class="class-grade-filter" data-filter="search" value="${escapeHtml(classGradeFilter.search)}" placeholder="MatrÃ­cula, materia o profesor" />
+          <input class="class-grade-filter" data-filter="search" value="${escapeHtml(classGradeFilter.search)}" placeholder="Matrícula, materia o profesor" />
         </label>
         <label>Periodo
           <select class="class-grade-filter" data-filter="period">
@@ -5577,19 +6216,19 @@ function renderClassGrades() {
       </div>
       <div class="class-grade-table-header">
         <span><strong>${rows.length.toLocaleString("es-MX")}</strong> registros filtrados</span>
-        <span>${editable ? "Edita la calificaciÃ³n y presiona Enter para guardar." : "Vista de consulta."}</span>
+        <span>${editable ? "Edita la calificación y presiona Enter para guardar." : "Vista de consulta."}</span>
       </div>
       <div class="table-wrap class-grade-table-wrap">
         <table class="class-grade-table">
           <thead>
             <tr>
-              <th>MatrÃ­cula</th>
+              <th>Matrícula</th>
               <th>Materia</th>
               <th>CRN / Grupo</th>
               <th>Profesor</th>
               <th>Carrera</th>
               <th>Periodo</th>
-              <th>CalificaciÃ³n</th>
+              <th>Calificación</th>
             </tr>
           </thead>
           <tbody>
@@ -5607,7 +6246,7 @@ function renderClassGrades() {
                     data-grade-key="${escapeHtml(row.record_key)}"
                     value="${escapeHtml(row.grade)}"
                     inputmode="decimal"
-                    aria-label="CalificaciÃ³n de ${escapeHtml(row.matricula)}"
+                    aria-label="Calificación de ${escapeHtml(row.matricula)}"
                     placeholder="Pendiente"
                     ${editable ? "" : "disabled"}
                   />
@@ -5618,9 +6257,9 @@ function renderClassGrades() {
         </table>
       </div>
       <div class="class-grade-pagination">
-        <button type="button" class="ghost-btn" data-grade-page="${classGradePage - 1}" ${classGradePage <= 1 ? "disabled" : ""} aria-label="PÃ¡gina anterior">â†</button>
-        <span>PÃ¡gina ${classGradePage} de ${pageCount}</span>
-        <button type="button" class="ghost-btn" data-grade-page="${classGradePage + 1}" ${classGradePage >= pageCount ? "disabled" : ""} aria-label="PÃ¡gina siguiente">â†’</button>
+        <button type="button" class="ghost-btn" data-grade-page="${classGradePage - 1}" ${classGradePage <= 1 ? "disabled" : ""} aria-label="Página anterior"><</button>
+        <span>Página ${classGradePage} de ${pageCount}</span>
+        <button type="button" class="ghost-btn" data-grade-page="${classGradePage + 1}" ${classGradePage >= pageCount ? "disabled" : ""} aria-label="Página siguiente">></button>
       </div>
     </section>
   `;
@@ -5633,7 +6272,7 @@ function renderProjectProgress() {
       <div class="section-title compact">
         <div>
           <p class="eyebrow">Avance del proyecto</p>
-          <h2>${progress.percent}% listo para piloto tÃ©cnico</h2>
+          <h2>${progress.percent}% listo para piloto técnico</h2>
         </div>
         <span class="session-pill">Siguiente: ${progress.next ? progress.next[1] : "Por definir"}</span>
       </div>
@@ -5927,18 +6566,18 @@ function renderCollaboratorsDashboard() {
     </div>
     ${authorizedUpload && collaboratorsCloudLoaded && !cloudCollaborators.length ? `
       <div class="permission-strip import-collaborators-callout">
-        La tabla central estÃ¡ vacÃ­a. Importa una sola vez los registros actuales del archivo Uniformes.
+        La tabla central está vacía. Importa una sola vez los registros actuales del archivo Uniformes.
         <button class="primary-btn inline-action" id="importCollaboratorsToCloud" type="button">Importar datos iniciales</button>
       </div>
     ` : ""}
     <div class="collaborator-table-header">
       <div>
-        <p class="eyebrow">Archivo mÃ¡ster</p>
+        <p class="eyebrow">Archivo máster</p>
         <h3>Profesores y colaboradores</h3>
-        <span class="editor-status">${directEdit ? "EdiciÃ³n administrativa activa." : operationalEntry ? "Modo operativo: altas, cargas y consulta autorizadas." : "Modo consulta."}</span>
+        <span class="editor-status">${directEdit ? "Edición administrativa activa." : operationalEntry ? "Modo operativo: altas, cargas y consulta autorizadas." : "Modo consulta."}</span>
       </div>
       <div class="table-actions">
-        <button class="primary-btn" id="openCollaboratorPhotoUploader" type="button" ${authorizedUpload ? "" : "disabled"}>Cargar imÃ¡genes</button>
+        <button class="primary-btn" id="openCollaboratorPhotoUploader" type="button" ${authorizedUpload ? "" : "disabled"}>Cargar imágenes</button>
         <button class="ghost-btn" id="exportCollaboratorBackup" type="button">Exportar respaldo</button>
       </div>
     </div>
@@ -5953,7 +6592,7 @@ function renderCollaboratorsDashboard() {
             <tr data-row-id="${escapeHtml(row.__id || row.Nomina)}">
               <td class="photo-cell">${collaboratorAvatar(row, authorizedUpload)}</td>
               ${columns.map((column) => `<td>${collaboratorEditorControl(row, column, directEdit)}</td>`).join("")}
-              <td class="row-actions-cell"><button class="delete-row-btn" data-delete-row="${escapeHtml(row.__id || row.Nomina)}" type="button" ${directEdit ? "" : "disabled"} title="Eliminar fila">Ã—</button></td>
+              <td class="row-actions-cell"><button class="delete-row-btn" data-delete-row="${escapeHtml(row.__id || row.Nomina)}" type="button" ${directEdit ? "" : "disabled"} title="Eliminar fila">x</button></td>
             </tr>
           `).join("") || `<tr><td colspan="${columns.length + 2}">No hay registros con los filtros seleccionados.</td></tr>`}
         </tbody>
@@ -6005,9 +6644,9 @@ function renderVivenciaImportSummary(result = vivenciaEventImportResult) {
 }
 
 function vivenciaEventOptionLabel(row) {
-  const dateLabel = row.event_date ? `${row.event_date} Â· ` : "";
+  const dateLabel = row.event_date ? `${row.event_date}  -  ` : "";
   const sourceLabel = row.source_name === "planeacion_semestral" ? "Planeacion" : (row.source_name === "captura_manual" ? "Manual" : row.source_name || "Vivencia");
-  return `${dateLabel}${row.event_name || "Evento sin nombre"} Â· ${sourceLabel}`;
+  return `${dateLabel}${row.event_name || "Evento sin nombre"}  -  ${sourceLabel}`;
 }
 
 function renderVivenciaParticipantsModal(editable) {
@@ -6038,7 +6677,7 @@ function renderVivenciaParticipantsModal(editable) {
             <input name="participants_file" type="file" accept=".csv,.xlsx,.xls" required ${editable ? "" : "disabled"} />
           </label>
           <div class="vivencia-modal-help full">
-            <strong>Formato mÃ­nimo:</strong> una columna llamada <code>matricula</code>. TambiÃ©n acepta <code>matrÃ­cula</code>, <code>alumno</code> o <code>student_id</code>.
+            <strong>Formato mínimo:</strong> una columna llamada <code>matricula</code>. También acepta <code>matrícula</code>, <code>alumno</code> o <code>student_id</code>.
           </div>
           <button class="primary-btn full" type="submit" ${editable && !vivenciaParticipantImporting ? "" : "disabled"}>
             ${vivenciaParticipantImporting ? "Cargando participantes..." : "Cargar participantes"}
@@ -6126,7 +6765,6 @@ function renderVivenciaEventHistory() {
             <th>Participantes</th>
             <th>Responsable</th>
             <th>Estado</th>
-            <th>Fuente</th>
             <th>Acciones</th>
           </tr>
         </thead>
@@ -6137,23 +6775,22 @@ function renderVivenciaEventHistory() {
             const completion = vivenciaCompletionState(row, metrics);
             return `
               <tr>
-                <td>${escapeHtml(row.event_date || "")}</td>
-                <td>
+                <td data-label="Fecha">${escapeHtml(row.event_date || "")}</td>
+                <td data-label="Evento">
                   <strong>${escapeHtml(row.event_name || "")}</strong>
                   ${row.discipline ? `<span>${escapeHtml(row.discipline)}</span>` : ""}
                   ${row.is_signature_event ? `<em>Evento insignia</em>` : ""}
                 </td>
-                <td>${escapeHtml(row.campus || "")}</td>
-                <td>${escapeHtml(row.classification || "Sin clasificar")}</td>
-                <td>${row.participation_goal ?? "Sin meta"}</td>
-                <td>
+                <td data-label="Campus">${escapeHtml(row.campus || "")}</td>
+                <td data-label="Clasificacion">${escapeHtml(row.classification || "Sin clasificar")}</td>
+                <td data-label="Meta">${row.participation_goal ?? "Sin meta"}</td>
+                <td data-label="Participantes">
                   <strong>${calculated}</strong>
                   <span>${Number(metrics?.unique_participants || 0) ? "por matriculas" : "reportados"}</span>
                 </td>
-                <td>${escapeHtml(row.responsible_name || "Sin asignar")}</td>
-                <td><span class="vivencia-status ${escapeHtml(completion.className)}">${escapeHtml(completion.label)}</span></td>
-                <td>${escapeHtml(row.source_name === "captura_manual" ? "Captura manual" : row.source_name || "Sin fuente")}</td>
-                <td>
+                <td data-label="Responsable">${escapeHtml(row.responsible_name || "Sin asignar")}</td>
+                <td data-label="Estado"><span class="vivencia-status ${escapeHtml(completion.className)}">${escapeHtml(completion.label)}</span></td>
+                <td data-label="Acciones">
                   <button class="ghost-btn compact-action" data-vivencia-detail="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Detalle</button>
                   <button class="danger-btn compact-action" data-vivencia-delete="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Eliminar</button>
                 </td>
@@ -6276,19 +6913,19 @@ function renderCapture(area) {
       <div class="form-panel">
         <h3>Formulario de captura: ${selected.name}</h3>
         <form id="captureForm">
-          <label>MatrÃ­cula<input name="matricula" value="A0841027" pattern="A0[0-9]{6,8}" ${editable ? "" : "disabled"} /></label>
-          <label>GÃ©nero<select name="genero" ${editable ? "" : "disabled"}><option>Femenino</option><option>Masculino</option><option>No especificado</option></select></label>
+          <label>Matrícula<input name="matricula" value="A0841027" pattern="A0[0-9]{6,8}" ${editable ? "" : "disabled"} /></label>
+          <label>Género<select name="genero" ${editable ? "" : "disabled"}><option>Femenino</option><option>Masculino</option><option>No especificado</option></select></label>
           <label>Carrera<select name="carrera" ${editable ? "" : "disabled"}>${careers.map((c) => `<option>${c}</option>`).join("")}</select></label>
           <label>Semestre<input name="semestre" type="number" min="1" max="12" value="4" ${editable ? "" : "disabled"} /></label>
           <label>Nivel escolar<select name="nivel" ${editable ? "" : "disabled"}><option>Profesional</option><option>Posgrado</option></select></label>
           <label>Periodo<select name="periodo" ${editable ? "" : "disabled"}><option>AD26</option><option>FJ26</option><option>IN26</option></select></label>
-          <label class="full">Dato operativo del Ã¡rea<select name="operacion" ${editable ? "" : "disabled"}>${selected.capture.filter(x => !["Matricula","MatrÃ­cula","Genero","GÃ©nero","Carrera","Semestre","Nivel escolar","Periodo"].includes(x)).map((x) => `<option>${x}</option>`).join("")}</select></label>
+          <label class="full">Dato operativo del área<select name="operacion" ${editable ? "" : "disabled"}>${selected.capture.filter(x => !["Matricula","Matrícula","Genero","Género","Carrera","Semestre","Nivel escolar","Periodo"].includes(x)).map((x) => `<option>${x}</option>`).join("")}</select></label>
           <label class="full">Estatus<select name="estatus" ${editable ? "" : "disabled"}><option>Activo</option><option>Asistio</option><option>No asistio</option><option>Baja</option><option>Acreditado</option></select></label>
           <button class="primary-btn full" type="button" id="saveMock" ${editable ? "" : "disabled"}>Guardar captura</button>
         </form>
       </div>
       <div class="form-panel">
-        <h3>Campos por Ã¡rea</h3>
+        <h3>Campos por área</h3>
         <table>
           <thead><tr><th>Campo</th><th>Uso</th></tr></thead>
           <tbody>${selected.capture.map((field) => `<tr><td>${field}</td><td>${fieldPurpose(field)}</td></tr>`).join("")}</tbody>
@@ -6300,21 +6937,21 @@ function renderCapture(area) {
 
 function renderPhysicalEvaluationsCapture() {
   return `
-    <div class="permission-strip">La captura de profesores se realiza desde un enlace general sin iniciar sesiÃ³n. El cÃ³digo comÃºn controla el acceso y cada persona selecciona su nombre.</div>
+    <div class="permission-strip">La captura de profesores se realiza desde un enlace general sin iniciar sesión. El código común controla el acceso y cada persona selecciona su nombre.</div>
     <div class="form-grid">
       <div class="form-panel physical-capture-launcher">
         <p class="eyebrow">Enlace para profesores</p>
-        <h3>Formulario de EvaluaciÃ³n FÃ­sica</h3>
-        <p>Incluye las siete pruebas, motivos de no realizaciÃ³n, revisiÃ³n final y guardado directo en Supabase.</p>
-        <a class="primary-btn physical-public-link" href="./evaluaciones-fisicas.html" target="_blank" rel="noopener">Abrir formulario pÃºblico</a>
+        <h3>Formulario de Evaluación Física</h3>
+        <p>Incluye las siete pruebas, motivos de no realización, revisión final y guardado directo en Supabase.</p>
+        <a class="primary-btn physical-public-link" href="./evaluaciones-fisicas.html" target="_blank" rel="noopener">Abrir formulario público</a>
       </div>
       <div class="form-panel">
         <h3>Flujo aprobado</h3>
         <ol class="physical-flow-list">
-          <li>Escribe el cÃ³digo general.</li>
+          <li>Escribe el código general.</li>
           <li>Selecciona su nombre.</li>
           <li>Captura las siete pruebas.</li>
-          <li>Indica lesiÃ³n, contraindicaciÃ³n u otro motivo cuando corresponda.</li>
+          <li>Indica lesión, contraindicación u otro motivo cuando corresponda.</li>
           <li>Revisa y guarda.</li>
         </ol>
       </div>
@@ -6373,7 +7010,7 @@ function renderCollaboratorsCapture(area) {
       <div class="form-panel">
         <h3>Fuentes disponibles</h3>
         <table>
-          <thead><tr><th>PestaÃ±a</th><th>Registros</th></tr></thead>
+          <thead><tr><th>Pestaña</th><th>Registros</th></tr></thead>
           <tbody>${Object.entries(uniformesData).map(([sheet, table]) => `<tr><td>${sheet}</td><td>${table.records?.length || 0}</td></tr>`).join("")}</tbody>
         </table>
       </div>
@@ -6396,7 +7033,7 @@ function renderSchedules(area) {
   return `
     <div class="permission-strip">
       <span>Calendario Maestro: Programacion Oficial + Booking. Vista de solo lectura; cualquier cambio se realiza en el archivo fuente y se vuelve a cargar.</span>
-      <span>${rows.length} eventos PMT1 Â· ${conflicts.length} conflictos</span>
+      <span>${rows.length} eventos PMT1  -  ${conflicts.length} conflictos</span>
     </div>
     <section class="schedule-upload-grid">
       ${renderMasterScheduleUploader(rows.length, scheduleState.errors.master)}
@@ -6451,7 +7088,7 @@ function renderScheduleUploader(type, title, count, errors) {
   return `
     <article class="schedule-upload-card">
       <div>
-        <p class="eyebrow">Respaldo manual Â· ${sourceLabel}</p>
+        <p class="eyebrow">Respaldo manual  -  ${sourceLabel}</p>
         <h3>${title}</h3>
         <p>Usar solo si el archivo maestro no trae esta hoja o si se quiere actualizar esta fuente manualmente.</p>
       </div>
@@ -6489,7 +7126,7 @@ function renderProfessorScheduleView() {
     <section class="schedule-panel">
       <div class="section-title compact">
         <div><p class="eyebrow">Horarios de profesores</p><h2>Calendario semanal</h2></div>
-        <span class="session-pill">Solido = oficial Â· Transparente = booking</span>
+        <span class="session-pill">Solido = oficial  -  Transparente = booking</span>
       </div>
       ${renderScheduleFilters("professors")}
       ${renderWeeklyCalendar(filteredScheduleRows(), "professor")}
@@ -6591,7 +7228,7 @@ function renderConflictView() {
             <strong>${conflict.type}</strong>
             <span>${conflict.label}</span>
             <p>${conflict.day} ${conflict.a.start}-${conflict.a.end}: ${conflict.a.discipline} / ${conflict.b.discipline}</p>
-            <em>${conflict.a.installation} Â· ${conflict.b.installation}</em>
+            <em>${conflict.a.installation}  -  ${conflict.b.installation}</em>
           </article>
         `).join("") : `<div class="empty-state">No se detectan traslapes con los archivos cargados.</div>`}
       </div>
@@ -6646,7 +7283,7 @@ function renderScheduleSimulatorView() {
           <p class="eyebrow">Simulador visual</p>
           <h2>Spinning y Fitness</h2>
         </div>
-        <span class="session-pill">${rows.length} clases planeadas Â· ${classScheduleSimulatorCloudReady ? "Supabase activo" : "respaldo local"}</span>
+        <span class="session-pill">${rows.length} clases planeadas  -  ${classScheduleSimulatorCloudReady ? "Supabase activo" : "respaldo local"}</span>
       </div>
       <div class="permission-strip class-simulator-note">
         Este simulador es solo para planeacion visual. No modifica Calificaciones, alumnos, reportes ni la oferta oficial.
@@ -6747,7 +7384,7 @@ function renderClassSimulatorBlock(row) {
   const teacherConflict = classSimulatorTeacherConflictIds.has(row.id);
   return `
     <div class="class-simulator-class ${tone} ${teacherConflict ? "teacher-conflict" : ""}" data-class-simulator-id="${escapeHtml(row.id)}">
-      ${teacherConflict ? `<span class="class-simulator-conflict-badge" title="Empalme de profesor">âš  Empalme de profesor</span>` : ""}
+      ${teacherConflict ? `<span class="class-simulator-conflict-badge" title="Empalme de profesor">Alerta Empalme de profesor</span>` : ""}
       <strong>${escapeHtml(row.discipline)}</strong>
       ${row.teacher_name ? `<span>${escapeHtml(row.teacher_name)}</span>` : ""}
       <em>${classSimulatorTimeLabel(row.start_time)} - ${classSimulatorTimeLabel(row.end_time)}</em>
@@ -6794,7 +7431,7 @@ function renderScheduleChangeList(title, rows) {
       ${rows.length ? rows.slice(0, 8).map((row) => `
         <div class="class-change-row">
           <strong>${escapeHtml(row.discipline || "Sin disciplina")}</strong>
-          <span>${escapeHtml(row.professor || "Sin profesor")} Â· ${escapeHtml(row.day || "")} ${escapeHtml(row.start || "")}-${escapeHtml(row.end || "")}</span>
+          <span>${escapeHtml(row.professor || "Sin profesor")}  -  ${escapeHtml(row.day || "")} ${escapeHtml(row.start || "")}-${escapeHtml(row.end || "")}</span>
           <em>${escapeHtml(row.installation || "Sin instalacion")}</em>
         </div>
       `).join("") : `<div class="empty-state">Sin cambios en esta categoria.</div>`}
@@ -6846,11 +7483,11 @@ function labelArea(id) {
 function fieldPurpose(field) {
   const map = {
     Matricula: "Identificador base",
-    "MatrÃ­cula": "Identificador base",
-    Genero: "SegmentaciÃ³n agregada",
-    "GÃ©nero": "SegmentaciÃ³n agregada",
-    Carrera: "AnÃ¡lisis acadÃ©mico",
-    Semestre: "AnÃ¡lisis por avance",
+    "Matrícula": "Identificador base",
+    Genero: "Segmentación agregada",
+    "Género": "Segmentación agregada",
+    Carrera: "Análisis académico",
+    Semestre: "Análisis por avance",
     "Nivel escolar": "Profesional o posgrado",
     Periodo: "Corte institucional",
     Disciplina: "Oferta deportiva",
@@ -6858,7 +7495,7 @@ function fieldPurpose(field) {
     Evento: "Vivencia y activaciones",
     Monto: "Presupuesto"
   };
-  return map[field] || "OperaciÃ³n del mÃ³dulo";
+  return map[field] || "Operación del módulo";
 }
 
 function toast(text) {
@@ -6891,23 +7528,29 @@ function render() {
   const gymAttendanceTab = $("#gymAttendanceViewButton");
   const gymRegistrationsTab = $("#gymRegistrationsViewButton");
   const vivenciaEventsTab = $("#vivenciaEventsViewButton");
+  const budgetAllocationTab = $("#budgetAllocationViewButton");
+  const budgetRequestTab = $("#budgetRequestViewButton");
   const systemTab = $(`.segmented button[data-view="blueprint"]`);
   const isGym = activeArea === "gimnasio";
   const isVivencia = activeArea === "vivencia";
+  const isBudget = activeArea === "compras";
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
   if (gradesTab) gradesTab.hidden = activeArea !== "clases";
   if (simulatorTab) simulatorTab.hidden = activeArea !== "clases";
   if (gymAttendanceTab) gymAttendanceTab.hidden = !isGym;
   if (gymRegistrationsTab) gymRegistrationsTab.hidden = !isGym;
   if (vivenciaEventsTab) vivenciaEventsTab.hidden = !isVivencia;
+  if (budgetAllocationTab) budgetAllocationTab.hidden = !isBudget;
+  if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
   $$(`.segmented button[data-view="schedules"], .segmented button[data-view="reports"]`)
     .forEach((button) => { button.hidden = isGym; });
   if (systemTab) systemTab.hidden = isGym || !isLeadership();
   const filtersBand = $(".filters-band");
-  if (filtersBand) filtersBand.hidden = isGym;
+  if (filtersBand) filtersBand.hidden = isGym || isBudget;
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isVivencia && activeView === "vivencia-events") activeView = "dashboard";
+  if (!isBudget && ["budget-allocation", "budget-request"].includes(activeView)) activeView = "dashboard";
   if (activeView === "blueprint" && !isLeadership()) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
@@ -6923,6 +7566,10 @@ function render() {
           ? renderGymStudentRegistration()
           : activeView === "vivencia-events"
             ? renderVivenciaEventsView()
+            : activeView === "budget-allocation"
+              ? renderBudgetAllocationView()
+              : activeView === "budget-request"
+                ? renderBudgetRequestView()
       : activeView === "schedules"
         ? renderSchedules(area)
         : activeView === "simulator"
@@ -6971,6 +7618,20 @@ function render() {
     if (!file) return;
     await replaceStudentDatabaseFromCsv(file);
     event.target.value = "";
+  });
+  $$(".budget-filter").forEach((input) => input.addEventListener("input", (event) => {
+    budgetFilters[event.target.dataset.filter] = event.target.value;
+    render();
+  }));
+  $("#budgetAllocationForm")?.addEventListener("submit", saveBudgetAllocation);
+  $("#budgetRequestForm")?.addEventListener("submit", saveBudgetRequest);
+  $$(".budget-status-select").forEach((input) => input.addEventListener("change", (event) => {
+    updateBudgetRequestStatus(event.target.dataset.budgetStatus, event.target.value);
+  }));
+  $$("[data-budget-delete]").forEach((button) => button.addEventListener("click", () => deleteBudgetRequest(button.dataset.budgetDelete)));
+  $("[data-budget-new-request]")?.addEventListener("click", () => {
+    activeView = "budget-request";
+    render();
   });
   $("#vivenciaEventForm")?.addEventListener("submit", saveVivenciaEvent);
   $("#newVivenciaEvent")?.addEventListener("click", () => {
@@ -7172,7 +7833,7 @@ function render() {
     }).length;
     render();
     toast(unlinkedCount
-      ? `Datos actualizados. ${unlinkedCount} evaluaciones sin nÃ³mina vinculada no se incluyen en el SalÃ³n de la Fama.`
+      ? `Datos actualizados. ${unlinkedCount} evaluaciones sin nómina vinculada no se incluyen en el Salón de la Fama.`
       : "Evaluaciones y colaboradores actualizados");
   });
   $("#openPhysicalHallOfFame")?.addEventListener("click", () => {
@@ -7250,14 +7911,14 @@ async function saveGymAttendance(event) {
     .upsert(payload, { onConflict: "attendance_date,facility" });
   if (error) {
     console.error(error);
-    toast(`No se pudo guardar: ${supabaseErrorDetail(error) || "revisa la activaciÃ³n de Gimnasio"}`);
+    toast(`No se pudo guardar: ${supabaseErrorDetail(error) || "revisa la activación de Gimnasio"}`);
     return;
   }
   addAudit("gimnasio", `Asistencia ${payload.facility}: ${payload.attendee_count}`);
   await loadGymData();
   activeView = "dashboard";
   render();
-  toast("Asistencia guardada y grÃ¡ficas actualizadas");
+  toast("Asistencia guardada y gráficas actualizadas");
 }
 
 async function deleteGymAttendance(recordId) {
@@ -7267,7 +7928,7 @@ async function deleteGymAttendance(recordId) {
     return;
   }
   const description = `${record.facility}, semana ${record.week_number}, ${record.attendance_date}, ${record.attendee_count} asistentes`;
-  if (!window.confirm(`Â¿Eliminar la carga de ${description}? Las grÃ¡ficas se actualizarÃ¡n automÃ¡ticamente.`)) return;
+  if (!window.confirm(`¿Eliminar la carga de ${description}? Las gráficas se actualizarán automáticamente.`)) return;
   const { error } = await supabaseClient
     .from("gym_attendance_records")
     .delete()
@@ -7280,7 +7941,7 @@ async function deleteGymAttendance(recordId) {
   addAudit("gimnasio", `Carga de asistencia eliminada: ${description}`);
   await loadGymData();
   render();
-  toast("Carga eliminada y grÃ¡ficas actualizadas");
+  toast("Carga eliminada y gráficas actualizadas");
 }
 
 async function importGymAttendanceCsv(file) {
@@ -7327,7 +7988,7 @@ async function lookupGymStudent(event) {
   const matricula = String(new FormData(event.currentTarget).get("matricula") || "").trim().toUpperCase();
   if (!matricula) return;
   if (!supabaseClient || currentUser?.auth !== "supabase") {
-    toast("La bÃºsqueda requiere una sesiÃ³n Supabase");
+    toast("La búsqueda requiere una sesión Supabase");
     return;
   }
   const result = await supabaseClient
@@ -7344,7 +8005,7 @@ async function lookupGymStudent(event) {
   gymMasterStudent = result.data || null;
   $("#gymStudentLookupResult").innerHTML = gymMasterStudent
     ? renderGymStudentDetails(gymMasterStudent)
-    : `<p class="form-message error">La matrÃ­cula ${escapeHtml(matricula)} no existe en Base de datos_alumnos.</p>`;
+    : `<p class="form-message error">La matrícula ${escapeHtml(matricula)} no existe en Base de datos_alumnos.</p>`;
   $("#saveGymStudentRegistration")?.addEventListener("click", saveGymStudentRegistration);
 }
 
@@ -7364,14 +8025,14 @@ async function saveGymStudentRegistration() {
     .upsert(payload, { onConflict: "matricula" });
   if (error) {
     console.error(error);
-    toast(`No se pudo registrar: ${supabaseErrorDetail(error) || "revisa la activaciÃ³n de Gimnasio"}`);
+    toast(`No se pudo registrar: ${supabaseErrorDetail(error) || "revisa la activación de Gimnasio"}`);
     return;
   }
-  addAudit("gimnasio", `MatrÃ­cula registrada: ${matricula}`);
+  addAudit("gimnasio", `Matrícula registrada: ${matricula}`);
   gymMasterStudent = null;
   await loadGymData();
   render();
-  toast("MatrÃ­cula vinculada con la Base Maestra");
+  toast("Matrícula vinculada con la Base Maestra");
 }
 
 async function saveCaptureFromForm() {
@@ -7502,7 +8163,7 @@ function downloadPhysicalEvaluationsCsv() {
     })
   ].join("\n");
   downloadBlob(csv, `evaluaciones-fisicas-${new Date().toISOString().slice(0, 10)}.csv`);
-  addAudit("exportacion", "Evaluaciones fÃ­sicas");
+  addAudit("exportacion", "Evaluaciones físicas");
   toast("Evaluaciones exportadas");
 }
 
