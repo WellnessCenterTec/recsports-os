@@ -470,6 +470,7 @@ let classGrades = [];
 let classGradesLoaded = false;
 let classGradesAvailable = true;
 let classGradesImporting = false;
+let classGradesUploadSummary = null;
 let classStudentSearch = "";
 let expandedClassTeacherRows = new Set();
 let gymAttendanceRecords = [];
@@ -2748,7 +2749,7 @@ function classGradeToCloud(row) {
     semester_label: row.semester_label || null,
     period_label: row.period_label || null,
     grade_text: row.grade || null,
-    source_name: "CD Lista de Alumnos",
+    source_name: row.source_name || "CD Lista de Alumnos",
     source_row: row.source_row || null,
     updated_by: currentUser?.id || null
   };
@@ -4982,6 +4983,148 @@ function renderDashboard(area) {
   `;
 }
 
+function classGradeIdentity(row) {
+  return [
+    row.matricula,
+    row.subject_code || row.subject_name,
+    row.crn,
+    row.group_number,
+    row.period_label
+  ].map((value) => normalizeText(value)).join("|");
+}
+
+function classGradeRecordKey(identity) {
+  let hash = 2166136261;
+  for (let index = 0; index < identity.length; index += 1) {
+    hash ^= identity.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `import-${(hash >>> 0).toString(16).padStart(8, "0")}-${identity.length}`;
+}
+
+function parseClassGradeImportRows(rawRows, sourceName = "Archivo de Calificaciones") {
+  const rows = Array.isArray(rawRows) ? rawRows : [];
+  const headers = Object.keys(rows[0] || {}).map(headerKey);
+  const required = [
+    ["matricula", "studentid"],
+    ["materia", "asignatura", "subjectname", "disciplina"],
+    ["calificacion", "grade", "gradetext", "estatus"]
+  ];
+  const missing = required
+    .filter((aliases) => !aliases.some((alias) => headers.includes(alias)))
+    .map((aliases) => aliases[0]);
+  if (missing.length) {
+    return { validRows: [], errors: [{ row: 1, message: `Faltan columnas requeridas: ${missing.join(", ")}` }], duplicates: 0 };
+  }
+
+  const existingByIdentity = new Map(allClassGradeRows().map((row) => [classGradeIdentity(row), row]));
+  const uploadIdentities = new Set();
+  const validRows = [];
+  const errors = [];
+  let duplicates = 0;
+
+  rows.forEach((raw, index) => {
+    const matricula = String(pickColumn(raw, ["matricula", "matrícula", "student_id", "student id"]) || "").trim().toUpperCase();
+    const subjectName = String(pickColumn(raw, ["materia", "asignatura", "subject_name", "disciplina", "nombre materia"]) || "").trim();
+    const grade = normalizeClassGrade(pickColumn(raw, ["calificacion", "calificación", "grade", "grade_text", "estatus"]));
+    const rowNumber = index + 2;
+    if (!matricula && !subjectName && grade === "") return;
+    const rowErrors = [];
+    if (!matricula) rowErrors.push("matricula vacia");
+    if (!subjectName) rowErrors.push("materia vacia");
+    if (grade === null) rowErrors.push("calificacion invalida; usa 0 a 100, BAJA, NP o vacio");
+    if (rowErrors.length) {
+      errors.push({ row: rowNumber, message: rowErrors.join("; ") });
+      return;
+    }
+    const row = {
+      matricula,
+      subject_code: String(pickColumn(raw, ["clave_materia", "clave materia", "subject_code", "codigo_materia", "código materia"]) || "").trim(),
+      subject_name: subjectName,
+      crn: String(pickColumn(raw, ["crn"]) || "").trim(),
+      group_number: String(pickColumn(raw, ["grupo", "group_number", "group"]) || "").trim(),
+      teacher_name: String(pickColumn(raw, ["profesor", "docente", "teacher_name"]) || "").trim(),
+      career_code: String(pickColumn(raw, ["carrera", "career_code"]) || "").trim(),
+      semester_label: String(pickColumn(raw, ["semestre", "semester_label"]) || "").trim(),
+      period_label: String(pickColumn(raw, ["periodo", "period_label"]) || "").trim(),
+      grade,
+      source_name: sourceName,
+      source_row: rowNumber
+    };
+    const identity = classGradeIdentity(row);
+    if (uploadIdentities.has(identity)) {
+      duplicates += 1;
+      return;
+    }
+    uploadIdentities.add(identity);
+    row.record_key = existingByIdentity.get(identity)?.record_key
+      || String(pickColumn(raw, ["record_key", "record key"]) || "").trim()
+      || classGradeRecordKey(identity);
+    validRows.push(row);
+  });
+  return { validRows, errors, duplicates };
+}
+
+async function rowsFromClassGradesFile(file) {
+  const extension = String(file?.name || "").split(".").pop().toLowerCase();
+  if (["xlsx", "xls"].includes(extension)) {
+    if (!window.XLSX) throw new Error("No esta disponible el lector de Excel");
+    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const sheetName = findWorkbookSheet(workbook, "calificaciones")
+      || findWorkbookSheet(workbook, "CD Lista de Alumnos")
+      || workbook.SheetNames[0];
+    return window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+  }
+  if (extension !== "csv") throw new Error("Usa un archivo Excel o CSV");
+  const grid = parseCsv(await file.text());
+  const headers = grid.shift() || [];
+  return grid.map((cells) => headers.reduce((row, header, index) => ({ ...row, [header]: cells[index] || "" }), {}));
+}
+
+async function importClassGradesFile(file) {
+  if (!file || classGradesImporting) return;
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("clases")) {
+    toast("Necesitas acceso autorizado de Clases Deportivas para cargar calificaciones");
+    return;
+  }
+  classGradesImporting = true;
+  classGradesUploadSummary = null;
+  render();
+  try {
+    const rawRows = await rowsFromClassGradesFile(file);
+    const parsed = parseClassGradeImportRows(rawRows, file.name);
+    if (!parsed.validRows.length) {
+      const detail = parsed.errors[0]?.message || "El archivo no contiene registros validos";
+      throw new Error(detail);
+    }
+    const chunkSize = 400;
+    for (let index = 0; index < parsed.validRows.length; index += chunkSize) {
+      const payload = parsed.validRows.slice(index, index + chunkSize).map(classGradeToCloud);
+      const { error } = await supabaseClient.from("class_grades").upsert(payload, { onConflict: "record_key" });
+      if (error) throw error;
+    }
+    classGradesUploadSummary = {
+      fileName: file.name,
+      processed: rawRows.length,
+      saved: parsed.validRows.length,
+      duplicates: parsed.duplicates,
+      errors: parsed.errors
+    };
+    addAudit("importacion", `${parsed.validRows.length} calificaciones cargadas desde ${file.name}`);
+    await loadClassGrades();
+    render();
+    toast(`${parsed.validRows.length} registros de calificaciones procesados`);
+  } catch (error) {
+    console.error(error);
+    classGradesUploadSummary = { fileName: file.name, processed: 0, saved: 0, duplicates: 0, errors: [{ row: 0, message: supabaseErrorDetail(error) || error.message || "Error de carga" }] };
+    render();
+    toast(`No se pudo cargar: ${classGradesUploadSummary.errors[0].message}`);
+  } finally {
+    classGradesImporting = false;
+    render();
+  }
+}
+
 function money(value) {
   return Number(value || 0).toLocaleString("es-MX", {
     style: "currency",
@@ -6347,6 +6490,35 @@ function renderClassGrades() {
   `;
 }
 
+function renderClassGradesSystemUpload() {
+  const editable = currentUser?.auth === "supabase" && canEditArea("clases") && classGradesAvailable;
+  const summary = classGradesUploadSummary;
+  return `
+    <section class="blueprint-card wide">
+      <div class="section-title compact">
+        <div>
+          <p class="eyebrow">Clases Deportivas</p>
+          <h2>Cargar archivo de Calificaciones</h2>
+        </div>
+        <span class="session-pill">Excel / CSV</span>
+      </div>
+      <p>Actualiza la lista de alumnos y sus calificaciones en Supabase. El Dashboard de Clases se recalcula al terminar.</p>
+      <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
+      <button class="primary-btn" id="uploadClassGrades" type="button" ${editable && !classGradesImporting ? "" : "disabled"}>
+        ${classGradesImporting ? "Procesando archivo..." : "Cargar archivo de Calificaciones"}
+      </button>
+      <p class="form-message">Columnas requeridas: matricula, materia y calificacion. También se aceptan clave_materia, CRN, grupo, profesor, carrera, semestre y periodo.</p>
+      ${!editable ? `<div class="permission-strip grade-warning">Ingresa con un perfil autorizado de Clases Deportivas para realizar la carga.</div>` : ""}
+      ${summary ? `
+        <div class="permission-strip ${summary.errors?.length ? "grade-warning" : ""}">
+          <span><strong>${escapeHtml(summary.fileName)}</strong>: ${summary.saved.toLocaleString("es-MX")} guardados, ${summary.duplicates.toLocaleString("es-MX")} duplicados omitidos y ${(summary.errors?.length || 0).toLocaleString("es-MX")} errores.</span>
+        </div>
+        ${summary.errors?.length ? `<details class="schedule-errors"><summary>Ver errores</summary>${summary.errors.slice(0, 10).map((error) => `<p>Fila ${error.row || "-"}: ${escapeHtml(error.message)}</p>`).join("")}</details>` : ""}
+      ` : ""}
+    </section>
+  `;
+}
+
 function renderProjectProgress() {
   const progress = projectProgress();
   return `
@@ -7626,14 +7798,14 @@ function render() {
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
   $$(`.segmented button[data-view="schedules"], .segmented button[data-view="reports"]`)
     .forEach((button) => { button.hidden = isGym; });
-  if (systemTab) systemTab.hidden = isGym || !isLeadership();
+  if (systemTab) systemTab.hidden = isGym || (!isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
   const filtersBand = $(".filters-band");
   if (filtersBand) filtersBand.hidden = isGym || isBudget;
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isVivencia && activeView === "vivencia-events") activeView = "dashboard";
   if (!isBudget && ["budget-allocation", "budget-request"].includes(activeView)) activeView = "dashboard";
-  if (activeView === "blueprint" && !isLeadership()) activeView = "dashboard";
+  if (activeView === "blueprint" && !isLeadership() && !(activeArea === "clases" && canEditArea("clases"))) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
   if (activeView === "simulator" && activeArea !== "clases") activeView = "dashboard";
@@ -7969,6 +8141,12 @@ function render() {
     render();
   }));
   $("#exportClassGrades")?.addEventListener("click", downloadClassGradesCsv);
+  $("#uploadClassGrades")?.addEventListener("click", () => $("#classGradesFile")?.click());
+  $("#classGradesFile")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    await importClassGradesFile(file);
+  });
   $$("[data-delete-row]").forEach((button) => button.addEventListener("click", () => deleteCollaboratorRow(button.dataset.deleteRow)));
   $$("[data-move-column]").forEach((button) => button.addEventListener("click", () => {
     moveCollaboratorColumn(button.dataset.moveColumn, Number(button.dataset.direction));
@@ -8461,8 +8639,13 @@ function downloadUniformesCsv(name = "colaboradores") {
 
 function renderBlueprint(area) {
   const selected = area.id === "general" ? areas[0] : area;
+  const classGradesUpload = selected.id === "clases" ? renderClassGradesSystemUpload() : "";
+  if (selected.id === "clases" && !isLeadership()) {
+    return `<div class="blueprint-grid">${classGradesUpload}</div>`;
+  }
   return `
     <div class="blueprint-grid">
+      ${classGradesUpload}
       <section class="blueprint-card">
         <h3>Mapa de modulos</h3>
         <p>El menu principal queda organizado por las ocho areas operativas y una vista ejecutiva. Cada modulo comparte el mismo patron para que los coordinadores no aprendan ocho sistemas distintos.</p>
