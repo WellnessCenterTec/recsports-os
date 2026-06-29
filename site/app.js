@@ -367,6 +367,8 @@ const students = Array.from({ length: 180 }, (_, i) => ({
 const GYM_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
 const budgetFilters = { period: "AD26", area: "todos", status: "todos" };
+let budgetPeriods = ["AD26"];
+let budgetPeriodFormOpen = false;
 
 const BUDGET_VISIBLE_AREAS = [
   { key: "clases", label: "Clases Deportivas", owner: "Coordinación Clases", icon: "activity" },
@@ -550,6 +552,7 @@ function normalizeBudgetAreaPlan(row) {
   const area = String(row?.area || "").trim();
   if (!area) return null;
   return {
+    period: String(row?.period || "AD26").trim().toUpperCase(),
     area,
     assigned: Math.max(0, Number(row.assigned || 0)),
     owner: String(row.owner || "").trim() || "Responsable de área",
@@ -605,6 +608,7 @@ function saveBudgetRequestRows() {
 
 function budgetPlanFromCloud(row) {
   return normalizeBudgetAreaPlan({
+    period: row.period_key,
     area: row.area_key,
     assigned: row.assigned_amount,
     owner: row.owner_name,
@@ -631,23 +635,32 @@ async function loadBudgetData() {
   budgetCloudReady = false;
   budgetCloudMessage = "Modo local";
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const [plansResult, requestsResult] = await Promise.all([
+  const [periodsResult, plansResult, requestsResult] = await Promise.all([
+    supabaseClient
+      .from("budget_periods")
+      .select("period_key")
+      .eq("active", true)
+      .order("created_at", { ascending: true }),
     supabaseClient
       .from("budget_area_plans")
-      .select("area_key, assigned_amount, owner_name, alert_threshold")
+      .select("period_key, area_key, assigned_amount, owner_name, alert_threshold")
       .order("area_key", { ascending: true }),
     supabaseClient
       .from("budget_requests")
       .select("id, period_key, request_date, area_key, concept, provider, amount, status, priority, request_type")
       .order("request_date", { ascending: false })
   ]);
-  if (plansResult.error || requestsResult.error) {
-    console.warn(plansResult.error || requestsResult.error);
+  if (periodsResult.error || plansResult.error || requestsResult.error) {
+    console.warn(periodsResult.error || plansResult.error || requestsResult.error);
     budgetCloudMessage = "Activa las tablas de Presupuesto en Supabase";
     return;
   }
   const cloudPlans = (plansResult.data || []).map(budgetPlanFromCloud).filter(Boolean);
   const cloudRequests = (requestsResult.data || []).map(budgetRequestFromCloud).filter(Boolean);
+  const cloudPeriods = (periodsResult.data || []).map((row) => String(row.period_key || "").trim()).filter(Boolean);
+  budgetPeriods = [...new Set([...cloudPeriods, ...cloudPlans.map((row) => row.period), ...cloudRequests.map((row) => row.period)])];
+  if (!budgetPeriods.length) budgetPeriods = ["AD26"];
+  if (!budgetPeriods.includes(budgetFilters.period)) budgetFilters.period = budgetPeriods[0];
   if (cloudPlans.length) budgetAreaPlans = cloudPlans;
   if (cloudRequests.length) budgetRequestRows = cloudRequests;
   budgetCloudReady = true;
@@ -657,12 +670,13 @@ async function loadBudgetData() {
 async function saveBudgetAllocationToCloud(plan) {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !budgetCloudReady) return false;
   const { error } = await supabaseClient.from("budget_area_plans").upsert({
+    period_key: plan.period,
     area_key: plan.area,
     assigned_amount: plan.assigned,
     owner_name: plan.owner,
     alert_threshold: plan.threshold,
     updated_by: currentUser.id
-  }, { onConflict: "area_key" });
+  }, { onConflict: "period_key,area_key" });
   if (error) {
     console.warn(error);
     toast("No se pudo guardar en Supabase; se conserva local");
@@ -4988,10 +5002,16 @@ function budgetAreaLabel(areaKey) {
   return budgetAreaDefinition(areaKey)?.label || labelArea(areaKey);
 }
 
+function budgetPeriodOptions() {
+  const values = [...new Set([budgetFilters.period, ...budgetPeriods].filter(Boolean))];
+  return values.map((value) => `<option value="${escapeHtml(value)}" ${budgetFilters.period === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("");
+}
+
 function visibleBudgetAreaPlans() {
   return BUDGET_VISIBLE_AREAS.map((definition) => (
-    budgetAreaPlans.find((row) => row.area === definition.key)
+    budgetAreaPlans.find((row) => row.period === budgetFilters.period && row.area === definition.key)
     || normalizeBudgetAreaPlan({
+      period: budgetFilters.period,
       area: definition.key,
       assigned: 0,
       owner: definition.owner,
@@ -5019,7 +5039,8 @@ function filteredBudgetAreas() {
 
 function budgetAreaSummary(areaKey) {
   const definition = budgetAreaDefinition(areaKey);
-  const plan = budgetAreaPlans.find((row) => row.area === areaKey) || {
+  const plan = budgetAreaPlans.find((row) => row.period === budgetFilters.period && row.area === areaKey) || {
+    period: budgetFilters.period,
     assigned: 0,
     threshold: 80,
     owner: definition?.owner || ""
@@ -5077,8 +5098,9 @@ async function saveBudgetAllocation(event) {
   const assigned = Number(form.get("assigned") || 0);
   const threshold = Number(form.get("threshold") || 80);
   const owner = String(form.get("owner") || "").trim();
-  const current = budgetAreaPlans.find((row) => row.area === area);
+  const current = budgetAreaPlans.find((row) => row.period === budgetFilters.period && row.area === area);
   const next = normalizeBudgetAreaPlan({
+    period: budgetFilters.period,
     area,
     assigned,
     threshold,
@@ -5088,8 +5110,8 @@ async function saveBudgetAllocation(event) {
     toast("Selecciona un área válida");
     return;
   }
-  budgetAreaPlans = budgetAreaPlans.some((row) => row.area === area)
-    ? budgetAreaPlans.map((row) => row.area === area ? next : row)
+  budgetAreaPlans = budgetAreaPlans.some((row) => row.period === budgetFilters.period && row.area === area)
+    ? budgetAreaPlans.map((row) => row.period === budgetFilters.period && row.area === area ? next : row)
     : [...budgetAreaPlans, next];
   const savedCloud = await saveBudgetAllocationToCloud(next);
   if (!savedCloud) saveBudgetAreaPlans();
@@ -5097,6 +5119,45 @@ async function saveBudgetAllocation(event) {
   if (savedCloud) await loadBudgetData();
   render();
   toast(savedCloud ? "Presupuesto actualizado en Supabase" : "Presupuesto actualizado localmente");
+}
+
+async function createBudgetPeriod(event) {
+  event.preventDefault();
+  if (!isLeadership()) {
+    toast("Solo Dirección/Admin puede crear periodos");
+    return;
+  }
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !budgetCloudReady) {
+    toast("Conecta Supabase para crear un periodo");
+    return;
+  }
+  const form = new FormData(event.currentTarget);
+  const period = String(form.get("period") || "").trim().toUpperCase();
+  if (!/^[A-Z]{2}[0-9]{2}$/.test(period)) {
+    toast("Usa un código como AD27 o FJ27");
+    return;
+  }
+  if (budgetPeriods.includes(period)) {
+    toast("Ese periodo ya existe");
+    return;
+  }
+  const { error } = await supabaseClient.rpc("create_budget_period", {
+    p_period_key: period,
+    p_source_period: budgetFilters.period
+  });
+  if (error) {
+    console.warn(error);
+    toast(error.message || "No se pudo crear el periodo");
+    return;
+  }
+  budgetFilters.period = period;
+  budgetFilters.area = "todos";
+  budgetFilters.status = "todos";
+  budgetPeriodFormOpen = false;
+  await loadBudgetData();
+  addAudit("presupuesto", `Periodo presupuestal creado: ${period}`);
+  render();
+  toast(`Periodo ${period} creado con presupuesto en cero`);
 }
 
 async function saveBudgetRequest(event) {
@@ -5236,7 +5297,7 @@ function renderBudgetRequestView() {
           <label>Fecha<input name="date" type="date" value="${new Date().toISOString().slice(0, 10)}" ${editable ? "" : "disabled"} /></label>
           <label>Periodo
             <select name="period" ${editable ? "" : "disabled"}>
-              ${["AD26", "FJ26", "IN26"].map((value) => `<option value="${value}" ${budgetFilters.period === value ? "selected" : ""}>${value}</option>`).join("")}
+              ${budgetPeriodOptions()}
             </select>
           </label>
           <label>Área
@@ -5287,7 +5348,7 @@ function renderBudgetDashboard() {
       <div class="budget-filters">
         <label>Periodo
           <select class="budget-filter" data-filter="period">
-            ${["AD26", "FJ26", "IN26"].map((value) => `<option value="${value}" ${budgetFilters.period === value ? "selected" : ""}>${value}</option>`).join("")}
+            ${budgetPeriodOptions()}
           </select>
         </label>
         <label>Area
@@ -5302,7 +5363,28 @@ function renderBudgetDashboard() {
             ${["pendiente", "autorizado", "comprometido", "ejercido", "rechazado"].map((value) => `<option value="${value}" ${budgetFilters.status === value ? "selected" : ""}>${budgetStatusLabel(value)}</option>`).join("")}
           </select>
         </label>
+        ${isLeadership() ? `<button class="primary-btn compact-action" type="button" data-budget-new-period>Nuevo periodo</button>` : ""}
       </div>
+
+      ${budgetPeriodFormOpen ? `
+        <article class="form-panel budget-editor-panel budget-standalone-panel">
+          <div class="budget-table-heading">
+            <div>
+              <p class="eyebrow">Nuevo ciclo presupuestal</p>
+              <h3>Crear periodo con saldos en cero</h3>
+            </div>
+            <span>Los responsables se copian de ${escapeHtml(budgetFilters.period)}</span>
+          </div>
+          <form id="budgetPeriodForm" class="budget-form">
+            <label>Código del periodo
+              <input name="period" maxlength="4" pattern="[A-Za-z]{2}[0-9]{2}" placeholder="Ej. AD27" required />
+            </label>
+            <p>Se crearán las seis áreas sin presupuesto, solicitudes, gastos ni compromisos. El historial anterior permanecerá intacto.</p>
+            <button class="primary-btn" type="submit">Crear periodo</button>
+            <button class="secondary-btn" type="button" data-budget-cancel-period>Cancelar</button>
+          </form>
+        </article>
+      ` : ""}
 
       <div class="kpi-grid budget-kpi-strip">
         ${budgetKpiCard("circle-dollar-sign", "Presupuesto asignado", money(assigned), "base del periodo", "blue")}
@@ -7625,6 +7707,15 @@ function render() {
   }));
   $("#budgetAllocationForm")?.addEventListener("submit", saveBudgetAllocation);
   $("#budgetRequestForm")?.addEventListener("submit", saveBudgetRequest);
+  $("#budgetPeriodForm")?.addEventListener("submit", createBudgetPeriod);
+  $("[data-budget-new-period]")?.addEventListener("click", () => {
+    budgetPeriodFormOpen = true;
+    render();
+  });
+  $("[data-budget-cancel-period]")?.addEventListener("click", () => {
+    budgetPeriodFormOpen = false;
+    render();
+  });
   $$(".budget-status-select").forEach((input) => input.addEventListener("change", (event) => {
     updateBudgetRequestStatus(event.target.dataset.budgetStatus, event.target.value);
   }));
