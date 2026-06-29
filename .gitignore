@@ -15,3 +15,5 @@ work/uniformes_summary.json
 # Keep generated dependency installs out of Git.
 work/recsports-os-app/node_modules/
 work/recsports-os-app/.next/
+.vercel
+.env*
