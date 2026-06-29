@@ -185,6 +185,7 @@ const levels = ["Profesional", "Posgrado"];
 const activities = ["clases", "gimnasio", "intramuros", "vivencia", "representativos", "gamer"];
 const STORAGE_KEY = "recsports_os_local_captures";
 const SCHEDULE_KEY = "recsports_os_class_schedules";
+const CLASS_BOOKING_RESERVATIONS_KEY = "wellsync_class_booking_reservations";
 const SIMULATOR_KEY = "recsports_os_schedule_simulator";
 const CLASS_SIMULATOR_KEY = "wellsync_spinning_fitness_simulator";
 const CLASS_SCHEDULE_SNAPSHOT_KEY = "wellsync_class_schedule_snapshot";
@@ -448,6 +449,8 @@ let physicalHallOfFameTopTest = "";
 let localCaptures = loadCaptures();
 let scheduleState = loadSchedules();
 let scheduleFilters = { professor: "todos", day: "todos", discipline: "todos", installation: "todos", mode: "professors", timeDay: "Lunes", time: "09:00", reportProfessor: "todos" };
+let classBookingReservations = loadClassBookingReservations();
+let classBookingFilters = { status: "todos", type: "todos", activity: "todos", search: "" };
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
 let classScheduleComparison = null;
@@ -734,6 +737,19 @@ function loadSchedules() {
 
 function saveSchedules() {
   localStorage.setItem(SCHEDULE_KEY, JSON.stringify(scheduleState));
+}
+
+function loadClassBookingReservations() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CLASS_BOOKING_RESERVATIONS_KEY) || "[]");
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveClassBookingReservations() {
+  localStorage.setItem(CLASS_BOOKING_RESERVATIONS_KEY, JSON.stringify(classBookingReservations));
 }
 
 function loadSimulator() {
@@ -7885,6 +7901,198 @@ function renderScheduleChangeList(title, rows) {
   `;
 }
 
+function cleanBookingActivity(value) {
+  return String(value || "Sin actividad").replace(/^booking\s+/i, "").trim() || "Sin actividad";
+}
+
+function bookingDateParts(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { date: "", day: "Sin fecha", hour: "Sin hora", month: "Sin mes" };
+  return {
+    date: date.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    day: date.toLocaleDateString("es-MX", { weekday: "long" }).replace(/^\w/, (char) => char.toUpperCase()),
+    hour: date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+    month: date.toLocaleDateString("es-MX", { month: "short", year: "numeric" })
+  };
+}
+
+function normalizeBookingReservation(row, index) {
+  const activity = cleanBookingActivity(pickColumn(row, ["espacio", "Espacio", "actividad", "Actividad"]));
+  const status = String(pickColumn(row, ["status", "Estatus", "estatus"]) || "Sin estatus").trim();
+  const type = String(pickColumn(row, ["type", "Tipo", "tipo"]) || "Sin tipo").trim();
+  const reservationDate = String(pickColumn(row, ["reservation_date", "Fecha", "fecha", "date"]) || "").trim();
+  const parts = bookingDateParts(reservationDate);
+  return {
+    id: String(pickColumn(row, ["id", "ID"]) || `booking-${index + 1}`).trim(),
+    reservationDate,
+    status,
+    type,
+    student: String(pickColumn(row, ["alumno", "Alumno", "matricula", "Matrícula", "Matricula"]) || "").trim().toUpperCase(),
+    activity,
+    rawSpace: String(pickColumn(row, ["espacio", "Espacio"]) || "").trim(),
+    dateLabel: parts.date,
+    day: parts.day,
+    hour: parts.hour,
+    month: parts.month
+  };
+}
+
+async function importClassBookingReservations(file) {
+  const rows = await rowsFromScheduleFile(file);
+  const parsed = rows.map(normalizeBookingReservation).filter((row) => row.student || row.activity || row.reservationDate);
+  classBookingReservations = parsed;
+  saveClassBookingReservations();
+  addAudit("booking", `${file.name}: ${parsed.length} reservaciones importadas`);
+  render();
+  toast(`${parsed.length} reservaciones de Booking cargadas`);
+}
+
+function bookingRowsFiltered() {
+  const term = normalizeText(classBookingFilters.search);
+  return classBookingReservations.filter((row) => {
+    const statusMatch = classBookingFilters.status === "todos" || row.status === classBookingFilters.status;
+    const typeMatch = classBookingFilters.type === "todos" || row.type === classBookingFilters.type;
+    const activityMatch = classBookingFilters.activity === "todos" || row.activity === classBookingFilters.activity;
+    const textMatch = !term || [row.student, row.activity, row.status, row.type, row.day, row.hour].some((value) => normalizeText(value).includes(term));
+    return statusMatch && typeMatch && activityMatch && textMatch;
+  });
+}
+
+function groupBookingRows(rows, field) {
+  const counts = new Map();
+  rows.forEach((row) => {
+    const key = row[field] || "Sin dato";
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return Array.from(counts.entries())
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+function bookingStatusLabel(value) {
+  const clean = String(value || "").toUpperCase();
+  if (clean === "APPROVED") return "Aprobadas";
+  if (clean === "PENDING") return "Pendientes";
+  if (clean === "CANCELLED") return "Canceladas";
+  return value || "Sin estatus";
+}
+
+function bookingTypeLabel(value) {
+  const clean = String(value || "").toUpperCase();
+  if (clean === "ONLINE") return "Online";
+  if (clean === "PRESENTIAL") return "Presencial";
+  return value || "Sin tipo";
+}
+
+function inferBookingProfessor(activity) {
+  const cleanActivity = normalizeText(activity);
+  const match = scheduleMasterRows().find((row) => normalizeText(row.discipline).includes(cleanActivity) || cleanActivity.includes(normalizeText(row.discipline).replace(/pmt\d/g, "").trim()));
+  return match?.professor || "Sin profesor asignado";
+}
+
+function renderBookingRank(title, rows, tone = "") {
+  const max = Math.max(...rows.map((row) => row.count), 1);
+  return `
+    <article class="booking-card">
+      <h3>${title}</h3>
+      <div class="booking-rank-list">
+        ${rows.length ? rows.slice(0, 7).map((row) => `
+          <div class="booking-rank-row ${tone}">
+            <div>
+              <strong>${escapeHtml(row.label)}</strong>
+              <span>${row.count.toLocaleString("es-MX")} reservaciones</span>
+            </div>
+            <em style="--booking-width:${Math.max(6, Math.round((row.count / max) * 100))}%"></em>
+          </div>
+        `).join("") : `<div class="empty-state">Carga el CSV de reservaciones para ver este análisis.</div>`}
+      </div>
+    </article>
+  `;
+}
+
+function renderClassBookingDashboard() {
+  if (activeArea !== "clases") {
+    return `<div class="permission-strip">Booking pertenece al módulo de Clases Deportivas. Selecciona Clases Deportivas para cargar y analizar reservaciones.</div>`;
+  }
+  const rows = bookingRowsFiltered();
+  const allRows = classBookingReservations;
+  const uniqueStudents = new Set(rows.map((row) => row.student).filter(Boolean)).size;
+  const activities = groupBookingRows(rows, "activity");
+  const students = groupBookingRows(rows, "student");
+  const days = groupBookingRows(rows, "day");
+  const hours = groupBookingRows(rows, "hour");
+  const statuses = groupBookingRows(rows, "status");
+  const types = groupBookingRows(rows, "type");
+  const activityOptions = groupBookingRows(allRows, "activity").map((row) => row.label);
+  const statusOptions = groupBookingRows(allRows, "status").map((row) => row.label);
+  const typeOptions = groupBookingRows(allRows, "type").map((row) => row.label);
+  const topActivity = activities[0]?.label || "Sin datos";
+  const topStudent = students[0]?.label || "Sin datos";
+  const topProfessor = topActivity === "Sin datos" ? "Sin datos" : inferBookingProfessor(topActivity);
+  return `
+    <section class="booking-module">
+      <div class="permission-strip booking-upload-strip">
+        <div>
+          <strong>Listas de alumnos de Booking</strong>
+          <span>Plantilla esperada: id, reservation_date, status, type, alumno, espacio.</span>
+        </div>
+        <label class="file-button">
+          Cargar reservaciones CSV
+          <input type="file" accept=".csv,.xlsx,.xls" id="classBookingReservationsFile" />
+        </label>
+      </div>
+      <div class="booking-kpi-grid">
+        <article><span>Reservaciones</span><strong>${rows.length.toLocaleString("es-MX")}</strong><em>${allRows.length.toLocaleString("es-MX")} cargadas</em></article>
+        <article><span>Alumnos únicos</span><strong>${uniqueStudents.toLocaleString("es-MX")}</strong><em>por matrícula</em></article>
+        <article><span>Actividad líder</span><strong>${escapeHtml(topActivity)}</strong><em>${activities[0]?.count?.toLocaleString("es-MX") || 0} usos</em></article>
+        <article><span>Profesor probable</span><strong>${escapeHtml(topProfessor)}</strong><em>cruce con Horarios</em></article>
+      </div>
+      <div class="booking-filter-row">
+        <label>Estatus<select class="booking-filter" data-filter="status"><option value="todos">Todos</option>${statusOptions.map((value) => `<option value="${escapeHtml(value)}" ${classBookingFilters.status === value ? "selected" : ""}>${escapeHtml(bookingStatusLabel(value))}</option>`).join("")}</select></label>
+        <label>Tipo<select class="booking-filter" data-filter="type"><option value="todos">Todos</option>${typeOptions.map((value) => `<option value="${escapeHtml(value)}" ${classBookingFilters.type === value ? "selected" : ""}>${escapeHtml(bookingTypeLabel(value))}</option>`).join("")}</select></label>
+        <label>Actividad<select class="booking-filter" data-filter="activity"><option value="todos">Todas</option>${activityOptions.map((value) => `<option value="${escapeHtml(value)}" ${classBookingFilters.activity === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select></label>
+        <label>Buscar<input class="booking-filter" data-filter="search" value="${escapeHtml(classBookingFilters.search)}" placeholder="Matrícula, actividad, hora..." /></label>
+      </div>
+      <div class="booking-dashboard-grid">
+        ${renderBookingRank("Actividades con más booking", activities, "green")}
+        ${renderBookingRank("Alumnos que más lo usan", students, "blue")}
+        ${renderBookingRank("Días con mayor demanda", days, "gold")}
+        ${renderBookingRank("Horarios más usados", hours, "red")}
+      </div>
+      <div class="booking-mini-grid">
+        ${renderBookingRank("Estatus", statuses)}
+        ${renderBookingRank("Modalidad", types)}
+      </div>
+      <section class="booking-table-panel">
+        <div class="class-grade-table-header">
+          <div>
+            <p class="eyebrow">Detalle operativo</p>
+            <h3>Reservaciones filtradas</h3>
+          </div>
+          <span>${rows.length.toLocaleString("es-MX")} registros</span>
+        </div>
+        <div class="class-grade-table-wrap booking-table-wrap">
+          <table class="class-grade-table">
+            <thead><tr><th>ID</th><th>Fecha</th><th>Alumno</th><th>Actividad</th><th>Estatus</th><th>Tipo</th></tr></thead>
+            <tbody>
+              ${rows.slice(0, 80).map((row) => `
+                <tr>
+                  <td>${escapeHtml(row.id)}</td>
+                  <td><strong>${escapeHtml(row.dateLabel || "Sin fecha")}</strong><small>${escapeHtml(`${row.day} ${row.hour}`)}</small></td>
+                  <td>${escapeHtml(row.student || "Sin alumno")}</td>
+                  <td><strong>${escapeHtml(row.activity)}</strong><small>${escapeHtml(inferBookingProfessor(row.activity))}</small></td>
+                  <td><span class="class-grade-pill ${normalizeText(row.status)}">${escapeHtml(bookingStatusLabel(row.status))}</span></td>
+                  <td>${escapeHtml(bookingTypeLabel(row.type))}</td>
+                </tr>
+              `).join("") || `<tr><td colspan="6">Carga el archivo de reservaciones para comenzar.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  `;
+}
+
 
 
 function renderReports(area) {
@@ -7970,6 +8178,7 @@ function render() {
   $("#currentTitle").textContent = area.name;
   const evaluationsTab = $("#evaluationsViewButton");
   const gradesTab = $("#gradesViewButton");
+  const bookingTab = $("#bookingViewButton");
   const simulatorTab = $("#simulatorViewButton");
   const gymAttendanceTab = $("#gymAttendanceViewButton");
   const gymRegistrationsTab = $("#gymRegistrationsViewButton");
@@ -7982,6 +8191,7 @@ function render() {
   const isBudget = activeArea === "compras";
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
   if (gradesTab) gradesTab.hidden = activeArea !== "clases";
+  if (bookingTab) bookingTab.hidden = activeArea !== "clases";
   if (simulatorTab) simulatorTab.hidden = activeArea !== "clases";
   if (gymAttendanceTab) gymAttendanceTab.hidden = !isGym;
   if (gymRegistrationsTab) gymRegistrationsTab.hidden = !isGym;
@@ -8000,6 +8210,7 @@ function render() {
   if (activeView === "blueprint" && !isLeadership() && !(activeArea === "clases" && canEditArea("clases"))) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
+  if (activeView === "booking" && activeArea !== "clases") activeView = "dashboard";
   if (activeView === "simulator" && activeArea !== "clases") activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
   $("#contentArea").innerHTML = activeView === "dashboard"
@@ -8018,6 +8229,8 @@ function render() {
                 ? renderBudgetRequestView()
       : activeView === "schedules"
         ? renderSchedules(area)
+        : activeView === "booking"
+          ? renderClassBookingDashboard()
         : activeView === "simulator"
           ? renderScheduleSimulatorView()
         : activeView === "reports"
@@ -8144,6 +8357,16 @@ function render() {
     if (!file) return;
     await handleScheduleUpload(file, input.dataset.scheduleUpload);
     event.target.value = "";
+  }));
+  $("#classBookingReservationsFile")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importClassBookingReservations(file);
+    event.target.value = "";
+  });
+  $$(".booking-filter").forEach((input) => input.addEventListener("input", (event) => {
+    classBookingFilters[event.target.dataset.filter] = event.target.value;
+    render();
   }));
   $$(".schedule-download").forEach((button) => button.addEventListener("click", () => downloadProfessorSchedule(button.dataset.download)));
   $$(".simulator-filter").forEach((input) => input.addEventListener("input", (event) => {

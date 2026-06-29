@@ -3199,6 +3199,155 @@ tbody tr:hover td {
   box-shadow: inset 0 -3px 0 var(--gold);
 }
 
+.booking-module {
+  display: grid;
+  gap: 14px;
+}
+
+.booking-upload-strip {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.booking-upload-strip div {
+  display: grid;
+  gap: 4px;
+}
+
+.booking-upload-strip span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.booking-kpi-grid,
+.booking-dashboard-grid,
+.booking-mini-grid,
+.booking-filter-row {
+  display: grid;
+  gap: 12px;
+}
+
+.booking-kpi-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.booking-kpi-grid article,
+.booking-card,
+.booking-table-panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 7px 20px rgba(13, 42, 62, .04);
+  padding: 16px;
+}
+
+.booking-kpi-grid article {
+  display: grid;
+  gap: 6px;
+  min-height: 122px;
+}
+
+.booking-kpi-grid span,
+.booking-kpi-grid em {
+  color: var(--muted);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.booking-kpi-grid strong {
+  color: var(--ink);
+  font-size: 26px;
+  line-height: 1.05;
+}
+
+.booking-dashboard-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.booking-mini-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.booking-filter-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.booking-filter-row label {
+  color: var(--muted);
+  display: grid;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 6px;
+}
+
+.booking-filter-row input,
+.booking-filter-row select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.booking-card h3 {
+  margin: 0 0 12px;
+}
+
+.booking-rank-list {
+  display: grid;
+  gap: 10px;
+}
+
+.booking-rank-row {
+  display: grid;
+  gap: 8px;
+}
+
+.booking-rank-row div {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.booking-rank-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-rank-row span {
+  color: var(--muted);
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.booking-rank-row em {
+  background: linear-gradient(90deg, var(--teal) var(--booking-width), #e5edf1 var(--booking-width));
+  border-radius: 999px;
+  display: block;
+  height: 9px;
+}
+
+.booking-rank-row.gold em { background: linear-gradient(90deg, var(--gold) var(--booking-width), #e5edf1 var(--booking-width)); }
+.booking-rank-row.red em { background: linear-gradient(90deg, var(--red) var(--booking-width), #e5edf1 var(--booking-width)); }
+.booking-rank-row.blue em { background: linear-gradient(90deg, var(--blue) var(--booking-width), #e5edf1 var(--booking-width)); }
+
+.booking-table-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.booking-table-wrap {
+  max-height: 560px;
+}
+
 .schedule-filter-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -4553,7 +4702,7 @@ tbody tr:hover td {
 @media (max-width: 760px) {
   .workspace, .sidebar { padding: 14px; }
   .topbar, .top-actions, .section-title, .report-row, .permission-strip, .collaborator-table-header { flex-direction: column; align-items: stretch; }
-  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps { grid-template-columns: 1fr; }
+  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps, .booking-kpi-grid, .booking-dashboard-grid, .booking-mini-grid, .booking-filter-row { grid-template-columns: 1fr; }
   .nav-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .nav-item { min-width: 0; }
   .nav-item > span:first-child {
