@@ -185,7 +185,6 @@ const levels = ["Profesional", "Posgrado"];
 const activities = ["clases", "gimnasio", "intramuros", "vivencia", "representativos", "gamer"];
 const STORAGE_KEY = "recsports_os_local_captures";
 const SCHEDULE_KEY = "recsports_os_class_schedules";
-const CLASS_BOOKING_RESERVATIONS_KEY = "wellsync_class_booking_reservations";
 const SIMULATOR_KEY = "recsports_os_schedule_simulator";
 const CLASS_SIMULATOR_KEY = "wellsync_spinning_fitness_simulator";
 const CLASS_SCHEDULE_SNAPSHOT_KEY = "wellsync_class_schedule_snapshot";
@@ -449,15 +448,6 @@ let physicalHallOfFameTopTest = "";
 let localCaptures = loadCaptures();
 let scheduleState = loadSchedules();
 let scheduleFilters = { professor: "todos", day: "todos", discipline: "todos", installation: "todos", mode: "professors", timeDay: "Lunes", time: "09:00", reportProfessor: "todos" };
-let classBookingReservations = loadClassBookingReservations();
-let classBookingCloudAvailable = true;
-let classBookingFilters = { status: "todos", type: "todos", activity: "todos", search: "" };
-let participationUploadState = {
-  gamer: { fileName: "", draft: null, imported: null },
-  representativos: { fileName: "", draft: null, imported: null }
-};
-let participationUploadCloudAvailable = true;
-let executiveReportState = { week: 15, period: "FJ26", title: "Reporte Ejecutivo Semana 15" };
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
 let classScheduleComparison = null;
@@ -746,92 +736,6 @@ function saveSchedules() {
   localStorage.setItem(SCHEDULE_KEY, JSON.stringify(scheduleState));
 }
 
-function loadClassBookingReservations() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(CLASS_BOOKING_RESERVATIONS_KEY) || "[]");
-    return Array.isArray(saved) ? saved : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveClassBookingReservations() {
-  localStorage.setItem(CLASS_BOOKING_RESERVATIONS_KEY, JSON.stringify(classBookingReservations));
-}
-
-function bookingReservationFromCloud(row) {
-  const parts = bookingDateParts(row.reservation_at || "");
-  return {
-    id: row.source_reservation_id || row.id,
-    reservationDate: row.reservation_at || "",
-    status: row.status || "Sin estatus",
-    type: row.reservation_type || "Sin tipo",
-    student: normalizeMatricula(row.matricula),
-    activity: row.activity || "Sin actividad",
-    rawSpace: row.raw_space || row.activity || "",
-    dateLabel: parts.date,
-    day: parts.day,
-    hour: parts.hour,
-    month: parts.month
-  };
-}
-
-function bookingReservationToCloud(row, fileName = "") {
-  return {
-    source_reservation_id: String(row.id || "").trim() || null,
-    reservation_at: row.reservationDate || null,
-    status: row.status || null,
-    reservation_type: row.type || null,
-    matricula: normalizeMatricula(row.student) || null,
-    activity: row.activity || "Sin actividad",
-    raw_space: row.rawSpace || null,
-    source_name: fileName || "Booking",
-    created_by: currentUser?.auth === "supabase" ? currentUser.id : null
-  };
-}
-
-async function loadClassBookingReservationsCloud() {
-  if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const { data, error } = await supabaseClient
-    .from("class_booking_reservations")
-    .select("*")
-    .order("reservation_at", { ascending: false })
-    .limit(20000);
-  if (error) {
-    classBookingCloudAvailable = false;
-    console.warn("Booking Supabase no disponible", error);
-    return;
-  }
-  classBookingCloudAvailable = true;
-  classBookingReservations = (data || []).map(bookingReservationFromCloud);
-  saveClassBookingReservations();
-}
-
-async function saveClassBookingReservationsCloud(rows, fileName = "") {
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("clases")) return false;
-  const { error: deleteError } = await supabaseClient
-    .from("class_booking_reservations")
-    .delete()
-    .neq("id", "00000000-0000-0000-0000-000000000000");
-  if (deleteError) {
-    classBookingCloudAvailable = false;
-    toast(`Booking quedó local; falta activar Supabase: ${supabaseErrorDetail(deleteError) || deleteError.message}`);
-    return false;
-  }
-  const payload = rows.map((row) => bookingReservationToCloud(row, fileName));
-  for (let index = 0; index < payload.length; index += 500) {
-    const chunk = payload.slice(index, index + 500);
-    const { error } = await supabaseClient.from("class_booking_reservations").insert(chunk);
-    if (error) {
-      classBookingCloudAvailable = false;
-      toast(`Booking quedó local; no pude guardar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
-      return false;
-    }
-  }
-  classBookingCloudAvailable = true;
-  return true;
-}
-
 function loadSimulator() {
   try {
     const saved = JSON.parse(localStorage.getItem(SIMULATOR_KEY) || "null");
@@ -1048,12 +952,10 @@ function participationFromCloud(row) {
 function studentDatabaseFromCloud(row) {
   const matricula = row.Matricula || row.matricula || "";
   const nivelRaw = row["Desc Nivel Acad Alumno"] || row.nivel_escolar || row.grado_escolar || "";
-  const programa = row["Desc Programa Acad"] || row.Programa || row.programa || row.Carrera || row.carrera || "Sin programa";
   return {
     matricula,
     genero: row.Genero || row.genero || "No especificado",
-    carrera: programa,
-    programa,
+    carrera: row["Desc Programa Acad"] || row.Carrera || row.carrera || "Sin carrera",
     semestre: Number(row.Semestre || row.semestre || 1),
     nivel: normalizeStudentLevel(nivelRaw),
     gradoEscolar: nivelRaw,
@@ -1959,23 +1861,17 @@ async function replaceStudentDatabaseFromCsv(file) {
 
 async function loadSupabaseCaptures() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const rows = [];
-  const pageSize = 1000;
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabaseClient
-      .from("participations")
-      .select("id, matricula, area_key, period_key, status, operation_label, metadata, created_at, students_minimal(genero, carrera, semestre, nivel_escolar)")
-      .order("created_at", { ascending: false })
-      .range(offset, offset + pageSize - 1);
-    if (error) {
-      cloudStatus = "Supabase conectado, pendiente permisos";
-      toast("No pude leer capturas de Supabase todavia");
-      return;
-    }
-    rows.push(...(data || []));
-    if (!data || data.length < pageSize) break;
+  const { data, error } = await supabaseClient
+    .from("participations")
+    .select("id, matricula, area_key, period_key, status, operation_label, metadata, created_at, students_minimal(genero, carrera, semestre, nivel_escolar)")
+    .order("created_at", { ascending: false })
+    .limit(800);
+  if (error) {
+    cloudStatus = "Supabase conectado, pendiente permisos";
+    toast("No pude leer capturas de Supabase todavia");
+    return;
   }
-  cloudCaptures = rows.map(participationFromCloud);
+  cloudCaptures = (data || []).map(participationFromCloud);
   cloudStatus = "Supabase conectado";
 }
 
@@ -3394,8 +3290,6 @@ async function loadSupabaseDataBundle() {
     ["Gimnasio", loadGymData],
     ["Simulador de clases", loadClassScheduleSimulatorCloud],
     ["Vivencia", loadVivenciaEvents],
-    ["Booking", loadClassBookingReservationsCloud],
-    ["Gamer y Representativos", loadParticipationUploadsCloud],
     ["Presupuesto", loadBudgetData]
   ];
   const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
@@ -4971,761 +4865,13 @@ function renderGymStudentRegistration() {
   `;
 }
 
-const participationUploadConfigs = {
-  gamer: {
-    title: "Cargar matrículas Gamer",
-    subtitle: "Importa una lista simple de matrículas para analizar perfil académico y alcance del módulo Gamer.",
-    button: "Cargar matrículas Gamer",
-    templateName: "plantilla-gamer.csv",
-    required: ["Matrícula"],
-    accepted: ["Matrícula"],
-    recommendations: ["Usar una sola columna llamada Matrícula.", "No dejar filas vacías.", "Guardar el archivo como .xlsx o .csv."],
-    sample: [{ "Matrícula": "A01234567" }, { "Matrícula": "A07654321" }]
-  },
-  representativos: {
-    title: "Cargar información de Representativos",
-    subtitle: "Importa alumnos por equipo representativo para analizar equipos, coaches y perfil académico.",
-    button: "Cargar información de Representativos",
-    templateName: "plantilla-representativos.csv",
-    required: ["Matrícula", "Clave de la materia", "Representativo", "Coach"],
-    accepted: ["Matrícula", "Clave de la materia", "Materia de repre", "COACH"],
-    recommendations: ["No cambiar nombres de columnas.", "No dejar filas vacías.", "Guardar el archivo como .xlsx o .csv.", "Si el archivo trae nombres de alumnos, WellSync los ignora y no los muestra."],
-    sample: [
-      { "Matrícula": "A01234567", "Clave de la materia": "DEP101", "Materia de repre": "Fútbol Soccer", "COACH": "Coach responsable" },
-      { "Matrícula": "A07654321", "Clave de la materia": "DEP202", "Materia de repre": "Basquetbol", "COACH": "Coach responsable" }
-    ]
-  }
-};
-
-function uploadHasColumn(rows, aliases) {
-  const headers = Object.keys(rows[0] || {}).map(headerKey);
-  return aliases.some((alias) => headers.includes(headerKey(alias)));
-}
-
-function uploadedStudentProfile(matricula) {
-  const student = findStudentInDatabase(matricula);
-  return student ? {
-    found: true,
-    genero: student.genero || "No especificado",
-    carrera: student.carrera || "Sin carrera",
-    nivel: student.nivel || "Sin nivel",
-    programa: student.programa || student.carrera || "Sin programa"
-  } : {
-    found: false,
-    genero: "No encontrado",
-    carrera: "No encontrado",
-    nivel: "No encontrado",
-    programa: "No encontrado"
-  };
-}
-
-function normalizeParticipationUploadRow(areaId, row, index, seen) {
-  const matricula = normalizeMatricula(pickColumn(row, ["Matrícula", "Matricula", "matricula"]));
-  const duplicate = Boolean(matricula && seen.has(matricula));
-  if (matricula) seen.add(matricula);
-  const profile = uploadedStudentProfile(matricula);
-  const base = {
-    rowNumber: index + 2,
-    matricula,
-    duplicate,
-    empty: !matricula,
-    found: profile.found,
-    genero: profile.genero,
-    carrera: profile.carrera,
-    nivel: profile.nivel,
-    programa: profile.programa
-  };
-  if (areaId === "representativos") {
-    return {
-      ...base,
-      clave_materia: String(pickColumn(row, ["Clave de la materia", "Clave materia", "clave_materia"]) || "").trim(),
-      representativo: String(pickColumn(row, ["Representativo", "Materia de repre", "Materia repre", "materia_de_repre"]) || "").trim(),
-      coach: String(pickColumn(row, ["Coach", "COACH"]) || "").trim()
-    };
-  }
-  return base;
-}
-
-function validateParticipationUpload(areaId, rows, fileName = "") {
-  const config = participationUploadConfigs[areaId];
-  const errors = [];
-  const warnings = [];
-  if (!rows.length) errors.push("El archivo está vacío.");
-  if (areaId === "gamer" && rows.length && !uploadHasColumn(rows, ["Matrícula", "Matricula", "matricula"])) {
-    errors.push("Falta la columna obligatoria: Matrícula.");
-  }
-  if (areaId === "representativos" && rows.length) {
-    [
-      ["Matrícula", ["Matrícula", "Matricula", "matricula"]],
-      ["Clave de la materia", ["Clave de la materia", "Clave materia", "clave_materia"]],
-      ["Representativo", ["Representativo", "Materia de repre", "Materia repre", "materia_de_repre"]],
-      ["Coach", ["Coach", "COACH"]]
-    ].forEach(([label, aliases]) => {
-      if (!uploadHasColumn(rows, aliases)) errors.push(`Falta la columna obligatoria: ${label}.`);
-    });
-  }
-  const seen = new Set();
-  const parsedRows = errors.length ? [] : rows
-    .map((row, index) => normalizeParticipationUploadRow(areaId, row, index, seen))
-    .filter((row) => row.matricula || (areaId === "representativos" && (row.representativo || row.coach || row.clave_materia)));
-  const emptyRows = parsedRows.filter((row) => row.empty).length;
-  const duplicateRows = parsedRows.filter((row) => row.duplicate);
-  const notFoundRows = parsedRows.filter((row) => row.matricula && !row.found);
-  if (emptyRows) warnings.push(`${emptyRows} filas sin matrícula.`);
-  if (duplicateRows.length) warnings.push(`${duplicateRows.length} matrículas duplicadas dentro del archivo.`);
-  if (notFoundRows.length) warnings.push(`${notFoundRows.length} matrículas no encontradas en Base de datos_alumnos.`);
-  return {
-    areaId,
-    fileName,
-    config,
-    rows: parsedRows,
-    preview: parsedRows.slice(0, 8),
-    errors,
-    warnings,
-    summary: {
-      total: parsedRows.length,
-      found: parsedRows.filter((row) => row.matricula && row.found && !row.duplicate).length,
-      notFound: notFoundRows.length,
-      duplicates: duplicateRows.length,
-      empty: emptyRows,
-      representativos: areaId === "representativos" ? new Set(parsedRows.map((row) => row.representativo).filter(Boolean)).size : 0,
-      coaches: areaId === "representativos" ? new Set(parsedRows.map((row) => row.coach).filter(Boolean)).size : 0
-    }
-  };
-}
-
-async function loadParticipationUploadFile(areaId, file) {
-  if (!file) return;
-  try {
-    const rows = await rowsFromScheduleFile(file);
-    participationUploadState[areaId].fileName = file.name;
-    participationUploadState[areaId].draft = validateParticipationUpload(areaId, rows, file.name);
-    render();
-    toast("Archivo leído para validación");
-  } catch (error) {
-    console.error(error);
-    participationUploadState[areaId].draft = {
-      areaId,
-      fileName: file.name,
-      rows: [],
-      preview: [],
-      errors: ["No pude leer el archivo. Usa .xlsx o .csv con encabezados."],
-      warnings: [],
-      summary: { total: 0, found: 0, notFound: 0, duplicates: 0, empty: 0, representativos: 0, coaches: 0 }
-    };
-    render();
-  }
-}
-
-async function importParticipationUpload(areaId) {
-  const draft = participationUploadState[areaId]?.draft;
-  if (!draft) return;
-  if (draft.errors.length) {
-    toast("Corrige los errores antes de importar");
-    return;
-  }
-  const savedCloud = await saveParticipationUploadCloud(areaId, draft);
-  participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
-  if (savedCloud) await loadParticipationUploadsCloud();
-  addAudit(areaId, `${draft.summary.total} registros importados desde ${draft.fileName}`);
-  render();
-  toast(savedCloud ? "Información guardada en Supabase" : "Información importada localmente");
-}
-
-function downloadParticipationTemplate(areaId) {
-  const config = participationUploadConfigs[areaId];
-  const headers = Object.keys(config.sample[0] || {});
-  const csv = [headers.join(","), ...config.sample.map((row) => headers.map((header) => csvEscape(row[header] || "")).join(","))].join("\n");
-  downloadBlob(csv, config.templateName);
-}
-
-function participationUploadRowToCloud(areaId, row, fileName = "") {
-  return {
-    area_key: areaId,
-    matricula: normalizeMatricula(row.matricula),
-    found_in_student_base: Boolean(row.found),
-    duplicate_in_file: Boolean(row.duplicate),
-    clave_materia: areaId === "representativos" ? (row.clave_materia || null) : null,
-    representativo: areaId === "representativos" ? (row.representativo || null) : null,
-    coach: areaId === "representativos" ? (row.coach || null) : null,
-    genero: row.genero || null,
-    carrera: row.carrera || null,
-    nivel: row.nivel || null,
-    programa: row.programa || null,
-    source_name: fileName || participationUploadConfigs[areaId]?.title || areaId,
-    source_row_number: row.rowNumber || null,
-    created_by: currentUser?.auth === "supabase" ? currentUser.id : null
-  };
-}
-
-function participationUploadRowFromCloud(row) {
-  return {
-    rowNumber: row.source_row_number || 0,
-    matricula: normalizeMatricula(row.matricula),
-    duplicate: Boolean(row.duplicate_in_file),
-    empty: !row.matricula,
-    found: Boolean(row.found_in_student_base),
-    genero: row.genero || "No especificado",
-    carrera: row.carrera || "Sin carrera",
-    nivel: row.nivel || "Sin nivel",
-    programa: row.programa || row.carrera || "Sin programa",
-    clave_materia: row.clave_materia || "",
-    representativo: row.representativo || "",
-    coach: row.coach || ""
-  };
-}
-
-function buildParticipationImportResult(areaId, rows, fileName = "Supabase") {
-  const config = participationUploadConfigs[areaId];
-  const parsedRows = rows.map(participationUploadRowFromCloud);
-  const duplicateRows = parsedRows.filter((row) => row.duplicate);
-  const notFoundRows = parsedRows.filter((row) => row.matricula && !row.found);
-  const emptyRows = parsedRows.filter((row) => row.empty).length;
-  return {
-    areaId,
-    fileName,
-    config,
-    rows: parsedRows,
-    preview: parsedRows.slice(0, 8),
-    errors: [],
-    warnings: [
-      ...(emptyRows ? [`${emptyRows} filas sin matrícula.`] : []),
-      ...(duplicateRows.length ? [`${duplicateRows.length} matrículas duplicadas dentro del archivo.`] : []),
-      ...(notFoundRows.length ? [`${notFoundRows.length} matrículas no encontradas en Base de datos_alumnos.`] : [])
-    ],
-    summary: {
-      total: parsedRows.length,
-      found: parsedRows.filter((row) => row.matricula && row.found && !row.duplicate).length,
-      notFound: notFoundRows.length,
-      duplicates: duplicateRows.length,
-      empty: emptyRows,
-      representativos: areaId === "representativos" ? new Set(parsedRows.map((row) => row.representativo).filter(Boolean)).size : 0,
-      coaches: areaId === "representativos" ? new Set(parsedRows.map((row) => row.coach).filter(Boolean)).size : 0
-    }
-  };
-}
-
-async function loadParticipationUploadsCloud() {
-  if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const { data, error } = await supabaseClient
-    .from("participation_upload_rows")
-    .select("*")
-    .order("area_key", { ascending: true })
-    .order("created_at", { ascending: false })
-    .limit(30000);
-  if (error) {
-    participationUploadCloudAvailable = false;
-    console.warn("Cargas de participación Supabase no disponibles", error);
-    return;
-  }
-  participationUploadCloudAvailable = true;
-  ["gamer", "representativos"].forEach((areaId) => {
-    const areaRows = (data || []).filter((row) => row.area_key === areaId);
-    if (!areaRows.length) return;
-    const latestSource = areaRows[0]?.source_name || "Supabase";
-    participationUploadState[areaId].fileName = latestSource;
-    participationUploadState[areaId].imported = buildParticipationImportResult(areaId, areaRows, latestSource);
-    participationUploadState[areaId].draft = null;
-  });
-}
-
-async function saveParticipationUploadCloud(areaId, draft) {
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea(areaId)) return false;
-  const { error: deleteError } = await supabaseClient
-    .from("participation_upload_rows")
-    .delete()
-    .eq("area_key", areaId);
-  if (deleteError) {
-    participationUploadCloudAvailable = false;
-    toast(`La carga quedó local; falta activar Supabase: ${supabaseErrorDetail(deleteError) || deleteError.message}`);
-    return false;
-  }
-  const payload = draft.rows
-    .filter((row) => row.matricula)
-    .map((row) => participationUploadRowToCloud(areaId, row, draft.fileName));
-  for (let index = 0; index < payload.length; index += 500) {
-    const chunk = payload.slice(index, index + 500);
-    const { error } = await supabaseClient.from("participation_upload_rows").insert(chunk);
-    if (error) {
-      participationUploadCloudAvailable = false;
-      toast(`La carga quedó local; no pude guardar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
-      return false;
-    }
-  }
-  participationUploadCloudAvailable = true;
-  return true;
-}
-
-function uploadGroupCounts(rows, field, options = {}) {
-  const source = options.foundOnly ? rows.filter((row) => row.found && !row.duplicate) : rows.filter((row) => !row.duplicate);
-  const counts = new Map();
-  source.forEach((row) => {
-    const value = row[field] || "Sin dato";
-    counts.set(value, (counts.get(value) || 0) + 1);
-  });
-  return Array.from(counts.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
-}
-
-function renderUploadBars(title, rows) {
-  const max = Math.max(...rows.map((row) => row.value), 1);
-  return `
-    <article class="upload-chart-card">
-      <h3>${title}</h3>
-      <div class="upload-bars">
-        ${rows.length ? rows.slice(0, 8).map((row) => `
-          <div class="upload-bar-row">
-            <span>${escapeHtml(row.label)}</span>
-            <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, Math.round((row.value / max) * 100))}%"></div></div>
-            <strong>${row.value}</strong>
-          </div>
-        `).join("") : `<div class="upload-empty">Sin datos suficientes para graficar.</div>`}
-      </div>
-    </article>
-  `;
-}
-
-function renderParticipationUploadDashboard(areaId) {
-  const config = participationUploadConfigs[areaId];
-  const state = participationUploadState[areaId];
-  const result = state.imported || state.draft;
-  const imported = state.imported;
-  const rows = result?.rows || [];
-  const notFound = rows.filter((row) => row.matricula && !row.found);
-  const canImport = result && !result.errors?.length && rows.length;
-  const title = areaId === "gamer" ? "Gamer" : "Representativos";
-  return `
-    <section class="upload-center">
-      <div class="permission-strip">
-        <span>${title}: centro visual de carga y validación contra Base de datos_alumnos.</span>
-        <span>${studentDatabaseLoaded ? `${cloudStudentDatabase.length.toLocaleString("es-MX")} alumnos en base general` : "Base general pendiente de cargar"}</span>
-      </div>
-      <div class="upload-center-grid">
-        <article class="upload-info-panel">
-          <p class="eyebrow">Centro de carga</p>
-          <h3>${config.title}</h3>
-          <p>${config.subtitle}</p>
-          <div class="upload-required-list">
-            <strong>Columnas obligatorias</strong>
-            ${config.required.map((column) => `<span>${escapeHtml(column)}</span>`).join("")}
-          </div>
-          <div class="upload-template-preview">
-            <strong>Vista previa de plantilla</strong>
-            <table>
-              <thead><tr>${Object.keys(config.sample[0]).map((key) => `<th>${escapeHtml(key)}</th>`).join("")}</tr></thead>
-              <tbody>${config.sample.map((row) => `<tr>${Object.keys(config.sample[0]).map((key) => `<td>${escapeHtml(row[key])}</td>`).join("")}</tr>`).join("")}</tbody>
-            </table>
-          </div>
-          <ul class="upload-recommendations">
-            ${config.recommendations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-          </ul>
-          <button class="ghost-btn" type="button" data-download-upload-template="${areaId}">Descargar plantilla</button>
-        </article>
-        <article class="upload-drop-panel">
-          <p class="eyebrow">Validación</p>
-          <h3>${config.button}</h3>
-          <label class="upload-drop-zone" data-upload-drop="${areaId}">
-            <input type="file" accept=".csv,.xlsx,.xls" data-participation-upload="${areaId}" hidden />
-            <strong>Arrastra tu archivo aquí</strong>
-            <span>o selecciona un archivo .xlsx o .csv</span>
-            <em>${state.fileName ? escapeHtml(state.fileName) : "Sin archivo seleccionado"}</em>
-          </label>
-          <div class="upload-validation-summary">
-            ${result ? `
-              <div class="upload-status ${result.errors.length ? "red" : result.warnings.length ? "yellow" : "green"}">
-                <strong>${result.errors.length ? "Con errores" : result.warnings.length ? "Con advertencias" : "Listo para importar"}</strong>
-                <span>${result.errors.length || result.warnings.length || "Archivo validado correctamente"}</span>
-              </div>
-              <div class="upload-message-list">
-                ${result.errors.map((item) => `<p class="red">${escapeHtml(item)}</p>`).join("")}
-                ${result.warnings.map((item) => `<p class="yellow">${escapeHtml(item)}</p>`).join("")}
-              </div>
-            ` : `<div class="upload-empty">Carga un archivo para ver la validación.</div>`}
-          </div>
-          <button class="primary-btn" type="button" data-import-participation-upload="${areaId}" ${canImport ? "" : "disabled"}>Importar información</button>
-        </article>
-      </div>
-      ${result ? `
-        <div class="upload-kpi-grid">
-          <article><span>Total cargado</span><strong>${result.summary.total}</strong><em>registros</em></article>
-          <article><span>${areaId === "gamer" ? "Encontradas" : "Válidas"}</span><strong>${result.summary.found}</strong><em>en base general</em></article>
-          <article><span>No encontradas</span><strong>${result.summary.notFound}</strong><em>revisar matrícula</em></article>
-          <article><span>Duplicados</span><strong>${result.summary.duplicates}</strong><em>en archivo</em></article>
-          ${areaId === "representativos" ? `<article><span>Representativos</span><strong>${result.summary.representativos}</strong><em>equipos</em></article><article><span>Coaches</span><strong>${result.summary.coaches}</strong><em>responsables</em></article>` : ""}
-        </div>
-        <section class="upload-preview-panel">
-          <div class="class-grade-table-header">
-            <div><p class="eyebrow">Vista previa</p><h3>${imported ? "Información importada" : "Archivo listo para revisión"}</h3></div>
-            <span>${result.preview.length} de ${rows.length} registros</span>
-          </div>
-          <div class="class-grade-table-wrap">
-            <table class="class-grade-table">
-              <thead><tr>${areaId === "representativos" ? "<th>Matrícula</th><th>Clave</th><th>Representativo</th><th>Coach</th><th>Base</th>" : "<th>Matrícula</th><th>Base</th><th>Género</th><th>Carrera</th><th>Nivel</th><th>Programa</th>"}</tr></thead>
-              <tbody>${result.preview.map((row) => areaId === "representativos" ? `
-                <tr><td>${escapeHtml(row.matricula || "Sin matrícula")}</td><td>${escapeHtml(row.clave_materia || "")}</td><td>${escapeHtml(row.representativo || "")}</td><td>${escapeHtml(row.coach || "")}</td><td><span class="upload-pill ${row.found ? "green" : "blue"}">${row.found ? "Encontrada" : "No encontrada"}</span></td></tr>
-              ` : `
-                <tr><td>${escapeHtml(row.matricula || "Sin matrícula")}</td><td><span class="upload-pill ${row.found ? "green" : "blue"}">${row.found ? "Encontrada" : "No encontrada"}</span></td><td>${escapeHtml(row.genero)}</td><td>${escapeHtml(row.carrera)}</td><td>${escapeHtml(row.nivel)}</td><td>${escapeHtml(row.programa)}</td></tr>
-              `).join("")}</tbody>
-            </table>
-          </div>
-        </section>
-        <div class="upload-chart-grid">
-          ${areaId === "representativos" ? renderUploadBars("Alumnos por representativo", uploadGroupCounts(rows, "representativo")) + renderUploadBars("Alumnos por coach", uploadGroupCounts(rows, "coach")) : ""}
-          ${renderUploadBars("Por género", uploadGroupCounts(rows, "genero", { foundOnly: true }))}
-          ${renderUploadBars("Por carrera", uploadGroupCounts(rows, "carrera", { foundOnly: true }))}
-          ${renderUploadBars("Por nivel", uploadGroupCounts(rows, "nivel", { foundOnly: true }))}
-          ${renderUploadBars("Por programa", uploadGroupCounts(rows, "programa", { foundOnly: true }))}
-        </div>
-        <section class="upload-preview-panel">
-          <div class="class-grade-table-header">
-            <div><p class="eyebrow">Seguimiento</p><h3>Matrículas no encontradas</h3></div>
-            <span>${notFound.length} registros</span>
-          </div>
-          <div class="class-grade-table-wrap">
-            <table class="class-grade-table">
-              <thead><tr>${areaId === "representativos" ? "<th>Matrícula</th><th>Representativo</th><th>Coach</th>" : "<th>Matrícula</th><th>Observación</th>"}</tr></thead>
-              <tbody>${notFound.length ? notFound.slice(0, 80).map((row) => areaId === "representativos" ? `
-                <tr><td>${escapeHtml(row.matricula)}</td><td>${escapeHtml(row.representativo || "")}</td><td>${escapeHtml(row.coach || "")}</td></tr>
-              ` : `
-                <tr><td>${escapeHtml(row.matricula)}</td><td>No existe en Base de datos_alumnos</td></tr>
-              `).join("") : `<tr><td colspan="${areaId === "representativos" ? 3 : 2}">No hay matrículas pendientes de revisar.</td></tr>`}</tbody>
-            </table>
-          </div>
-        </section>
-      ` : ""}
-    </section>
-  `;
-}
-
-function executiveStudentContext(matricula) {
-  const student = studentFromDatabase(normalizeMatricula(matricula));
-  return {
-    genero: student?.genero || "No especificado",
-    carrera: student?.carrera || "Sin carrera",
-    semestre: student?.semestre || null,
-    nivel: student?.nivel || student?.nivel_escolar || "Sin nivel"
-  };
-}
-
-function executiveSharedSourceRows() {
-  const bookingRows = classBookingReservations
-    .filter((row) => normalizeMatricula(row.student))
-    .map((row) => {
-      const context = executiveStudentContext(row.student);
-      return {
-        matricula: normalizeMatricula(row.student),
-        area: "booking",
-        periodo: executiveReportState.period,
-        registros: 1,
-        operacion: row.activity || "Booking",
-        source: classBookingCloudAvailable ? "booking_supabase" : "booking_local",
-        ...context
-      };
-    });
-  const uploadRows = ["gamer", "representativos"].flatMap((areaId) => {
-    const imported = participationUploadState[areaId].imported;
-    return (imported?.rows || [])
-      .filter((row) => row.matricula && !row.duplicate)
-      .map((row) => {
-        const context = executiveStudentContext(row.matricula);
-        return {
-          matricula: normalizeMatricula(row.matricula),
-          area: areaId,
-          periodo: executiveReportState.period,
-          registros: 1,
-          operacion: areaId === "representativos" ? (row.representativo || "Representativo") : "Gamer",
-          source: participationUploadCloudAvailable ? "participation_uploads_supabase" : "participation_uploads_local",
-          genero: row.found ? (row.genero || context.genero) : context.genero,
-          carrera: row.found ? (row.carrera || context.carrera) : context.carrera,
-          semestre: context.semestre,
-          nivel: row.found ? (row.nivel || context.nivel) : context.nivel
-        };
-      });
-  });
-  return [...bookingRows, ...uploadRows];
-}
-
-function executiveOperationalRows() {
-  const baseRows = allParticipationRows().filter((row) => row.registros > 0 && !["general", "compras", "configuracion"].includes(row.area));
-  return [...baseRows, ...executiveSharedSourceRows()];
-}
-
-function executiveUniqueCount(rows = executiveOperationalRows()) {
-  return new Set(rows.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
-}
-
-function executiveCountByArea() {
-  const rows = executiveOperationalRows();
-  const areaRows = ["clases", "gimnasio", "intramuros", "vivencia", "representativos", "gamer"].map((areaId) => {
-    const areaRecords = rows.filter((row) => row.area === areaId);
-    return {
-      areaId,
-      label: labelArea(areaId),
-      value: new Set(areaRecords.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size
-    };
-  });
-  const bookingUnique = new Set(classBookingReservations.map((row) => row.student).filter(Boolean)).size;
-  if (bookingUnique) areaRows.push({ areaId: "booking", label: "Booking", value: bookingUnique });
-  return areaRows.sort((a, b) => b.value - a.value);
-}
-
-function executiveClassSummary() {
-  const totalRows = classDisciplineIndicators.filter((row) => row.total);
-  const latest = totalRows[totalRows.length - 1] || { banner: 0, bajas: 0, np: 0, finished: 0 };
-  const effectiveness = latest.banner ? Math.round((latest.finished / Math.max(1, latest.banner - latest.bajas - latest.np)) * 100) : 0;
-  return { ...latest, effectiveness: Number.isFinite(effectiveness) ? effectiveness : 0 };
-}
-
-function executiveGymWeekly() {
-  const counts = new Map();
-  gymAttendanceRecords.forEach((row) => {
-    const week = Number(row.week_number) || 0;
-    if (week > 0 && week <= 18) counts.set(week, (counts.get(week) || 0) + 1);
-  });
-  return Array.from({ length: 18 }, (_, index) => ({ label: `S${index + 1}`, value: counts.get(index + 1) || 0 }));
-}
-
-function executiveIntramurosRows() {
-  const rows = executiveOperationalRows().filter((row) => row.area === "intramuros");
-  const grouped = new Map();
-  rows.forEach((row) => {
-    const key = row.operacion || "Intramuros";
-    grouped.set(key, (grouped.get(key) || 0) + 1);
-  });
-  return Array.from(grouped.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 6);
-}
-
-function executiveStatus(areaId, value, options = {}) {
-  if (options.critical) return { tone: "red", label: "Crítico" };
-  if (!value) return { tone: "yellow", label: "Sin datos" };
-  if (options.warning) return { tone: "yellow", label: "Seguimiento" };
-  return { tone: "green", label: "Estable" };
-}
-
-function executiveAreaCards() {
-  const classes = executiveClassSummary();
-  const gymUnique = new Set(gymAttendanceRecords.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
-  const vivenciaParticipants = vivenciaVisibleMetrics().reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
-  const representativos = executiveCountByArea().find((row) => row.areaId === "representativos")?.value || participationUploadState.representativos.imported?.summary?.found || 0;
-  const gamer = executiveCountByArea().find((row) => row.areaId === "gamer")?.value || participationUploadState.gamer.imported?.summary?.found || 0;
-  const intramuros = executiveCountByArea().find((row) => row.areaId === "intramuros")?.value || 0;
-  return [
-    { id: "clases", view: "dashboard", area: "Clases Deportivas", metric: `${classes.effectiveness}% efectividad`, action: classes.np > classes.bajas ? "Revisar NP por disciplina" : "Mantener seguimiento", detail: `${classes.banner.toLocaleString("es-MX")} inscritos | ${classes.finished.toLocaleString("es-MX")} acreditados`, ...executiveStatus("clases", classes.banner, { warning: classes.effectiveness < 70 }) },
-    { id: "gimnasio", view: "dashboard", area: "Gimnasio", metric: `${gymUnique.toLocaleString("es-MX")} usuarios únicos`, action: gymAttendanceRecords.length ? "Monitorear horarios pico" : "Cargar asistencia semanal", detail: `${gymAttendanceRecords.length.toLocaleString("es-MX")} asistencias registradas`, ...executiveStatus("gimnasio", gymAttendanceRecords.length) },
-    { id: "vivencia", view: "dashboard", area: "Vivencia", metric: `${vivenciaParticipants.toLocaleString("es-MX")} participantes`, action: vivenciaEvents.length ? "Actualizar próximos eventos" : "Cargar planeación", detail: `${vivenciaEvents.length.toLocaleString("es-MX")} eventos en seguimiento`, ...executiveStatus("vivencia", vivenciaEvents.length) },
-    { id: "representativos", view: "dashboard", area: "Representativos", metric: `${representativos.toLocaleString("es-MX")} alumnos`, action: "Validar matrículas no encontradas", detail: `${participationUploadState.representativos.imported?.summary?.notFound || 0} no encontradas`, ...executiveStatus("representativos", representativos, { warning: Boolean(participationUploadState.representativos.imported?.summary?.notFound) }) },
-    { id: "gamer", view: "dashboard", area: "Gamer", metric: `${gamer.toLocaleString("es-MX")} participantes`, action: "Actualizar lista de matrículas", detail: `${participationUploadState.gamer.imported?.summary?.notFound || 0} no encontradas`, ...executiveStatus("gamer", gamer, { warning: Boolean(participationUploadState.gamer.imported?.summary?.notFound) }) },
-    { id: "intramuros", view: "dashboard", area: "Intramuros", metric: `${intramuros.toLocaleString("es-MX")} alumnos`, action: "Revisar torneos activos", detail: `${executiveIntramurosRows().length.toLocaleString("es-MX")} disciplinas/listas activas`, ...executiveStatus("intramuros", intramuros) }
-  ];
-}
-
-function executivePriorityList(cards) {
-  const priorities = [];
-  cards.filter((card) => card.tone !== "green").forEach((card) => priorities.push({ tone: card.tone, title: card.area, text: card.action }));
-  const classes = executiveClassSummary();
-  if (classes.np > 0) priorities.push({ tone: "yellow", title: "Clases", text: `${classes.np} NP en el periodo` });
-  if (!classBookingReservations.length) priorities.push({ tone: "blue", title: "Booking", text: "Cargar reservaciones para demanda real" });
-  if (!gymAttendanceRecords.length) priorities.push({ tone: "yellow", title: "Gimnasio", text: "Sin asistencias cargadas en tablero" });
-  return priorities.slice(0, 5);
-}
-
-function executiveClassRetentionRows(mode = "top") {
-  const rows = classDisciplineRows()
-    .filter((row) => row.total)
-    .map((row) => ({
-      label: String(row.discipline || "Clase").replace(/\sPMT\d+/i, ""),
-      value: row.approvedRate,
-      count: `${row.finished}/${row.total}`
-    }))
-    .sort((a, b) => mode === "low" ? a.value - b.value : b.value - a.value);
-  return rows.slice(0, 5);
-}
-
-function renderExecutivePercentBars(rows, options = {}) {
-  return `
-    <div class="exec-mini-bars ${options.compact ? "compact" : ""}">
-      ${rows.length ? rows.map((row) => `
-        <div class="exec-mini-bar-row percent">
-          <span>${escapeHtml(row.label)}</span>
-          <i><b class="${options.tone || ""}" style="width:${Math.max(3, Math.min(100, Number(row.value) || 0))}%"></b></i>
-          <strong>${escapeHtml(row.count || `${row.value}%`)} <em>${Number(row.value || 0)}%</em></strong>
-        </div>
-      `).join("") : `<div class="exec-empty">Sin datos cargados.</div>`}
-    </div>
-  `;
-}
-
-function renderExecutivePie(rows) {
-  const total = rows.reduce((sum, row) => sum + Number(row.value || 0), 0);
-  if (!total) return `<div class="exec-empty">Sin datos cargados.</div>`;
-  const colors = ["#0067b1", "#e23c8e", "#f0b400", "#13917c"];
-  let start = 0;
-  const gradient = rows.map((row, index) => {
-    const value = Number(row.value || 0);
-    const end = start + (value / total) * 100;
-    const segment = `${colors[index % colors.length]} ${start}% ${end}%`;
-    start = end;
-    return segment;
-  }).join(", ");
-  return `
-    <div class="exec-pie-wrap">
-      <div class="exec-pie" style="background: conic-gradient(${gradient});">
-        <span><strong>${total.toLocaleString("es-MX")}</strong><em>Total</em></span>
-      </div>
-      <div class="exec-pie-legend">
-        ${rows.map((row, index) => {
-          const percent = Math.round((Number(row.value || 0) / total) * 1000) / 10;
-          return `<div><i style="background:${colors[index % colors.length]}"></i><span>${escapeHtml(row.label)}</span><strong>${Number(row.value || 0).toLocaleString("es-MX")} (${percent}%)</strong></div>`;
-        }).join("")}
-      </div>
-    </div>
-  `;
-}
-
-function renderExecutiveMiniBars(rows, options = {}) {
-  const max = Math.max(...rows.map((row) => row.value), 1);
-  return `
-    <div class="exec-mini-bars ${options.compact ? "compact" : ""}">
-      ${rows.length ? rows.map((row) => `
-        <div class="exec-mini-bar-row">
-          <span>${escapeHtml(row.label)}</span>
-          <i><b style="width:${Math.max(3, Math.round((row.value / max) * 100))}%"></b></i>
-          <strong>${Number(row.value || 0).toLocaleString("es-MX")}</strong>
-        </div>
-      `).join("") : `<div class="exec-empty">Sin datos cargados.</div>`}
-    </div>
-  `;
-}
-
-function renderExecutiveWeeklyBars(rows, tone = "blue") {
-  const max = Math.max(...rows.map((row) => row.value), 1);
-  return `
-    <div class="exec-week-bars ${tone}">
-      ${rows.map((row) => `<div><strong>${row.value ? row.value.toLocaleString("es-MX") : ""}</strong><span style="height:${Math.max(8, Math.round((row.value / max) * 150))}px"></span><em>${row.label}</em></div>`).join("")}
-    </div>
-  `;
-}
-
-function renderExecutiveGeneralDashboard() {
-  const rows = executiveOperationalRows();
-  const unique = executiveUniqueCount(rows);
-  const baseUniverse = cloudStudentDatabase.length || 18322;
-  const impact = baseUniverse ? Math.round((unique / baseUniverse) * 1000) / 10 : 0;
-  const classes = executiveClassSummary();
-  const gymTotal = gymAttendanceRecords.length;
-  const bookingVivencia = classBookingReservations.length + vivenciaVisibleMetrics().reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
-  const areaCounts = executiveCountByArea();
-  const cards = executiveAreaCards();
-  const priorities = executivePriorityList(cards);
-  const genderRows = ["Femenino", "Masculino", "No especificado"].map((label) => ({ label, value: rows.filter((row) => row.genero === label).length })).filter((row) => row.value);
-  const schoolRows = careerParticipationSummary(rows).slice(0, 7).map((row) => ({ label: row.career, value: row.count }));
-  const bookingRows = groupBookingRows(classBookingReservations, "activity").slice(0, 6).map((row) => ({ label: row.label, value: row.count }));
-  const vivenciaRows = Array.from(new Map(vivenciaVisibleEvents().map((event) => [event.event_name || "Vivencia", vivenciaEventParticipantsCount(event, vivenciaEventMetricMap())])).entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 5);
-  return `
-    <section class="executive-report" id="executiveReport">
-      <div class="exec-controls no-print">
-        <label>Periodo<select id="executivePeriod">${["FJ26", "AD26", "IN26"].map((period) => `<option ${executiveReportState.period === period ? "selected" : ""}>${period}</option>`).join("")}</select></label>
-        <label>Semana<select id="executiveWeek">${Array.from({ length: 18 }, (_, index) => `<option value="${index + 1}" ${executiveReportState.week === index + 1 ? "selected" : ""}>Semana ${index + 1}</option>`).join("")}</select></label>
-        <label>Título<input id="executiveTitle" value="${escapeHtml(executiveReportState.title)}" /></label>
-        <button class="ghost-btn" id="refreshExecutiveData" type="button">Actualizar datos</button>
-        <button class="primary-btn" id="downloadExecutivePdf" type="button">Descargar PDF</button>
-      </div>
-      <div class="exec-page">
-        <header class="exec-header">
-          <div>
-            <p>Semana ${executiveReportState.week} de 18 | ${escapeHtml(executiveReportState.period)} | Corte ${new Date().toLocaleDateString("es-MX")}</p>
-            <h2>${escapeHtml(executiveReportState.title || `Reporte Ejecutivo Semana ${executiveReportState.week}`)}</h2>
-            <span>Indicadores Ejecutivos RecSports</span>
-          </div>
-          <div class="exec-logo">WS</div>
-        </header>
-        <div class="exec-hero-row">
-          <article class="exec-hero-kpi"><span>Atenciones alumnos acumulados</span><strong>${rows.reduce((sum, row) => sum + row.registros, 0).toLocaleString("es-MX")}</strong></article>
-          <article><strong>${gymTotal.toLocaleString("es-MX")}</strong><span>Total gimnasio</span></article>
-          <article><strong>${classes.finished.toLocaleString("es-MX")}</strong><span>Acreditados clases</span></article>
-          <article><strong>${(areaCounts.find((row) => row.areaId === "intramuros")?.value || 0).toLocaleString("es-MX")}</strong><span>Intramuros únicos</span></article>
-          <article><strong>${bookingVivencia.toLocaleString("es-MX")}</strong><span>Booking + Vivencia</span></article>
-        </div>
-        <section class="exec-status-strip">
-          ${cards.map((card) => `
-            <article class="exec-area-link" data-jump="${card.id}" data-target-view="${card.view}">
-              <span class="exec-dot ${card.tone}"></span>
-              <strong>${escapeHtml(card.area)}</strong>
-              <em>${escapeHtml(card.metric)}</em>
-              <b>${escapeHtml(card.detail)}</b>
-              <small>${escapeHtml(card.action)}</small>
-              <button class="exec-open-btn no-print" type="button">Abrir</button>
-            </article>
-          `).join("")}
-        </section>
-        <div class="exec-grid three">
-          <article class="exec-panel">
-            <h3>Top 5 prioridades operativas</h3>
-            <div class="exec-priority-list">${priorities.length ? priorities.map((item) => `<div><span class="${item.tone}">${escapeHtml(item.tone)}</span><strong>${escapeHtml(item.title)}</strong><em>${escapeHtml(item.text)}</em></div>`).join("") : `<div class="exec-empty">Operación estable sin alertas principales.</div>`}</div>
-          </article>
-          <article class="exec-panel">
-            <h3>Retención por clase</h3>
-            ${renderExecutivePercentBars(executiveClassRetentionRows("top"), { tone: "green" })}
-          </article>
-          <article class="exec-panel exec-panel-link" data-jump="clases" data-target-view="booking">
-            <h3>Booking por actividad</h3>
-            ${renderExecutiveMiniBars(bookingRows)}
-            <button class="exec-open-btn no-print" type="button">Abrir Booking</button>
-          </article>
-        </div>
-        <div class="exec-grid wide-left">
-          <article class="exec-panel">
-            <h3>Alumnos atendidos en Gimnasio Wellness Center</h3>
-            ${renderExecutiveWeeklyBars(executiveGymWeekly().slice(0, executiveReportState.week), "blue")}
-          </article>
-          <article class="exec-panel">
-            <h3>Participación por escuela</h3>
-            ${renderExecutiveMiniBars(schoolRows, { compact: true })}
-          </article>
-        </div>
-        <div class="exec-grid three">
-          <article class="exec-panel">
-            <h3>Clases con seguimiento</h3>
-            ${renderExecutivePercentBars(executiveClassRetentionRows("low"), { compact: true, tone: "red" })}
-          </article>
-          <article class="exec-panel">
-            <h3>Género impactado</h3>
-            ${renderExecutivePie(genderRows)}
-          </article>
-          <article class="exec-panel">
-            <h3>Intramuros</h3>
-            ${renderExecutiveMiniBars(executiveIntramurosRows(), { compact: true })}
-          </article>
-        </div>
-        <div class="exec-grid">
-          <article class="exec-panel">
-            <h3>Vivencia, Representativos y Gamer</h3>
-            ${renderExecutiveMiniBars([
-              ...vivenciaRows.slice(0, 3),
-              { label: "Representativos", value: areaCounts.find((row) => row.areaId === "representativos")?.value || participationUploadState.representativos.imported?.summary?.found || 0 },
-              { label: "Gamer", value: areaCounts.find((row) => row.areaId === "gamer")?.value || participationUploadState.gamer.imported?.summary?.found || 0 }
-            ], { compact: true })}
-          </article>
-        </div>
-        <footer class="exec-footer-kpis">
-          <article><strong>${unique.toLocaleString("es-MX")}</strong><span>Matrículas únicas impactadas</span></article>
-          <article><strong>${baseUniverse.toLocaleString("es-MX")}</strong><span>Matrículas únicas Base Datos</span></article>
-          <article><strong>${impact}%</strong><span>% de impacto sobre universo base</span></article>
-        </footer>
-        <p class="exec-privacy">Reporte generado automáticamente - sin nombres de alumnos - datos agregados.</p>
-      </div>
-    </section>
-  `;
-}
-
 function renderDashboard(area) {
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
   if (area.id === "configuracion") return renderConfigurationDashboard();
-  if (area.id === "general") return renderExecutiveGeneralDashboard();
   if (area.id === "gimnasio") return renderGymDashboard();
   if (area.id === "clases") return renderClassesDashboard();
   if (area.id === "vivencia") return renderVivenciaDashboard();
   if (area.id === "compras") return renderBudgetDashboard();
-  if (area.id === "gamer" || area.id === "representativos") return renderParticipationUploadDashboard(area.id);
   const data = filteredStudents();
   const metrics = metricSet(data);
   const byArea = areas.filter(a => a.id !== "general").map(a => ({
@@ -6512,9 +5658,10 @@ function renderClassesDashboard() {
 }
 
 function renderClassExecutiveKpis(summary) {
+  const periodLabel = classDashboardMetrics().periods.join(" + ") || "Calificaciones cargadas";
   return `
     <section class="class-executive-kpis">
-      <article class="kpi"><span>Inscritos Banner</span><strong>${summary.banner.toLocaleString("es-MX")}</strong><em>PMT1 + PMT2</em></article>
+      <article class="kpi"><span>Inscritos Banner</span><strong>${summary.banner.toLocaleString("es-MX")}</strong><em>${escapeHtml(periodLabel)}</em></article>
       <article class="kpi"><span>Acreditados</span><strong>${summary.finished.toLocaleString("es-MX")}</strong><em>${summary.approvedRate}% global</em></article>
       <article class="kpi"><span>Bajas + NP</span><strong>${(summary.bajas + summary.np).toLocaleString("es-MX")}</strong><em>${summary.issueRate}% incidencia</em></article>
       <article class="kpi risk-red"><span>Grupos criticos</span><strong>${summary.riskCounts.red}</strong><em>requieren accion</em></article>
@@ -6626,9 +5773,11 @@ function renderClassStudentProfile(rows, summary) {
 }
 
 function renderClassDisciplineIndicators() {
+  const dashboardMetrics = classDashboardMetrics();
   const rows = classDisciplineRows();
   const worst = [...rows].sort((a, b) => a.approvedRate - b.approvedRate).slice(0, 6);
   const best = [...rows].sort((a, b) => b.approvedRate - a.approvedRate).slice(0, 6);
+  const periodLabel = dashboardMetrics.periods.join(" + ") || "Calificaciones cargadas";
   return `
     <section class="class-indicators-panel">
       <div class="section-title compact">
@@ -6636,7 +5785,7 @@ function renderClassDisciplineIndicators() {
           <p class="eyebrow">CD Indicadores clases</p>
           <h2>Indicadores por disciplina y periodo</h2>
         </div>
-        <span class="session-pill">PMT1 + PMT2</span>
+        <span class="session-pill">${escapeHtml(periodLabel)}</span>
       </div>
       <div class="class-discipline-rankings">
         <article>
@@ -6661,7 +5810,7 @@ function renderClassDisciplineIndicators() {
             </tr>
           </thead>
           <tbody>
-            ${classDisciplineIndicators.map((row) => `
+            ${dashboardMetrics.disciplinesWithTotals.map((row) => `
               <tr class="${row.period === "PMT2" ? "period-two" : "period-one"} ${row.total ? "period-total" : ""}">
                 <td>${row.discipline}</td>
                 <td>${row.banner}</td>
@@ -6769,7 +5918,8 @@ function renderClassResponsibleTeacherCell(row) {
 }
 
 function renderClassTeacherPerformance() {
-  const totals = classTeacherPerformance.reduce((acc, row) => {
+  const performanceRows = classDashboardMetrics().teachers;
+  const totals = performanceRows.reduce((acc, row) => {
     acc.total += row.total;
     acc.approved += row.approved;
     acc.failed += row.failed;
@@ -6777,8 +5927,8 @@ function renderClassTeacherPerformance() {
   }, { total: 0, approved: 0, failed: 0 });
   const approvedRate = totals.total ? Math.round((totals.approved / totals.total) * 100) : 0;
   const failedRate = totals.total ? 100 - approvedRate : 0;
-  const bestTeachers = [...classTeacherPerformance].sort((a, b) => b.approvedRate - a.approvedRate).slice(0, 8);
-  const focusTeachers = [...classTeacherPerformance].sort((a, b) => a.approvedRate - b.approvedRate).slice(0, 8);
+  const bestTeachers = [...performanceRows].sort((a, b) => b.approvedRate - a.approvedRate).slice(0, 8);
+  const focusTeachers = [...performanceRows].sort((a, b) => a.approvedRate - b.approvedRate).slice(0, 8);
   return `
     <section class="teacher-performance">
       <div class="section-title compact">
@@ -6786,7 +5936,7 @@ function renderClassTeacherPerformance() {
           <p class="eyebrow">CD Lista de Alumnos</p>
           <h2>Profesores por % de aprobados y reprobados</h2>
         </div>
-        <span class="session-pill">${classTeacherPerformance.length} profesores  -  ${totals.total} registros</span>
+        <span class="session-pill">${performanceRows.length} profesores  -  ${totals.total} registros</span>
       </div>
       <div class="teacher-summary">
         <div><strong>${approvedRate}%</strong><span>Aprobados global</span></div>
@@ -6795,7 +5945,7 @@ function renderClassTeacherPerformance() {
         <div><strong>${totals.failed}</strong><span>Reprobados</span></div>
       </div>
       <div class="teacher-list" hidden>
-        ${classTeacherPerformance.map((row) => `
+        ${performanceRows.map((row) => `
           <article class="teacher-row">
             <div class="teacher-meta">
               <strong>${row.teacher}</strong>
@@ -6849,6 +5999,95 @@ function renderTeacherPerformanceColumn(title, subtitle, rows, tone) {
   `;
 }
 
+function classGradeNumericValue(value) {
+  const normalized = String(value ?? "").trim().replace(",", ".");
+  if (!normalized) return null;
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : null;
+}
+
+function buildClassDashboardMetrics(rows) {
+  const disciplineMap = new Map();
+  const teacherMap = new Map();
+  const periods = new Set();
+
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const discipline = String(row.subject_name || "").trim();
+    if (!discipline) return;
+    const period = String(row.period_label || "Sin periodo").trim() || "Sin periodo";
+    const grade = String(row.grade ?? "").trim().toUpperCase();
+    const numericGrade = classGradeNumericValue(grade);
+    const isBaja = grade === "BAJA";
+    const isNp = grade === "NP" || (numericGrade !== null && numericGrade < 70);
+    const isApproved = numericGrade !== null && numericGrade >= 70;
+    periods.add(period);
+
+    const disciplineKey = `${period}\u0000${discipline}`;
+    if (!disciplineMap.has(disciplineKey)) {
+      disciplineMap.set(disciplineKey, {
+        period,
+        discipline,
+        banner: 0,
+        bajas: 0,
+        np: 0,
+        finished: 0
+      });
+    }
+    const disciplineRow = disciplineMap.get(disciplineKey);
+    disciplineRow.banner += 1;
+    if (isBaja) disciplineRow.bajas += 1;
+    else if (isNp) disciplineRow.np += 1;
+    else if (isApproved) disciplineRow.finished += 1;
+
+    const teacher = String(row.teacher_name || "").trim();
+    if (!teacher || !grade) return;
+    if (!teacherMap.has(teacher)) {
+      teacherMap.set(teacher, { teacher, total: 0, approved: 0, failed: 0 });
+    }
+    const teacherRow = teacherMap.get(teacher);
+    teacherRow.total += 1;
+    if (isApproved) teacherRow.approved += 1;
+    else teacherRow.failed += 1;
+  });
+
+  const periodList = [...periods].sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
+  const disciplines = [...disciplineMap.values()].sort((a, b) =>
+    periodList.indexOf(a.period) - periodList.indexOf(b.period)
+    || a.discipline.localeCompare(b.discipline, "es")
+  );
+  const disciplinesWithTotals = periodList.flatMap((period, index) => {
+    const periodRows = disciplines.filter((row) => row.period === period);
+    const total = periodRows.reduce((acc, row) => {
+      acc.banner += row.banner;
+      acc.bajas += row.bajas;
+      acc.np += row.np;
+      acc.finished += row.finished;
+      return acc;
+    }, { period, discipline: `Totales ${period}`, banner: 0, bajas: 0, np: 0, finished: 0, total: true, periodIndex: index });
+    return [...periodRows.map((row) => ({ ...row, periodIndex: index })), total];
+  });
+  const teachers = [...teacherMap.values()]
+    .map((row) => ({
+      ...row,
+      approvedRate: row.total ? Math.round((row.approved / row.total) * 100) : 0,
+      failedRate: row.total ? Math.round((row.failed / row.total) * 100) : 0
+    }))
+    .sort((a, b) => b.approvedRate - a.approvedRate || a.teacher.localeCompare(b.teacher, "es"));
+
+  return { periods: periodList, disciplines, disciplinesWithTotals, teachers };
+}
+
+function classDashboardMetrics() {
+  const rows = allClassGradeRows();
+  if (rows.length) return buildClassDashboardMetrics(rows);
+  return {
+    periods: ["PMT1", "PMT2"],
+    disciplines: classDisciplineIndicators.filter((row) => !row.total),
+    disciplinesWithTotals: classDisciplineIndicators,
+    teachers: classTeacherPerformance
+  };
+}
+
 function classGradeStatus(row) {
   const value = String(row.grade || "").trim().toUpperCase();
   if (!value) return "pendiente";
@@ -6893,7 +6132,7 @@ function classOfferRecommendation(row) {
 }
 
 function classDisciplineRows() {
-  return classDisciplineIndicators.filter((row) => !row.total).map(classDisciplineScore);
+  return classDashboardMetrics().disciplines.map(classDisciplineScore);
 }
 
 function classOperationalSummary() {
@@ -6921,7 +6160,7 @@ function classOperationalAlerts() {
     if (row.approvedRate < 65) alerts.push({ type: "Acreditacion baja", level: "red", title: row.discipline, discipline: row.discipline, detail: `${row.approvedRate}% acreditacion`, action: "Priorizar intervencion operativa" });
     return alerts;
   });
-  const teacherAlerts = classTeacherPerformance
+  const teacherAlerts = classDashboardMetrics().teachers
     .filter((row) => row.approvedRate < 60)
     .map((row) => ({ type: "Profesor en seguimiento", level: row.approvedRate < 50 ? "red" : "yellow", title: row.teacher, detail: `${row.approvedRate}% aprobados / ${row.failedRate}% reprobados`, action: "Revisar contexto del grupo y carga semanal" }));
   return [...disciplineAlerts, ...teacherAlerts]
@@ -7090,184 +6329,6 @@ function renderVivenciaUpcoming(events) {
   `;
 }
 
-function isVisibleVivenciaEvent(event) {
-  return event?.archived_at == null
-    && !String(event?.event_name || "").startsWith("__OCULTAR_ACTIVIDAD__");
-}
-
-function vivenciaEventMetricMap() {
-  return new Map(vivenciaEventMetrics.map((row) => [row.event_id, row]));
-}
-
-function vivenciaEventDate(event) {
-  const date = new Date(`${event?.event_date || ""}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function vivenciaEventParticipantsCount(event, metricsByEvent = vivenciaEventMetricMap()) {
-  return vivenciaMetricParticipants(metricsByEvent.get(event.id) || event);
-}
-
-function vivenciaEventGoal(event, metricsByEvent = vivenciaEventMetricMap()) {
-  return Number((metricsByEvent.get(event.id) || event)?.participation_goal || 0);
-}
-
-function vivenciaStateLabel(status) {
-  const labels = {
-    planeado: "Planeado",
-    realizado: "Realizado",
-    cancelado: "Cancelado",
-    pospuesto: "Pospuesto",
-    completado: "Completado"
-  };
-  return labels[status] || status || "Planeado";
-}
-
-function vivenciaVisibleEvents() {
-  return vivenciaEvents
-    .filter(isVisibleVivenciaEvent)
-    .sort((a, b) => String(a.event_date || "").localeCompare(String(b.event_date || "")));
-}
-
-function vivenciaVisibleMetrics() {
-  const visibleIds = new Set(vivenciaVisibleEvents().map((event) => event.id));
-  return vivenciaEventMetrics.filter((row) => visibleIds.has(row.event_id));
-}
-
-function vivenciaCalendarBaseDate(events) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const next = events
-    .map(vivenciaEventDate)
-    .filter((date) => date && date >= today)
-    .sort((a, b) => a - b)[0];
-  return next || today;
-}
-
-function renderVivenciaCalendar(events, baseDate) {
-  const year = baseDate.getFullYear();
-  const month = baseDate.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const startOffset = (firstDay.getDay() + 6) % 7;
-  const days = [];
-  for (let i = 0; i < startOffset; i += 1) days.push(null);
-  for (let day = 1; day <= lastDay.getDate(); day += 1) days.push(new Date(year, month, day));
-  while (days.length % 7 !== 0) days.push(null);
-  const eventsByDay = new Map();
-  events.forEach((event) => {
-    const date = vivenciaEventDate(event);
-    if (!date || date.getFullYear() !== year || date.getMonth() !== month) return;
-    const key = String(date.getDate());
-    if (!eventsByDay.has(key)) eventsByDay.set(key, []);
-    eventsByDay.get(key).push(event);
-  });
-  return `
-    <article class="chart-panel vivencia-calendar-panel">
-      <div class="chart-title-row">
-        <div>
-          <p class="eyebrow">Calendario mensual</p>
-          <h3>${baseDate.toLocaleDateString("es-MX", { month: "long", year: "numeric" })}</h3>
-        </div>
-        <span>Solo Vivencia</span>
-      </div>
-      <div class="vivencia-calendar">
-        ${["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((label) => `<strong>${label}</strong>`).join("")}
-        ${days.map((date) => {
-          if (!date) return `<div class="vivencia-calendar-day muted"></div>`;
-          const dayEvents = eventsByDay.get(String(date.getDate())) || [];
-          return `
-            <div class="vivencia-calendar-day">
-              <time>${date.getDate()}</time>
-              ${dayEvents.slice(0, 3).map((event) => `<button type="button" data-vivencia-detail="${escapeHtml(event.id)}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`).join("")}
-              ${dayEvents.length > 3 ? `<em>+${dayEvents.length - 3}</em>` : ""}
-            </div>
-          `;
-        }).join("")}
-      </div>
-    </article>
-  `;
-}
-
-function renderVivenciaEventCards(events, metricsByEvent) {
-  if (!events.length) return `<div class="vivencia-empty-mini">No hay eventos próximos registrados.</div>`;
-  return `
-    <div class="vivencia-event-card-list">
-      ${events.slice(0, 6).map((event) => `
-        <article class="vivencia-event-card" data-vivencia-detail="${escapeHtml(event.id)}">
-          <time>${escapeHtml(event.event_date || "Sin fecha")}</time>
-          <div>
-            <strong>${escapeHtml(event.event_name || "Evento sin nombre")}</strong>
-            <span>${escapeHtml(event.responsible_name || "Responsable pendiente")}</span>
-          </div>
-          <em class="${escapeHtml(event.status || "planeado")}">${vivenciaStateLabel(event.status)}</em>
-          <small>Meta ${vivenciaEventGoal(event, metricsByEvent) || "sin meta"} · ${vivenciaEventParticipantsCount(event, metricsByEvent)} participantes</small>
-        </article>
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderVivenciaTopEvents(events, metricsByEvent) {
-  const rows = events
-    .map((event) => ({
-      event,
-      participants: vivenciaEventParticipantsCount(event, metricsByEvent),
-      goal: vivenciaEventGoal(event, metricsByEvent)
-    }))
-    .sort((a, b) => b.participants - a.participants || b.goal - a.goal || String(a.event.event_date).localeCompare(String(b.event.event_date)))
-    .slice(0, 5);
-  if (!rows.length) return `<div class="vivencia-empty-mini">Sin eventos para ranking.</div>`;
-  const max = Math.max(...rows.map((row) => row.participants || row.goal), 1);
-  return `
-    <div class="vivencia-top-list">
-      ${rows.map((row, index) => `
-        <article>
-          <span>${index + 1}</span>
-          <div>
-            <strong>${escapeHtml(row.event.event_name || "Evento sin nombre")}</strong>
-            <small>${row.participants ? `${row.participants} participantes` : `Meta ${row.goal || "sin meta"}`}</small>
-          </div>
-          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(5, Math.round(((row.participants || row.goal) / max) * 100))}%"></div></div>
-        </article>
-      `).join("")}
-    </div>
-  `;
-}
-
-function vivenciaOperationalAlerts(events, metricsByEvent) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const sevenDays = new Date(today);
-  sevenDays.setDate(today.getDate() + 7);
-  const alerts = [];
-  events.forEach((event) => {
-    const date = vivenciaEventDate(event);
-    const participants = vivenciaEventParticipantsCount(event, metricsByEvent);
-    if (!event.responsible_name) alerts.push({ event, label: "Evento sin responsable" });
-    if (!Number(event.participation_goal || 0)) alerts.push({ event, label: "Evento sin meta" });
-    if (!participants) alerts.push({ event, label: "Evento sin participantes" });
-    if (date && date >= today && date <= sevenDays && (!event.responsible_name || !Number(event.participation_goal || 0))) {
-      alerts.push({ event, label: "Evento próximo incompleto" });
-    }
-  });
-  return alerts.slice(0, 8);
-}
-
-function renderVivenciaAlerts(alerts) {
-  if (!alerts.length) return `<div class="vivencia-empty-mini">Sin alertas operativas por ahora.</div>`;
-  return `
-    <div class="vivencia-alert-list">
-      ${alerts.map((alert) => `
-        <article>
-          <strong>${escapeHtml(alert.label)}</strong>
-          <span>${escapeHtml(alert.event.event_name || "Evento sin nombre")} · ${escapeHtml(alert.event.event_date || "Sin fecha")}</span>
-        </article>
-      `).join("")}
-    </div>
-  `;
-}
-
 function renderVivenciaDashboard() {
   if (currentUser?.auth !== "supabase") {
     return `<section class="permission-strip">Inicia sesion con Supabase para ver el Dashboard de Vivencia compartido.</section>`;
@@ -7280,101 +6341,87 @@ function renderVivenciaDashboard() {
       </section>
     `;
   }
-  const events = vivenciaVisibleEvents();
-  const metrics = vivenciaVisibleMetrics();
-  const metricsByEvent = new Map(metrics.map((row) => [row.event_id, row]));
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const inFifteen = new Date(today);
   inFifteen.setDate(today.getDate() + 15);
-  const upcoming = events
+  const realized = vivenciaEventMetrics.filter((row) => row.status === "realizado" || new Date(`${row.event_date}T12:00:00`) <= today);
+  const upcoming = vivenciaEvents
     .filter((event) => {
-      const date = vivenciaEventDate(event);
+      const date = new Date(`${event.event_date}T12:00:00`);
       return !Number.isNaN(date.getTime()) && date >= today && date <= inFifteen;
     })
     .sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)));
-  const nextEvent = upcoming[0] || events.find((event) => {
-    const date = vivenciaEventDate(event);
-    return date && date >= today;
-  });
   const uniqueMatriculas = new Set(vivenciaParticipants.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean));
-  const participantTotal = metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
-  const totalGoal = events.reduce((sum, event) => sum + vivenciaEventGoal(event, metricsByEvent), 0);
-  const goalProgress = totalGoal ? Math.round((participantTotal / totalGoal) * 100) : 0;
+  const participantTotal = vivenciaEventMetrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
+  const studentBaseTotal = cloudStudentDatabase.length || uniqueMatriculas.size || 1;
+  const impact = Math.round((uniqueMatriculas.size / studentBaseTotal) * 100);
+  const eventRows = vivenciaEventMetrics
+    .map((row) => ({ label: row.event_name || "Evento sin nombre", value: vivenciaMetricParticipants(row) }))
+    .filter((row) => row.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10);
+  const goalRows = vivenciaEventMetrics
+    .filter((row) => Number(row.participation_goal || 0) > 0)
+    .map((row) => ({ label: row.event_name || "Evento sin nombre", goal: Number(row.participation_goal || 0), result: vivenciaMetricParticipants(row) }))
+    .sort((a, b) => b.result - a.result)
+    .slice(0, 8);
   const monthRowsMap = new Map();
-  events.forEach((event) => {
-    const key = vivenciaMonthLabel(event.event_date);
-    const participants = vivenciaEventParticipantsCount(event, metricsByEvent);
-    monthRowsMap.set(key, (monthRowsMap.get(key) || 0) + (participantTotal ? participants : 1));
+  vivenciaEventMetrics.forEach((row) => {
+    const key = vivenciaMonthLabel(row.event_date);
+    monthRowsMap.set(key, (monthRowsMap.get(key) || 0) + vivenciaMetricParticipants(row));
   });
   const monthRows = [...monthRowsMap.entries()].map(([label, value]) => ({ label, value }));
-  const calendarDate = vivenciaCalendarBaseDate(events);
-  const alerts = vivenciaOperationalAlerts(events, metricsByEvent);
+  const careerRows = groupVivenciaParticipants("carrera").slice(0, 10);
+  const genderRows = groupVivenciaParticipants("genero").slice(0, 8);
   return `
     <section class="vivencia-dashboard">
-      <div class="vivencia-hero">
-        <div>
-          <p class="eyebrow">Dashboard ejecutivo</p>
-          <h3>Vivencia</h3>
-          <p>Gestión de eventos, impacto y participación estudiantil</p>
-        </div>
-        <span>${events.length} eventos desde Planeación/Vivencia</span>
+      <div class="permission-strip">
+        <span>Dashboard conectado a Supabase: eventos + matriculas por evento + Base de datos_alumnos.</span>
+        <span>${vivenciaEvents.length} eventos  -  ${uniqueMatriculas.size} participantes unicos</span>
       </div>
-
-      <article class="vivencia-next-event">
-        <div>
-          <p class="eyebrow">Próximo evento</p>
-          ${nextEvent ? `
-            <h3>${escapeHtml(nextEvent.event_name || "Evento sin nombre")}</h3>
-            <p>${escapeHtml(nextEvent.description || "Seguimiento operativo desde Planeación Semestral y Vivencia.")}</p>
-            <div class="vivencia-next-meta">
-              <span>${escapeHtml(nextEvent.event_date || "Sin fecha")}</span>
-              <span>${escapeHtml(nextEvent.responsible_name || "Responsable pendiente")}</span>
-              <span>Meta ${vivenciaEventGoal(nextEvent, metricsByEvent) || "sin meta"}</span>
-              <span>${vivenciaStateLabel(nextEvent.status)}</span>
-            </div>
-          ` : `
-            <h3>No hay eventos próximos registrados</h3>
-            <p>Sincroniza Planeación Semestral o revisa la carga de eventos de Vivencia.</p>
-          `}
-        </div>
-        ${nextEvent ? `<button class="ghost-btn compact-action" type="button" data-vivencia-detail="${escapeHtml(nextEvent.id)}">Ver detalle</button>` : ""}
-      </article>
-
       <div class="kpi-grid vivencia-kpi-strip">
-        <div class="kpi"><span>Eventos del semestre</span><strong>${events.length}</strong><em>desde Planeación/Vivencia</em></div>
-        <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
-        <div class="kpi"><span>Alumnos únicos impactados</span><strong>${uniqueMatriculas.size}</strong><em>por matrícula</em></div>
-        <div class="kpi"><span>Avance de meta</span><strong>${goalProgress}%</strong><em>${totalGoal || "sin metas capturadas"}</em></div>
+        <div class="kpi"><span>Eventos realizados</span><strong>${realized.length}</strong><em>realizados o con fecha vencida</em></div>
+        <div class="kpi"><span>Participantes acumulados</span><strong>${participantTotal}</strong><em>por evento</em></div>
+        <div class="kpi"><span>Participantes unicos</span><strong>${uniqueMatriculas.size}</strong><em>por matricula</em></div>
+        <div class="kpi"><span>% impacto alumnado</span><strong>${impact}%</strong><em>vs Base Maestra</em></div>
+        <div class="kpi"><span>Proximos 15 dias</span><strong>${upcoming.length}</strong><em>eventos calendarizados</em></div>
+        <div class="kpi"><span>Eventos insignia</span><strong>${realized.filter((row) => row.is_signature_event).length}</strong><em>realizados</em></div>
       </div>
-
-      <div class="vivencia-dashboard-grid">
-        ${renderVivenciaCalendar(events, calendarDate)}
-        <article class="chart-panel vivencia-upcoming-panel">
-          <div class="chart-title-row">
-            <div><p class="eyebrow">Agenda</p><h3>Próximos eventos</h3></div>
-            <span>15 días</span>
-          </div>
-          ${renderVivenciaEventCards(upcoming, metricsByEvent)}
+      <div class="charts-grid vivencia-dashboard-grid">
+        <article class="chart-panel">
+          <h3>Participacion por evento</h3>
+          ${renderVivenciaBars(eventRows)}
         </article>
         <article class="chart-panel">
-          <div class="chart-title-row">
-            <div><p class="eyebrow">Impacto mensual</p><h3>${participantTotal ? "Participaciones por mes" : "Eventos por mes"}</h3></div>
-          </div>
+          <h3>Meta vs resultado</h3>
+          ${renderVivenciaGoalBars(goalRows)}
+        </article>
+        <article class="chart-panel">
+          <h3>Participacion por carrera</h3>
+          ${renderVivenciaBars(careerRows, { total: uniqueMatriculas.size })}
+        </article>
+        <article class="chart-panel">
+          <h3>Participacion por genero</h3>
+          ${renderVivenciaBars(genderRows, { total: uniqueMatriculas.size, compact: true })}
+        </article>
+        <article class="chart-panel">
+          <h3>Top eventos con mayor impacto</h3>
+          ${renderVivenciaBars(eventRows.slice(0, 6), { compact: true })}
+        </article>
+        <article class="chart-panel">
+          <h3>Participacion por mes</h3>
           ${renderVivenciaBars(monthRows)}
         </article>
-        <article class="chart-panel">
+        <article class="chart-panel vivencia-upcoming-panel">
           <div class="chart-title-row">
-            <div><p class="eyebrow">Top eventos</p><h3>Top eventos del semestre</h3></div>
+            <div>
+              <p class="eyebrow">Calendario</p>
+              <h3>Proximos eventos</h3>
+            </div>
+            <span>15 dias</span>
           </div>
-          ${renderVivenciaTopEvents(events, metricsByEvent)}
-        </article>
-        <article class="chart-panel vivencia-alert-panel">
-          <div class="chart-title-row">
-            <div><p class="eyebrow">Pendientes y alertas</p><h3>Seguimiento operativo</h3></div>
-            <span>${alerts.length} alertas</span>
-          </div>
-          ${renderVivenciaAlerts(alerts)}
+          ${renderVivenciaUpcoming(upcoming)}
         </article>
       </div>
     </section>
@@ -8739,200 +7786,6 @@ function renderScheduleChangeList(title, rows) {
   `;
 }
 
-function cleanBookingActivity(value) {
-  return String(value || "Sin actividad").replace(/^booking\s+/i, "").trim() || "Sin actividad";
-}
-
-function bookingDateParts(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return { date: "", day: "Sin fecha", hour: "Sin hora", month: "Sin mes" };
-  return {
-    date: date.toLocaleDateString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" }),
-    day: date.toLocaleDateString("es-MX", { weekday: "long" }).replace(/^\w/, (char) => char.toUpperCase()),
-    hour: date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
-    month: date.toLocaleDateString("es-MX", { month: "short", year: "numeric" })
-  };
-}
-
-function normalizeBookingReservation(row, index) {
-  const activity = cleanBookingActivity(pickColumn(row, ["espacio", "Espacio", "actividad", "Actividad"]));
-  const status = String(pickColumn(row, ["status", "Estatus", "estatus"]) || "Sin estatus").trim();
-  const type = String(pickColumn(row, ["type", "Tipo", "tipo"]) || "Sin tipo").trim();
-  const reservationDate = String(pickColumn(row, ["reservation_date", "Fecha", "fecha", "date"]) || "").trim();
-  const parts = bookingDateParts(reservationDate);
-  return {
-    id: String(pickColumn(row, ["id", "ID"]) || `booking-${index + 1}`).trim(),
-    reservationDate,
-    status,
-    type,
-    student: String(pickColumn(row, ["alumno", "Alumno", "matricula", "Matrícula", "Matricula"]) || "").trim().toUpperCase(),
-    activity,
-    rawSpace: String(pickColumn(row, ["espacio", "Espacio"]) || "").trim(),
-    dateLabel: parts.date,
-    day: parts.day,
-    hour: parts.hour,
-    month: parts.month
-  };
-}
-
-async function importClassBookingReservations(file) {
-  const rows = await rowsFromScheduleFile(file);
-  const parsed = rows.map(normalizeBookingReservation).filter((row) => row.student || row.activity || row.reservationDate);
-  classBookingReservations = parsed;
-  saveClassBookingReservations();
-  const savedCloud = await saveClassBookingReservationsCloud(parsed, file.name);
-  if (savedCloud) await loadClassBookingReservationsCloud();
-  addAudit("booking", `${file.name}: ${parsed.length} reservaciones importadas`);
-  render();
-  toast(savedCloud ? `${parsed.length} reservaciones guardadas en Supabase` : `${parsed.length} reservaciones de Booking cargadas localmente`);
-}
-
-function bookingRowsFiltered() {
-  const term = normalizeText(classBookingFilters.search);
-  return classBookingReservations.filter((row) => {
-    const statusMatch = classBookingFilters.status === "todos" || row.status === classBookingFilters.status;
-    const typeMatch = classBookingFilters.type === "todos" || row.type === classBookingFilters.type;
-    const activityMatch = classBookingFilters.activity === "todos" || row.activity === classBookingFilters.activity;
-    const textMatch = !term || [row.student, row.activity, row.status, row.type, row.day, row.hour].some((value) => normalizeText(value).includes(term));
-    return statusMatch && typeMatch && activityMatch && textMatch;
-  });
-}
-
-function groupBookingRows(rows, field) {
-  const counts = new Map();
-  rows.forEach((row) => {
-    const key = row[field] || "Sin dato";
-    counts.set(key, (counts.get(key) || 0) + 1);
-  });
-  return Array.from(counts.entries())
-    .map(([label, count]) => ({ label, count }))
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-}
-
-function bookingStatusLabel(value) {
-  const clean = String(value || "").toUpperCase();
-  if (clean === "APPROVED") return "Aprobadas";
-  if (clean === "PENDING") return "Pendientes";
-  if (clean === "CANCELLED") return "Canceladas";
-  return value || "Sin estatus";
-}
-
-function bookingTypeLabel(value) {
-  const clean = String(value || "").toUpperCase();
-  if (clean === "ONLINE") return "Online";
-  if (clean === "PRESENTIAL") return "Presencial";
-  return value || "Sin tipo";
-}
-
-function inferBookingProfessor(activity) {
-  const cleanActivity = normalizeText(activity);
-  const match = scheduleMasterRows().find((row) => normalizeText(row.discipline).includes(cleanActivity) || cleanActivity.includes(normalizeText(row.discipline).replace(/pmt\d/g, "").trim()));
-  return match?.professor || "Sin profesor asignado";
-}
-
-function renderBookingRank(title, rows, tone = "") {
-  const max = Math.max(...rows.map((row) => row.count), 1);
-  return `
-    <article class="booking-card">
-      <h3>${title}</h3>
-      <div class="booking-rank-list">
-        ${rows.length ? rows.slice(0, 7).map((row) => `
-          <div class="booking-rank-row ${tone}">
-            <div>
-              <strong>${escapeHtml(row.label)}</strong>
-              <span>${row.count.toLocaleString("es-MX")} reservaciones</span>
-            </div>
-            <em style="--booking-width:${Math.max(6, Math.round((row.count / max) * 100))}%"></em>
-          </div>
-        `).join("") : `<div class="empty-state">Carga el CSV de reservaciones para ver este análisis.</div>`}
-      </div>
-    </article>
-  `;
-}
-
-function renderClassBookingDashboard() {
-  if (activeArea !== "clases") {
-    return `<div class="permission-strip">Booking pertenece al módulo de Clases Deportivas. Selecciona Clases Deportivas para cargar y analizar reservaciones.</div>`;
-  }
-  const rows = bookingRowsFiltered();
-  const allRows = classBookingReservations;
-  const uniqueStudents = new Set(rows.map((row) => row.student).filter(Boolean)).size;
-  const activities = groupBookingRows(rows, "activity");
-  const students = groupBookingRows(rows, "student");
-  const days = groupBookingRows(rows, "day");
-  const hours = groupBookingRows(rows, "hour");
-  const statuses = groupBookingRows(rows, "status");
-  const types = groupBookingRows(rows, "type");
-  const activityOptions = groupBookingRows(allRows, "activity").map((row) => row.label);
-  const statusOptions = groupBookingRows(allRows, "status").map((row) => row.label);
-  const typeOptions = groupBookingRows(allRows, "type").map((row) => row.label);
-  const topActivity = activities[0]?.label || "Sin datos";
-  const topStudent = students[0]?.label || "Sin datos";
-  const topProfessor = topActivity === "Sin datos" ? "Sin datos" : inferBookingProfessor(topActivity);
-  return `
-    <section class="booking-module">
-      <div class="permission-strip booking-upload-strip">
-        <div>
-          <strong>Listas de alumnos de Booking</strong>
-          <span>Plantilla esperada: id, reservation_date, status, type, alumno, espacio.</span>
-        </div>
-        <label class="file-button">
-          Cargar reservaciones CSV
-          <input type="file" accept=".csv,.xlsx,.xls" id="classBookingReservationsFile" />
-        </label>
-      </div>
-      <div class="booking-kpi-grid">
-        <article><span>Reservaciones</span><strong>${rows.length.toLocaleString("es-MX")}</strong><em>${allRows.length.toLocaleString("es-MX")} cargadas</em></article>
-        <article><span>Alumnos únicos</span><strong>${uniqueStudents.toLocaleString("es-MX")}</strong><em>por matrícula</em></article>
-        <article><span>Actividad líder</span><strong>${escapeHtml(topActivity)}</strong><em>${activities[0]?.count?.toLocaleString("es-MX") || 0} usos</em></article>
-        <article><span>Profesor probable</span><strong>${escapeHtml(topProfessor)}</strong><em>cruce con Horarios</em></article>
-      </div>
-      <div class="booking-filter-row">
-        <label>Estatus<select class="booking-filter" data-filter="status"><option value="todos">Todos</option>${statusOptions.map((value) => `<option value="${escapeHtml(value)}" ${classBookingFilters.status === value ? "selected" : ""}>${escapeHtml(bookingStatusLabel(value))}</option>`).join("")}</select></label>
-        <label>Tipo<select class="booking-filter" data-filter="type"><option value="todos">Todos</option>${typeOptions.map((value) => `<option value="${escapeHtml(value)}" ${classBookingFilters.type === value ? "selected" : ""}>${escapeHtml(bookingTypeLabel(value))}</option>`).join("")}</select></label>
-        <label>Actividad<select class="booking-filter" data-filter="activity"><option value="todos">Todas</option>${activityOptions.map((value) => `<option value="${escapeHtml(value)}" ${classBookingFilters.activity === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select></label>
-        <label>Buscar<input class="booking-filter" data-filter="search" value="${escapeHtml(classBookingFilters.search)}" placeholder="Matrícula, actividad, hora..." /></label>
-      </div>
-      <div class="booking-dashboard-grid">
-        ${renderBookingRank("Actividades con más booking", activities, "green")}
-        ${renderBookingRank("Alumnos que más lo usan", students, "blue")}
-        ${renderBookingRank("Días con mayor demanda", days, "gold")}
-        ${renderBookingRank("Horarios más usados", hours, "red")}
-      </div>
-      <div class="booking-mini-grid">
-        ${renderBookingRank("Estatus", statuses)}
-        ${renderBookingRank("Modalidad", types)}
-      </div>
-      <section class="booking-table-panel">
-        <div class="class-grade-table-header">
-          <div>
-            <p class="eyebrow">Detalle operativo</p>
-            <h3>Reservaciones filtradas</h3>
-          </div>
-          <span>${rows.length.toLocaleString("es-MX")} registros</span>
-        </div>
-        <div class="class-grade-table-wrap booking-table-wrap">
-          <table class="class-grade-table">
-            <thead><tr><th>ID</th><th>Fecha</th><th>Alumno</th><th>Actividad</th><th>Estatus</th><th>Tipo</th></tr></thead>
-            <tbody>
-              ${rows.slice(0, 80).map((row) => `
-                <tr>
-                  <td>${escapeHtml(row.id)}</td>
-                  <td><strong>${escapeHtml(row.dateLabel || "Sin fecha")}</strong><small>${escapeHtml(`${row.day} ${row.hour}`)}</small></td>
-                  <td>${escapeHtml(row.student || "Sin alumno")}</td>
-                  <td><strong>${escapeHtml(row.activity)}</strong><small>${escapeHtml(inferBookingProfessor(row.activity))}</small></td>
-                  <td><span class="class-grade-pill ${normalizeText(row.status)}">${escapeHtml(bookingStatusLabel(row.status))}</span></td>
-                  <td>${escapeHtml(bookingTypeLabel(row.type))}</td>
-                </tr>
-              `).join("") || `<tr><td colspan="6">Carga el archivo de reservaciones para comenzar.</td></tr>`}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </section>
-  `;
-}
-
 
 
 function renderReports(area) {
@@ -9018,7 +7871,6 @@ function render() {
   $("#currentTitle").textContent = area.name;
   const evaluationsTab = $("#evaluationsViewButton");
   const gradesTab = $("#gradesViewButton");
-  const bookingTab = $("#bookingViewButton");
   const simulatorTab = $("#simulatorViewButton");
   const gymAttendanceTab = $("#gymAttendanceViewButton");
   const gymRegistrationsTab = $("#gymRegistrationsViewButton");
@@ -9031,7 +7883,6 @@ function render() {
   const isBudget = activeArea === "compras";
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
   if (gradesTab) gradesTab.hidden = activeArea !== "clases";
-  if (bookingTab) bookingTab.hidden = activeArea !== "clases";
   if (simulatorTab) simulatorTab.hidden = activeArea !== "clases";
   if (gymAttendanceTab) gymAttendanceTab.hidden = !isGym;
   if (gymRegistrationsTab) gymRegistrationsTab.hidden = !isGym;
@@ -9050,7 +7901,6 @@ function render() {
   if (activeView === "blueprint" && !isLeadership() && !(activeArea === "clases" && canEditArea("clases"))) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
-  if (activeView === "booking" && activeArea !== "clases") activeView = "dashboard";
   if (activeView === "simulator" && activeArea !== "clases") activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
   $("#contentArea").innerHTML = activeView === "dashboard"
@@ -9069,8 +7919,6 @@ function render() {
                 ? renderBudgetRequestView()
       : activeView === "schedules"
         ? renderSchedules(area)
-        : activeView === "booking"
-          ? renderClassBookingDashboard()
         : activeView === "simulator"
           ? renderScheduleSimulatorView()
         : activeView === "reports"
@@ -9082,7 +7930,7 @@ function render() {
               : renderBlueprint(area);
   $$("[data-jump]").forEach((button) => button.addEventListener("click", () => {
     activeArea = button.dataset.jump;
-    activeView = button.dataset.targetView || "dashboard";
+    activeView = "dashboard";
     render();
   }));
   $("#saveMock")?.addEventListener("click", saveCaptureFromForm);
@@ -9118,56 +7966,6 @@ function render() {
     await replaceStudentDatabaseFromCsv(file);
     event.target.value = "";
   });
-  $("#executivePeriod")?.addEventListener("input", (event) => {
-    executiveReportState.period = event.target.value;
-    render();
-  });
-  $("#executiveWeek")?.addEventListener("input", (event) => {
-    executiveReportState.week = Number(event.target.value) || 1;
-    executiveReportState.title = `Reporte Ejecutivo Semana ${executiveReportState.week}`;
-    render();
-  });
-  $("#executiveTitle")?.addEventListener("input", (event) => {
-    executiveReportState.title = event.target.value;
-  });
-  $("#downloadExecutivePdf")?.addEventListener("click", () => {
-    addAudit("exportacion", `PDF ejecutivo general semana ${executiveReportState.week}`);
-    toast("Abriendo impresión para guardar como PDF");
-    setTimeout(() => window.print(), 300);
-  });
-  $("#refreshExecutiveData")?.addEventListener("click", async () => {
-    if (currentUser?.auth !== "supabase") {
-      toast("Entra con Supabase para actualizar datos compartidos");
-      return;
-    }
-    toast("Actualizando datos ejecutivos");
-    await loadSupabaseDataBundle();
-    render();
-    toast("Dashboard ejecutivo actualizado");
-  });
-  $$("[data-download-upload-template]").forEach((button) => button.addEventListener("click", () => downloadParticipationTemplate(button.dataset.downloadUploadTemplate)));
-  $$("[data-participation-upload]").forEach((input) => input.addEventListener("change", async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    await loadParticipationUploadFile(input.dataset.participationUpload, file);
-    event.target.value = "";
-  }));
-  $$("[data-upload-drop]").forEach((zone) => {
-    zone.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      zone.classList.add("dragging");
-    });
-    zone.addEventListener("dragleave", () => zone.classList.remove("dragging"));
-    zone.addEventListener("drop", async (event) => {
-      event.preventDefault();
-      zone.classList.remove("dragging");
-      const file = event.dataTransfer?.files?.[0];
-      if (file) await loadParticipationUploadFile(zone.dataset.uploadDrop, file);
-    });
-  });
-  $$("[data-import-participation-upload]").forEach((button) => button.addEventListener("click", async () => {
-    await importParticipationUpload(button.dataset.importParticipationUpload);
-  }));
   $$(".budget-filter").forEach((input) => input.addEventListener("input", (event) => {
     budgetFilters[event.target.dataset.filter] = event.target.value;
     render();
@@ -9226,7 +8024,6 @@ function render() {
   });
   $$("[data-vivencia-detail]").forEach((button) => button.addEventListener("click", () => {
     selectedVivenciaEventForDetail = button.dataset.vivenciaDetail;
-    activeView = "vivencia-events";
     render();
   }));
   $$("[data-vivencia-delete]").forEach((button) => button.addEventListener("click", () => {
@@ -9247,16 +8044,6 @@ function render() {
     if (!file) return;
     await handleScheduleUpload(file, input.dataset.scheduleUpload);
     event.target.value = "";
-  }));
-  $("#classBookingReservationsFile")?.addEventListener("change", async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    await importClassBookingReservations(file);
-    event.target.value = "";
-  });
-  $$(".booking-filter").forEach((input) => input.addEventListener("input", (event) => {
-    classBookingFilters[event.target.dataset.filter] = event.target.value;
-    render();
   }));
   $$(".schedule-download").forEach((button) => button.addEventListener("click", () => downloadProfessorSchedule(button.dataset.download)));
   $$(".simulator-filter").forEach((input) => input.addEventListener("input", (event) => {
