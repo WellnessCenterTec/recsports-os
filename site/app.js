@@ -5424,19 +5424,22 @@ function executiveSharedSourceRows() {
   const uploadRows = ["gamer", "representativos"].flatMap((areaId) => {
     const imported = participationUploadState[areaId].imported;
     return (imported?.rows || [])
-      .filter((row) => row.matricula && row.found && !row.duplicate)
-      .map((row) => ({
-        matricula: normalizeMatricula(row.matricula),
-        area: areaId,
-        periodo: executiveReportState.period,
-        registros: 1,
-        operacion: areaId === "representativos" ? (row.representativo || "Representativo") : "Gamer",
-        source: participationUploadCloudAvailable ? "participation_uploads_supabase" : "participation_uploads_local",
-        genero: row.genero || "No especificado",
-        carrera: row.carrera || "Sin carrera",
-        semestre: null,
-        nivel: row.nivel || "Sin nivel"
-      }));
+      .filter((row) => row.matricula && !row.duplicate)
+      .map((row) => {
+        const context = executiveStudentContext(row.matricula);
+        return {
+          matricula: normalizeMatricula(row.matricula),
+          area: areaId,
+          periodo: executiveReportState.period,
+          registros: 1,
+          operacion: areaId === "representativos" ? (row.representativo || "Representativo") : "Gamer",
+          source: participationUploadCloudAvailable ? "participation_uploads_supabase" : "participation_uploads_local",
+          genero: row.found ? (row.genero || context.genero) : context.genero,
+          carrera: row.found ? (row.carrera || context.carrera) : context.carrera,
+          semestre: context.semestre,
+          nivel: row.found ? (row.nivel || context.nivel) : context.nivel
+        };
+      });
   });
   return [...bookingRows, ...uploadRows];
 }
@@ -5502,8 +5505,8 @@ function executiveAreaCards() {
   const classes = executiveClassSummary();
   const gymUnique = new Set(gymAttendanceRecords.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
   const vivenciaParticipants = vivenciaVisibleMetrics().reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
-  const representativos = participationUploadState.representativos.imported?.summary?.found || executiveCountByArea().find((row) => row.areaId === "representativos")?.value || 0;
-  const gamer = participationUploadState.gamer.imported?.summary?.found || executiveCountByArea().find((row) => row.areaId === "gamer")?.value || 0;
+  const representativos = executiveCountByArea().find((row) => row.areaId === "representativos")?.value || participationUploadState.representativos.imported?.summary?.found || 0;
+  const gamer = executiveCountByArea().find((row) => row.areaId === "gamer")?.value || participationUploadState.gamer.imported?.summary?.found || 0;
   const intramuros = executiveCountByArea().find((row) => row.areaId === "intramuros")?.value || 0;
   return [
     { id: "clases", view: "dashboard", area: "Clases Deportivas", metric: `${classes.effectiveness}% efectividad`, action: classes.np > classes.bajas ? "Revisar NP por disciplina" : "Mantener seguimiento", detail: `${classes.banner.toLocaleString("es-MX")} inscritos | ${classes.finished.toLocaleString("es-MX")} acreditados`, ...executiveStatus("clases", classes.banner, { warning: classes.effectiveness < 70 }) },
@@ -5698,8 +5701,8 @@ function renderExecutiveGeneralDashboard() {
             <h3>Vivencia, Representativos y Gamer</h3>
             ${renderExecutiveMiniBars([
               ...vivenciaRows.slice(0, 3),
-              { label: "Representativos", value: participationUploadState.representativos.imported?.summary?.found || areaCounts.find((row) => row.areaId === "representativos")?.value || 0 },
-              { label: "Gamer", value: participationUploadState.gamer.imported?.summary?.found || areaCounts.find((row) => row.areaId === "gamer")?.value || 0 }
+              { label: "Representativos", value: areaCounts.find((row) => row.areaId === "representativos")?.value || participationUploadState.representativos.imported?.summary?.found || 0 },
+              { label: "Gamer", value: areaCounts.find((row) => row.areaId === "gamer")?.value || participationUploadState.gamer.imported?.summary?.found || 0 }
             ], { compact: true })}
           </article>
         </div>
