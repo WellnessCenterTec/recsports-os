@@ -455,6 +455,7 @@ let participationUploadState = {
   gamer: { fileName: "", draft: null, imported: null },
   representativos: { fileName: "", draft: null, imported: null }
 };
+let executiveReportState = { week: 15, period: "FJ26", title: "Reporte Ejecutivo Semana 15" };
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
 let classScheduleComparison = null;
@@ -5193,9 +5194,215 @@ function renderParticipationUploadDashboard(areaId) {
   `;
 }
 
+function executiveOperationalRows() {
+  return allParticipationRows().filter((row) => row.registros > 0 && !["general", "compras", "configuracion"].includes(row.area));
+}
+
+function executiveUniqueCount(rows = executiveOperationalRows()) {
+  return new Set(rows.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
+}
+
+function executiveCountByArea() {
+  const rows = executiveOperationalRows();
+  const areaRows = ["clases", "gimnasio", "intramuros", "vivencia", "representativos", "gamer"].map((areaId) => {
+    const areaRecords = rows.filter((row) => row.area === areaId);
+    return {
+      areaId,
+      label: labelArea(areaId),
+      value: new Set(areaRecords.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size
+    };
+  });
+  const bookingUnique = new Set(classBookingReservations.map((row) => row.student).filter(Boolean)).size;
+  if (bookingUnique) areaRows.push({ areaId: "booking", label: "Booking", value: bookingUnique });
+  return areaRows.sort((a, b) => b.value - a.value);
+}
+
+function executiveClassSummary() {
+  const totalRows = classDisciplineIndicators.filter((row) => row.total);
+  const latest = totalRows[totalRows.length - 1] || { banner: 0, bajas: 0, np: 0, finished: 0 };
+  const effectiveness = latest.banner ? Math.round((latest.finished / Math.max(1, latest.banner - latest.bajas - latest.np)) * 100) : 0;
+  return { ...latest, effectiveness: Number.isFinite(effectiveness) ? effectiveness : 0 };
+}
+
+function executiveGymWeekly() {
+  const counts = new Map();
+  gymAttendanceRecords.forEach((row) => {
+    const week = Number(row.week_number) || 0;
+    if (week > 0 && week <= 18) counts.set(week, (counts.get(week) || 0) + 1);
+  });
+  return Array.from({ length: 18 }, (_, index) => ({ label: `S${index + 1}`, value: counts.get(index + 1) || 0 }));
+}
+
+function executiveIntramurosRows() {
+  const rows = executiveOperationalRows().filter((row) => row.area === "intramuros");
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const key = row.operacion || "Intramuros";
+    grouped.set(key, (grouped.get(key) || 0) + 1);
+  });
+  return Array.from(grouped.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+}
+
+function executiveStatus(areaId, value, options = {}) {
+  if (options.critical) return { tone: "red", label: "Crítico" };
+  if (!value) return { tone: "yellow", label: "Sin datos" };
+  if (options.warning) return { tone: "yellow", label: "Seguimiento" };
+  return { tone: "green", label: "Estable" };
+}
+
+function executiveAreaCards() {
+  const classes = executiveClassSummary();
+  const gymUnique = new Set(gymAttendanceRecords.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
+  const vivenciaParticipants = vivenciaVisibleMetrics().reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
+  const representativos = participationUploadState.representativos.imported?.summary?.found || executiveCountByArea().find((row) => row.areaId === "representativos")?.value || 0;
+  const gamer = participationUploadState.gamer.imported?.summary?.found || executiveCountByArea().find((row) => row.areaId === "gamer")?.value || 0;
+  const intramuros = executiveCountByArea().find((row) => row.areaId === "intramuros")?.value || 0;
+  return [
+    { area: "Clases Deportivas", metric: `${classes.effectiveness}% efectividad`, action: classes.np > classes.bajas ? "Revisar NP por disciplina" : "Mantener seguimiento", ...executiveStatus("clases", classes.banner, { warning: classes.effectiveness < 70 }) },
+    { area: "Gimnasio", metric: `${gymUnique.toLocaleString("es-MX")} usuarios únicos`, action: gymAttendanceRecords.length ? "Monitorear horarios pico" : "Cargar asistencia semanal", ...executiveStatus("gimnasio", gymAttendanceRecords.length) },
+    { area: "Vivencia", metric: `${vivenciaParticipants.toLocaleString("es-MX")} participantes`, action: vivenciaEvents.length ? "Actualizar próximos eventos" : "Cargar planeación", ...executiveStatus("vivencia", vivenciaEvents.length) },
+    { area: "Representativos", metric: `${representativos.toLocaleString("es-MX")} alumnos`, action: "Validar matrículas no encontradas", ...executiveStatus("representativos", representativos, { warning: Boolean(participationUploadState.representativos.imported?.summary?.notFound) }) },
+    { area: "Gamer", metric: `${gamer.toLocaleString("es-MX")} participantes`, action: "Actualizar lista de matrículas", ...executiveStatus("gamer", gamer, { warning: Boolean(participationUploadState.gamer.imported?.summary?.notFound) }) },
+    { area: "Intramuros", metric: `${intramuros.toLocaleString("es-MX")} alumnos`, action: "Revisar torneos activos", ...executiveStatus("intramuros", intramuros) }
+  ];
+}
+
+function executivePriorityList(cards) {
+  const priorities = [];
+  cards.filter((card) => card.tone !== "green").forEach((card) => priorities.push({ tone: card.tone, title: card.area, text: card.action }));
+  const classes = executiveClassSummary();
+  if (classes.np > 0) priorities.push({ tone: "yellow", title: "Clases", text: `${classes.np} NP en el periodo` });
+  if (!classBookingReservations.length) priorities.push({ tone: "blue", title: "Booking", text: "Cargar reservaciones para demanda real" });
+  if (!gymAttendanceRecords.length) priorities.push({ tone: "yellow", title: "Gimnasio", text: "Sin asistencias cargadas en tablero" });
+  return priorities.slice(0, 5);
+}
+
+function renderExecutiveMiniBars(rows, options = {}) {
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  return `
+    <div class="exec-mini-bars ${options.compact ? "compact" : ""}">
+      ${rows.length ? rows.map((row) => `
+        <div class="exec-mini-bar-row">
+          <span>${escapeHtml(row.label)}</span>
+          <i><b style="width:${Math.max(3, Math.round((row.value / max) * 100))}%"></b></i>
+          <strong>${Number(row.value || 0).toLocaleString("es-MX")}</strong>
+        </div>
+      `).join("") : `<div class="exec-empty">Sin datos cargados.</div>`}
+    </div>
+  `;
+}
+
+function renderExecutiveWeeklyBars(rows, tone = "blue") {
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  return `
+    <div class="exec-week-bars ${tone}">
+      ${rows.map((row) => `<div><strong>${row.value ? row.value.toLocaleString("es-MX") : ""}</strong><span style="height:${Math.max(8, Math.round((row.value / max) * 150))}px"></span><em>${row.label}</em></div>`).join("")}
+    </div>
+  `;
+}
+
+function renderExecutiveGeneralDashboard() {
+  const rows = executiveOperationalRows();
+  const unique = executiveUniqueCount(rows);
+  const baseUniverse = cloudStudentDatabase.length || 18322;
+  const impact = baseUniverse ? Math.round((unique / baseUniverse) * 1000) / 10 : 0;
+  const classes = executiveClassSummary();
+  const gymTotal = gymAttendanceRecords.length;
+  const bookingVivencia = classBookingReservations.length + vivenciaVisibleMetrics().reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
+  const areaCounts = executiveCountByArea();
+  const cards = executiveAreaCards();
+  const priorities = executivePriorityList(cards);
+  const genderRows = ["Femenino", "Masculino", "No especificado"].map((label) => ({ label, value: rows.filter((row) => row.genero === label).length })).filter((row) => row.value);
+  const schoolRows = careerParticipationSummary(rows).slice(0, 7).map((row) => ({ label: row.career, value: row.count }));
+  const bookingRows = groupBookingRows(classBookingReservations, "activity").slice(0, 6).map((row) => ({ label: row.label, value: row.count }));
+  const vivenciaRows = Array.from(new Map(vivenciaVisibleEvents().map((event) => [event.event_name || "Vivencia", vivenciaEventParticipantsCount(event, vivenciaEventMetricMap())])).entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 5);
+  return `
+    <section class="executive-report" id="executiveReport">
+      <div class="exec-controls no-print">
+        <label>Periodo<select id="executivePeriod">${["FJ26", "AD26", "IN26"].map((period) => `<option ${executiveReportState.period === period ? "selected" : ""}>${period}</option>`).join("")}</select></label>
+        <label>Semana<select id="executiveWeek">${Array.from({ length: 18 }, (_, index) => `<option value="${index + 1}" ${executiveReportState.week === index + 1 ? "selected" : ""}>Semana ${index + 1}</option>`).join("")}</select></label>
+        <label>Título<input id="executiveTitle" value="${escapeHtml(executiveReportState.title)}" /></label>
+        <button class="primary-btn" id="downloadExecutivePdf" type="button">Descargar PDF</button>
+      </div>
+      <div class="exec-page">
+        <header class="exec-header">
+          <div>
+            <p>Semana ${executiveReportState.week} de 18 | ${escapeHtml(executiveReportState.period)} | Corte ${new Date().toLocaleDateString("es-MX")}</p>
+            <h2>${escapeHtml(executiveReportState.title || `Reporte Ejecutivo Semana ${executiveReportState.week}`)}</h2>
+            <span>Indicadores Ejecutivos RecSports</span>
+          </div>
+          <div class="exec-logo">WS</div>
+        </header>
+        <div class="exec-hero-row">
+          <article class="exec-hero-kpi"><span>Atenciones alumnos acumulados</span><strong>${rows.reduce((sum, row) => sum + row.registros, 0).toLocaleString("es-MX")}</strong></article>
+          <article><strong>${gymTotal.toLocaleString("es-MX")}</strong><span>Total gimnasio</span></article>
+          <article><strong>${classes.finished.toLocaleString("es-MX")}</strong><span>Acreditados clases</span></article>
+          <article><strong>${(areaCounts.find((row) => row.areaId === "intramuros")?.value || 0).toLocaleString("es-MX")}</strong><span>Intramuros únicos</span></article>
+          <article><strong>${bookingVivencia.toLocaleString("es-MX")}</strong><span>Booking + Vivencia</span></article>
+        </div>
+        <section class="exec-status-strip">
+          ${cards.map((card) => `
+            <article>
+              <span class="exec-dot ${card.tone}"></span>
+              <strong>${escapeHtml(card.area)}</strong>
+              <em>${escapeHtml(card.metric)}</em>
+              <small>${escapeHtml(card.action)}</small>
+            </article>
+          `).join("")}
+        </section>
+        <div class="exec-grid three">
+          <article class="exec-panel">
+            <h3>Top 5 prioridades operativas</h3>
+            <div class="exec-priority-list">${priorities.length ? priorities.map((item) => `<div><span class="${item.tone}">${escapeHtml(item.tone)}</span><strong>${escapeHtml(item.title)}</strong><em>${escapeHtml(item.text)}</em></div>`).join("") : `<div class="exec-empty">Operación estable sin alertas principales.</div>`}</div>
+          </article>
+          <article class="exec-panel">
+            <h3>Género impactado</h3>
+            ${renderExecutiveMiniBars(genderRows)}
+          </article>
+          <article class="exec-panel">
+            <h3>Booking por actividad</h3>
+            ${renderExecutiveMiniBars(bookingRows)}
+          </article>
+        </div>
+        <div class="exec-grid wide-left">
+          <article class="exec-panel">
+            <h3>Alumnos atendidos en Gimnasio Wellness Center</h3>
+            ${renderExecutiveWeeklyBars(executiveGymWeekly().slice(0, executiveReportState.week), "blue")}
+          </article>
+          <article class="exec-panel">
+            <h3>Participación por escuela</h3>
+            ${renderExecutiveMiniBars(schoolRows, { compact: true })}
+          </article>
+        </div>
+        <div class="exec-grid two">
+          <article class="exec-panel">
+            <h3>Intramuros</h3>
+            ${renderExecutiveMiniBars(executiveIntramurosRows(), { compact: true })}
+          </article>
+          <article class="exec-panel">
+            <h3>Vivencia, Representativos y Gamer</h3>
+            ${renderExecutiveMiniBars([
+              ...vivenciaRows.slice(0, 3),
+              { label: "Representativos", value: participationUploadState.representativos.imported?.summary?.found || areaCounts.find((row) => row.areaId === "representativos")?.value || 0 },
+              { label: "Gamer", value: participationUploadState.gamer.imported?.summary?.found || areaCounts.find((row) => row.areaId === "gamer")?.value || 0 }
+            ], { compact: true })}
+          </article>
+        </div>
+        <footer class="exec-footer-kpis">
+          <article><strong>${unique.toLocaleString("es-MX")}</strong><span>Matrículas únicas impactadas</span></article>
+          <article><strong>${baseUniverse.toLocaleString("es-MX")}</strong><span>Matrículas únicas Base Datos</span></article>
+          <article><strong>${impact}%</strong><span>% de impacto sobre universo base</span></article>
+        </footer>
+        <p class="exec-privacy">Reporte generado automáticamente - sin nombres de alumnos - datos agregados.</p>
+      </div>
+    </section>
+  `;
+}
+
 function renderDashboard(area) {
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
   if (area.id === "configuracion") return renderConfigurationDashboard();
+  if (area.id === "general") return renderExecutiveGeneralDashboard();
   if (area.id === "gimnasio") return renderGymDashboard();
   if (area.id === "clases") return renderClassesDashboard();
   if (area.id === "vivencia") return renderVivenciaDashboard();
@@ -8590,6 +8797,23 @@ function render() {
     if (!file) return;
     await replaceStudentDatabaseFromCsv(file);
     event.target.value = "";
+  });
+  $("#executivePeriod")?.addEventListener("input", (event) => {
+    executiveReportState.period = event.target.value;
+    render();
+  });
+  $("#executiveWeek")?.addEventListener("input", (event) => {
+    executiveReportState.week = Number(event.target.value) || 1;
+    executiveReportState.title = `Reporte Ejecutivo Semana ${executiveReportState.week}`;
+    render();
+  });
+  $("#executiveTitle")?.addEventListener("input", (event) => {
+    executiveReportState.title = event.target.value;
+  });
+  $("#downloadExecutivePdf")?.addEventListener("click", () => {
+    addAudit("exportacion", `PDF ejecutivo general semana ${executiveReportState.week}`);
+    toast("Abriendo impresión para guardar como PDF");
+    setTimeout(() => window.print(), 300);
   });
   $$("[data-download-upload-template]").forEach((button) => button.addEventListener("click", () => downloadParticipationTemplate(button.dataset.downloadUploadTemplate)));
   $$("[data-participation-upload]").forEach((input) => input.addEventListener("change", async (event) => {
