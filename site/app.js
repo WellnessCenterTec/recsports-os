@@ -451,6 +451,10 @@ let scheduleState = loadSchedules();
 let scheduleFilters = { professor: "todos", day: "todos", discipline: "todos", installation: "todos", mode: "professors", timeDay: "Lunes", time: "09:00", reportProfessor: "todos" };
 let classBookingReservations = loadClassBookingReservations();
 let classBookingFilters = { status: "todos", type: "todos", activity: "todos", search: "" };
+let participationUploadState = {
+  gamer: { fileName: "", draft: null, imported: null },
+  representativos: { fileName: "", draft: null, imported: null }
+};
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
 let classScheduleComparison = null;
@@ -968,10 +972,12 @@ function participationFromCloud(row) {
 function studentDatabaseFromCloud(row) {
   const matricula = row.Matricula || row.matricula || "";
   const nivelRaw = row["Desc Nivel Acad Alumno"] || row.nivel_escolar || row.grado_escolar || "";
+  const programa = row["Desc Programa Acad"] || row.Programa || row.programa || row.Carrera || row.carrera || "Sin programa";
   return {
     matricula,
     genero: row.Genero || row.genero || "No especificado",
-    carrera: row["Desc Programa Acad"] || row.Carrera || row.carrera || "Sin carrera",
+    carrera: programa,
+    programa,
     semestre: Number(row.Semestre || row.semestre || 1),
     nivel: normalizeStudentLevel(nivelRaw),
     gradoEscolar: nivelRaw,
@@ -4881,6 +4887,313 @@ function renderGymStudentRegistration() {
   `;
 }
 
+const participationUploadConfigs = {
+  gamer: {
+    title: "Cargar matrículas Gamer",
+    subtitle: "Importa una lista simple de matrículas para analizar perfil académico y alcance del módulo Gamer.",
+    button: "Cargar matrículas Gamer",
+    templateName: "plantilla-gamer.csv",
+    required: ["Matrícula"],
+    accepted: ["Matrícula"],
+    recommendations: ["Usar una sola columna llamada Matrícula.", "No dejar filas vacías.", "Guardar el archivo como .xlsx o .csv."],
+    sample: [{ "Matrícula": "A01234567" }, { "Matrícula": "A07654321" }]
+  },
+  representativos: {
+    title: "Cargar información de Representativos",
+    subtitle: "Importa alumnos por equipo representativo para analizar equipos, coaches y perfil académico.",
+    button: "Cargar información de Representativos",
+    templateName: "plantilla-representativos.csv",
+    required: ["Matrícula", "Clave de la materia", "Representativo", "Coach"],
+    accepted: ["Matrícula", "Nombre", "Clave de la materia", "Materia de repre", "COACH"],
+    recommendations: ["No cambiar nombres de columnas.", "No dejar filas vacías.", "Guardar el archivo como .xlsx o .csv."],
+    sample: [
+      { "Matrícula": "A01234567", "Nombre": "Nombre Alumno", "Clave de la materia": "DEP101", "Materia de repre": "Fútbol Soccer", "COACH": "Coach responsable" },
+      { "Matrícula": "A07654321", "Nombre": "Nombre Alumna", "Clave de la materia": "DEP202", "Materia de repre": "Basquetbol", "COACH": "Coach responsable" }
+    ]
+  }
+};
+
+function uploadHasColumn(rows, aliases) {
+  const headers = Object.keys(rows[0] || {}).map(headerKey);
+  return aliases.some((alias) => headers.includes(headerKey(alias)));
+}
+
+function uploadedStudentProfile(matricula) {
+  const student = findStudentInDatabase(matricula);
+  return student ? {
+    found: true,
+    genero: student.genero || "No especificado",
+    carrera: student.carrera || "Sin carrera",
+    nivel: student.nivel || "Sin nivel",
+    programa: student.programa || student.carrera || "Sin programa"
+  } : {
+    found: false,
+    genero: "No encontrado",
+    carrera: "No encontrado",
+    nivel: "No encontrado",
+    programa: "No encontrado"
+  };
+}
+
+function normalizeParticipationUploadRow(areaId, row, index, seen) {
+  const matricula = normalizeMatricula(pickColumn(row, ["Matrícula", "Matricula", "matricula"]));
+  const duplicate = Boolean(matricula && seen.has(matricula));
+  if (matricula) seen.add(matricula);
+  const profile = uploadedStudentProfile(matricula);
+  const base = {
+    rowNumber: index + 2,
+    matricula,
+    duplicate,
+    empty: !matricula,
+    found: profile.found,
+    genero: profile.genero,
+    carrera: profile.carrera,
+    nivel: profile.nivel,
+    programa: profile.programa
+  };
+  if (areaId === "representativos") {
+    return {
+      ...base,
+      clave_materia: String(pickColumn(row, ["Clave de la materia", "Clave materia", "clave_materia"]) || "").trim(),
+      representativo: String(pickColumn(row, ["Representativo", "Materia de repre", "Materia repre", "materia_de_repre"]) || "").trim(),
+      coach: String(pickColumn(row, ["Coach", "COACH"]) || "").trim(),
+      nombre_archivo: String(pickColumn(row, ["Nombre", "Alumno", "Nombre alumno"]) || "").trim()
+    };
+  }
+  return base;
+}
+
+function validateParticipationUpload(areaId, rows, fileName = "") {
+  const config = participationUploadConfigs[areaId];
+  const errors = [];
+  const warnings = [];
+  if (!rows.length) errors.push("El archivo está vacío.");
+  if (areaId === "gamer" && rows.length && !uploadHasColumn(rows, ["Matrícula", "Matricula", "matricula"])) {
+    errors.push("Falta la columna obligatoria: Matrícula.");
+  }
+  if (areaId === "representativos" && rows.length) {
+    [
+      ["Matrícula", ["Matrícula", "Matricula", "matricula"]],
+      ["Clave de la materia", ["Clave de la materia", "Clave materia", "clave_materia"]],
+      ["Representativo", ["Representativo", "Materia de repre", "Materia repre", "materia_de_repre"]],
+      ["Coach", ["Coach", "COACH"]]
+    ].forEach(([label, aliases]) => {
+      if (!uploadHasColumn(rows, aliases)) errors.push(`Falta la columna obligatoria: ${label}.`);
+    });
+  }
+  const seen = new Set();
+  const parsedRows = errors.length ? [] : rows
+    .map((row, index) => normalizeParticipationUploadRow(areaId, row, index, seen))
+    .filter((row) => row.matricula || (areaId === "representativos" && (row.nombre_archivo || row.representativo || row.coach)));
+  const emptyRows = parsedRows.filter((row) => row.empty).length;
+  const duplicateRows = parsedRows.filter((row) => row.duplicate);
+  const notFoundRows = parsedRows.filter((row) => row.matricula && !row.found);
+  if (emptyRows) warnings.push(`${emptyRows} filas sin matrícula.`);
+  if (duplicateRows.length) warnings.push(`${duplicateRows.length} matrículas duplicadas dentro del archivo.`);
+  if (notFoundRows.length) warnings.push(`${notFoundRows.length} matrículas no encontradas en Base de datos_alumnos.`);
+  return {
+    areaId,
+    fileName,
+    config,
+    rows: parsedRows,
+    preview: parsedRows.slice(0, 8),
+    errors,
+    warnings,
+    summary: {
+      total: parsedRows.length,
+      found: parsedRows.filter((row) => row.matricula && row.found && !row.duplicate).length,
+      notFound: notFoundRows.length,
+      duplicates: duplicateRows.length,
+      empty: emptyRows,
+      representativos: areaId === "representativos" ? new Set(parsedRows.map((row) => row.representativo).filter(Boolean)).size : 0,
+      coaches: areaId === "representativos" ? new Set(parsedRows.map((row) => row.coach).filter(Boolean)).size : 0
+    }
+  };
+}
+
+async function loadParticipationUploadFile(areaId, file) {
+  if (!file) return;
+  try {
+    const rows = await rowsFromScheduleFile(file);
+    participationUploadState[areaId].fileName = file.name;
+    participationUploadState[areaId].draft = validateParticipationUpload(areaId, rows, file.name);
+    render();
+    toast("Archivo leído para validación");
+  } catch (error) {
+    console.error(error);
+    participationUploadState[areaId].draft = {
+      areaId,
+      fileName: file.name,
+      rows: [],
+      preview: [],
+      errors: ["No pude leer el archivo. Usa .xlsx o .csv con encabezados."],
+      warnings: [],
+      summary: { total: 0, found: 0, notFound: 0, duplicates: 0, empty: 0, representativos: 0, coaches: 0 }
+    };
+    render();
+  }
+}
+
+function importParticipationUpload(areaId) {
+  const draft = participationUploadState[areaId]?.draft;
+  if (!draft) return;
+  if (draft.errors.length) {
+    toast("Corrige los errores antes de importar");
+    return;
+  }
+  participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
+  addAudit(areaId, `${draft.summary.total} registros importados desde ${draft.fileName}`);
+  render();
+  toast("Información importada para análisis");
+}
+
+function downloadParticipationTemplate(areaId) {
+  const config = participationUploadConfigs[areaId];
+  const headers = Object.keys(config.sample[0] || {});
+  const csv = [headers.join(","), ...config.sample.map((row) => headers.map((header) => csvEscape(row[header] || "")).join(","))].join("\n");
+  downloadBlob(csv, config.templateName);
+}
+
+function uploadGroupCounts(rows, field, options = {}) {
+  const source = options.foundOnly ? rows.filter((row) => row.found && !row.duplicate) : rows.filter((row) => !row.duplicate);
+  const counts = new Map();
+  source.forEach((row) => {
+    const value = row[field] || "Sin dato";
+    counts.set(value, (counts.get(value) || 0) + 1);
+  });
+  return Array.from(counts.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
+}
+
+function renderUploadBars(title, rows) {
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  return `
+    <article class="upload-chart-card">
+      <h3>${title}</h3>
+      <div class="upload-bars">
+        ${rows.length ? rows.slice(0, 8).map((row) => `
+          <div class="upload-bar-row">
+            <span>${escapeHtml(row.label)}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, Math.round((row.value / max) * 100))}%"></div></div>
+            <strong>${row.value}</strong>
+          </div>
+        `).join("") : `<div class="upload-empty">Sin datos suficientes para graficar.</div>`}
+      </div>
+    </article>
+  `;
+}
+
+function renderParticipationUploadDashboard(areaId) {
+  const config = participationUploadConfigs[areaId];
+  const state = participationUploadState[areaId];
+  const result = state.imported || state.draft;
+  const imported = state.imported;
+  const rows = result?.rows || [];
+  const notFound = rows.filter((row) => row.matricula && !row.found);
+  const canImport = result && !result.errors?.length && rows.length;
+  const title = areaId === "gamer" ? "Gamer" : "Representativos";
+  return `
+    <section class="upload-center">
+      <div class="permission-strip">
+        <span>${title}: centro visual de carga y validación contra Base de datos_alumnos.</span>
+        <span>${studentDatabaseLoaded ? `${cloudStudentDatabase.length.toLocaleString("es-MX")} alumnos en base general` : "Base general pendiente de cargar"}</span>
+      </div>
+      <div class="upload-center-grid">
+        <article class="upload-info-panel">
+          <p class="eyebrow">Centro de carga</p>
+          <h3>${config.title}</h3>
+          <p>${config.subtitle}</p>
+          <div class="upload-required-list">
+            <strong>Columnas obligatorias</strong>
+            ${config.required.map((column) => `<span>${escapeHtml(column)}</span>`).join("")}
+          </div>
+          <div class="upload-template-preview">
+            <strong>Vista previa de plantilla</strong>
+            <table>
+              <thead><tr>${Object.keys(config.sample[0]).map((key) => `<th>${escapeHtml(key)}</th>`).join("")}</tr></thead>
+              <tbody>${config.sample.map((row) => `<tr>${Object.keys(config.sample[0]).map((key) => `<td>${escapeHtml(row[key])}</td>`).join("")}</tr>`).join("")}</tbody>
+            </table>
+          </div>
+          <ul class="upload-recommendations">
+            ${config.recommendations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+          </ul>
+          <button class="ghost-btn" type="button" data-download-upload-template="${areaId}">Descargar plantilla</button>
+        </article>
+        <article class="upload-drop-panel">
+          <p class="eyebrow">Validación</p>
+          <h3>${config.button}</h3>
+          <label class="upload-drop-zone" data-upload-drop="${areaId}">
+            <input type="file" accept=".csv,.xlsx,.xls" data-participation-upload="${areaId}" hidden />
+            <strong>Arrastra tu archivo aquí</strong>
+            <span>o selecciona un archivo .xlsx o .csv</span>
+            <em>${state.fileName ? escapeHtml(state.fileName) : "Sin archivo seleccionado"}</em>
+          </label>
+          <div class="upload-validation-summary">
+            ${result ? `
+              <div class="upload-status ${result.errors.length ? "red" : result.warnings.length ? "yellow" : "green"}">
+                <strong>${result.errors.length ? "Con errores" : result.warnings.length ? "Con advertencias" : "Listo para importar"}</strong>
+                <span>${result.errors.length || result.warnings.length || "Archivo validado correctamente"}</span>
+              </div>
+              <div class="upload-message-list">
+                ${result.errors.map((item) => `<p class="red">${escapeHtml(item)}</p>`).join("")}
+                ${result.warnings.map((item) => `<p class="yellow">${escapeHtml(item)}</p>`).join("")}
+              </div>
+            ` : `<div class="upload-empty">Carga un archivo para ver la validación.</div>`}
+          </div>
+          <button class="primary-btn" type="button" data-import-participation-upload="${areaId}" ${canImport ? "" : "disabled"}>Importar información</button>
+        </article>
+      </div>
+      ${result ? `
+        <div class="upload-kpi-grid">
+          <article><span>Total cargado</span><strong>${result.summary.total}</strong><em>registros</em></article>
+          <article><span>${areaId === "gamer" ? "Encontradas" : "Válidas"}</span><strong>${result.summary.found}</strong><em>en base general</em></article>
+          <article><span>No encontradas</span><strong>${result.summary.notFound}</strong><em>revisar matrícula</em></article>
+          <article><span>Duplicados</span><strong>${result.summary.duplicates}</strong><em>en archivo</em></article>
+          ${areaId === "representativos" ? `<article><span>Representativos</span><strong>${result.summary.representativos}</strong><em>equipos</em></article><article><span>Coaches</span><strong>${result.summary.coaches}</strong><em>responsables</em></article>` : ""}
+        </div>
+        <section class="upload-preview-panel">
+          <div class="class-grade-table-header">
+            <div><p class="eyebrow">Vista previa</p><h3>${imported ? "Información importada" : "Archivo listo para revisión"}</h3></div>
+            <span>${result.preview.length} de ${rows.length} registros</span>
+          </div>
+          <div class="class-grade-table-wrap">
+            <table class="class-grade-table">
+              <thead><tr>${areaId === "representativos" ? "<th>Matrícula</th><th>Nombre</th><th>Clave</th><th>Representativo</th><th>Coach</th><th>Base</th>" : "<th>Matrícula</th><th>Base</th><th>Género</th><th>Carrera</th><th>Nivel</th><th>Programa</th>"}</tr></thead>
+              <tbody>${result.preview.map((row) => areaId === "representativos" ? `
+                <tr><td>${escapeHtml(row.matricula || "Sin matrícula")}</td><td>${escapeHtml(row.nombre_archivo || "")}</td><td>${escapeHtml(row.clave_materia || "")}</td><td>${escapeHtml(row.representativo || "")}</td><td>${escapeHtml(row.coach || "")}</td><td><span class="upload-pill ${row.found ? "green" : "blue"}">${row.found ? "Encontrada" : "No encontrada"}</span></td></tr>
+              ` : `
+                <tr><td>${escapeHtml(row.matricula || "Sin matrícula")}</td><td><span class="upload-pill ${row.found ? "green" : "blue"}">${row.found ? "Encontrada" : "No encontrada"}</span></td><td>${escapeHtml(row.genero)}</td><td>${escapeHtml(row.carrera)}</td><td>${escapeHtml(row.nivel)}</td><td>${escapeHtml(row.programa)}</td></tr>
+              `).join("")}</tbody>
+            </table>
+          </div>
+        </section>
+        <div class="upload-chart-grid">
+          ${areaId === "representativos" ? renderUploadBars("Alumnos por representativo", uploadGroupCounts(rows, "representativo")) + renderUploadBars("Alumnos por coach", uploadGroupCounts(rows, "coach")) : ""}
+          ${renderUploadBars("Por género", uploadGroupCounts(rows, "genero", { foundOnly: true }))}
+          ${renderUploadBars("Por carrera", uploadGroupCounts(rows, "carrera", { foundOnly: true }))}
+          ${renderUploadBars("Por nivel", uploadGroupCounts(rows, "nivel", { foundOnly: true }))}
+          ${renderUploadBars("Por programa", uploadGroupCounts(rows, "programa", { foundOnly: true }))}
+        </div>
+        <section class="upload-preview-panel">
+          <div class="class-grade-table-header">
+            <div><p class="eyebrow">Seguimiento</p><h3>Matrículas no encontradas</h3></div>
+            <span>${notFound.length} registros</span>
+          </div>
+          <div class="class-grade-table-wrap">
+            <table class="class-grade-table">
+              <thead><tr>${areaId === "representativos" ? "<th>Matrícula</th><th>Nombre en archivo</th><th>Representativo</th><th>Coach</th>" : "<th>Matrícula</th><th>Observación</th>"}</tr></thead>
+              <tbody>${notFound.length ? notFound.slice(0, 80).map((row) => areaId === "representativos" ? `
+                <tr><td>${escapeHtml(row.matricula)}</td><td>${escapeHtml(row.nombre_archivo || "")}</td><td>${escapeHtml(row.representativo || "")}</td><td>${escapeHtml(row.coach || "")}</td></tr>
+              ` : `
+                <tr><td>${escapeHtml(row.matricula)}</td><td>No existe en Base de datos_alumnos</td></tr>
+              `).join("") : `<tr><td colspan="${areaId === "representativos" ? 4 : 2}">No hay matrículas pendientes de revisar.</td></tr>`}</tbody>
+            </table>
+          </div>
+        </section>
+      ` : ""}
+    </section>
+  `;
+}
+
 function renderDashboard(area) {
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
   if (area.id === "configuracion") return renderConfigurationDashboard();
@@ -4888,6 +5201,7 @@ function renderDashboard(area) {
   if (area.id === "clases") return renderClassesDashboard();
   if (area.id === "vivencia") return renderVivenciaDashboard();
   if (area.id === "compras") return renderBudgetDashboard();
+  if (area.id === "gamer" || area.id === "representativos") return renderParticipationUploadDashboard(area.id);
   const data = filteredStudents();
   const metrics = metricSet(data);
   const byArea = areas.filter(a => a.id !== "general").map(a => ({
@@ -8278,6 +8592,27 @@ function render() {
     await replaceStudentDatabaseFromCsv(file);
     event.target.value = "";
   });
+  $$("[data-download-upload-template]").forEach((button) => button.addEventListener("click", () => downloadParticipationTemplate(button.dataset.downloadUploadTemplate)));
+  $$("[data-participation-upload]").forEach((input) => input.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await loadParticipationUploadFile(input.dataset.participationUpload, file);
+    event.target.value = "";
+  }));
+  $$("[data-upload-drop]").forEach((zone) => {
+    zone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      zone.classList.add("dragging");
+    });
+    zone.addEventListener("dragleave", () => zone.classList.remove("dragging"));
+    zone.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      zone.classList.remove("dragging");
+      const file = event.dataTransfer?.files?.[0];
+      if (file) await loadParticipationUploadFile(zone.dataset.uploadDrop, file);
+    });
+  });
+  $$("[data-import-participation-upload]").forEach((button) => button.addEventListener("click", () => importParticipationUpload(button.dataset.importParticipationUpload)));
   $$(".budget-filter").forEach((input) => input.addEventListener("input", (event) => {
     budgetFilters[event.target.dataset.filter] = event.target.value;
     render();
