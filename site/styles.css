@@ -3501,6 +3501,18 @@ tbody tr:hover td {
   gap: 6px;
 }
 
+.exec-status-strip article.exec-area-link {
+  cursor: pointer;
+  position: relative;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.exec-status-strip article.exec-area-link:hover {
+  border-color: rgba(0, 91, 169, .38);
+  box-shadow: 0 10px 22px rgba(13, 42, 62, .1);
+  transform: translateY(-1px);
+}
+
 .exec-dot {
   border-radius: 999px;
   display: block;
@@ -3514,6 +3526,7 @@ tbody tr:hover td {
 
 .exec-status-strip strong,
 .exec-status-strip em,
+.exec-status-strip b,
 .exec-status-strip small {
   display: block;
   font-style: normal;
@@ -3521,10 +3534,34 @@ tbody tr:hover td {
 }
 
 .exec-status-strip em,
+.exec-status-strip b,
 .exec-status-strip small {
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
+}
+
+.exec-status-strip b {
+  color: var(--ink);
+  font-size: 11px;
+}
+
+.exec-open-btn {
+  background: #f4f8fb;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--blue);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 950;
+  justify-self: start;
+  padding: 5px 10px;
+}
+
+.exec-open-btn:hover {
+  background: var(--blue);
+  color: #fff;
 }
 
 .exec-grid {
@@ -3541,6 +3578,21 @@ tbody tr:hover td {
   font-size: 18px;
   margin: 0 0 12px;
   text-align: center;
+}
+
+.exec-panel-link {
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.exec-panel-link:hover {
+  border-color: rgba(0, 91, 169, .38);
+  box-shadow: 0 10px 22px rgba(13, 42, 62, .1);
+  transform: translateY(-1px);
+}
+
+.exec-panel-link .exec-open-btn {
+  margin-top: 10px;
 }
 
 .exec-mini-bars {
@@ -3574,6 +3626,101 @@ tbody tr:hover td {
   background: linear-gradient(90deg, var(--blue), var(--green));
   display: block;
   height: 100%;
+}
+
+.exec-mini-bar-row.percent {
+  grid-template-columns: minmax(105px, .9fr) minmax(105px, 1.1fr) 72px;
+}
+
+.exec-mini-bar-row.percent strong {
+  color: var(--ink);
+  font-size: 11px;
+}
+
+.exec-mini-bar-row.percent strong em {
+  color: var(--muted);
+  display: block;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.exec-mini-bar-row b.green {
+  background: linear-gradient(90deg, var(--green), #7bdc9e);
+}
+
+.exec-mini-bar-row b.red {
+  background: linear-gradient(90deg, var(--red), #f1a3a3);
+}
+
+.exec-pie-wrap {
+  align-items: center;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 150px minmax(0, 1fr);
+  min-height: 176px;
+}
+
+.exec-pie {
+  align-items: center;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 28px #fff, 0 8px 22px rgba(13, 42, 62, .08);
+  display: flex;
+  height: 150px;
+  justify-content: center;
+  width: 150px;
+}
+
+.exec-pie span {
+  align-items: center;
+  background: #fff;
+  border-radius: 50%;
+  display: grid;
+  height: 82px;
+  justify-items: center;
+  width: 82px;
+}
+
+.exec-pie strong {
+  color: var(--teal);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.exec-pie em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.exec-pie-legend {
+  display: grid;
+  gap: 8px;
+}
+
+.exec-pie-legend div {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+}
+
+.exec-pie-legend i {
+  border-radius: 999px;
+  display: block;
+  height: 10px;
+  width: 10px;
+}
+
+.exec-pie-legend span,
+.exec-pie-legend strong {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.exec-pie-legend strong {
+  color: var(--ink);
 }
 
 .exec-priority-list {
@@ -3610,6 +3757,50 @@ tbody tr:hover td {
 
 .exec-priority-list em {
   color: var(--muted);
+}
+
+.exec-linked-panel p {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  margin: 12px 0 0;
+  text-align: center;
+}
+
+.exec-link-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.exec-link-grid button {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--blue);
+  border-radius: 6px;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 4px;
+  padding: 10px;
+  text-align: left;
+}
+
+.exec-link-grid button:hover {
+  background: #f4f8fb;
+  border-color: rgba(0, 91, 169, .38);
+}
+
+.exec-link-grid strong {
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.exec-link-grid span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .exec-week-bars {
@@ -5274,7 +5465,8 @@ tbody tr:hover td {
 @media (max-width: 760px) {
   .workspace, .sidebar { padding: 14px; }
   .topbar, .top-actions, .section-title, .report-row, .permission-strip, .collaborator-table-header { flex-direction: column; align-items: stretch; }
-  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps, .booking-kpi-grid, .booking-dashboard-grid, .booking-mini-grid, .booking-filter-row, .upload-center-grid, .upload-kpi-grid, .upload-chart-grid, .upload-bar-row, .exec-controls, .exec-hero-row, .exec-status-strip, .exec-grid.three, .exec-grid.two, .exec-grid.wide-left, .exec-footer-kpis { grid-template-columns: 1fr; }
+  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps, .booking-kpi-grid, .booking-dashboard-grid, .booking-mini-grid, .booking-filter-row, .upload-center-grid, .upload-kpi-grid, .upload-chart-grid, .upload-bar-row, .exec-controls, .exec-hero-row, .exec-status-strip, .exec-grid.three, .exec-grid.two, .exec-grid.wide-left, .exec-link-grid, .exec-pie-wrap, .exec-footer-kpis { grid-template-columns: 1fr; }
+  .exec-pie { justify-self: center; }
   .exec-page { padding: 16px; }
   .exec-week-bars { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .nav-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }

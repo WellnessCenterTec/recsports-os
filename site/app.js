@@ -5258,12 +5258,12 @@ function executiveAreaCards() {
   const gamer = participationUploadState.gamer.imported?.summary?.found || executiveCountByArea().find((row) => row.areaId === "gamer")?.value || 0;
   const intramuros = executiveCountByArea().find((row) => row.areaId === "intramuros")?.value || 0;
   return [
-    { area: "Clases Deportivas", metric: `${classes.effectiveness}% efectividad`, action: classes.np > classes.bajas ? "Revisar NP por disciplina" : "Mantener seguimiento", ...executiveStatus("clases", classes.banner, { warning: classes.effectiveness < 70 }) },
-    { area: "Gimnasio", metric: `${gymUnique.toLocaleString("es-MX")} usuarios únicos`, action: gymAttendanceRecords.length ? "Monitorear horarios pico" : "Cargar asistencia semanal", ...executiveStatus("gimnasio", gymAttendanceRecords.length) },
-    { area: "Vivencia", metric: `${vivenciaParticipants.toLocaleString("es-MX")} participantes`, action: vivenciaEvents.length ? "Actualizar próximos eventos" : "Cargar planeación", ...executiveStatus("vivencia", vivenciaEvents.length) },
-    { area: "Representativos", metric: `${representativos.toLocaleString("es-MX")} alumnos`, action: "Validar matrículas no encontradas", ...executiveStatus("representativos", representativos, { warning: Boolean(participationUploadState.representativos.imported?.summary?.notFound) }) },
-    { area: "Gamer", metric: `${gamer.toLocaleString("es-MX")} participantes`, action: "Actualizar lista de matrículas", ...executiveStatus("gamer", gamer, { warning: Boolean(participationUploadState.gamer.imported?.summary?.notFound) }) },
-    { area: "Intramuros", metric: `${intramuros.toLocaleString("es-MX")} alumnos`, action: "Revisar torneos activos", ...executiveStatus("intramuros", intramuros) }
+    { id: "clases", view: "dashboard", area: "Clases Deportivas", metric: `${classes.effectiveness}% efectividad`, action: classes.np > classes.bajas ? "Revisar NP por disciplina" : "Mantener seguimiento", detail: `${classes.banner.toLocaleString("es-MX")} inscritos | ${classes.finished.toLocaleString("es-MX")} acreditados`, ...executiveStatus("clases", classes.banner, { warning: classes.effectiveness < 70 }) },
+    { id: "gimnasio", view: "dashboard", area: "Gimnasio", metric: `${gymUnique.toLocaleString("es-MX")} usuarios únicos`, action: gymAttendanceRecords.length ? "Monitorear horarios pico" : "Cargar asistencia semanal", detail: `${gymAttendanceRecords.length.toLocaleString("es-MX")} asistencias registradas`, ...executiveStatus("gimnasio", gymAttendanceRecords.length) },
+    { id: "vivencia", view: "dashboard", area: "Vivencia", metric: `${vivenciaParticipants.toLocaleString("es-MX")} participantes`, action: vivenciaEvents.length ? "Actualizar próximos eventos" : "Cargar planeación", detail: `${vivenciaEvents.length.toLocaleString("es-MX")} eventos en seguimiento`, ...executiveStatus("vivencia", vivenciaEvents.length) },
+    { id: "representativos", view: "dashboard", area: "Representativos", metric: `${representativos.toLocaleString("es-MX")} alumnos`, action: "Validar matrículas no encontradas", detail: `${participationUploadState.representativos.imported?.summary?.notFound || 0} no encontradas`, ...executiveStatus("representativos", representativos, { warning: Boolean(participationUploadState.representativos.imported?.summary?.notFound) }) },
+    { id: "gamer", view: "dashboard", area: "Gamer", metric: `${gamer.toLocaleString("es-MX")} participantes`, action: "Actualizar lista de matrículas", detail: `${participationUploadState.gamer.imported?.summary?.notFound || 0} no encontradas`, ...executiveStatus("gamer", gamer, { warning: Boolean(participationUploadState.gamer.imported?.summary?.notFound) }) },
+    { id: "intramuros", view: "dashboard", area: "Intramuros", metric: `${intramuros.toLocaleString("es-MX")} alumnos`, action: "Revisar torneos activos", detail: `${executiveIntramurosRows().length.toLocaleString("es-MX")} disciplinas/listas activas`, ...executiveStatus("intramuros", intramuros) }
   ];
 }
 
@@ -5275,6 +5275,59 @@ function executivePriorityList(cards) {
   if (!classBookingReservations.length) priorities.push({ tone: "blue", title: "Booking", text: "Cargar reservaciones para demanda real" });
   if (!gymAttendanceRecords.length) priorities.push({ tone: "yellow", title: "Gimnasio", text: "Sin asistencias cargadas en tablero" });
   return priorities.slice(0, 5);
+}
+
+function executiveClassRetentionRows(mode = "top") {
+  const rows = classDisciplineRows()
+    .filter((row) => row.total)
+    .map((row) => ({
+      label: String(row.discipline || "Clase").replace(/\sPMT\d+/i, ""),
+      value: row.approvedRate,
+      count: `${row.finished}/${row.total}`
+    }))
+    .sort((a, b) => mode === "low" ? a.value - b.value : b.value - a.value);
+  return rows.slice(0, 5);
+}
+
+function renderExecutivePercentBars(rows, options = {}) {
+  return `
+    <div class="exec-mini-bars ${options.compact ? "compact" : ""}">
+      ${rows.length ? rows.map((row) => `
+        <div class="exec-mini-bar-row percent">
+          <span>${escapeHtml(row.label)}</span>
+          <i><b class="${options.tone || ""}" style="width:${Math.max(3, Math.min(100, Number(row.value) || 0))}%"></b></i>
+          <strong>${escapeHtml(row.count || `${row.value}%`)} <em>${Number(row.value || 0)}%</em></strong>
+        </div>
+      `).join("") : `<div class="exec-empty">Sin datos cargados.</div>`}
+    </div>
+  `;
+}
+
+function renderExecutivePie(rows) {
+  const total = rows.reduce((sum, row) => sum + Number(row.value || 0), 0);
+  if (!total) return `<div class="exec-empty">Sin datos cargados.</div>`;
+  const colors = ["#0067b1", "#e23c8e", "#f0b400", "#13917c"];
+  let start = 0;
+  const gradient = rows.map((row, index) => {
+    const value = Number(row.value || 0);
+    const end = start + (value / total) * 100;
+    const segment = `${colors[index % colors.length]} ${start}% ${end}%`;
+    start = end;
+    return segment;
+  }).join(", ");
+  return `
+    <div class="exec-pie-wrap">
+      <div class="exec-pie" style="background: conic-gradient(${gradient});">
+        <span><strong>${total.toLocaleString("es-MX")}</strong><em>Total</em></span>
+      </div>
+      <div class="exec-pie-legend">
+        ${rows.map((row, index) => {
+          const percent = Math.round((Number(row.value || 0) / total) * 1000) / 10;
+          return `<div><i style="background:${colors[index % colors.length]}"></i><span>${escapeHtml(row.label)}</span><strong>${Number(row.value || 0).toLocaleString("es-MX")} (${percent}%)</strong></div>`;
+        }).join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderExecutiveMiniBars(rows, options = {}) {
@@ -5342,11 +5395,13 @@ function renderExecutiveGeneralDashboard() {
         </div>
         <section class="exec-status-strip">
           ${cards.map((card) => `
-            <article>
+            <article class="exec-area-link" data-jump="${card.id}" data-target-view="${card.view}">
               <span class="exec-dot ${card.tone}"></span>
               <strong>${escapeHtml(card.area)}</strong>
               <em>${escapeHtml(card.metric)}</em>
+              <b>${escapeHtml(card.detail)}</b>
               <small>${escapeHtml(card.action)}</small>
+              <button class="exec-open-btn no-print" type="button">Abrir</button>
             </article>
           `).join("")}
         </section>
@@ -5356,12 +5411,13 @@ function renderExecutiveGeneralDashboard() {
             <div class="exec-priority-list">${priorities.length ? priorities.map((item) => `<div><span class="${item.tone}">${escapeHtml(item.tone)}</span><strong>${escapeHtml(item.title)}</strong><em>${escapeHtml(item.text)}</em></div>`).join("") : `<div class="exec-empty">Operación estable sin alertas principales.</div>`}</div>
           </article>
           <article class="exec-panel">
-            <h3>Género impactado</h3>
-            ${renderExecutiveMiniBars(genderRows)}
+            <h3>Retención por clase</h3>
+            ${renderExecutivePercentBars(executiveClassRetentionRows("top"), { tone: "green" })}
           </article>
-          <article class="exec-panel">
+          <article class="exec-panel exec-panel-link" data-jump="clases" data-target-view="booking">
             <h3>Booking por actividad</h3>
             ${renderExecutiveMiniBars(bookingRows)}
+            <button class="exec-open-btn no-print" type="button">Abrir Booking</button>
           </article>
         </div>
         <div class="exec-grid wide-left">
@@ -5374,11 +5430,21 @@ function renderExecutiveGeneralDashboard() {
             ${renderExecutiveMiniBars(schoolRows, { compact: true })}
           </article>
         </div>
-        <div class="exec-grid two">
+        <div class="exec-grid three">
+          <article class="exec-panel">
+            <h3>Clases con seguimiento</h3>
+            ${renderExecutivePercentBars(executiveClassRetentionRows("low"), { compact: true, tone: "red" })}
+          </article>
+          <article class="exec-panel">
+            <h3>Género impactado</h3>
+            ${renderExecutivePie(genderRows)}
+          </article>
           <article class="exec-panel">
             <h3>Intramuros</h3>
             ${renderExecutiveMiniBars(executiveIntramurosRows(), { compact: true })}
           </article>
+        </div>
+        <div class="exec-grid">
           <article class="exec-panel">
             <h3>Vivencia, Representativos y Gamer</h3>
             ${renderExecutiveMiniBars([
@@ -8762,7 +8828,7 @@ function render() {
               : renderBlueprint(area);
   $$("[data-jump]").forEach((button) => button.addEventListener("click", () => {
     activeArea = button.dataset.jump;
-    activeView = "dashboard";
+    activeView = button.dataset.targetView || "dashboard";
     render();
   }));
   $("#saveMock")?.addEventListener("click", saveCaptureFromForm);
