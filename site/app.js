@@ -450,11 +450,13 @@ let localCaptures = loadCaptures();
 let scheduleState = loadSchedules();
 let scheduleFilters = { professor: "todos", day: "todos", discipline: "todos", installation: "todos", mode: "professors", timeDay: "Lunes", time: "09:00", reportProfessor: "todos" };
 let classBookingReservations = loadClassBookingReservations();
+let classBookingCloudAvailable = true;
 let classBookingFilters = { status: "todos", type: "todos", activity: "todos", search: "" };
 let participationUploadState = {
   gamer: { fileName: "", draft: null, imported: null },
   representativos: { fileName: "", draft: null, imported: null }
 };
+let participationUploadCloudAvailable = true;
 let executiveReportState = { week: 15, period: "FJ26", title: "Reporte Ejecutivo Semana 15" };
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
@@ -755,6 +757,79 @@ function loadClassBookingReservations() {
 
 function saveClassBookingReservations() {
   localStorage.setItem(CLASS_BOOKING_RESERVATIONS_KEY, JSON.stringify(classBookingReservations));
+}
+
+function bookingReservationFromCloud(row) {
+  const parts = bookingDateParts(row.reservation_at || "");
+  return {
+    id: row.source_reservation_id || row.id,
+    reservationDate: row.reservation_at || "",
+    status: row.status || "Sin estatus",
+    type: row.reservation_type || "Sin tipo",
+    student: normalizeMatricula(row.matricula),
+    activity: row.activity || "Sin actividad",
+    rawSpace: row.raw_space || row.activity || "",
+    dateLabel: parts.date,
+    day: parts.day,
+    hour: parts.hour,
+    month: parts.month
+  };
+}
+
+function bookingReservationToCloud(row, fileName = "") {
+  return {
+    source_reservation_id: String(row.id || "").trim() || null,
+    reservation_at: row.reservationDate || null,
+    status: row.status || null,
+    reservation_type: row.type || null,
+    matricula: normalizeMatricula(row.student) || null,
+    activity: row.activity || "Sin actividad",
+    raw_space: row.rawSpace || null,
+    source_name: fileName || "Booking",
+    created_by: currentUser?.auth === "supabase" ? currentUser.id : null
+  };
+}
+
+async function loadClassBookingReservationsCloud() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const { data, error } = await supabaseClient
+    .from("class_booking_reservations")
+    .select("*")
+    .order("reservation_at", { ascending: false })
+    .limit(20000);
+  if (error) {
+    classBookingCloudAvailable = false;
+    console.warn("Booking Supabase no disponible", error);
+    return;
+  }
+  classBookingCloudAvailable = true;
+  classBookingReservations = (data || []).map(bookingReservationFromCloud);
+  saveClassBookingReservations();
+}
+
+async function saveClassBookingReservationsCloud(rows, fileName = "") {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("clases")) return false;
+  const { error: deleteError } = await supabaseClient
+    .from("class_booking_reservations")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000");
+  if (deleteError) {
+    classBookingCloudAvailable = false;
+    toast(`Booking quedó local; falta activar Supabase: ${supabaseErrorDetail(deleteError) || deleteError.message}`);
+    return false;
+  }
+  const payload = rows.map((row) => bookingReservationToCloud(row, fileName));
+  for (let index = 0; index < payload.length; index += 500) {
+    const chunk = payload.slice(index, index + 500);
+    const { error } = await supabaseClient.from("class_booking_reservations").insert(chunk);
+    if (error) {
+      classBookingCloudAvailable = false;
+      toast(`Booking quedó local; no pude guardar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
+      return false;
+    }
+  }
+  classBookingCloudAvailable = true;
+  return true;
 }
 
 function loadSimulator() {
@@ -1884,17 +1959,23 @@ async function replaceStudentDatabaseFromCsv(file) {
 
 async function loadSupabaseCaptures() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const { data, error } = await supabaseClient
-    .from("participations")
-    .select("id, matricula, area_key, period_key, status, operation_label, metadata, created_at, students_minimal(genero, carrera, semestre, nivel_escolar)")
-    .order("created_at", { ascending: false })
-    .limit(800);
-  if (error) {
-    cloudStatus = "Supabase conectado, pendiente permisos";
-    toast("No pude leer capturas de Supabase todavia");
-    return;
+  const rows = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabaseClient
+      .from("participations")
+      .select("id, matricula, area_key, period_key, status, operation_label, metadata, created_at, students_minimal(genero, carrera, semestre, nivel_escolar)")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    if (error) {
+      cloudStatus = "Supabase conectado, pendiente permisos";
+      toast("No pude leer capturas de Supabase todavia");
+      return;
+    }
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
   }
-  cloudCaptures = (data || []).map(participationFromCloud);
+  cloudCaptures = rows.map(participationFromCloud);
   cloudStatus = "Supabase conectado";
 }
 
@@ -3313,6 +3394,8 @@ async function loadSupabaseDataBundle() {
     ["Gimnasio", loadGymData],
     ["Simulador de clases", loadClassScheduleSimulatorCloud],
     ["Vivencia", loadVivenciaEvents],
+    ["Booking", loadClassBookingReservationsCloud],
+    ["Gamer y Representativos", loadParticipationUploadsCloud],
     ["Presupuesto", loadBudgetData]
   ];
   const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
@@ -5034,17 +5117,18 @@ async function loadParticipationUploadFile(areaId, file) {
   }
 }
 
-function importParticipationUpload(areaId) {
+async function importParticipationUpload(areaId) {
   const draft = participationUploadState[areaId]?.draft;
   if (!draft) return;
   if (draft.errors.length) {
     toast("Corrige los errores antes de importar");
     return;
   }
+  const savedCloud = await saveParticipationUploadCloud(areaId, draft);
   participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
   addAudit(areaId, `${draft.summary.total} registros importados desde ${draft.fileName}`);
   render();
-  toast("Información importada para análisis");
+  toast(savedCloud ? "Información guardada en Supabase" : "Información importada localmente");
 }
 
 function downloadParticipationTemplate(areaId) {
@@ -5052,6 +5136,123 @@ function downloadParticipationTemplate(areaId) {
   const headers = Object.keys(config.sample[0] || {});
   const csv = [headers.join(","), ...config.sample.map((row) => headers.map((header) => csvEscape(row[header] || "")).join(","))].join("\n");
   downloadBlob(csv, config.templateName);
+}
+
+function participationUploadRowToCloud(areaId, row, fileName = "") {
+  return {
+    area_key: areaId,
+    matricula: normalizeMatricula(row.matricula),
+    found_in_student_base: Boolean(row.found),
+    duplicate_in_file: Boolean(row.duplicate),
+    clave_materia: areaId === "representativos" ? (row.clave_materia || null) : null,
+    representativo: areaId === "representativos" ? (row.representativo || null) : null,
+    coach: areaId === "representativos" ? (row.coach || null) : null,
+    genero: row.genero || null,
+    carrera: row.carrera || null,
+    nivel: row.nivel || null,
+    programa: row.programa || null,
+    source_name: fileName || participationUploadConfigs[areaId]?.title || areaId,
+    source_row_number: row.rowNumber || null,
+    created_by: currentUser?.auth === "supabase" ? currentUser.id : null
+  };
+}
+
+function participationUploadRowFromCloud(row) {
+  return {
+    rowNumber: row.source_row_number || 0,
+    matricula: normalizeMatricula(row.matricula),
+    duplicate: Boolean(row.duplicate_in_file),
+    empty: !row.matricula,
+    found: Boolean(row.found_in_student_base),
+    genero: row.genero || "No especificado",
+    carrera: row.carrera || "Sin carrera",
+    nivel: row.nivel || "Sin nivel",
+    programa: row.programa || row.carrera || "Sin programa",
+    clave_materia: row.clave_materia || "",
+    representativo: row.representativo || "",
+    coach: row.coach || ""
+  };
+}
+
+function buildParticipationImportResult(areaId, rows, fileName = "Supabase") {
+  const config = participationUploadConfigs[areaId];
+  const parsedRows = rows.map(participationUploadRowFromCloud);
+  const duplicateRows = parsedRows.filter((row) => row.duplicate);
+  const notFoundRows = parsedRows.filter((row) => row.matricula && !row.found);
+  const emptyRows = parsedRows.filter((row) => row.empty).length;
+  return {
+    areaId,
+    fileName,
+    config,
+    rows: parsedRows,
+    preview: parsedRows.slice(0, 8),
+    errors: [],
+    warnings: [
+      ...(emptyRows ? [`${emptyRows} filas sin matrícula.`] : []),
+      ...(duplicateRows.length ? [`${duplicateRows.length} matrículas duplicadas dentro del archivo.`] : []),
+      ...(notFoundRows.length ? [`${notFoundRows.length} matrículas no encontradas en Base de datos_alumnos.`] : [])
+    ],
+    summary: {
+      total: parsedRows.length,
+      found: parsedRows.filter((row) => row.matricula && row.found && !row.duplicate).length,
+      notFound: notFoundRows.length,
+      duplicates: duplicateRows.length,
+      empty: emptyRows,
+      representativos: areaId === "representativos" ? new Set(parsedRows.map((row) => row.representativo).filter(Boolean)).size : 0,
+      coaches: areaId === "representativos" ? new Set(parsedRows.map((row) => row.coach).filter(Boolean)).size : 0
+    }
+  };
+}
+
+async function loadParticipationUploadsCloud() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const { data, error } = await supabaseClient
+    .from("participation_upload_rows")
+    .select("*")
+    .order("area_key", { ascending: true })
+    .order("created_at", { ascending: false })
+    .limit(30000);
+  if (error) {
+    participationUploadCloudAvailable = false;
+    console.warn("Cargas de participación Supabase no disponibles", error);
+    return;
+  }
+  participationUploadCloudAvailable = true;
+  ["gamer", "representativos"].forEach((areaId) => {
+    const areaRows = (data || []).filter((row) => row.area_key === areaId);
+    if (!areaRows.length) return;
+    const latestSource = areaRows[0]?.source_name || "Supabase";
+    participationUploadState[areaId].fileName = latestSource;
+    participationUploadState[areaId].imported = buildParticipationImportResult(areaId, areaRows, latestSource);
+    participationUploadState[areaId].draft = null;
+  });
+}
+
+async function saveParticipationUploadCloud(areaId, draft) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea(areaId)) return false;
+  const { error: deleteError } = await supabaseClient
+    .from("participation_upload_rows")
+    .delete()
+    .eq("area_key", areaId);
+  if (deleteError) {
+    participationUploadCloudAvailable = false;
+    toast(`La carga quedó local; falta activar Supabase: ${supabaseErrorDetail(deleteError) || deleteError.message}`);
+    return false;
+  }
+  const payload = draft.rows
+    .filter((row) => row.matricula)
+    .map((row) => participationUploadRowToCloud(areaId, row, draft.fileName));
+  for (let index = 0; index < payload.length; index += 500) {
+    const chunk = payload.slice(index, index + 500);
+    const { error } = await supabaseClient.from("participation_upload_rows").insert(chunk);
+    if (error) {
+      participationUploadCloudAvailable = false;
+      toast(`La carga quedó local; no pude guardar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
+      return false;
+    }
+  }
+  participationUploadCloudAvailable = true;
+  return true;
 }
 
 function uploadGroupCounts(rows, field, options = {}) {
@@ -5194,8 +5395,54 @@ function renderParticipationUploadDashboard(areaId) {
   `;
 }
 
+function executiveStudentContext(matricula) {
+  const student = studentFromDatabase(normalizeMatricula(matricula));
+  return {
+    genero: student?.genero || "No especificado",
+    carrera: student?.carrera || "Sin carrera",
+    semestre: student?.semestre || null,
+    nivel: student?.nivel || student?.nivel_escolar || "Sin nivel"
+  };
+}
+
+function executiveSharedSourceRows() {
+  const bookingRows = classBookingReservations
+    .filter((row) => normalizeMatricula(row.student))
+    .map((row) => {
+      const context = executiveStudentContext(row.student);
+      return {
+        matricula: normalizeMatricula(row.student),
+        area: "booking",
+        periodo: executiveReportState.period,
+        registros: 1,
+        operacion: row.activity || "Booking",
+        source: classBookingCloudAvailable ? "booking_supabase" : "booking_local",
+        ...context
+      };
+    });
+  const uploadRows = ["gamer", "representativos"].flatMap((areaId) => {
+    const imported = participationUploadState[areaId].imported;
+    return (imported?.rows || [])
+      .filter((row) => row.matricula && row.found && !row.duplicate)
+      .map((row) => ({
+        matricula: normalizeMatricula(row.matricula),
+        area: areaId,
+        periodo: executiveReportState.period,
+        registros: 1,
+        operacion: areaId === "representativos" ? (row.representativo || "Representativo") : "Gamer",
+        source: participationUploadCloudAvailable ? "participation_uploads_supabase" : "participation_uploads_local",
+        genero: row.genero || "No especificado",
+        carrera: row.carrera || "Sin carrera",
+        semestre: null,
+        nivel: row.nivel || "Sin nivel"
+      }));
+  });
+  return [...bookingRows, ...uploadRows];
+}
+
 function executiveOperationalRows() {
-  return allParticipationRows().filter((row) => row.registros > 0 && !["general", "compras", "configuracion"].includes(row.area));
+  const baseRows = allParticipationRows().filter((row) => row.registros > 0 && !["general", "compras", "configuracion"].includes(row.area));
+  return [...baseRows, ...executiveSharedSourceRows()];
 }
 
 function executiveUniqueCount(rows = executiveOperationalRows()) {
@@ -8528,9 +8775,10 @@ async function importClassBookingReservations(file) {
   const parsed = rows.map(normalizeBookingReservation).filter((row) => row.student || row.activity || row.reservationDate);
   classBookingReservations = parsed;
   saveClassBookingReservations();
+  const savedCloud = await saveClassBookingReservationsCloud(parsed, file.name);
   addAudit("booking", `${file.name}: ${parsed.length} reservaciones importadas`);
   render();
-  toast(`${parsed.length} reservaciones de Booking cargadas`);
+  toast(savedCloud ? `${parsed.length} reservaciones guardadas en Supabase` : `${parsed.length} reservaciones de Booking cargadas localmente`);
 }
 
 function bookingRowsFiltered() {
@@ -8901,7 +9149,9 @@ function render() {
       if (file) await loadParticipationUploadFile(zone.dataset.uploadDrop, file);
     });
   });
-  $$("[data-import-participation-upload]").forEach((button) => button.addEventListener("click", () => importParticipationUpload(button.dataset.importParticipationUpload)));
+  $$("[data-import-participation-upload]").forEach((button) => button.addEventListener("click", async () => {
+    await importParticipationUpload(button.dataset.importParticipationUpload);
+  }));
   $$(".budget-filter").forEach((input) => input.addEventListener("input", (event) => {
     budgetFilters[event.target.dataset.filter] = event.target.value;
     render();
