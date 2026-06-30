@@ -4904,11 +4904,11 @@ const participationUploadConfigs = {
     button: "Cargar información de Representativos",
     templateName: "plantilla-representativos.csv",
     required: ["Matrícula", "Clave de la materia", "Representativo", "Coach"],
-    accepted: ["Matrícula", "Nombre", "Clave de la materia", "Materia de repre", "COACH"],
-    recommendations: ["No cambiar nombres de columnas.", "No dejar filas vacías.", "Guardar el archivo como .xlsx o .csv."],
+    accepted: ["Matrícula", "Clave de la materia", "Materia de repre", "COACH"],
+    recommendations: ["No cambiar nombres de columnas.", "No dejar filas vacías.", "Guardar el archivo como .xlsx o .csv.", "Si el archivo trae nombres de alumnos, WellSync los ignora y no los muestra."],
     sample: [
-      { "Matrícula": "A01234567", "Nombre": "Nombre Alumno", "Clave de la materia": "DEP101", "Materia de repre": "Fútbol Soccer", "COACH": "Coach responsable" },
-      { "Matrícula": "A07654321", "Nombre": "Nombre Alumna", "Clave de la materia": "DEP202", "Materia de repre": "Basquetbol", "COACH": "Coach responsable" }
+      { "Matrícula": "A01234567", "Clave de la materia": "DEP101", "Materia de repre": "Fútbol Soccer", "COACH": "Coach responsable" },
+      { "Matrícula": "A07654321", "Clave de la materia": "DEP202", "Materia de repre": "Basquetbol", "COACH": "Coach responsable" }
     ]
   }
 };
@@ -4956,8 +4956,7 @@ function normalizeParticipationUploadRow(areaId, row, index, seen) {
       ...base,
       clave_materia: String(pickColumn(row, ["Clave de la materia", "Clave materia", "clave_materia"]) || "").trim(),
       representativo: String(pickColumn(row, ["Representativo", "Materia de repre", "Materia repre", "materia_de_repre"]) || "").trim(),
-      coach: String(pickColumn(row, ["Coach", "COACH"]) || "").trim(),
-      nombre_archivo: String(pickColumn(row, ["Nombre", "Alumno", "Nombre alumno"]) || "").trim()
+      coach: String(pickColumn(row, ["Coach", "COACH"]) || "").trim()
     };
   }
   return base;
@@ -4984,7 +4983,7 @@ function validateParticipationUpload(areaId, rows, fileName = "") {
   const seen = new Set();
   const parsedRows = errors.length ? [] : rows
     .map((row, index) => normalizeParticipationUploadRow(areaId, row, index, seen))
-    .filter((row) => row.matricula || (areaId === "representativos" && (row.nombre_archivo || row.representativo || row.coach)));
+    .filter((row) => row.matricula || (areaId === "representativos" && (row.representativo || row.coach || row.clave_materia)));
   const emptyRows = parsedRows.filter((row) => row.empty).length;
   const duplicateRows = parsedRows.filter((row) => row.duplicate);
   const notFoundRows = parsedRows.filter((row) => row.matricula && !row.found);
@@ -5157,9 +5156,9 @@ function renderParticipationUploadDashboard(areaId) {
           </div>
           <div class="class-grade-table-wrap">
             <table class="class-grade-table">
-              <thead><tr>${areaId === "representativos" ? "<th>Matrícula</th><th>Nombre</th><th>Clave</th><th>Representativo</th><th>Coach</th><th>Base</th>" : "<th>Matrícula</th><th>Base</th><th>Género</th><th>Carrera</th><th>Nivel</th><th>Programa</th>"}</tr></thead>
+              <thead><tr>${areaId === "representativos" ? "<th>Matrícula</th><th>Clave</th><th>Representativo</th><th>Coach</th><th>Base</th>" : "<th>Matrícula</th><th>Base</th><th>Género</th><th>Carrera</th><th>Nivel</th><th>Programa</th>"}</tr></thead>
               <tbody>${result.preview.map((row) => areaId === "representativos" ? `
-                <tr><td>${escapeHtml(row.matricula || "Sin matrícula")}</td><td>${escapeHtml(row.nombre_archivo || "")}</td><td>${escapeHtml(row.clave_materia || "")}</td><td>${escapeHtml(row.representativo || "")}</td><td>${escapeHtml(row.coach || "")}</td><td><span class="upload-pill ${row.found ? "green" : "blue"}">${row.found ? "Encontrada" : "No encontrada"}</span></td></tr>
+                <tr><td>${escapeHtml(row.matricula || "Sin matrícula")}</td><td>${escapeHtml(row.clave_materia || "")}</td><td>${escapeHtml(row.representativo || "")}</td><td>${escapeHtml(row.coach || "")}</td><td><span class="upload-pill ${row.found ? "green" : "blue"}">${row.found ? "Encontrada" : "No encontrada"}</span></td></tr>
               ` : `
                 <tr><td>${escapeHtml(row.matricula || "Sin matrícula")}</td><td><span class="upload-pill ${row.found ? "green" : "blue"}">${row.found ? "Encontrada" : "No encontrada"}</span></td><td>${escapeHtml(row.genero)}</td><td>${escapeHtml(row.carrera)}</td><td>${escapeHtml(row.nivel)}</td><td>${escapeHtml(row.programa)}</td></tr>
               `).join("")}</tbody>
@@ -5180,12 +5179,12 @@ function renderParticipationUploadDashboard(areaId) {
           </div>
           <div class="class-grade-table-wrap">
             <table class="class-grade-table">
-              <thead><tr>${areaId === "representativos" ? "<th>Matrícula</th><th>Nombre en archivo</th><th>Representativo</th><th>Coach</th>" : "<th>Matrícula</th><th>Observación</th>"}</tr></thead>
+              <thead><tr>${areaId === "representativos" ? "<th>Matrícula</th><th>Representativo</th><th>Coach</th>" : "<th>Matrícula</th><th>Observación</th>"}</tr></thead>
               <tbody>${notFound.length ? notFound.slice(0, 80).map((row) => areaId === "representativos" ? `
-                <tr><td>${escapeHtml(row.matricula)}</td><td>${escapeHtml(row.nombre_archivo || "")}</td><td>${escapeHtml(row.representativo || "")}</td><td>${escapeHtml(row.coach || "")}</td></tr>
+                <tr><td>${escapeHtml(row.matricula)}</td><td>${escapeHtml(row.representativo || "")}</td><td>${escapeHtml(row.coach || "")}</td></tr>
               ` : `
                 <tr><td>${escapeHtml(row.matricula)}</td><td>No existe en Base de datos_alumnos</td></tr>
-              `).join("") : `<tr><td colspan="${areaId === "representativos" ? 4 : 2}">No hay matrículas pendientes de revisar.</td></tr>`}</tbody>
+              `).join("") : `<tr><td colspan="${areaId === "representativos" ? 3 : 2}">No hay matrículas pendientes de revisar.</td></tr>`}</tbody>
             </table>
           </div>
         </section>
