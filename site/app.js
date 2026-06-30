@@ -5126,6 +5126,7 @@ async function importParticipationUpload(areaId) {
   }
   const savedCloud = await saveParticipationUploadCloud(areaId, draft);
   participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
+  if (savedCloud) await loadParticipationUploadsCloud();
   addAudit(areaId, `${draft.summary.total} registros importados desde ${draft.fileName}`);
   render();
   toast(savedCloud ? "Información guardada en Supabase" : "Información importada localmente");
@@ -5622,6 +5623,7 @@ function renderExecutiveGeneralDashboard() {
         <label>Periodo<select id="executivePeriod">${["FJ26", "AD26", "IN26"].map((period) => `<option ${executiveReportState.period === period ? "selected" : ""}>${period}</option>`).join("")}</select></label>
         <label>Semana<select id="executiveWeek">${Array.from({ length: 18 }, (_, index) => `<option value="${index + 1}" ${executiveReportState.week === index + 1 ? "selected" : ""}>Semana ${index + 1}</option>`).join("")}</select></label>
         <label>Título<input id="executiveTitle" value="${escapeHtml(executiveReportState.title)}" /></label>
+        <button class="ghost-btn" id="refreshExecutiveData" type="button">Actualizar datos</button>
         <button class="primary-btn" id="downloadExecutivePdf" type="button">Descargar PDF</button>
       </div>
       <div class="exec-page">
@@ -8776,6 +8778,7 @@ async function importClassBookingReservations(file) {
   classBookingReservations = parsed;
   saveClassBookingReservations();
   const savedCloud = await saveClassBookingReservationsCloud(parsed, file.name);
+  if (savedCloud) await loadClassBookingReservationsCloud();
   addAudit("booking", `${file.name}: ${parsed.length} reservaciones importadas`);
   render();
   toast(savedCloud ? `${parsed.length} reservaciones guardadas en Supabase` : `${parsed.length} reservaciones de Booking cargadas localmente`);
@@ -9128,6 +9131,16 @@ function render() {
     addAudit("exportacion", `PDF ejecutivo general semana ${executiveReportState.week}`);
     toast("Abriendo impresión para guardar como PDF");
     setTimeout(() => window.print(), 300);
+  });
+  $("#refreshExecutiveData")?.addEventListener("click", async () => {
+    if (currentUser?.auth !== "supabase") {
+      toast("Entra con Supabase para actualizar datos compartidos");
+      return;
+    }
+    toast("Actualizando datos ejecutivos");
+    await loadSupabaseDataBundle();
+    render();
+    toast("Dashboard ejecutivo actualizado");
   });
   $$("[data-download-upload-template]").forEach((button) => button.addEventListener("click", () => downloadParticipationTemplate(button.dataset.downloadUploadTemplate)));
   $$("[data-participation-upload]").forEach((input) => input.addEventListener("change", async (event) => {
