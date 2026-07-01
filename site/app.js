@@ -2835,6 +2835,7 @@ function classGradeFromCloud(row) {
     semester_label: row.semester_label || "",
     period_label: row.period_label || "",
     grade: row.grade_text || "",
+    source_name: row.source_name || "CD Lista de Alumnos",
     source_row: row.source_row || null,
     updated_at: row.updated_at || ""
   };
@@ -2895,7 +2896,8 @@ async function importInitialClassGrades() {
   }
 }
 
-async function loadClassGrades() {
+async function loadClassGrades(options = {}) {
+  const seedIfEmpty = options.seedIfEmpty !== false;
   await loadClassGradeSeedData();
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const loadedRows = [];
@@ -2920,7 +2922,7 @@ async function loadClassGrades() {
   classGradesAvailable = true;
   classGrades = loadedRows;
   classGradesLoaded = true;
-  if (!classGrades.length) await importInitialClassGrades();
+  if (!classGrades.length && seedIfEmpty) await importInitialClassGrades();
 }
 
 function allClassGradeRows() {
@@ -2966,6 +2968,57 @@ async function updateClassGrade(recordKey, rawValue) {
   addAudit("calificacion", `${row.matricula}  -  ${row.subject_name}: ${grade || "pendiente"}`);
   render();
   toast("Calificación guardada");
+}
+
+function classGradeLoadGroups() {
+  const groups = new Map();
+  allClassGradeRows().forEach((row) => {
+    const period = String(row.period_label || "SIN PERIODO").trim().toUpperCase() || "SIN PERIODO";
+    const source = String(row.source_name || "CD Lista de Alumnos").trim() || "CD Lista de Alumnos";
+    const key = `${period}|||${source}`;
+    const current = groups.get(key) || {
+      key,
+      period,
+      source,
+      total: 0,
+      captured: 0,
+      bajas: 0,
+      np: 0,
+      pending: 0,
+      updatedAt: ""
+    };
+    current.total += 1;
+    const status = classGradeStatus(row);
+    if (status === "capturada") current.captured += 1;
+    if (status === "baja") current.bajas += 1;
+    if (status === "np") current.np += 1;
+    if (status === "pendiente") current.pending += 1;
+    if (row.updated_at && String(row.updated_at) > String(current.updatedAt || "")) current.updatedAt = row.updated_at;
+    groups.set(key, current);
+  });
+  return [...groups.values()].sort((a, b) => String(b.period).localeCompare(String(a.period), "es") || b.total - a.total);
+}
+
+async function deleteClassGradeLoad(period, source) {
+  if (!period || !source) return;
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("clases")) {
+    toast("Necesitas acceso autorizado de Clases Deportivas para borrar cargas");
+    return;
+  }
+  if (!window.confirm(`¿Borrar la carga de ${period} / ${source}? Esta acción eliminará esos registros de calificaciones.`)) return;
+  const { error } = await supabaseClient
+    .from("class_grades")
+    .delete()
+    .eq("period_label", period)
+    .eq("source_name", source);
+  if (error) {
+    toast(`No se pudo borrar: ${supabaseErrorDetail(error) || error.message}`);
+    return;
+  }
+  addAudit("calificaciones", `Carga eliminada: ${period} / ${source}`);
+  await loadClassGrades({ seedIfEmpty: false });
+  render();
+  toast("Carga de calificaciones eliminada");
 }
 
 async function changePhysicalAccessCode() {
@@ -7649,6 +7702,7 @@ function renderClassGrades() {
 function renderClassGradesSystemUpload() {
   const editable = currentUser?.auth === "supabase" && canEditArea("clases") && classGradesAvailable;
   const summary = classGradesUploadSummary;
+  const loadGroups = classGradeLoadGroups();
   return `
     <section class="blueprint-card wide">
       <div class="section-title compact">
@@ -7671,6 +7725,35 @@ function renderClassGradesSystemUpload() {
         </div>
         ${summary.errors?.length ? `<details class="schedule-errors"><summary>Ver errores</summary>${summary.errors.slice(0, 10).map((error) => `<p>Fila ${error.row || "-"}: ${escapeHtml(error.message)}</p>`).join("")}</details>` : ""}
       ` : ""}
+      <div class="section-title compact class-load-history-title">
+        <div>
+          <p class="eyebrow">Historial de cargas</p>
+          <h3>Cargas registradas en Calificaciones</h3>
+        </div>
+        <span class="session-pill">${loadGroups.length.toLocaleString("es-MX")} grupos</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Periodo</th><th>Archivo / fuente</th><th>Registros</th><th>Capturadas</th><th>Bajas</th><th>NP</th><th>Pendientes</th><th>Último cambio</th><th>Acción</th></tr>
+          </thead>
+          <tbody>
+            ${loadGroups.length ? loadGroups.map((group) => `
+              <tr>
+                <td><strong>${escapeHtml(group.period)}</strong></td>
+                <td>${escapeHtml(group.source)}</td>
+                <td>${group.total.toLocaleString("es-MX")}</td>
+                <td>${group.captured.toLocaleString("es-MX")}</td>
+                <td>${group.bajas.toLocaleString("es-MX")}</td>
+                <td>${group.np.toLocaleString("es-MX")}</td>
+                <td>${group.pending.toLocaleString("es-MX")}</td>
+                <td>${group.updatedAt ? new Date(group.updatedAt).toLocaleString("es-MX") : "Sin fecha"}</td>
+                <td><button class="danger-btn compact-action" type="button" data-delete-grade-load="${escapeHtml(group.period)}" data-grade-load-source="${escapeHtml(group.source)}" ${editable ? "" : "disabled"}>Borrar</button></td>
+              </tr>
+            `).join("") : `<tr><td colspan="9">Todavía no hay cargas registradas.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
     </section>
   `;
 }
@@ -9563,6 +9646,9 @@ function render() {
     event.target.value = "";
     await importClassGradesFile(file);
   });
+  $$("[data-delete-grade-load]").forEach((button) => button.addEventListener("click", () => {
+    deleteClassGradeLoad(button.dataset.deleteGradeLoad, button.dataset.gradeLoadSource);
+  }));
   $$("[data-delete-row]").forEach((button) => button.addEventListener("click", () => deleteCollaboratorRow(button.dataset.deleteRow)));
   $$("[data-move-column]").forEach((button) => button.addEventListener("click", () => {
     moveCollaboratorColumn(button.dataset.moveColumn, Number(button.dataset.direction));
