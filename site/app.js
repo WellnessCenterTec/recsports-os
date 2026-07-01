@@ -517,6 +517,7 @@ let classGradeFilter = {
   career: "todos",
   status: "todos"
 };
+let classDashboardPeriod = "auto";
 let physicalEvaluationFilter = {
   period: "todos",
   stage: "todos",
@@ -6715,6 +6716,8 @@ function renderClassDisciplineIndicators() {
   const rows = classDisciplineRows();
   const worst = [...rows].sort((a, b) => a.approvedRate - b.approvedRate).slice(0, 6);
   const best = [...rows].sort((a, b) => b.approvedRate - a.approvedRate).slice(0, 6);
+  const periodOptions = classDashboardPeriodOptions();
+  const selectedPeriod = classDashboardPeriod === "auto" ? classDefaultDashboardPeriod() : classDashboardPeriod;
   return `
     <section class="class-indicators-panel">
       <div class="section-title compact">
@@ -6722,7 +6725,14 @@ function renderClassDisciplineIndicators() {
           <p class="eyebrow">CD Indicadores clases</p>
           <h2>Indicadores por disciplina y periodo</h2>
         </div>
-        <span class="session-pill">${escapeHtml(dashboardMetrics.periods.join(" + ") || "Calificaciones cargadas")}</span>
+        <label class="class-dashboard-period-picker">
+          <span>Periodo activo</span>
+          <select id="classDashboardPeriod">
+            <option value="auto" ${classDashboardPeriod === "auto" ? "selected" : ""}>Actual (${escapeHtml(selectedPeriod || "sin datos")})</option>
+            ${periodOptions.map((period) => `<option value="${escapeHtml(period)}" ${classDashboardPeriod === period ? "selected" : ""}>${escapeHtml(period)}</option>`).join("")}
+            <option value="todos" ${classDashboardPeriod === "todos" ? "selected" : ""}>Todos históricos</option>
+          </select>
+        </label>
       </div>
       <div class="class-discipline-rankings">
         <article>
@@ -6957,6 +6967,38 @@ function classGradeOutcome(value) {
   return "pending";
 }
 
+function classPeriodSortValue(period) {
+  const clean = String(period || "").trim().toUpperCase();
+  const pmt = clean.match(/^PMT\s*([0-9]+)/);
+  if (pmt) return 300000 + Number(pmt[1] || 0);
+  const semester = clean.match(/^(AD|FJ|IN)\s*([0-9]{2,4})/);
+  if (semester) {
+    const year = Number(semester[2].length === 2 ? `20${semester[2]}` : semester[2]);
+    const order = { FJ: 1, IN: 2, AD: 3 }[semester[1]] || 0;
+    return year * 10 + order;
+  }
+  return clean && !normalizeText(clean).includes("sin periodo") ? 1000 : 0;
+}
+
+function classDashboardPeriodOptions() {
+  return [...new Set(allClassGradeRows()
+    .map((row) => String(row.period_label || "").trim().toUpperCase())
+    .filter((period) => period && !normalizeText(period).includes("sin periodo")))]
+    .sort((a, b) => classPeriodSortValue(b) - classPeriodSortValue(a) || a.localeCompare(b, "es", { numeric: true }));
+}
+
+function classDefaultDashboardPeriod() {
+  const options = classDashboardPeriodOptions();
+  return options.find((period) => /^PMT\s*[0-9]+/.test(period)) || options[0] || "";
+}
+
+function classDashboardRows() {
+  const rows = allClassGradeRows();
+  const selectedPeriod = classDashboardPeriod === "auto" ? classDefaultDashboardPeriod() : classDashboardPeriod;
+  if (!selectedPeriod || selectedPeriod === "todos") return rows.filter((row) => String(row.period_label || "").trim());
+  return rows.filter((row) => String(row.period_label || "").trim().toUpperCase() === selectedPeriod);
+}
+
 function buildClassDashboardMetrics(rows) {
   const disciplineMap = new Map();
   const teacherMap = new Map();
@@ -6973,7 +7015,7 @@ function buildClassDashboardMetrics(rows) {
     const isApproved = outcome === "approved";
     periods.add(period);
 
-    const disciplineKey = `${period}\u0000${discipline}`;
+    const disciplineKey = `${period}\u0000${normalizeText(discipline)}`;
     if (!disciplineMap.has(disciplineKey)) {
       disciplineMap.set(disciplineKey, { period, discipline, banner: 0, bajas: 0, np: 0, finished: 0, pending: 0 });
     }
@@ -7022,7 +7064,7 @@ function buildClassDashboardMetrics(rows) {
 }
 
 function classDashboardMetrics() {
-  const rows = allClassGradeRows();
+  const rows = classDashboardRows();
   if (rows.length) return buildClassDashboardMetrics(rows);
   return {
     periods: ["PMT1", "PMT2"],
@@ -9656,6 +9698,10 @@ function render() {
     classGradePage = 1;
     render();
   }));
+  $("#classDashboardPeriod")?.addEventListener("change", (event) => {
+    classDashboardPeriod = event.target.value;
+    render();
+  });
   $$(".grade-input").forEach((control) => control.addEventListener("change", (event) => {
     updateClassGrade(event.target.dataset.gradeKey, event.target.value);
   }));
