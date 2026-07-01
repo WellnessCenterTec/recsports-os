@@ -2933,6 +2933,10 @@ function normalizeClassGrade(value) {
   const normalized = String(value ?? "").trim().toUpperCase().replace(",", ".");
   if (!normalized) return "";
   if (["BAJA", "NP"].includes(normalized)) return normalized;
+  const text = normalizeText(normalized);
+  if (text.includes("baja")) return "BAJA";
+  if (text.includes("no acredit") || text.includes("reprob") || text === "na") return "NP";
+  if (text.includes("acredit") || text.includes("aprob")) return "ACREDITADO";
   const number = Number(normalized);
   if (!Number.isFinite(number) || number < 0 || number > 100) return null;
   return Number.isInteger(number) ? String(number) : String(Math.round(number * 100) / 100);
@@ -6762,11 +6766,14 @@ function renderClassDisciplineIndicators() {
 
 function renderClassDisciplineBar(row) {
   const risk = classRiskLevel(row);
+  const progressLabel = row.captured
+    ? `${row.approvedRate}% acreditacion / ${row.issueRate}% incidencia`
+    : `Sin calificaciones capturadas / ${row.total.toLocaleString("es-MX")} inscritos`;
   return `
     <div class="class-discipline-bar ${risk}">
       <div>
         <strong>${row.discipline}</strong>
-        <span>${row.approvedRate}% acreditacion / ${row.issueRate}% incidencia</span>
+        <span>${progressLabel}</span>
         ${renderClassTeacherSummary(row.discipline, "bar")}
       </div>
       <div class="bar-track"><div class="bar-fill" style="width:${row.approvedRate}%"></div></div>
@@ -6939,6 +6946,17 @@ function classGradeNumericValue(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function classGradeOutcome(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "pending";
+  const normalized = normalizeText(raw);
+  const numericGrade = classGradeNumericValue(raw);
+  if (normalized.includes("baja")) return "baja";
+  if (normalized === "np" || normalized.includes("no acredit") || normalized.includes("reprob") || (numericGrade !== null && numericGrade < 70)) return "np";
+  if (normalized.includes("acredit") || normalized.includes("aprob") || (numericGrade !== null && numericGrade >= 70)) return "approved";
+  return "pending";
+}
+
 function buildClassDashboardMetrics(rows) {
   const disciplineMap = new Map();
   const teacherMap = new Map();
@@ -6948,22 +6966,23 @@ function buildClassDashboardMetrics(rows) {
     const discipline = String(row.subject_name || "").trim();
     if (!discipline) return;
     const period = String(row.period_label || "Sin periodo").trim() || "Sin periodo";
-    const grade = String(row.grade ?? "").trim().toUpperCase();
-    const numericGrade = classGradeNumericValue(grade);
-    const isBaja = grade === "BAJA";
-    const isNp = grade === "NP" || (numericGrade !== null && numericGrade < 70);
-    const isApproved = numericGrade !== null && numericGrade >= 70;
+    const grade = String(row.grade ?? "").trim();
+    const outcome = classGradeOutcome(grade);
+    const isBaja = outcome === "baja";
+    const isNp = outcome === "np";
+    const isApproved = outcome === "approved";
     periods.add(period);
 
     const disciplineKey = `${period}\u0000${discipline}`;
     if (!disciplineMap.has(disciplineKey)) {
-      disciplineMap.set(disciplineKey, { period, discipline, banner: 0, bajas: 0, np: 0, finished: 0 });
+      disciplineMap.set(disciplineKey, { period, discipline, banner: 0, bajas: 0, np: 0, finished: 0, pending: 0 });
     }
     const disciplineRow = disciplineMap.get(disciplineKey);
     disciplineRow.banner += 1;
     if (isBaja) disciplineRow.bajas += 1;
     else if (isNp) disciplineRow.np += 1;
     else if (isApproved) disciplineRow.finished += 1;
+    else disciplineRow.pending += 1;
 
     const teacher = String(row.teacher_name || "").trim();
     if (!teacher || !grade) return;
@@ -6986,8 +7005,9 @@ function buildClassDashboardMetrics(rows) {
       acc.bajas += row.bajas;
       acc.np += row.np;
       acc.finished += row.finished;
+      acc.pending += row.pending || 0;
       return acc;
-    }, { period, discipline: `Totales ${period}`, banner: 0, bajas: 0, np: 0, finished: 0, total: true, periodIndex: index });
+    }, { period, discipline: `Totales ${period}`, banner: 0, bajas: 0, np: 0, finished: 0, pending: 0, total: true, periodIndex: index });
     return [...periodRows.map((row) => ({ ...row, periodIndex: index })), total];
   });
   const teachers = [...teacherMap.values()]
@@ -7013,10 +7033,10 @@ function classDashboardMetrics() {
 }
 
 function classGradeStatus(row) {
-  const value = String(row.grade || "").trim().toUpperCase();
-  if (!value) return "pendiente";
-  if (value === "BAJA") return "baja";
-  if (value === "NP") return "np";
+  const outcome = classGradeOutcome(row.grade);
+  if (outcome === "pending") return "pendiente";
+  if (outcome === "baja") return "baja";
+  if (outcome === "np") return "np";
   return "capturada";
 }
 
@@ -7025,27 +7045,33 @@ function classDisciplineScore(row) {
   const bajas = Number(row.bajas || 0);
   const np = Number(row.np || 0);
   const finished = Number(row.finished || 0);
+  const pending = Number(row.pending || 0);
+  const captured = Math.max(0, total - pending);
   const approvedRate = total ? Math.round((finished / total) * 100) : 0;
   const npRate = total ? Math.round((np / total) * 100) : 0;
   const bajasRate = total ? Math.round((bajas / total) * 100) : 0;
   const issueRate = total ? Math.round(((bajas + np) / total) * 100) : 0;
-  return { ...row, total, bajas, np, finished, approvedRate, npRate, bajasRate, issueRate };
+  const captureRate = total ? Math.round((captured / total) * 100) : 0;
+  return { ...row, total, bajas, np, finished, pending, captured, approvedRate, npRate, bajasRate, issueRate, captureRate };
 }
 
 function classRiskLevel(row) {
   const score = classDisciplineScore(row);
+  if (!score.captured) return "pending";
   if (score.approvedRate < 60 || score.issueRate >= 30) return "red";
   if (score.approvedRate < 75 || score.issueRate >= 18) return "yellow";
   return "green";
 }
 
 function classRiskLabel(level) {
+  if (level === "pending") return "Sin captura";
   return level === "red" ? "Critico" : level === "yellow" ? "Atencion" : "Saludable";
 }
 
 function classOfferRecommendation(row) {
   const score = classDisciplineScore(row);
   const risk = classRiskLevel(row);
+  if (risk === "pending") return "Cargar calificaciones o estatus para calcular desempeno real.";
   if (risk === "red") {
     if (score.npRate >= 20) return "Revisar seguimiento de asistencia y contacto temprano.";
     if (score.bajasRate >= 18) return "Revisar horario, profesor, cupo o permanencia del grupo.";
@@ -7065,20 +7091,23 @@ function classOperationalSummary() {
     acc.bajas += row.bajas;
     acc.np += row.np;
     acc.finished += row.finished;
+    acc.pending += row.pending;
+    acc.captured += row.captured;
     return acc;
-  }, { banner: 0, bajas: 0, np: 0, finished: 0 });
+  }, { banner: 0, bajas: 0, np: 0, finished: 0, pending: 0, captured: 0 });
   const approvedRate = totals.banner ? Math.round((totals.finished / totals.banner) * 100) : 0;
   const issueRate = totals.banner ? Math.round(((totals.bajas + totals.np) / totals.banner) * 100) : 0;
   const riskCounts = classDisciplineRows().reduce((acc, row) => {
     acc[classRiskLevel(row)] += 1;
     return acc;
-  }, { green: 0, yellow: 0, red: 0 });
+  }, { green: 0, yellow: 0, red: 0, pending: 0 });
   return { ...totals, approvedRate, issueRate, riskCounts };
 }
 
 function classOperationalAlerts() {
   const disciplineAlerts = classDisciplineRows().flatMap((row) => {
     const alerts = [];
+    if (!row.captured) return alerts;
     if (row.npRate >= 20) alerts.push({ type: "NP alto", level: "red", title: row.discipline, discipline: row.discipline, detail: `${row.npRate}% NP (${row.np} alumnos)`, action: "Revisar asistencia y comunicacion temprana" });
     if (row.bajasRate >= 18) alerts.push({ type: "Bajas altas", level: row.bajasRate >= 25 ? "red" : "yellow", title: row.discipline, discipline: row.discipline, detail: `${row.bajasRate}% bajas (${row.bajas} alumnos)`, action: "Analizar horario, cupo y profesor" });
     if (row.approvedRate < 65) alerts.push({ type: "Acreditacion baja", level: "red", title: row.discipline, discipline: row.discipline, detail: `${row.approvedRate}% acreditacion`, action: "Priorizar intervencion operativa" });

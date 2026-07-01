@@ -5801,6 +5801,7 @@ tbody tr:hover td {
 .class-risk-card.green { border-left-color: var(--green); }
 .class-risk-card.yellow { border-left-color: var(--gold); }
 .class-risk-card.red { border-left-color: var(--red); }
+.class-risk-card.pending { border-left-color: #8aa0b3; }
 
 .class-risk-card span,
 .class-risk-card p,
@@ -5841,6 +5842,11 @@ tbody tr:hover td {
 .class-risk-card.red .class-risk-meter i,
 .class-discipline-bar.red .bar-fill {
   background: linear-gradient(90deg, #ee7b75, var(--red));
+}
+
+.class-risk-card.pending .class-risk-meter i,
+.class-discipline-bar.pending .bar-fill {
+  background: #b8c6d1;
 }
 
 .class-risk-card dl {
