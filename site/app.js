@@ -5900,7 +5900,7 @@ function parseClassGradeImportRows(rawRows, sourceName = "Archivo de Calificacio
       teacher_name: String(pickColumn(raw, ["profesor", "docente", "teacher_name"]) || "").trim(),
       career_code: String(pickColumn(raw, ["carrera", "career_code"]) || "").trim(),
       semester_label: String(pickColumn(raw, ["semestre", "semester_label"]) || "").trim(),
-      period_label: String(pickColumn(raw, ["periodo", "period_label"]) || "").trim(),
+      period_label: String(pickColumn(raw, ["periodo", "period_label"]) || "").trim().toUpperCase(),
       grade,
       source_name: sourceName,
       source_row: rowNumber
@@ -5917,6 +5917,29 @@ function parseClassGradeImportRows(rawRows, sourceName = "Archivo de Calificacio
     validRows.push(row);
   });
   return { validRows, errors, duplicates };
+}
+
+function classGradeImportPeriods(rows) {
+  return [...new Set(rows.map((row) => String(row.period_label || "").trim().toUpperCase()).filter(Boolean))].sort();
+}
+
+async function replaceClassGradesPeriods(periods) {
+  if (!periods.length) throw new Error("El archivo debe traer la columna periodo para reemplazar la carga anterior.");
+  const counts = [];
+  for (const period of periods) {
+    const { count, error: countError } = await supabaseClient
+      .from("class_grades")
+      .select("record_key", { count: "exact", head: true })
+      .eq("period_label", period);
+    if (countError) throw countError;
+    counts.push({ period, count: count || 0 });
+  }
+  const { error } = await supabaseClient
+    .from("class_grades")
+    .delete()
+    .in("period_label", periods);
+  if (error) throw error;
+  return counts;
 }
 
 async function rowsFromClassGradesFile(file) {
@@ -5951,6 +5974,8 @@ async function importClassGradesFile(file) {
       const detail = parsed.errors[0]?.message || "El archivo no contiene registros validos";
       throw new Error(detail);
     }
+    const periods = classGradeImportPeriods(parsed.validRows);
+    const replaced = await replaceClassGradesPeriods(periods);
     const chunkSize = 400;
     for (let index = 0; index < parsed.validRows.length; index += chunkSize) {
       const payload = parsed.validRows.slice(index, index + chunkSize).map(classGradeToCloud);
@@ -5961,13 +5986,15 @@ async function importClassGradesFile(file) {
       fileName: file.name,
       processed: rawRows.length,
       saved: parsed.validRows.length,
+      replacedPeriods: periods,
+      replacedRows: replaced.reduce((sum, row) => sum + row.count, 0),
       duplicates: parsed.duplicates,
       errors: parsed.errors
     };
-    addAudit("importacion", `${parsed.validRows.length} calificaciones cargadas desde ${file.name}`);
+    addAudit("importacion", `${parsed.validRows.length} calificaciones cargadas desde ${file.name}; periodos reemplazados: ${periods.join(", ")}`);
     await loadClassGrades();
     render();
-    toast(`${parsed.validRows.length} registros de calificaciones procesados`);
+    toast(`${parsed.validRows.length} calificaciones cargadas; ${periods.join(", ")} reemplazado`);
   } catch (error) {
     console.error(error);
     classGradesUploadSummary = { fileName: file.name, processed: 0, saved: 0, duplicates: 0, errors: [{ row: 0, message: supabaseErrorDetail(error) || error.message || "Error de carga" }] };
@@ -7631,16 +7658,16 @@ function renderClassGradesSystemUpload() {
         </div>
         <span class="session-pill">Excel / CSV</span>
       </div>
-      <p>Actualiza la lista de alumnos y sus calificaciones en Supabase. El Dashboard de Clases se recalcula al terminar.</p>
+      <p>Actualiza la lista de alumnos y sus calificaciones en Supabase. Cada carga reemplaza primero el periodo incluido en el archivo para evitar duplicados.</p>
       <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
       <button class="primary-btn" id="uploadClassGrades" type="button" ${editable && !classGradesImporting ? "" : "disabled"}>
         ${classGradesImporting ? "Procesando archivo..." : "Cargar archivo de Calificaciones"}
       </button>
-      <p class="form-message">Columnas requeridas: matricula, materia y calificacion. También se aceptan clave_materia, CRN, grupo, profesor, carrera, semestre y periodo.</p>
+      <p class="form-message">Columnas requeridas: matricula, materia, calificacion y periodo. También se aceptan clave_materia, CRN, grupo, profesor, carrera y semestre.</p>
       ${!editable ? `<div class="permission-strip grade-warning">Ingresa con un perfil autorizado de Clases Deportivas para realizar la carga.</div>` : ""}
       ${summary ? `
         <div class="permission-strip ${summary.errors?.length ? "grade-warning" : ""}">
-          <span><strong>${escapeHtml(summary.fileName)}</strong>: ${summary.saved.toLocaleString("es-MX")} guardados, ${summary.duplicates.toLocaleString("es-MX")} duplicados omitidos y ${(summary.errors?.length || 0).toLocaleString("es-MX")} errores.</span>
+          <span><strong>${escapeHtml(summary.fileName)}</strong>: ${summary.saved.toLocaleString("es-MX")} guardados, ${(summary.replacedRows || 0).toLocaleString("es-MX")} anteriores reemplazados (${(summary.replacedPeriods || []).join(", ") || "sin periodo"}), ${summary.duplicates.toLocaleString("es-MX")} duplicados omitidos y ${(summary.errors?.length || 0).toLocaleString("es-MX")} errores.</span>
         </div>
         ${summary.errors?.length ? `<details class="schedule-errors"><summary>Ver errores</summary>${summary.errors.slice(0, 10).map((error) => `<p>Fila ${error.row || "-"}: ${escapeHtml(error.message)}</p>`).join("")}</details>` : ""}
       ` : ""}
