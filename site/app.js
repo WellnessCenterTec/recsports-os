@@ -5914,16 +5914,47 @@ function classGradeRecordKey(identity) {
   return `import-${(hash >>> 0).toString(16).padStart(8, "0")}-${identity.length}`;
 }
 
+const CLASS_GRADE_VALUE_COLUMNS = [
+  "calificacion", "calificación", "grade", "grade_text", "grade text", "estatus",
+  "bloque 1", "bloque1", "pmt1", "periodo 1", "periodo1",
+  "bloque 2", "bloque2", "pmt2", "periodo 2", "periodo2",
+  "bloque 3", "bloque3", "pmt3", "periodo 3", "periodo3"
+];
+
+function classGradePeriodFromRow(raw) {
+  const explicit = String(pickColumn(raw, ["periodo", "period_label", "period label"]) || "").trim().toUpperCase();
+  if (explicit) return explicit;
+  const blockPeriods = [
+    ["PMT3", ["bloque 3", "bloque3", "pmt3", "periodo 3", "periodo3"]],
+    ["PMT2", ["bloque 2", "bloque2", "pmt2", "periodo 2", "periodo2"]],
+    ["PMT1", ["bloque 1", "bloque1", "pmt1", "periodo 1", "periodo1"]]
+  ];
+  const found = blockPeriods.find(([, aliases]) => String(pickColumn(raw, aliases) ?? "").trim());
+  return found?.[0] || "";
+}
+
+function classGradeValueFromRow(raw, periodLabel) {
+  const period = String(periodLabel || "").trim().toUpperCase();
+  const periodAliases = {
+    PMT1: ["bloque 1", "bloque1", "pmt1", "periodo 1", "periodo1"],
+    PMT2: ["bloque 2", "bloque2", "pmt2", "periodo 2", "periodo2"],
+    PMT3: ["bloque 3", "bloque3", "pmt3", "periodo 3", "periodo3"]
+  }[period] || [];
+  const blockValue = periodAliases.length ? pickColumn(raw, periodAliases) : "";
+  if (String(blockValue ?? "").trim()) return blockValue;
+  return pickColumn(raw, ["calificacion", "calificación", "grade", "grade_text", "grade text", "estatus"]);
+}
+
 function parseClassGradeImportRows(rawRows, sourceName = "Archivo de Calificaciones") {
   const rows = Array.isArray(rawRows) ? rawRows : [];
   const headers = Object.keys(rows[0] || {}).map(headerKey);
   const required = [
     ["matricula", "studentid"],
     ["materia", "asignatura", "subjectname", "disciplina"],
-    ["calificacion", "grade", "gradetext", "estatus"]
+    CLASS_GRADE_VALUE_COLUMNS
   ];
   const missing = required
-    .filter((aliases) => !aliases.some((alias) => headers.includes(alias)))
+    .filter((aliases) => !aliases.some((alias) => headers.includes(headerKey(alias))))
     .map((aliases) => aliases[0]);
   if (missing.length) {
     return { validRows: [], errors: [{ row: 1, message: `Faltan columnas requeridas: ${missing.join(", ")}` }], duplicates: 0 };
@@ -5938,7 +5969,8 @@ function parseClassGradeImportRows(rawRows, sourceName = "Archivo de Calificacio
   rows.forEach((raw, index) => {
     const matricula = String(pickColumn(raw, ["matricula", "matrícula", "student_id", "student id"]) || "").trim().toUpperCase();
     const subjectName = String(pickColumn(raw, ["materia", "asignatura", "subject_name", "disciplina", "nombre materia"]) || "").trim();
-    const grade = normalizeClassGrade(pickColumn(raw, ["calificacion", "calificación", "grade", "grade_text", "estatus"]));
+    const periodLabel = classGradePeriodFromRow(raw);
+    const grade = normalizeClassGrade(classGradeValueFromRow(raw, periodLabel));
     const rowNumber = index + 2;
     if (!matricula && !subjectName && grade === "") return;
     const rowErrors = [];
@@ -5958,7 +5990,7 @@ function parseClassGradeImportRows(rawRows, sourceName = "Archivo de Calificacio
       teacher_name: String(pickColumn(raw, ["profesor", "docente", "teacher_name"]) || "").trim(),
       career_code: String(pickColumn(raw, ["carrera", "career_code"]) || "").trim(),
       semester_label: String(pickColumn(raw, ["semestre", "semester_label"]) || "").trim(),
-      period_label: String(pickColumn(raw, ["periodo", "period_label"]) || "").trim().toUpperCase(),
+      period_label: periodLabel,
       grade,
       source_name: sourceName,
       source_row: rowNumber
@@ -7788,7 +7820,7 @@ function renderClassGradesSystemUpload() {
       <button class="primary-btn" id="uploadClassGrades" type="button" ${editable && !classGradesImporting ? "" : "disabled"}>
         ${classGradesImporting ? "Procesando archivo..." : "Cargar archivo de Calificaciones"}
       </button>
-      <p class="form-message">Columnas requeridas: matricula, materia, calificacion y periodo. También se aceptan clave_materia, CRN, grupo, profesor, carrera y semestre.</p>
+      <p class="form-message">Columnas requeridas: matricula, materia y calificacion. También se aceptan Bloque 1, Bloque 2 o Bloque 3 para PMT1, PMT2 o PMT3; clave_materia, CRN, grupo, profesor, carrera y semestre son opcionales.</p>
       ${!editable ? `<div class="permission-strip grade-warning">Ingresa con un perfil autorizado de Clases Deportivas para realizar la carga.</div>` : ""}
       ${summary ? `
         <div class="permission-strip ${summary.errors?.length ? "grade-warning" : ""}">
