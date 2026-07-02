@@ -6684,7 +6684,11 @@ function renderClassesDashboard() {
 }
 
 function renderClassExecutiveKpis(summary) {
-  const periodLabel = classDashboardMetrics().periods.join(" + ") || "Calificaciones cargadas";
+  const semesterLabel = classDashboardSemesterLabel();
+  const selectedBlock = classDashboardBlock === "auto" ? classDefaultDashboardBlock() : classDashboardBlock;
+  const periodLabel = selectedBlock && selectedBlock !== "todos"
+    ? `${semesterLabel} / ${selectedBlock}`
+    : `${semesterLabel} / todos los bloques`;
   return `
     <section class="class-executive-kpis">
       <article class="kpi"><span>Inscritos Banner</span><strong>${summary.banner.toLocaleString("es-MX")}</strong><em>${escapeHtml(periodLabel)}</em></article>
@@ -7090,9 +7094,11 @@ function classDashboardSemesterLabel() {
 
 function classDashboardRows() {
   const rows = effectiveClassGradeRows();
+  const hasSemesterRows = rows.some((row) => classGradeSemesterLabel(row));
+  const eligibleRows = hasSemesterRows ? rows.filter((row) => classGradeSemesterLabel(row)) : rows;
   const selectedBlock = classDashboardBlock === "auto" ? classDefaultDashboardBlock() : classDashboardBlock;
-  if (!selectedBlock || selectedBlock === "todos") return rows.filter((row) => classGradeBlockLabel(row) || classGradeSemesterLabel(row));
-  return rows.filter((row) => classGradeBlockLabel(row) === selectedBlock);
+  if (!selectedBlock || selectedBlock === "todos") return eligibleRows.filter((row) => classGradeBlockLabel(row) || classGradeSemesterLabel(row));
+  return eligibleRows.filter((row) => classGradeBlockLabel(row) === selectedBlock);
 }
 
 function buildClassDashboardMetrics(rows) {
@@ -7104,7 +7110,7 @@ function buildClassDashboardMetrics(rows) {
     const discipline = String(row.subject_name || "").trim();
     if (!discipline) return;
     if (isClassTotalDiscipline(discipline)) return;
-    const period = String(row.period_label || "Sin periodo").trim() || "Sin periodo";
+    const period = classGradeSemesterLabel(row) || classGradeBlockLabel(row) || "Sin periodo";
     const grade = String(row.grade ?? "").trim();
     const outcome = classGradeOutcome(grade);
     const isBaja = outcome === "baja";
