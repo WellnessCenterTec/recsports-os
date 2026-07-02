@@ -2931,6 +2931,16 @@ function allClassGradeRows() {
   return classGradesLoaded && classGrades.length ? classGrades : classGradeSeedRows;
 }
 
+function effectiveClassGradeRows() {
+  const rows = allClassGradeRows();
+  const semesterBlocks = new Set(rows
+    .filter((row) => classGradeSemesterLabel(row))
+    .map((row) => classGradeBlockLabel(row))
+    .filter(Boolean));
+  if (!semesterBlocks.size) return rows;
+  return rows.filter((row) => classGradeSemesterLabel(row) || !semesterBlocks.has(classGradeBlockLabel(row)));
+}
+
 function normalizeClassGrade(value) {
   const normalized = String(value ?? "").trim().toUpperCase().replace(",", ".");
   if (!normalized) return "";
@@ -2978,7 +2988,7 @@ async function updateClassGrade(recordKey, rawValue) {
 
 function classGradeLoadGroups() {
   const groups = new Map();
-  allClassGradeRows().forEach((row) => {
+  effectiveClassGradeRows().forEach((row) => {
     const period = classGradeSemesterLabel(row) || classGradeBlockLabel(row) || "SIN PERIODO";
     const block = classGradeBlockLabel(row) || "Sin bloque";
     const source = String(row.source_name || "CD Lista de Alumnos").trim() || "CD Lista de Alumnos";
@@ -6046,6 +6056,17 @@ function classGradeImportPeriods(rows) {
   return [...new Set(rows.map((row) => String(row.period_label || "").trim().toUpperCase()).filter(Boolean))].sort();
 }
 
+function classGradeReplacementPeriods(rows) {
+  const periods = new Set(classGradeImportPeriods(rows));
+  rows.forEach((row) => {
+    if (classGradeSemesterLabel(row)) {
+      const block = classGradeBlockLabel(row);
+      if (block) periods.add(block);
+    }
+  });
+  return [...periods].sort((a, b) => classPeriodSortValue(b) - classPeriodSortValue(a) || a.localeCompare(b, "es", { numeric: true }));
+}
+
 async function replaceClassGradesPeriods(periods) {
   if (!periods.length) throw new Error("El archivo debe traer la columna periodo para reemplazar la carga anterior.");
   const counts = [];
@@ -6098,7 +6119,8 @@ async function importClassGradesFile(file) {
       throw new Error(detail);
     }
     const periods = classGradeImportPeriods(parsed.validRows);
-    const replaced = await replaceClassGradesPeriods(periods);
+    const replacementPeriods = classGradeReplacementPeriods(parsed.validRows);
+    const replaced = await replaceClassGradesPeriods(replacementPeriods);
     const chunkSize = 400;
     for (let index = 0; index < parsed.validRows.length; index += chunkSize) {
       const payload = parsed.validRows.slice(index, index + chunkSize).map(classGradeToCloud);
@@ -6862,7 +6884,7 @@ function classResponsibleTeachers(discipline) {
   const clean = normalizeText(discipline);
   if (!clean || isClassTotalDiscipline(discipline)) return [];
   const counts = new Map();
-  allClassGradeRows().forEach((row) => {
+  effectiveClassGradeRows().forEach((row) => {
     if (normalizeText(row.subject_name) !== clean || !row.teacher_name) return;
     counts.set(row.teacher_name, (counts.get(row.teacher_name) || 0) + 1);
   });
@@ -7047,7 +7069,7 @@ function classPeriodSortValue(period) {
 }
 
 function classDashboardBlockOptions() {
-  return [...new Set(allClassGradeRows()
+  return [...new Set(effectiveClassGradeRows()
     .map((row) => classGradeBlockLabel(row))
     .filter(Boolean))]
     .sort((a, b) => classPeriodSortValue(b) - classPeriodSortValue(a) || a.localeCompare(b, "es", { numeric: true }));
@@ -7067,7 +7089,7 @@ function classDashboardSemesterLabel() {
 }
 
 function classDashboardRows() {
-  const rows = allClassGradeRows();
+  const rows = effectiveClassGradeRows();
   const selectedBlock = classDashboardBlock === "auto" ? classDefaultDashboardBlock() : classDashboardBlock;
   if (!selectedBlock || selectedBlock === "todos") return rows.filter((row) => classGradeBlockLabel(row) || classGradeSemesterLabel(row));
   return rows.filter((row) => classGradeBlockLabel(row) === selectedBlock);
@@ -7241,7 +7263,7 @@ function classOperationalAlerts() {
 function classStudentProfile(matricula) {
   const clean = normalizeMatricula(matricula);
   if (!clean) return [];
-  return allClassGradeRows()
+  return effectiveClassGradeRows()
     .filter((row) => normalizeMatricula(row.matricula) === clean)
     .sort((a, b) => String(b.period_label).localeCompare(String(a.period_label)) || String(a.subject_name).localeCompare(String(b.subject_name), "es"));
 }
@@ -7692,7 +7714,7 @@ function renderVivenciaDashboard() {
 
 function filteredClassGrades() {
   const search = classGradeFilter.search.trim().toLowerCase();
-  return allClassGradeRows()
+  return effectiveClassGradeRows()
     .filter((row) => classGradeFilter.period === "todos" || classGradeSemesterLabel(row) === classGradeFilter.period)
     .filter((row) => classGradeFilter.block === "todos" || classGradeBlockLabel(row) === classGradeFilter.block)
     .filter((row) => classGradeFilter.teacher === "todos" || row.teacher_name === classGradeFilter.teacher)
@@ -7715,18 +7737,18 @@ function filteredClassGrades() {
 }
 
 function classGradeOptions(key) {
-  return [...new Set(allClassGradeRows().map((row) => row[key]).filter(Boolean))]
+  return [...new Set(effectiveClassGradeRows().map((row) => row[key]).filter(Boolean))]
     .sort((a, b) => String(a).localeCompare(String(b), "es"));
 }
 
 function classGradeDerivedOptions(derive) {
-  return [...new Set(allClassGradeRows().map(derive).filter(Boolean))]
+  return [...new Set(effectiveClassGradeRows().map(derive).filter(Boolean))]
     .sort((a, b) => classPeriodSortValue(b) - classPeriodSortValue(a) || String(a).localeCompare(String(b), "es", { numeric: true }));
 }
 
 function renderClassGrades() {
   const rows = filteredClassGrades();
-  const totalRows = allClassGradeRows();
+  const totalRows = effectiveClassGradeRows();
   const pageSize = 100;
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   classGradePage = Math.min(classGradePage, pageCount);
