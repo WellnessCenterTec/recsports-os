@@ -5923,6 +5923,9 @@ const CLASS_GRADE_VALUE_COLUMNS = [
 
 function classGradePeriodFromRow(raw) {
   const explicit = String(pickColumn(raw, ["periodo", "period_label", "period label"]) || "").trim().toUpperCase();
+  const subjectName = String(pickColumn(raw, ["materia", "asignatura", "subject_name", "disciplina", "nombre materia"]) || "").toUpperCase();
+  const subjectPeriod = ["PMT3", "PMT2", "PMT1"].find((period) => subjectName.includes(period));
+  if (subjectPeriod) return subjectPeriod;
   if (explicit) return explicit;
   const blockPeriods = [
     ["PMT3", ["bloque 3", "bloque3", "pmt3", "periodo 3", "periodo3"]],
@@ -5987,9 +5990,9 @@ function parseClassGradeImportRows(rawRows, sourceName = "Archivo de Calificacio
       subject_name: subjectName,
       crn: String(pickColumn(raw, ["crn"]) || "").trim(),
       group_number: String(pickColumn(raw, ["grupo", "group_number", "group"]) || "").trim(),
-      teacher_name: String(pickColumn(raw, ["profesor", "docente", "teacher_name"]) || "").trim(),
-      career_code: String(pickColumn(raw, ["carrera", "career_code"]) || "").trim(),
-      semester_label: String(pickColumn(raw, ["semestre", "semester_label"]) || "").trim(),
+      teacher_name: String(pickColumn(raw, ["profesor", "docente", "teacher_name", "nombre prof titular", "prof titular"]) || "").trim(),
+      career_code: String(pickColumn(raw, ["carrera", "career_code", "siglas de programa", "programa"]) || "").trim(),
+      semester_label: String(pickColumn(raw, ["semestre", "semester_label", "semestre acreditado"]) || "").trim(),
       period_label: periodLabel,
       grade,
       source_name: sourceName,
