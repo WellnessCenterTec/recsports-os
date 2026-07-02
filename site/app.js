@@ -512,12 +512,13 @@ let classGradePage = 1;
 let classGradeFilter = {
   search: "",
   period: "todos",
+  block: "todos",
   teacher: "todos",
   subject: "todos",
   career: "todos",
   status: "todos"
 };
-let classDashboardPeriod = "auto";
+let classDashboardBlock = "auto";
 let physicalEvaluationFilter = {
   period: "todos",
   stage: "todos",
@@ -2978,12 +2979,14 @@ async function updateClassGrade(recordKey, rawValue) {
 function classGradeLoadGroups() {
   const groups = new Map();
   allClassGradeRows().forEach((row) => {
-    const period = String(row.period_label || "SIN PERIODO").trim().toUpperCase() || "SIN PERIODO";
+    const period = classGradeSemesterLabel(row) || classGradeBlockLabel(row) || "SIN PERIODO";
+    const block = classGradeBlockLabel(row) || "Sin bloque";
     const source = String(row.source_name || "CD Lista de Alumnos").trim() || "CD Lista de Alumnos";
     const key = `${period}|||${source}`;
     const current = groups.get(key) || {
       key,
       period,
+      blocks: new Set(),
       source,
       total: 0,
       captured: 0,
@@ -2992,6 +2995,7 @@ function classGradeLoadGroups() {
       pending: 0,
       updatedAt: ""
     };
+    current.blocks.add(block);
     current.total += 1;
     const status = classGradeStatus(row);
     if (status === "capturada") current.captured += 1;
@@ -3001,7 +3005,9 @@ function classGradeLoadGroups() {
     if (row.updated_at && String(row.updated_at) > String(current.updatedAt || "")) current.updatedAt = row.updated_at;
     groups.set(key, current);
   });
-  return [...groups.values()].sort((a, b) => String(b.period).localeCompare(String(a.period), "es") || b.total - a.total);
+  return [...groups.values()]
+    .map((group) => ({ ...group, blockLabel: [...group.blocks].filter(Boolean).sort((a, b) => classPeriodSortValue(a) - classPeriodSortValue(b)).join(" + ") }))
+    .sort((a, b) => classPeriodSortValue(b.period) - classPeriodSortValue(a.period) || String(b.period).localeCompare(String(a.period), "es") || b.total - a.total);
 }
 
 async function deleteClassGradeLoad(period, source) {
@@ -5914,6 +5920,26 @@ function classGradeRecordKey(identity) {
   return `import-${(hash >>> 0).toString(16).padStart(8, "0")}-${identity.length}`;
 }
 
+function classGradeBlockLabel(row) {
+  const subjectName = String(row?.subject_name || "").toUpperCase();
+  const subjectBlock = ["PMT3", "PMT2", "PMT1"].find((block) => subjectName.includes(block));
+  if (subjectBlock) return subjectBlock;
+  const period = String(row?.period_label || "").trim().toUpperCase();
+  return /^PMT\s*[0-9]+/.test(period) ? period.replace(/\s+/g, "") : "";
+}
+
+function classGradeSemesterLabel(row) {
+  const period = String(row?.period_label || "").trim().toUpperCase();
+  return /^PMT\s*[0-9]+/.test(period) ? "" : period;
+}
+
+function classGradePeriodBlockLabel(row) {
+  const semester = classGradeSemesterLabel(row);
+  const block = classGradeBlockLabel(row);
+  if (semester && block) return `${semester} / ${block}`;
+  return semester || block || "Sin periodo";
+}
+
 const CLASS_GRADE_VALUE_COLUMNS = [
   "calificacion", "calificación", "grade", "grade_text", "grade text", "estatus",
   "bloque 1", "bloque1", "pmt1", "periodo 1", "periodo1",
@@ -5923,9 +5949,6 @@ const CLASS_GRADE_VALUE_COLUMNS = [
 
 function classGradePeriodFromRow(raw) {
   const explicit = String(pickColumn(raw, ["periodo", "period_label", "period label"]) || "").trim().toUpperCase();
-  const subjectName = String(pickColumn(raw, ["materia", "asignatura", "subject_name", "disciplina", "nombre materia"]) || "").toUpperCase();
-  const subjectPeriod = ["PMT3", "PMT2", "PMT1"].find((period) => subjectName.includes(period));
-  if (subjectPeriod) return subjectPeriod;
   if (explicit) return explicit;
   const blockPeriods = [
     ["PMT3", ["bloque 3", "bloque3", "pmt3", "periodo 3", "periodo3"]],
@@ -5937,7 +5960,9 @@ function classGradePeriodFromRow(raw) {
 }
 
 function classGradeValueFromRow(raw, periodLabel) {
-  const period = String(periodLabel || "").trim().toUpperCase();
+  const subjectName = String(pickColumn(raw, ["materia", "asignatura", "subject_name", "disciplina", "nombre materia"]) || "").toUpperCase();
+  const subjectBlock = ["PMT3", "PMT2", "PMT1"].find((block) => subjectName.includes(block));
+  const period = subjectBlock || String(periodLabel || "").trim().toUpperCase();
   const periodAliases = {
     PMT1: ["bloque 1", "bloque1", "pmt1", "periodo 1", "periodo1"],
     PMT2: ["bloque 2", "bloque2", "pmt2", "periodo 2", "periodo2"],
@@ -6730,13 +6755,13 @@ function renderClassStudentProfile(rows, summary) {
     </div>
     <div class="table-wrap class-student-table">
       <table>
-        <thead><tr><th>Materia</th><th>CRN / Grupo</th><th>Profesor</th><th>Periodo</th><th>Carrera</th><th>Calificacion</th></tr></thead>
+        <thead><tr><th>Materia</th><th>CRN / Grupo</th><th>Profesor</th><th>Periodo / Bloque</th><th>Carrera</th><th>Calificacion</th></tr></thead>
         <tbody>${rows.map((row) => `
           <tr>
             <td><strong>${escapeHtml(row.subject_name)}</strong><small>${escapeHtml(row.subject_code)}</small></td>
             <td>${escapeHtml(row.crn)} / ${escapeHtml(row.group_number)}</td>
             <td>${escapeHtml(row.teacher_name)}</td>
-            <td>${escapeHtml(row.period_label)}</td>
+            <td>${escapeHtml(classGradePeriodBlockLabel(row))}</td>
             <td>${escapeHtml(row.career_code)} ${escapeHtml(row.semester_label)}</td>
             <td><span class="class-grade-pill ${classGradeStatus(row)}">${escapeHtml(row.grade || "Pendiente")}</span></td>
           </tr>
@@ -6751,8 +6776,9 @@ function renderClassDisciplineIndicators() {
   const rows = classDisciplineRows();
   const worst = [...rows].sort((a, b) => a.approvedRate - b.approvedRate).slice(0, 6);
   const best = [...rows].sort((a, b) => b.approvedRate - a.approvedRate).slice(0, 6);
-  const periodOptions = classDashboardPeriodOptions();
-  const selectedPeriod = classDashboardPeriod === "auto" ? classDefaultDashboardPeriod() : classDashboardPeriod;
+  const blockOptions = classDashboardBlockOptions();
+  const selectedBlock = classDashboardBlock === "auto" ? classDefaultDashboardBlock() : classDashboardBlock;
+  const semesterLabel = classDashboardSemesterLabel();
   return `
     <section class="class-indicators-panel">
       <div class="section-title compact">
@@ -6761,11 +6787,11 @@ function renderClassDisciplineIndicators() {
           <h2>Indicadores por disciplina y periodo</h2>
         </div>
         <label class="class-dashboard-period-picker">
-          <span>Periodo activo</span>
-          <select id="classDashboardPeriod">
-            <option value="auto" ${classDashboardPeriod === "auto" ? "selected" : ""}>Actual (${escapeHtml(selectedPeriod || "sin datos")})</option>
-            ${periodOptions.map((period) => `<option value="${escapeHtml(period)}" ${classDashboardPeriod === period ? "selected" : ""}>${escapeHtml(period)}</option>`).join("")}
-            <option value="todos" ${classDashboardPeriod === "todos" ? "selected" : ""}>Todos históricos</option>
+          <span>${escapeHtml(semesterLabel)} | Bloque activo</span>
+          <select id="classDashboardBlock">
+            <option value="auto" ${classDashboardBlock === "auto" ? "selected" : ""}>Actual (${escapeHtml(selectedBlock || "sin datos")})</option>
+            ${blockOptions.map((block) => `<option value="${escapeHtml(block)}" ${classDashboardBlock === block ? "selected" : ""}>${escapeHtml(block)}</option>`).join("")}
+            <option value="todos" ${classDashboardBlock === "todos" ? "selected" : ""}>Todos los bloques</option>
           </select>
         </label>
       </div>
@@ -7015,23 +7041,31 @@ function classPeriodSortValue(period) {
   return clean && !normalizeText(clean).includes("sin periodo") ? 1000 : 0;
 }
 
-function classDashboardPeriodOptions() {
+function classDashboardBlockOptions() {
   return [...new Set(allClassGradeRows()
-    .map((row) => String(row.period_label || "").trim().toUpperCase())
-    .filter((period) => period && !normalizeText(period).includes("sin periodo")))]
+    .map((row) => classGradeBlockLabel(row))
+    .filter(Boolean))]
     .sort((a, b) => classPeriodSortValue(b) - classPeriodSortValue(a) || a.localeCompare(b, "es", { numeric: true }));
 }
 
-function classDefaultDashboardPeriod() {
-  const options = classDashboardPeriodOptions();
-  return options.find((period) => /^PMT\s*[0-9]+/.test(period)) || options[0] || "";
+function classDefaultDashboardBlock() {
+  const options = classDashboardBlockOptions();
+  return options.find((block) => /^PMT\s*3/.test(block)) || options[0] || "";
+}
+
+function classDashboardSemesterLabel() {
+  const semesters = [...new Set(classDashboardRows()
+    .map(classGradeSemesterLabel)
+    .filter(Boolean))]
+    .sort((a, b) => classPeriodSortValue(b) - classPeriodSortValue(a) || a.localeCompare(b, "es", { numeric: true }));
+  return semesters[0] || "Periodo sin clasificar";
 }
 
 function classDashboardRows() {
   const rows = allClassGradeRows();
-  const selectedPeriod = classDashboardPeriod === "auto" ? classDefaultDashboardPeriod() : classDashboardPeriod;
-  if (!selectedPeriod || selectedPeriod === "todos") return rows.filter((row) => String(row.period_label || "").trim());
-  return rows.filter((row) => String(row.period_label || "").trim().toUpperCase() === selectedPeriod);
+  const selectedBlock = classDashboardBlock === "auto" ? classDefaultDashboardBlock() : classDashboardBlock;
+  if (!selectedBlock || selectedBlock === "todos") return rows.filter((row) => classGradeBlockLabel(row) || classGradeSemesterLabel(row));
+  return rows.filter((row) => classGradeBlockLabel(row) === selectedBlock);
 }
 
 function buildClassDashboardMetrics(rows) {
@@ -7653,7 +7687,8 @@ function renderVivenciaDashboard() {
 function filteredClassGrades() {
   const search = classGradeFilter.search.trim().toLowerCase();
   return allClassGradeRows()
-    .filter((row) => classGradeFilter.period === "todos" || row.period_label === classGradeFilter.period)
+    .filter((row) => classGradeFilter.period === "todos" || classGradeSemesterLabel(row) === classGradeFilter.period)
+    .filter((row) => classGradeFilter.block === "todos" || classGradeBlockLabel(row) === classGradeFilter.block)
     .filter((row) => classGradeFilter.teacher === "todos" || row.teacher_name === classGradeFilter.teacher)
     .filter((row) => classGradeFilter.subject === "todos" || row.subject_name === classGradeFilter.subject)
     .filter((row) => classGradeFilter.career === "todos" || row.career_code === classGradeFilter.career)
@@ -7678,6 +7713,11 @@ function classGradeOptions(key) {
     .sort((a, b) => String(a).localeCompare(String(b), "es"));
 }
 
+function classGradeDerivedOptions(derive) {
+  return [...new Set(allClassGradeRows().map(derive).filter(Boolean))]
+    .sort((a, b) => classPeriodSortValue(b) - classPeriodSortValue(a) || String(a).localeCompare(String(b), "es", { numeric: true }));
+}
+
 function renderClassGrades() {
   const rows = filteredClassGrades();
   const totalRows = allClassGradeRows();
@@ -7689,7 +7729,8 @@ function renderClassGrades() {
   const bajas = totalRows.filter((row) => classGradeStatus(row) === "baja").length;
   const pending = totalRows.filter((row) => classGradeStatus(row) === "pendiente").length;
   const editable = currentUser?.auth === "supabase" && canEditArea("clases") && classGradesAvailable;
-  const periods = classGradeOptions("period_label");
+  const periods = classGradeDerivedOptions(classGradeSemesterLabel);
+  const blocks = classGradeDerivedOptions(classGradeBlockLabel);
   const teachers = classGradeOptions("teacher_name");
   const subjects = classGradeOptions("subject_name");
   const careersList = classGradeOptions("career_code");
@@ -7720,10 +7761,16 @@ function renderClassGrades() {
         <label>Buscar
           <input class="class-grade-filter" data-filter="search" value="${escapeHtml(classGradeFilter.search)}" placeholder="Matrícula, materia o profesor" />
         </label>
-        <label>Periodo
+        <label>Periodo/Semestre
           <select class="class-grade-filter" data-filter="period">
             <option value="todos">Todos</option>
             ${periods.map((value) => `<option value="${escapeHtml(value)}" ${classGradeFilter.period === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Bloque
+          <select class="class-grade-filter" data-filter="block">
+            <option value="todos">Todos</option>
+            ${blocks.map((value) => `<option value="${escapeHtml(value)}" ${classGradeFilter.block === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
           </select>
         </label>
         <label>Profesor
@@ -7767,7 +7814,7 @@ function renderClassGrades() {
               <th>CRN / Grupo</th>
               <th>Profesor</th>
               <th>Carrera</th>
-              <th>Periodo</th>
+              <th>Periodo / Bloque</th>
               <th>Calificación</th>
             </tr>
           </thead>
@@ -7779,7 +7826,7 @@ function renderClassGrades() {
                 <td>${escapeHtml(row.crn)} / ${escapeHtml(row.group_number)}</td>
                 <td>${escapeHtml(row.teacher_name)}</td>
                 <td>${escapeHtml(row.career_code)}</td>
-                <td>${escapeHtml(row.period_label)}</td>
+                <td>${escapeHtml(classGradePeriodBlockLabel(row))}</td>
                 <td>
                   <input
                     class="grade-input grade-${classGradeStatus(row)}"
@@ -7818,12 +7865,12 @@ function renderClassGradesSystemUpload() {
         </div>
         <span class="session-pill">Excel / CSV</span>
       </div>
-      <p>Actualiza la lista de alumnos y sus calificaciones en Supabase. Cada carga reemplaza primero el periodo incluido en el archivo para evitar duplicados.</p>
+      <p>Actualiza la lista de alumnos y sus calificaciones en Supabase. Cada carga reemplaza primero el periodo/semestre incluido en el archivo para evitar duplicados.</p>
       <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
       <button class="primary-btn" id="uploadClassGrades" type="button" ${editable && !classGradesImporting ? "" : "disabled"}>
         ${classGradesImporting ? "Procesando archivo..." : "Cargar archivo de Calificaciones"}
       </button>
-      <p class="form-message">Columnas requeridas: matricula, materia y calificacion. También se aceptan Bloque 1, Bloque 2 o Bloque 3 para PMT1, PMT2 o PMT3; clave_materia, CRN, grupo, profesor, carrera y semestre son opcionales.</p>
+      <p class="form-message">Columnas requeridas: matricula, materia, calificacion y periodo. El periodo puede ser FJ26; el bloque PMT1, PMT2 o PMT3 se detecta desde la materia. También se aceptan clave_materia, CRN, grupo, profesor, carrera y semestre.</p>
       ${!editable ? `<div class="permission-strip grade-warning">Ingresa con un perfil autorizado de Clases Deportivas para realizar la carga.</div>` : ""}
       ${summary ? `
         <div class="permission-strip ${summary.errors?.length ? "grade-warning" : ""}">
@@ -7841,12 +7888,13 @@ function renderClassGradesSystemUpload() {
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Periodo</th><th>Archivo / fuente</th><th>Registros</th><th>Capturadas</th><th>Bajas</th><th>NP</th><th>Pendientes</th><th>Último cambio</th><th>Acción</th></tr>
+            <tr><th>Periodo</th><th>Bloques</th><th>Archivo / fuente</th><th>Registros</th><th>Capturadas</th><th>Bajas</th><th>NP</th><th>Pendientes</th><th>Último cambio</th><th>Acción</th></tr>
           </thead>
           <tbody>
             ${loadGroups.length ? loadGroups.map((group) => `
               <tr>
                 <td><strong>${escapeHtml(group.period)}</strong></td>
+                <td>${escapeHtml(group.blockLabel || "Sin bloque")}</td>
                 <td>${escapeHtml(group.source)}</td>
                 <td>${group.total.toLocaleString("es-MX")}</td>
                 <td>${group.captured.toLocaleString("es-MX")}</td>
@@ -7856,7 +7904,7 @@ function renderClassGradesSystemUpload() {
                 <td>${group.updatedAt ? new Date(group.updatedAt).toLocaleString("es-MX") : "Sin fecha"}</td>
                 <td><button class="danger-btn compact-action" type="button" data-delete-grade-load="${escapeHtml(group.period)}" data-grade-load-source="${escapeHtml(group.source)}" ${editable ? "" : "disabled"}>Borrar</button></td>
               </tr>
-            `).join("") : `<tr><td colspan="9">Todavía no hay cargas registradas.</td></tr>`}
+            `).join("") : `<tr><td colspan="10">Todavía no hay cargas registradas.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -9733,8 +9781,8 @@ function render() {
     classGradePage = 1;
     render();
   }));
-  $("#classDashboardPeriod")?.addEventListener("change", (event) => {
-    classDashboardPeriod = event.target.value;
+  $("#classDashboardBlock")?.addEventListener("change", (event) => {
+    classDashboardBlock = event.target.value;
     render();
   });
   $$(".grade-input").forEach((control) => control.addEventListener("change", (event) => {
@@ -10051,7 +10099,7 @@ function downloadPhysicalEvaluationsCsv() {
 function downloadClassGradesCsv() {
   const headers = [
     "matricula", "clave_materia", "materia", "crn", "grupo",
-    "profesor", "carrera", "semestre", "periodo", "calificacion"
+    "profesor", "carrera", "semestre", "periodo", "bloque", "calificacion"
   ];
   const csv = [
     headers.map(csvEscape).join(","),
@@ -10065,6 +10113,7 @@ function downloadClassGradesCsv() {
       row.career_code,
       row.semester_label,
       row.period_label,
+      classGradeBlockLabel(row),
       row.grade
     ].map(csvEscape).join(","))
   ].join("\n");
