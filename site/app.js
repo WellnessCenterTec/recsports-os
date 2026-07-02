@@ -5940,6 +5940,11 @@ function classGradePeriodBlockLabel(row) {
   return semester || block || "Sin periodo";
 }
 
+function isClassTotalDiscipline(value) {
+  const clean = normalizeText(value);
+  return clean.includes("totales periodo") || clean.includes("totales del periodo") || clean === "totales";
+}
+
 const CLASS_GRADE_VALUE_COLUMNS = [
   "calificacion", "calificación", "grade", "grade_text", "grade text", "estatus",
   "bloque 1", "bloque1", "pmt1", "periodo 1", "periodo1",
@@ -6855,7 +6860,7 @@ function renderClassDisciplineBar(row) {
 
 function classResponsibleTeachers(discipline) {
   const clean = normalizeText(discipline);
-  if (!clean || clean.includes("totales periodo")) return [];
+  if (!clean || isClassTotalDiscipline(discipline)) return [];
   const counts = new Map();
   allClassGradeRows().forEach((row) => {
     if (normalizeText(row.subject_name) !== clean || !row.teacher_name) return;
@@ -7076,6 +7081,7 @@ function buildClassDashboardMetrics(rows) {
   (Array.isArray(rows) ? rows : []).forEach((row) => {
     const discipline = String(row.subject_name || "").trim();
     if (!discipline) return;
+    if (isClassTotalDiscipline(discipline)) return;
     const period = String(row.period_label || "Sin periodo").trim() || "Sin periodo";
     const grade = String(row.grade ?? "").trim();
     const outcome = classGradeOutcome(grade);
