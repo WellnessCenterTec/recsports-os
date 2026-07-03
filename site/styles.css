@@ -5429,6 +5429,282 @@ tbody tr:hover td {
 }
 .toast.show { opacity: 1; transform: translateY(0); }
 
+.planning-area-dashboard {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.planning-area-hero {
+  background: #10232a;
+}
+
+.planning-area-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.planning-area-actions .ghost-btn {
+  border-color: rgb(255 255 255 / 45%);
+  color: #fff;
+}
+
+.planning-kpi-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.planning-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, .8fr);
+  gap: 16px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.planning-calendar-panel {
+  grid-row: span 2;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.planning-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.planning-calendar > strong {
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.planning-month-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.planning-month-controls button {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--blue);
+  cursor: pointer;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.planning-calendar-day {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 92px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.planning-calendar-day.muted { background: #f7fafb; }
+
+.planning-calendar-day time {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.planning-calendar-day button,
+.planning-agenda-list button,
+.planning-pending-list button {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.planning-calendar-day button {
+  overflow: hidden;
+  min-height: 36px;
+  padding: 5px 6px;
+  border-radius: 7px;
+  background: #e8f2ff;
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.planning-calendar-day em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.planning-agenda-list,
+.planning-pending-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.planning-agenda-list button {
+  display: grid;
+  grid-template-columns: minmax(44px, 64px) minmax(0, 1fr);
+  gap: 3px 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f3f7f9;
+  color: var(--ink);
+}
+
+.planning-agenda-list time {
+  grid-row: span 2;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.planning-agenda-list span,
+.planning-pending-list strong {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  font-weight: 800;
+}
+
+.planning-agenda-list em,
+.planning-pending-list span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.planning-pending-list button {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border-left: 3px solid #d49a00;
+  border-radius: 0 8px 8px 0;
+  background: #fff8df;
+  color: var(--ink);
+}
+
+.planning-calendar-state {
+  display: grid;
+  gap: 6px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.planning-calendar-state.error {
+  border-color: #efb5b0;
+  background: #fff2f1;
+  color: #8f2929;
+}
+
+.planning-modal-backdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(7 22 28 / 64%);
+  overscroll-behavior: contain;
+}
+
+body.planning-modal-open {
+  overflow: hidden;
+}
+
+.planning-detail-panel {
+  width: min(480px, calc(100vw - 32px));
+  max-width: 100%;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgb(16 35 42 / 28%);
+}
+
+.planning-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.planning-detail-heading > div,
+.planning-detail-heading h3 { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+
+.planning-detail-close {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #edf2f4;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.planning-detail-panel dl { display: grid; gap: 0; margin: 16px 0 0; }
+.planning-detail-panel dl div { padding: 12px 0; border-top: 1px solid var(--line); }
+.planning-detail-panel dt { color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; }
+.planning-detail-panel dd { margin: 4px 0 0; overflow-wrap: anywhere; color: var(--ink); font-weight: 700; }
+
+@media (max-width: 1120px) {
+  .planning-dashboard-grid { grid-template-columns: 1fr; }
+  .planning-calendar-panel { grid-row: auto; }
+}
+
+@media (max-width: 760px) {
+  .planning-area-actions { width: 100%; align-items: stretch; flex-direction: column; }
+  .planning-kpi-strip { grid-template-columns: 1fr; }
+  .planning-calendar { gap: 3px; }
+  .planning-calendar > strong { font-size: 10px; }
+  .planning-calendar-day { gap: 3px; min-height: 68px; padding: 4px 2px; }
+  .planning-calendar-day time { padding-left: 2px; font-size: 10px; }
+  .planning-calendar-day button { min-height: 36px; padding: 5px 2px; font-size: 11px; }
+  .planning-calendar-day em { padding-left: 2px; font-size: 10px; }
+  .planning-month-controls { width: 100%; justify-content: space-between; }
+  .planning-month-controls span { min-width: 0; font-size: 10px; overflow-wrap: anywhere; text-align: center; }
+}
+
 @media (max-width: 1120px) {
   .app-shell { grid-template-columns: 1fr; }
   .sidebar {
