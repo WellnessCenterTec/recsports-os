@@ -8045,6 +8045,7 @@ function renderClassesDashboard() {
   return `
     ${renderClassExecutiveKpis(summary)}
     ${renderClassStudentLookup()}
+    ${renderClassBookingDashboard()}
     ${renderClassDisciplineIndicators()}
     ${renderClassTeacherPerformance()}
     ${renderClassScheduleComparison()}
@@ -10597,6 +10598,8 @@ function bookingVisualHeader(eyebrow, title, icon) {
   `;
 }
 
+const BOOKING_DAY_ORDER = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
 function renderBookingActivityBars(rows) {
   const visible = rows.slice(0, 7);
   const max = Math.max(...visible.map((row) => row.count), 1);
@@ -10814,6 +10817,19 @@ function renderClassBookingDashboard() {
   `;
 }
 
+function bindClassBookingControls() {
+  $("#classBookingReservationsFile")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importClassBookingReservations(file);
+    event.target.value = "";
+  });
+  $$(".booking-filter").forEach((input) => input.addEventListener("input", (event) => {
+    classBookingFilters[event.target.dataset.filter] = event.target.value;
+    render();
+  }));
+}
+
 
 
 function renderReports(area) {
@@ -10943,35 +10959,39 @@ function render() {
   if (activeView === "booking" && activeArea !== "clases") activeView = "dashboard";
   if (activeView === "simulator" && activeArea !== "clases") activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
-  $("#contentArea").innerHTML = activeView === "dashboard"
-    ? renderDashboard(area)
-    : activeView === "capture"
-      ? renderCapture(area)
-      : activeView === "gym-attendance"
-        ? renderGymAttendanceRegistration()
-        : activeView === "gym-registrations"
-          ? renderGymStudentRegistration()
-          : activeView === "vivencia-events"
-            ? renderVivenciaEventsView()
-            : activeView === "budget-allocation"
-              ? renderBudgetAllocationView()
-              : activeView === "budget-request"
-                ? renderBudgetRequestView()
-      : activeView === "schedules"
-        ? (isIntramuros ? renderIntramurosParticipantUploadView() : renderSchedules(area))
-        : activeView === "booking"
-          ? renderClassBookingDashboard()
-        : activeView === "simulator"
-          ? renderScheduleSimulatorView()
-        : activeView === "reports"
-          ? renderReports(area)
-          : activeView === "grades"
-            ? renderClassGrades()
-            : activeView === "evaluations"
-              ? renderPhysicalEvaluationsDashboard()
-              : isIntramuros
-                ? renderIntramurosRolesDashboard()
-                : renderBlueprint(area);
+  let contentHtml = "";
+  try {
+    if (activeView === "dashboard") contentHtml = renderDashboard(area);
+    else if (activeView === "capture") contentHtml = renderCapture(area);
+    else if (activeView === "gym-attendance") contentHtml = renderGymAttendanceRegistration();
+    else if (activeView === "gym-registrations") contentHtml = renderGymStudentRegistration();
+    else if (activeView === "vivencia-events") contentHtml = renderVivenciaEventsView();
+    else if (activeView === "budget-allocation") contentHtml = renderBudgetAllocationView();
+    else if (activeView === "budget-request") contentHtml = renderBudgetRequestView();
+    else if (activeView === "schedules") contentHtml = isIntramuros ? renderIntramurosParticipantUploadView() : renderSchedules(area);
+    else if (activeView === "booking") contentHtml = renderClassBookingDashboard();
+    else if (activeView === "simulator") contentHtml = renderScheduleSimulatorView();
+    else if (activeView === "reports") contentHtml = renderReports(area);
+    else if (activeView === "grades") contentHtml = renderClassGrades();
+    else if (activeView === "evaluations") contentHtml = renderPhysicalEvaluationsDashboard();
+    else contentHtml = isIntramuros ? renderIntramurosRolesDashboard() : renderBlueprint(area);
+  } catch (error) {
+    console.error("No se pudo renderizar la vista", { activeArea, activeView, area: area?.id, error });
+    contentHtml = `<div class="permission-strip">No se pudo cargar esta vista: ${escapeHtml(error?.message || "error desconocido")}</div>`;
+  }
+  $("#contentArea").innerHTML = contentHtml;
+  $$(".segmented button[data-view]").forEach((button) => {
+    button.onclick = () => {
+      if (button.hidden) return;
+      activeView = button.dataset.view;
+      render();
+      if (activeArea === "clases" && activeView === "booking") {
+        $("#contentArea").innerHTML = renderClassBookingDashboard();
+        bindClassBookingControls();
+        window.lucide?.createIcons();
+      }
+    };
+  });
   $$("[data-jump]").forEach((button) => button.addEventListener("click", () => {
     activeArea = button.dataset.jump;
     activeView = button.dataset.targetView || "dashboard";
@@ -11268,16 +11288,7 @@ function render() {
     await handleScheduleUpload(file, input.dataset.scheduleUpload);
     event.target.value = "";
   }));
-  $("#classBookingReservationsFile")?.addEventListener("change", async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    await importClassBookingReservations(file);
-    event.target.value = "";
-  });
-  $$(".booking-filter").forEach((input) => input.addEventListener("input", (event) => {
-    classBookingFilters[event.target.dataset.filter] = event.target.value;
-    render();
-  }));
+  bindClassBookingControls();
   $$(".schedule-download").forEach((button) => button.addEventListener("click", () => downloadProfessorSchedule(button.dataset.download)));
   $$(".simulator-filter").forEach((input) => input.addEventListener("input", (event) => {
     simulatorFilters[event.target.dataset.filter] = event.target.value;
@@ -12056,6 +12067,15 @@ renderCareers();
 render();
 loadPlanningCalendarRows().then(() => render());
 loadSupabaseSession().then(() => render());
+
+document.addEventListener("click", (event) => {
+  const viewButton = event.target.closest?.(".segmented button[data-view]");
+  if (!viewButton || viewButton.hidden) return;
+  event.preventDefault();
+  event.stopPropagation();
+  activeView = viewButton.dataset.view;
+  render();
+}, true);
 
 $$(".segmented button").forEach((button) => button.addEventListener("click", () => {
   activeView = button.dataset.view;
