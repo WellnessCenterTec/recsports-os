@@ -9168,35 +9168,6 @@ function renderVivenciaDashboard() {
   const alerts = vivenciaOperationalAlerts(events, metricsByEvent);
   return `
     <section class="vivencia-dashboard">
-      <div class="vivencia-hero">
-        <div>
-          <p class="eyebrow">Dashboard ejecutivo</p>
-          <h3>Vivencia</h3>
-          <p>Gestión de eventos, impacto y participación estudiantil</p>
-        </div>
-        <span>${events.length} eventos desde Planeación/Vivencia</span>
-      </div>
-
-      <article class="vivencia-next-event">
-        <div>
-          <p class="eyebrow">Próximo evento</p>
-          ${nextEvent ? `
-            <h3>${escapeHtml(nextEvent.event_name || "Evento sin nombre")}</h3>
-            <p>${escapeHtml(nextEvent.description || "Seguimiento operativo desde Planeación Semestral y Vivencia.")}</p>
-            <div class="vivencia-next-meta">
-              <span>${escapeHtml(nextEvent.event_date || "Sin fecha")}</span>
-              <span>${escapeHtml(nextEvent.responsible_name || "Responsable pendiente")}</span>
-              <span>Meta ${vivenciaEventGoal(nextEvent, metricsByEvent) || "sin meta"}</span>
-              <span>${vivenciaStateLabel(nextEvent.status)}</span>
-            </div>
-          ` : `
-            <h3>No hay eventos próximos registrados</h3>
-            <p>Sincroniza Planeación Semestral o revisa la carga de eventos de Vivencia.</p>
-          `}
-        </div>
-        ${nextEvent ? `<button class="ghost-btn compact-action" type="button" data-vivencia-detail="${escapeHtml(nextEvent.id)}">Ver detalle</button>` : ""}
-      </article>
-
       <div class="kpi-grid vivencia-kpi-strip">
         <div class="kpi"><span>Eventos del semestre</span><strong>${events.length}</strong><em>desde Planeación/Vivencia</em></div>
         <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
