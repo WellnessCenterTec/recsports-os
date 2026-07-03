@@ -1515,6 +1515,101 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   align-items: start;
 }
 
+.gym-attendance-registration {
+  display: grid;
+  gap: 12px;
+}
+
+.gym-attendance-loaded-summary {
+  padding: 16px;
+}
+
+.gym-attendance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.gym-attendance-summary-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+}
+
+.gym-attendance-summary-card .gym-chart-heading strong {
+  color: var(--blue);
+  font-size: 20px;
+}
+
+.gym-attendance-summary-wrap {
+  max-height: 430px;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.gym-attendance-summary-table {
+  min-width: 620px;
+}
+
+.gym-attendance-summary-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #eef3f6;
+  text-transform: none;
+}
+
+.gym-attendance-summary-table th,
+.gym-attendance-summary-table td {
+  padding: 9px 10px;
+  white-space: nowrap;
+}
+
+.gym-attendance-summary-table td:first-child,
+.gym-attendance-summary-table th:first-child {
+  width: 44px;
+  text-align: center;
+}
+
+.gym-attendance-summary-table td:nth-child(2) {
+  min-width: 170px;
+  font-weight: 700;
+}
+
+.gym-attendance-summary-table td:nth-child(n+3),
+.gym-attendance-summary-table th:nth-child(n+3) {
+  text-align: right;
+}
+
+.gym-attendance-summary-table tbody tr:nth-child(odd) td:nth-child(-n+3) {
+  background: #f6e7ee;
+}
+
+.gym-attendance-summary-table tbody tr:nth-child(even) td:nth-child(-n+3) {
+  background: #f3dce7;
+}
+
+.gym-attendance-summary-table tbody td:nth-child(3) strong {
+  color: var(--blue);
+}
+
+.gym-attendance-summary-table tbody tr:hover td {
+  background: #f4f9fc;
+}
+
+.gym-attendance-summary-table tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: #eef3f6;
+  border-top: 2px solid #c7d3dc;
+  font-weight: 900;
+}
+
 .gym-form-layout .form-panel,
 .gym-form-layout .chart-panel {
   min-width: 0;
@@ -6536,7 +6631,8 @@ body.planning-modal-open {
   .class-grade-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .physical-code-panel { grid-template-columns: 1fr; }
   .physical-hof-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .gym-form-layout { grid-template-columns: 1fr; }
+  .gym-form-layout,
+  .gym-attendance-summary-grid { grid-template-columns: 1fr; }
   .class-simulator-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .class-simulator-maps { grid-template-columns: 1fr; }
   .vivencia-event-layout { grid-template-columns: 1fr; }

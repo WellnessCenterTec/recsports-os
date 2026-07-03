@@ -5323,6 +5323,113 @@ function gymDailyRows(facility = gymDashboardFacility) {
   });
 }
 
+function gymAttendanceWeekLabel(week, facility) {
+  const records = gymAttendanceRecords
+    .filter((row) => Number(row.week_number) === week && gymFacilityMatches(row.facility, facility) && row.attendance_date)
+    .map((row) => row.attendance_date)
+    .sort();
+  if (!records.length) return `Semana ${week}`;
+  const first = new Date(`${records[0]}T00:00:00`);
+  const last = new Date(`${records[records.length - 1]}T00:00:00`);
+  const sameMonth = first.getMonth() === last.getMonth();
+  const month = new Intl.DateTimeFormat("es-MX", { month: "short" });
+  const firstLabel = sameMonth ? first.getDate() : `${first.getDate()} ${month.format(first)}`;
+  const lastLabel = `${last.getDate()} ${month.format(last)}`;
+  return `Semana ${week} ${firstLabel}-${lastLabel}`;
+}
+
+function gymAttendanceWeeklySummary(facility) {
+  const rowsByWeek = new Map();
+  gymAttendanceRecords
+    .filter((row) => gymFacilityMatches(row.facility, facility))
+    .forEach((row) => {
+      const week = Number(row.week_number) || 0;
+      if (!week) return;
+      if (!rowsByWeek.has(week)) {
+        rowsByWeek.set(week, {
+          week,
+          label: gymAttendanceWeekLabel(week, facility),
+          total: 0,
+          days: GYM_DAYS.reduce((acc, day) => {
+            acc[day] = 0;
+            return acc;
+          }, {})
+        });
+      }
+      const summary = rowsByWeek.get(week);
+      const count = Number(row.attendee_count || 0);
+      summary.total += count;
+      if (summary.days[row.day_of_week] !== undefined) summary.days[row.day_of_week] += count;
+    });
+  return Array.from(rowsByWeek.values()).sort((a, b) => a.week - b.week);
+}
+
+function renderGymFacilityAttendanceTable(facility) {
+  const rows = gymAttendanceWeeklySummary(facility);
+  const total = rows.reduce((sum, row) => sum + row.total, 0);
+  const dayTotals = GYM_DAYS.reduce((acc, day) => {
+    acc[day] = rows.reduce((sum, row) => sum + Number(row.days[day] || 0), 0);
+    return acc;
+  }, {});
+  const dayLabels = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
+  return `
+    <article class="gym-attendance-summary-card">
+      <div class="gym-chart-heading">
+        <div><p class="eyebrow">${escapeHtml(facility)}</p><h3>Resumen semanal cargado</h3></div>
+        <strong>${formatCount(total)}</strong>
+      </div>
+      <div class="table-wrap gym-attendance-summary-wrap">
+        <table class="gym-attendance-summary-table">
+          <thead>
+            <tr>
+              <th>Fila</th>
+              <th>${escapeHtml(facility)}</th>
+              <th>Cantidad</th>
+              ${dayLabels.map((label) => `<th>${label}</th>`).join("")}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.length ? rows.map((row, index) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${escapeHtml(row.label)}</td>
+                <td><strong>${formatCount(row.total)}</strong></td>
+                ${GYM_DAYS.map((day) => `<td>${row.days[day] ? formatCount(row.days[day]) : ""}</td>`).join("")}
+              </tr>
+            `).join("") : `<tr><td colspan="10">Sin asistencias cargadas para ${escapeHtml(facility)}.</td></tr>`}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td></td>
+              <td>Total</td>
+              <td>${formatCount(total)}</td>
+              ${GYM_DAYS.map((day) => `<td>${dayTotals[day] ? formatCount(dayTotals[day]) : ""}</td>`).join("")}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </article>
+  `;
+}
+
+function renderGymAttendanceLoadedSummary() {
+  return `
+    <section class="chart-panel gym-attendance-loaded-summary">
+      <div class="gym-chart-heading">
+        <div>
+          <p class="eyebrow">Asistencias cargadas</p>
+          <h3>Tabla de control semanal</h3>
+        </div>
+        <span>${formatCount(gymAttendanceRecords.length)} registros consolidados</span>
+      </div>
+      <div class="gym-attendance-summary-grid">
+        ${renderGymFacilityAttendanceTable("Wellness")}
+        ${renderGymFacilityAttendanceTable("EMIS")}
+      </div>
+    </section>
+  `;
+}
+
 function renderGymDashboard() {
   const dailyRows = gymDailyRows(gymDashboardFacility);
   const emptyMessage = !gymDataLoaded
@@ -5378,52 +5485,55 @@ function renderGymAttendanceRegistration() {
       return dateOrder || String(b.created_at || "").localeCompare(String(a.created_at || ""));
     });
   return `
-    <div class="gym-form-layout">
-      <section class="form-panel">
-        <p class="eyebrow">Gimnasio</p>
-        <h3>Registro de Asistencia</h3>
-        <form id="gymAttendanceForm">
-          <label>Semana<input name="week_number" type="number" min="1" value="${gymLatestWeek()}" required /></label>
-          <label>Fecha<input id="gymAttendanceDate" name="attendance_date" type="date" value="${today}" required /></label>
-          <label>Día<input id="gymAttendanceDay" name="day_of_week" value="${gymDayFromDate(today)}" readonly required /></label>
-          <label>Instalación
-            <select name="facility" required><option>Wellness</option><option>EMIS</option></select>
-          </label>
-          <label>Cantidad de asistentes<input name="attendee_count" type="number" min="0" required /></label>
-          <label class="wide-field">Observaciones<textarea name="notes" rows="3" placeholder="Opcional"></textarea></label>
-          <button class="primary-btn wide-field" type="submit">Guardar asistencia</button>
-        </form>
-        <p class="form-message">Respaldo manual. Si ya existe CSV para la misma fecha e instalación, el dashboard usa el CSV y omite este registro.</p>
-      </section>
-      <section class="chart-panel">
-        <div class="gym-chart-heading">
-          <div><p class="eyebrow">Historial de cargas</p><h3>Registros manuales</h3></div>
-          <strong>${manualRecords.length}</strong>
-        </div>
-        <p class="form-message">Puedes eliminar una captura incorrecta. Las asistencias históricas importadas permanecen protegidas.</p>
-        <div class="table-wrap">
-          <table><thead><tr><th>Fecha</th><th>Semana</th><th>Día</th><th>Instalación</th><th>Asistentes</th><th>Observaciones</th><th>Acción</th></tr></thead>
-          <tbody>${manualRecords.length ? manualRecords.map((row) => `
-            <tr>
-              <td>${escapeHtml(row.attendance_date)}</td>
-              <td>${row.week_number}</td>
-              <td>${escapeHtml(row.day_of_week)}</td>
-              <td>${escapeHtml(row.facility)}</td>
-              <td>${row.attendee_count}</td>
-              <td>${escapeHtml(importedKeys.has(gymAttendanceSourceKey(row)) ? "Omitido en dashboard: existe CSV" : (row.notes || ""))}</td>
-              <td>
-                <button
-                  class="danger-btn"
-                  data-delete-gym-attendance="${escapeHtml(row.id)}"
-                  type="button"
-                  ${canDeleteGymAttendance(row) ? "" : "disabled"}
-                  title="${canDeleteGymAttendance(row) ? "Eliminar esta carga" : "Solo puedes eliminar tus propias cargas"}"
-                >Eliminar</button>
-              </td>
-            </tr>
-          `).join("") : `<tr><td colspan="7">Sin cargas manuales todavía.</td></tr>`}</tbody></table>
-        </div>
-      </section>
+    <div class="gym-attendance-registration">
+      ${renderGymAttendanceLoadedSummary()}
+      <div class="gym-form-layout">
+        <section class="form-panel">
+          <p class="eyebrow">Gimnasio</p>
+          <h3>Registro de Asistencia</h3>
+          <form id="gymAttendanceForm">
+            <label>Semana<input name="week_number" type="number" min="1" value="${gymLatestWeek()}" required /></label>
+            <label>Fecha<input id="gymAttendanceDate" name="attendance_date" type="date" value="${today}" required /></label>
+            <label>Día<input id="gymAttendanceDay" name="day_of_week" value="${gymDayFromDate(today)}" readonly required /></label>
+            <label>Instalación
+              <select name="facility" required><option>Wellness</option><option>EMIS</option></select>
+            </label>
+            <label>Cantidad de asistentes<input name="attendee_count" type="number" min="0" required /></label>
+            <label class="wide-field">Observaciones<textarea name="notes" rows="3" placeholder="Opcional"></textarea></label>
+            <button class="primary-btn wide-field" type="submit">Guardar asistencia</button>
+          </form>
+          <p class="form-message">Respaldo manual. Si ya existe CSV para la misma fecha e instalación, el dashboard usa el CSV y omite este registro.</p>
+        </section>
+        <section class="chart-panel">
+          <div class="gym-chart-heading">
+            <div><p class="eyebrow">Historial de cargas</p><h3>Registros manuales</h3></div>
+            <strong>${manualRecords.length}</strong>
+          </div>
+          <p class="form-message">Puedes eliminar una captura incorrecta. Las asistencias históricas importadas permanecen protegidas.</p>
+          <div class="table-wrap">
+            <table><thead><tr><th>Fecha</th><th>Semana</th><th>Día</th><th>Instalación</th><th>Asistentes</th><th>Observaciones</th><th>Acción</th></tr></thead>
+            <tbody>${manualRecords.length ? manualRecords.map((row) => `
+              <tr>
+                <td>${escapeHtml(row.attendance_date)}</td>
+                <td>${row.week_number}</td>
+                <td>${escapeHtml(row.day_of_week)}</td>
+                <td>${escapeHtml(row.facility)}</td>
+                <td>${row.attendee_count}</td>
+                <td>${escapeHtml(importedKeys.has(gymAttendanceSourceKey(row)) ? "Omitido en dashboard: existe CSV" : (row.notes || ""))}</td>
+                <td>
+                  <button
+                    class="danger-btn"
+                    data-delete-gym-attendance="${escapeHtml(row.id)}"
+                    type="button"
+                    ${canDeleteGymAttendance(row) ? "" : "disabled"}
+                    title="${canDeleteGymAttendance(row) ? "Eliminar esta carga" : "Solo puedes eliminar tus propias cargas"}"
+                  >Eliminar</button>
+                </td>
+              </tr>
+            `).join("") : `<tr><td colspan="7">Sin cargas manuales todavía.</td></tr>`}</tbody></table>
+          </div>
+        </section>
+      </div>
     </div>
   `;
 }
