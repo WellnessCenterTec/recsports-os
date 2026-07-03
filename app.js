@@ -4201,6 +4201,10 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function formatCount(value) {
+  return Number(value || 0).toLocaleString("es-MX");
+}
+
 function collaboratorEditorControl(row, column, editable) {
   const value = row[column] ?? "";
   const disabled = editable ? "" : "disabled";
@@ -6870,10 +6874,13 @@ function renderIntramurosRolesDashboard() {
 }
 
 function intramurosOperationMetrics(row) {
-  const teams = row.equipos_varoniles + row.equipos_femeniles + row.equipos_mixtos;
-  const students = row.alumnos_varonil + row.alumnos_femenil;
-  const effectiveness = row.juegos_programados ? Math.round((row.juegos_realizados / row.juegos_programados) * 1000) / 10 : 0;
-  const retention = students ? Math.round(((students - row.bajas) / students) * 1000) / 10 : 0;
+  const teams = Number(row.equipos_varoniles || 0) + Number(row.equipos_femeniles || 0) + Number(row.equipos_mixtos || 0);
+  const students = Number(row.alumnos_varonil || 0) + Number(row.alumnos_femenil || 0);
+  const gamesProgrammed = Number(row.juegos_programados || 0);
+  const gamesDone = Number(row.juegos_realizados || 0);
+  const bajas = Number(row.bajas || 0);
+  const effectiveness = gamesProgrammed ? Math.round((gamesDone / gamesProgrammed) * 1000) / 10 : 0;
+  const retention = students ? Math.round(((students - bajas) / students) * 1000) / 10 : 0;
   return { teams, students, effectiveness, retention: Math.max(0, retention) };
 }
 
@@ -6882,9 +6889,9 @@ function intramurosOperationSummary() {
     const metrics = intramurosOperationMetrics(row);
     acc.teams += metrics.teams;
     acc.students += metrics.students;
-    acc.games += row.juegos_programados;
-    acc.done += row.juegos_realizados;
-    acc.bajas += row.bajas;
+    acc.games += Number(row.juegos_programados || 0);
+    acc.done += Number(row.juegos_realizados || 0);
+    acc.bajas += Number(row.bajas || 0);
     if (normalizeText(row.estatus).includes("terminado")) acc.finished += 1;
     return acc;
   }, { teams: 0, students: 0, games: 0, done: 0, bajas: 0, finished: 0 });
@@ -6915,13 +6922,13 @@ function renderIntramurosOmarWorkspace() {
           <p class="eyebrow">Mesa de trabajo de Omar</p>
           <h3>Control directo de torneos Intramuros</h3>
         </div>
-        <span>${intramurosOperationRows.length.toLocaleString("es-MX")} torneos capturados · ${intramurosOperationCloudAvailable ? "Supabase conectado" : "Modo local"}</span>
+        <span>${formatCount(intramurosOperationRows.length)} torneos capturados · ${intramurosOperationCloudAvailable ? "Supabase conectado" : "Modo local"}</span>
       </div>
       <div class="intramuros-op-kpis">
-        <article><span>Equipos</span><strong>${summary.teams.toLocaleString("es-MX")}</strong><em>capturados</em></article>
-        <article><span>Alumnos</span><strong>${summary.students.toLocaleString("es-MX")}</strong><em>sin nombres</em></article>
-        <article><span>Juegos prog.</span><strong>${summary.games.toLocaleString("es-MX")}</strong><em>planeados</em></article>
-        <article><span>Juegos realizados</span><strong>${summary.done.toLocaleString("es-MX")}</strong><em>avance</em></article>
+        <article><span>Equipos</span><strong>${formatCount(summary.teams)}</strong><em>capturados</em></article>
+        <article><span>Alumnos</span><strong>${formatCount(summary.students)}</strong><em>sin nombres</em></article>
+        <article><span>Juegos prog.</span><strong>${formatCount(summary.games)}</strong><em>planeados</em></article>
+        <article><span>Juegos realizados</span><strong>${formatCount(summary.done)}</strong><em>avance</em></article>
         <article><span>% efectividad</span><strong>${summary.effectiveness}%</strong><em>realizados / prog.</em></article>
         <article><span>% retención</span><strong>${summary.retention}%</strong><em>alumnos - bajas</em></article>
       </div>
@@ -6969,10 +6976,10 @@ function renderIntramurosOmarWorkspace() {
                   <td>${renderIntramurosOperationCell(row, "equipos_varoniles")}</td>
                   <td>${renderIntramurosOperationCell(row, "equipos_femeniles")}</td>
                   <td>${renderIntramurosOperationCell(row, "equipos_mixtos")}</td>
-                  <td><strong>${metrics.teams.toLocaleString("es-MX")}</strong></td>
+                  <td><strong>${formatCount(metrics.teams)}</strong></td>
                   <td>${renderIntramurosOperationCell(row, "alumnos_varonil")}</td>
                   <td>${renderIntramurosOperationCell(row, "alumnos_femenil")}</td>
-                  <td><strong>${metrics.students.toLocaleString("es-MX")}</strong></td>
+                  <td><strong>${formatCount(metrics.students)}</strong></td>
                   <td>${renderIntramurosOperationCell(row, "juegos_programados")}</td>
                   <td>${renderIntramurosOperationCell(row, "juegos_realizados")}</td>
                   <td><strong>${metrics.effectiveness}%</strong></td>
@@ -6988,7 +6995,7 @@ function renderIntramurosOmarWorkspace() {
       </div>
       <div class="intramuros-op-note">
         <strong>Resumen automático conectado:</strong>
-        ${automaticRows.length ? automaticRows.map((row) => `<span>${escapeHtml(row.torneo)}: ${row.participants.toLocaleString("es-MX")} participantes, ${row.games.toLocaleString("es-MX")} juegos</span>`).join("") : `<span>Cuando subas participantes y roles, aquí aparecerá el cruce automático por torneo.</span>`}
+        ${automaticRows.length ? automaticRows.map((row) => `<span>${escapeHtml(row.torneo)}: ${formatCount(row.totalParticipants)} participantes, ${formatCount(row.games)} juegos</span>`).join("") : `<span>Cuando subas participantes y roles, aquí aparecerá el cruce automático por torneo.</span>`}
       </div>
     </section>
   `;
