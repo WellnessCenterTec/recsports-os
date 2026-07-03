@@ -1533,7 +1533,7 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 
 .gym-attendance-summary-card {
   min-width: 0;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
@@ -1541,21 +1541,19 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 
 .gym-attendance-summary-card .gym-chart-heading strong {
   color: var(--blue);
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .gym-attendance-summary-wrap {
+  max-height: 430px;
   margin-top: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: none;
-  overflow: visible;
 }
 
 .gym-attendance-summary-table {
-  min-width: 0;
-  width: 100%;
-  table-layout: fixed;
+  min-width: 620px;
 }
 
 .gym-attendance-summary-table th {
@@ -1568,20 +1566,18 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 
 .gym-attendance-summary-table th,
 .gym-attendance-summary-table td {
-  padding: 7px 5px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  font-size: 11px;
+  padding: 9px 10px;
+  white-space: nowrap;
 }
 
 .gym-attendance-summary-table td:first-child,
 .gym-attendance-summary-table th:first-child {
-  width: 32px;
+  width: 44px;
   text-align: center;
 }
 
 .gym-attendance-summary-table td:nth-child(2) {
-  width: 150px;
+  min-width: 170px;
   font-weight: 700;
 }
 
