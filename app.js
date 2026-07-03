@@ -553,10 +553,13 @@ let budgetAreaPlans = loadBudgetAreaPlans();
 let budgetRequestRows = loadBudgetRequestRows();
 let budgetCloudReady = false;
 let budgetCloudMessage = "Modo local";
+let budgetPeriodTouched = false;
+let selectedBudgetRequestEditId = "";
 let collaboratorColumnOrder = [];
 let collaboratorSettingsLoaded = false;
 let photoUploaderOpen = false;
 let selectedPhotoNomina = "";
+let selectedCollaboratorInfographicId = "";
 let cloudStatus = supabaseClient ? "Conectando Supabase" : "Demo local";
 let uniformesData = {};
 let uniformesLoaded = false;
@@ -768,6 +771,29 @@ function budgetRequestFromCloud(row) {
   });
 }
 
+function budgetPeriodRank(period) {
+  const value = String(period || "").trim().toUpperCase();
+  const match = value.match(/^([A-Z]{2})(\d{2})$/);
+  if (!match) return 0;
+  const year = Number(match[2]) || 0;
+  const termOrder = { FJ: 1, AD: 2, AG: 2, IN: 3 };
+  return year * 10 + (termOrder[match[1]] || 0);
+}
+
+function latestBudgetPeriodKey(periodRows = [], fallbackPeriods = []) {
+  const rowsWithDate = periodRows
+    .map((row) => ({
+      key: String(row.period_key || "").trim(),
+      date: Date.parse(row.created_at || row.fecha_fin || row.fecha_inicio || "")
+    }))
+    .filter((row) => row.key && Number.isFinite(row.date))
+    .sort((a, b) => b.date - a.date);
+  if (rowsWithDate[0]?.key) return rowsWithDate[0].key;
+  return [...fallbackPeriods]
+    .filter(Boolean)
+    .sort((a, b) => budgetPeriodRank(b) - budgetPeriodRank(a) || String(b).localeCompare(String(a), "es-MX"))[0] || "AD26";
+}
+
 async function loadBudgetData() {
   budgetCloudReady = false;
   budgetCloudMessage = "Modo local";
@@ -775,9 +801,9 @@ async function loadBudgetData() {
   const [periodsResult, plansResult, requestsResult] = await Promise.all([
     supabaseClient
       .from("budget_periods")
-      .select("period_key")
+      .select("period_key, created_at")
       .eq("active", true)
-      .order("created_at", { ascending: true }),
+      .order("created_at", { ascending: false }),
     supabaseClient
       .from("budget_area_plans")
       .select("period_key, area_key, assigned_amount, owner_name, alert_threshold")
@@ -795,9 +821,11 @@ async function loadBudgetData() {
   const cloudPlans = (plansResult.data || []).map(budgetPlanFromCloud).filter(Boolean);
   const cloudRequests = (requestsResult.data || []).map(budgetRequestFromCloud).filter(Boolean);
   const cloudPeriods = (periodsResult.data || []).map((row) => String(row.period_key || "").trim()).filter(Boolean);
-  budgetPeriods = [...new Set([...cloudPeriods, ...cloudPlans.map((row) => row.period), ...cloudRequests.map((row) => row.period)])];
+  budgetPeriods = [...new Set([...cloudPeriods, ...cloudPlans.map((row) => row.period), ...cloudRequests.map((row) => row.period)])]
+    .sort((a, b) => budgetPeriodRank(b) - budgetPeriodRank(a) || String(b).localeCompare(String(a), "es-MX"));
   if (!budgetPeriods.length) budgetPeriods = ["AD26"];
-  if (!budgetPeriods.includes(budgetFilters.period)) budgetFilters.period = budgetPeriods[0];
+  const latestPeriod = latestBudgetPeriodKey(periodsResult.data || [], budgetPeriods);
+  if (!budgetPeriodTouched || !budgetPeriods.includes(budgetFilters.period)) budgetFilters.period = latestPeriod;
   if (cloudPlans.length) budgetAreaPlans = cloudPlans;
   if (cloudRequests.length) budgetRequestRows = cloudRequests;
   budgetCloudReady = true;
@@ -4834,32 +4862,6 @@ function renderPhysicalEvaluationsDashboard() {
       <div class="kpi"><span>Iniciales / finales</span><strong>${initial} / ${final}</strong><em>comparación disponible</em></div>
       <div class="kpi"><span>Pendientes</span><strong>${pending}</strong><em>históricos por clasificar</em></div>
     </div>
-    <div class="charts-grid">
-      <div class="chart-panel">
-        <h3>Resultados históricos disponibles</h3>
-        <p class="hero-copy">Cantidad de resultados numéricos conservados por prueba.</p>
-        ${comparisonRows.map((row) => `
-          <div class="bar-row">
-            <span>${PHYSICAL_TEST_LABELS[row.testKey]}</span>
-            <div class="bar-track"><div class="bar-fill" style="width:${Math.round(row.stats.count / coverageMax * 100)}%"></div></div>
-            <strong>${row.stats.count}</strong>
-          </div>
-        `).join("")}
-      </div>
-      <div class="chart-panel">
-        <h3>Evolución: ${PHYSICAL_TEST_LABELS[selectedTest]}</h3>
-        <p class="hero-copy">Promedio por fecha en ${PHYSICAL_TEST_UNITS[selectedTest]}.</p>
-        <div class="physical-timeline">
-          ${timeline.map((item) => `
-            <div class="physical-timeline-row">
-              <span>${new Date(`${item.date}T12:00:00`).toLocaleDateString("es-MX", { year: "2-digit", month: "short" })}</span>
-              <div class="bar-track"><div class="bar-fill physical-stage-bar" style="width:${Math.max(3, Math.round(item.average / timelineMax * 100))}%"></div></div>
-              <strong>${item.average.toFixed(1)}</strong>
-            </div>
-          `).join("") || "<p class='hero-copy'>Esta prueba todavía no tiene valores numéricos clasificables.</p>"}
-        </div>
-      </div>
-    </div>
     <div class="table-wrap physical-comparison-table">
       <table>
         <thead><tr><th>Prueba</th><th>Promedio histórico</th><th>Mínimo</th><th>Máximo</th><th>Resultados</th><th>Inicial</th><th>Final</th></tr></thead>
@@ -7689,6 +7691,7 @@ async function createBudgetPeriod(event) {
     return;
   }
   budgetFilters.period = period;
+  budgetPeriodTouched = true;
   budgetFilters.area = "todos";
   budgetFilters.status = "todos";
   budgetPeriodFormOpen = false;
@@ -7759,6 +7762,7 @@ async function deleteBudgetRequest(id) {
     return;
   }
   const row = budgetRequestRows.find((item) => item.id === id);
+  if (!window.confirm(`¿Eliminar definitivamente la solicitud "${row?.concept || id}"? Esta acción se guardará en Supabase.`)) return;
   if (supabaseClient && currentUser?.auth === "supabase" && budgetCloudReady) {
     const { error } = await supabaseClient.from("budget_requests").delete().eq("id", id);
     if (error) {
@@ -7774,6 +7778,63 @@ async function deleteBudgetRequest(id) {
   addAudit("presupuesto", `Solicitud eliminada: ${row?.concept || id}`);
   render();
   toast("Solicitud eliminada");
+}
+
+function selectedBudgetRequestEdit() {
+  return budgetRequestRows.find((row) => row.id === selectedBudgetRequestEditId) || null;
+}
+
+async function updateBudgetRequest(event) {
+  event.preventDefault();
+  if (!canEditArea("compras")) {
+    toast("Sin permiso para modificar solicitudes");
+    return;
+  }
+  const current = selectedBudgetRequestEdit();
+  if (!current) return;
+  const form = new FormData(event.currentTarget);
+  const next = normalizeBudgetRequest({
+    ...current,
+    date: form.get("date"),
+    period: form.get("period"),
+    area: form.get("area"),
+    concept: form.get("concept"),
+    provider: form.get("provider"),
+    amount: form.get("amount"),
+    type: form.get("type"),
+    priority: form.get("priority"),
+    status: form.get("status")
+  });
+  if (!next) {
+    toast("Completa concepto y área");
+    return;
+  }
+  if (supabaseClient && currentUser?.auth === "supabase" && budgetCloudReady) {
+    const { error } = await supabaseClient.from("budget_requests").update({
+      period_key: next.period,
+      request_date: next.date,
+      area_key: next.area,
+      concept: next.concept,
+      provider: next.provider,
+      amount: next.amount,
+      status: next.status,
+      priority: next.priority,
+      request_type: next.type
+    }).eq("id", next.id);
+    if (error) {
+      console.warn(error);
+      toast("No se pudo modificar en Supabase");
+      return;
+    }
+    await loadBudgetData();
+  } else {
+    budgetRequestRows = budgetRequestRows.map((row) => row.id === next.id ? next : row);
+    saveBudgetRequestRows();
+  }
+  selectedBudgetRequestEditId = "";
+  addAudit("presupuesto", `Solicitud modificada: ${next.concept}`);
+  render();
+  toast("Solicitud modificada y tablero actualizado");
 }
 
 function renderBudgetAllocationView() {
@@ -7864,6 +7925,47 @@ function renderBudgetRequestView() {
   `;
 }
 
+function renderBudgetEditPanel() {
+  const row = selectedBudgetRequestEdit();
+  const editable = canEditArea("compras");
+  if (!row) return "";
+  return `
+    <article class="form-panel budget-editor-panel budget-standalone-panel budget-edit-request-panel">
+      <div class="budget-table-heading">
+        <div>
+          <p class="eyebrow">Modificar solicitud</p>
+          <h3>${escapeHtml(row.concept)}</h3>
+        </div>
+        <button class="ghost-btn compact-action" type="button" data-budget-edit-cancel>Cerrar</button>
+      </div>
+      <form id="budgetEditRequestForm" class="budget-form">
+        <label>Fecha<input name="date" type="date" value="${escapeHtml(row.date)}" ${editable ? "" : "disabled"} /></label>
+        <label>Periodo<select name="period" ${editable ? "" : "disabled"}>${[...new Set([row.period, ...budgetPeriods].filter(Boolean))].map((value) => `<option value="${escapeHtml(value)}" ${row.period === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select></label>
+        <label>Área
+          <select name="area" ${editable ? "" : "disabled"}>
+            ${budgetAreaOptions().map(([value, label]) => `<option value="${value}" ${row.area === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Concepto<input name="concept" value="${escapeHtml(row.concept)}" ${editable ? "" : "disabled"} /></label>
+        <label>Proveedor<input name="provider" value="${escapeHtml(row.provider)}" ${editable ? "" : "disabled"} /></label>
+        <label>Monto<input name="amount" type="number" min="0" step="100" value="${Math.round(row.amount || 0)}" ${editable ? "" : "disabled"} /></label>
+        <label>Tipo<input name="type" value="${escapeHtml(row.type)}" ${editable ? "" : "disabled"} /></label>
+        <label>Prioridad
+          <select name="priority" ${editable ? "" : "disabled"}>
+            ${["Alta", "Media", "Baja"].map((value) => `<option ${row.priority === value ? "selected" : ""}>${value}</option>`).join("")}
+          </select>
+        </label>
+        <label>Estatus
+          <select name="status" ${editable ? "" : "disabled"}>
+            ${["pendiente", "autorizado", "comprometido", "ejercido", "rechazado"].map((value) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${budgetStatusLabel(value)}</option>`).join("")}
+          </select>
+        </label>
+        <button class="primary-btn" type="submit" ${editable ? "" : "disabled"}>Guardar cambios</button>
+      </form>
+    </article>
+  `;
+}
+
 function renderBudgetDashboard() {
   const selectedAreas = filteredBudgetAreas();
   const summaries = selectedAreas.map((row) => budgetAreaSummary(row.area));
@@ -7923,6 +8025,8 @@ function renderBudgetDashboard() {
           </form>
         </article>
       ` : ""}
+
+      ${renderBudgetEditPanel()}
 
       <div class="kpi-grid budget-kpi-strip">
         ${budgetKpiCard("circle-dollar-sign", "Presupuesto asignado", money(assigned), "base del periodo", "blue")}
@@ -8030,7 +8134,12 @@ function renderBudgetDashboard() {
                   </select>
                 </td>
                 <td>${escapeHtml(row.priority)}</td>
-                <td><button class="danger-btn compact-action" type="button" data-budget-delete="${escapeHtml(row.id)}" ${isLeadership() ? "" : "disabled"}>Borrar</button></td>
+                <td>
+                  <div class="table-actions compact-table-actions">
+                    <button class="ghost-btn compact-action" type="button" data-budget-edit="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Modificar</button>
+                    <button class="danger-btn compact-action" type="button" data-budget-delete="${escapeHtml(row.id)}" ${isLeadership() ? "" : "disabled"}>Eliminar</button>
+                  </div>
+                </td>
               </tr>
             `).join("") : `<tr><td colspan="8">Sin solicitudes para los filtros seleccionados.</td></tr>`}
           </tbody>
@@ -9540,6 +9649,67 @@ function renderConfigurationDashboard() {
   `;
 }
 
+function collaboratorPhotoMarkup(row, className = "collaborator-infographic-photo") {
+  const name = row?.Colaboradores || row?.full_name || "Colaborador";
+  if (row?.__photoUrl) {
+    return `<span class="${className} has-photo"><img src="${escapeHtml(row.__photoUrl)}" alt="Foto de ${escapeHtml(name)}" loading="lazy" /></span>`;
+  }
+  return `<span class="${className}"><span>${escapeHtml(collaboratorInitials(name))}</span></span>`;
+}
+
+function renderCollaboratorInfographicDetail(rows) {
+  const selected = rows.find((row) => (row.__id || row.Nomina) === selectedCollaboratorInfographicId);
+  if (!selected) return "";
+  const hiddenKeys = new Set(["__id", "__photoPath", "__photoUrl"]);
+  const details = Object.entries(selected)
+    .filter(([key, value]) => !hiddenKeys.has(key) && String(value ?? "").trim())
+    .map(([key, value]) => [key, String(value)]);
+  return `
+    <div class="modal-backdrop collaborator-profile-backdrop" role="presentation">
+      <section class="collaborator-profile-modal" role="dialog" aria-modal="true" aria-label="Detalle de colaborador">
+        <div class="collaborator-profile-heading">
+          ${collaboratorPhotoMarkup(selected, "collaborator-profile-photo")}
+          <div>
+            <p class="eyebrow">Perfil completo</p>
+            <h3>${escapeHtml(selected.Colaboradores || "Sin nombre")}</h3>
+            <span>${escapeHtml(selected.Puesto || "Colaborador")} · ${escapeHtml(selected.Nomina || selected.__id || "")}</span>
+          </div>
+          <button class="ghost-btn compact-action" type="button" data-close-collab-profile>Cerrar</button>
+        </div>
+        <div class="collaborator-profile-details">
+          ${details.map(([key, value]) => `
+            <div>
+              <span>${escapeHtml(key)}</span>
+              <strong>${escapeHtml(value)}</strong>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderCollaboratorInfographicView() {
+  const rows = collaboratorRows();
+  return `
+    <section class="collaborator-infographic-view">
+      <div class="permission-strip">
+        <span>Infografía de colaboradores: foto y nombre para consulta ejecutiva.</span>
+        <span>${rows.length.toLocaleString("es-MX")} registros disponibles</span>
+      </div>
+      <div class="collaborator-infographic-grid">
+        ${rows.map((row) => `
+          <button class="collaborator-infographic-card" type="button" data-collab-profile="${escapeHtml(row.__id || row.Nomina)}">
+            ${collaboratorPhotoMarkup(row)}
+            <strong>${escapeHtml(row.Colaboradores || "Sin nombre")}</strong>
+          </button>
+        `).join("") || `<div class="upload-empty">No hay colaboradores cargados todavía.</div>`}
+      </div>
+      ${renderCollaboratorInfographicDetail(rows)}
+    </section>
+  `;
+}
+
 function renderCollaboratorsDashboard() {
   if (!uniformesLoaded) {
     return `<div class="permission-strip">Cargando informacion de uniformes y colaboradores...</div>`;
@@ -9608,11 +9778,6 @@ function renderCollaboratorsDashboard() {
         <h3>Pants por talla</h3>
         ${genderLegend("pants")}
         ${renderGenderBars(pantGenderRows, "pants")}
-      </div>
-      <div class="chart-panel">
-        <h3>Operacion del modulo</h3>
-        <div class="donut" data-label="${metrics.physicalTests} pruebas"></div>
-        <p class="hero-copy">Incluye pruebas fisicas, asistencia a gimnasio, historial de profesores, contactos de emergencia y layouts de contratacion.</p>
       </div>
     </div>
     ${authorizedUpload && collaboratorsCloudLoaded && !cloudCollaborators.length ? `
@@ -10922,13 +11087,19 @@ function render() {
   const vivenciaEventsTab = $("#vivenciaEventsViewButton");
   const budgetAllocationTab = $("#budgetAllocationViewButton");
   const budgetRequestTab = $("#budgetRequestViewButton");
+  const collaboratorInfographicTab = $("#collaboratorInfographicViewButton");
   const schedulesTab = $(`.segmented button[data-view="schedules"]`);
   const systemTab = $(`.segmented button[data-view="blueprint"]`);
+  const reportsTab = $(`.segmented button[data-view="reports"]`);
   const isGym = activeArea === "gimnasio";
   const isVivencia = activeArea === "vivencia";
   const isBudget = activeArea === "compras";
   const isIntramuros = activeArea === "intramuros";
+  const isCollaborators = activeArea === "colaboradores";
+  const isParticipationOnly = activeArea === "gamer" || activeArea === "representativos";
+  $$(".segmented button").forEach((button) => { button.style.order = ""; });
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
+  if (collaboratorInfographicTab) collaboratorInfographicTab.hidden = !isCollaborators;
   if (gradesTab) gradesTab.hidden = activeArea !== "clases";
   if (bookingTab) bookingTab.hidden = activeArea !== "clases";
   if (simulatorTab) simulatorTab.hidden = activeArea !== "clases";
@@ -10938,21 +11109,28 @@ function render() {
   if (budgetAllocationTab) budgetAllocationTab.hidden = !isBudget;
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
   if (schedulesTab) {
-    schedulesTab.hidden = isGym;
+    schedulesTab.hidden = isGym || isBudget || isCollaborators || isParticipationOnly;
     schedulesTab.textContent = isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
   }
-  const reportsTab = $(`.segmented button[data-view="reports"]`);
   if (reportsTab) reportsTab.hidden = isGym;
   if (systemTab) {
-    systemTab.hidden = isGym || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
+    systemTab.hidden = isGym || isParticipationOnly || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
     systemTab.textContent = isIntramuros ? "Cargar Roles de Juego" : "Sistema";
+  }
+  if (isCollaborators) {
+    if (collaboratorInfographicTab) collaboratorInfographicTab.style.order = "12";
+    if (evaluationsTab) evaluationsTab.style.order = "13";
+    if (systemTab) systemTab.style.order = "20";
+    if (reportsTab) reportsTab.style.order = "30";
   }
   const filtersBand = $(".filters-band");
   if (filtersBand) filtersBand.hidden = isGym || isBudget;
+  if (isParticipationOnly && !["dashboard", "reports"].includes(activeView)) activeView = "dashboard";
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isVivencia && activeView === "vivencia-events") activeView = "dashboard";
   if (!isBudget && ["budget-allocation", "budget-request"].includes(activeView)) activeView = "dashboard";
+  if (activeView === "collaborator-infographic" && !isCollaborators) activeView = "dashboard";
   if (activeView === "blueprint" && !isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases"))) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
@@ -10974,6 +11152,7 @@ function render() {
     else if (activeView === "reports") contentHtml = renderReports(area);
     else if (activeView === "grades") contentHtml = renderClassGrades();
     else if (activeView === "evaluations") contentHtml = renderPhysicalEvaluationsDashboard();
+    else if (activeView === "collaborator-infographic") contentHtml = renderCollaboratorInfographicView();
     else contentHtml = isIntramuros ? renderIntramurosRolesDashboard() : renderBlueprint(area);
   } catch (error) {
     console.error("No se pudo renderizar la vista", { activeArea, activeView, area: area?.id, error });
@@ -11210,10 +11389,13 @@ function render() {
   });
   $$(".budget-filter").forEach((input) => input.addEventListener("input", (event) => {
     budgetFilters[event.target.dataset.filter] = event.target.value;
+    if (event.target.dataset.filter === "period") budgetPeriodTouched = true;
+    selectedBudgetRequestEditId = "";
     render();
   }));
   $("#budgetAllocationForm")?.addEventListener("submit", saveBudgetAllocation);
   $("#budgetRequestForm")?.addEventListener("submit", saveBudgetRequest);
+  $("#budgetEditRequestForm")?.addEventListener("submit", updateBudgetRequest);
   $("#budgetPeriodForm")?.addEventListener("submit", createBudgetPeriod);
   $("[data-budget-new-period]")?.addEventListener("click", () => {
     budgetPeriodFormOpen = true;
@@ -11226,6 +11408,14 @@ function render() {
   $$(".budget-status-select").forEach((input) => input.addEventListener("change", (event) => {
     updateBudgetRequestStatus(event.target.dataset.budgetStatus, event.target.value);
   }));
+  $$("[data-budget-edit]").forEach((button) => button.addEventListener("click", () => {
+    selectedBudgetRequestEditId = button.dataset.budgetEdit;
+    render();
+  }));
+  $("[data-budget-edit-cancel]")?.addEventListener("click", () => {
+    selectedBudgetRequestEditId = "";
+    render();
+  });
   $$("[data-budget-delete]").forEach((button) => button.addEventListener("click", () => deleteBudgetRequest(button.dataset.budgetDelete)));
   $("[data-budget-new-request]")?.addEventListener("click", () => {
     activeView = "budget-request";
@@ -11386,6 +11576,14 @@ function render() {
     collaboratorFilter[event.target.dataset.filter] = event.target.value;
     render();
   }));
+  $$("[data-collab-profile]").forEach((button) => button.addEventListener("click", () => {
+    selectedCollaboratorInfographicId = button.dataset.collabProfile;
+    render();
+  }));
+  $("[data-close-collab-profile]")?.addEventListener("click", () => {
+    selectedCollaboratorInfographicId = "";
+    render();
+  });
   $$(".collab-cell").forEach((control) => control.addEventListener("change", (event) => {
     updateCollaboratorCell(event.target.dataset.rowId, event.target.dataset.column, event.target.value);
   }));
