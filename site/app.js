@@ -191,6 +191,7 @@ const CLASS_SIMULATOR_KEY = "wellsync_spinning_fitness_simulator";
 const CLASS_SCHEDULE_SNAPSHOT_KEY = "wellsync_class_schedule_snapshot";
 const BUDGET_AREAS_KEY = "wellsync_budget_areas";
 const BUDGET_REQUESTS_KEY = "wellsync_budget_requests";
+const INTRAMUROS_OPERATION_KEY = "wellsync_intramuros_omar_workspace";
 const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
@@ -452,6 +453,17 @@ let scheduleFilters = { professor: "todos", day: "todos", discipline: "todos", i
 let classBookingReservations = loadClassBookingReservations();
 let classBookingCloudAvailable = true;
 let classBookingFilters = { status: "todos", type: "todos", activity: "todos", search: "" };
+let intramurosParticipants = [];
+let intramurosGameRoles = [];
+let intramurosCloudAvailable = true;
+let intramurosImporting = false;
+let intramurosRolesImporting = false;
+let intramurosUploadSummary = null;
+let intramurosRolesUploadSummary = null;
+let selectedIntramurosTournament = "";
+let intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", search: "" };
+let intramurosOperationRows = loadIntramurosOperationRows();
+let intramurosOperationCloudAvailable = true;
 let participationUploadState = {
   gamer: { fileName: "", draft: null, imported: null },
   representativos: { fileName: "", draft: null, imported: null }
@@ -626,6 +638,109 @@ function loadBudgetRequestRows() {
 
 function saveBudgetRequestRows() {
   localStorage.setItem(BUDGET_REQUESTS_KEY, JSON.stringify(budgetRequestRows));
+}
+
+function normalizeIntramurosOperationRow(row = {}) {
+  const id = String(row.id || `INTRA-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const numberValue = (value) => Math.max(0, Number(value) || 0);
+  return {
+    id,
+    tipo: String(row.tipo || "").trim(),
+    torneo: String(row.torneo || "").trim(),
+    periodo: String(row.periodo || "").trim(),
+    equipos_varoniles: numberValue(row.equipos_varoniles),
+    equipos_femeniles: numberValue(row.equipos_femeniles),
+    equipos_mixtos: numberValue(row.equipos_mixtos),
+    alumnos_varonil: numberValue(row.alumnos_varonil),
+    alumnos_femenil: numberValue(row.alumnos_femenil),
+    juegos_programados: numberValue(row.juegos_programados),
+    juegos_realizados: numberValue(row.juegos_realizados),
+    bajas: numberValue(row.bajas),
+    estatus: String(row.estatus || "En captura").trim()
+  };
+}
+
+function loadIntramurosOperationRows() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(INTRAMUROS_OPERATION_KEY) || "[]");
+    return Array.isArray(saved) ? saved.map(normalizeIntramurosOperationRow).filter((row) => row.torneo) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveIntramurosOperationRows() {
+  intramurosOperationRows = intramurosOperationRows.map(normalizeIntramurosOperationRow).filter((row) => row.torneo);
+  localStorage.setItem(INTRAMUROS_OPERATION_KEY, JSON.stringify(intramurosOperationRows));
+}
+
+function intramurosOperationCloudRow(row = {}) {
+  return normalizeIntramurosOperationRow({
+    id: row.id,
+    tipo: row.tipo,
+    torneo: row.torneo,
+    periodo: row.periodo,
+    equipos_varoniles: row.equipos_varoniles,
+    equipos_femeniles: row.equipos_femeniles,
+    equipos_mixtos: row.equipos_mixtos,
+    alumnos_varonil: row.alumnos_varonil,
+    alumnos_femenil: row.alumnos_femenil,
+    juegos_programados: row.juegos_programados,
+    juegos_realizados: row.juegos_realizados,
+    bajas: row.bajas,
+    estatus: row.estatus
+  });
+}
+
+function intramurosOperationToCloud(row) {
+  const normalized = normalizeIntramurosOperationRow(row);
+  return {
+    id: normalized.id,
+    tipo: normalized.tipo,
+    torneo: normalized.torneo,
+    periodo: normalized.periodo,
+    equipos_varoniles: normalized.equipos_varoniles,
+    equipos_femeniles: normalized.equipos_femeniles,
+    equipos_mixtos: normalized.equipos_mixtos,
+    alumnos_varonil: normalized.alumnos_varonil,
+    alumnos_femenil: normalized.alumnos_femenil,
+    juegos_programados: normalized.juegos_programados,
+    juegos_realizados: normalized.juegos_realizados,
+    bajas: normalized.bajas,
+    estatus: normalized.estatus
+  };
+}
+
+async function saveIntramurosOperationRowCloud(row) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("intramuros") || !intramurosOperationCloudAvailable) return null;
+  const { data, error } = await supabaseClient
+    .from("intramuros_operacion_torneos")
+    .upsert(intramurosOperationToCloud(row), { onConflict: "id" })
+    .select("*")
+    .single();
+  if (error) {
+    intramurosOperationCloudAvailable = false;
+    console.warn("No se pudo guardar mesa de Omar", error);
+    toast(`No se pudo guardar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
+    return null;
+  }
+  intramurosOperationCloudAvailable = true;
+  return intramurosOperationCloudRow(data);
+}
+
+async function deleteIntramurosOperationRowCloud(id) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("intramuros") || !intramurosOperationCloudAvailable) return false;
+  const { error } = await supabaseClient
+    .from("intramuros_operacion_torneos")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    intramurosOperationCloudAvailable = false;
+    console.warn("No se pudo borrar mesa de Omar", error);
+    toast(`No se pudo borrar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
+    return false;
+  }
+  return true;
 }
 
 function budgetPlanFromCloud(row) {
@@ -3774,6 +3889,7 @@ async function loadSupabaseDataBundle() {
     ["Gimnasio", loadGymData],
     ["Simulador de clases", loadClassScheduleSimulatorCloud],
     ["Vivencia", loadVivenciaEvents],
+    ["Intramuros", loadIntramurosParticipants],
     ["Booking", loadClassBookingReservationsCloud],
     ["Gamer y Representativos", loadParticipationUploadsCloud],
     ["Presupuesto", loadBudgetData]
@@ -5512,6 +5628,424 @@ async function importParticipationUpload(areaId) {
   toast(savedCloud ? "Información guardada en Supabase" : "Información importada localmente");
 }
 
+function intramurosCloudRow(row) {
+  return {
+    id: row.id || "",
+    matricula: normalizeMatricula(row.matricula),
+    genero: row.genero || "No especificado",
+    programa: row.programa || "Sin programa",
+    modalidad: row.modalidad || "Sin modalidad",
+    escuela: row.escuela || "Sin escuela",
+    tipo_actividad: row.tipo_actividad || "Sin tipo",
+    torneo: row.torneo || "Sin torneo",
+    rama: row.rama || "Sin rama",
+    equipo: row.equipo || "Sin equipo",
+    periodo: row.periodo || "Sin periodo",
+    fecha_carga: row.fecha_carga || "",
+    archivo_origen: row.archivo_origen || "",
+    created_at: row.created_at || "",
+    updated_at: row.updated_at || ""
+  };
+}
+
+function intramurosLogicalKey(row) {
+  return [
+    normalizeMatricula(row.matricula),
+    headerKey(row.torneo || "Sin torneo"),
+    headerKey(row.equipo || "Sin equipo"),
+    headerKey(row.periodo || "Sin periodo")
+  ].join("|");
+}
+
+function intramurosRoleKey(row) {
+  return [
+    headerKey(row.torneo || "Sin torneo"),
+    String(row.fecha || "").slice(0, 10),
+    headerKey(row.hora || ""),
+    headerKey(row.cancha || ""),
+    headerKey(row.equipo_local || ""),
+    headerKey(row.equipo_visitante || "")
+  ].join("|");
+}
+
+async function loadIntramurosParticipants() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const [participantsResult, rolesResult, operationResult] = await Promise.all([
+    supabaseClient
+    .from("intramuros_participantes")
+    .select("id, matricula, genero, programa, modalidad, escuela, tipo_actividad, torneo, rama, equipo, periodo, fecha_carga, archivo_origen, created_at, updated_at")
+    .order("fecha_carga", { ascending: false })
+      .limit(50000),
+    supabaseClient
+      .from("intramuros_roles_juego")
+      .select("id, torneo, semana, fecha, hora, cancha, grupo, rama, equipo_local, equipo_visitante, resultado, observaciones, estatus_partido, periodo, fecha_carga, archivo_origen, created_at, updated_at")
+      .order("fecha", { ascending: false })
+      .limit(50000),
+    supabaseClient
+      .from("intramuros_operacion_torneos")
+      .select("id, tipo, torneo, periodo, equipos_varoniles, equipos_femeniles, equipos_mixtos, alumnos_varonil, alumnos_femenil, juegos_programados, juegos_realizados, bajas, estatus, created_at, updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(50000)
+  ]);
+  if (participantsResult.error) {
+    intramurosCloudAvailable = false;
+    console.warn("Intramuros participantes no disponible", participantsResult.error);
+    return;
+  }
+  if (rolesResult.error) console.warn("Intramuros roles no disponibles", rolesResult.error);
+  if (operationResult.error) {
+    intramurosOperationCloudAvailable = false;
+    console.warn("Mesa de Omar no disponible", operationResult.error);
+  } else {
+    intramurosOperationCloudAvailable = true;
+    intramurosOperationRows = (operationResult.data || []).map(intramurosOperationCloudRow).filter((row) => row.torneo);
+    saveIntramurosOperationRows();
+  }
+  intramurosCloudAvailable = true;
+  intramurosParticipants = (participantsResult.data || []).map(intramurosCloudRow).filter((row) => row.matricula);
+  intramurosGameRoles = (rolesResult.data || []).map(intramurosRoleCloudRow);
+}
+
+function intramurosRoleCloudRow(row) {
+  return {
+    id: row.id || "",
+    torneo: row.torneo || "Sin torneo",
+    semana: row.semana || "",
+    fecha: row.fecha || "",
+    hora: row.hora || "",
+    cancha: row.cancha || "",
+    grupo: row.grupo || "",
+    rama: row.rama || "",
+    equipo_local: row.equipo_local || "",
+    equipo_visitante: row.equipo_visitante || "",
+    resultado: row.resultado || "",
+    observaciones: row.observaciones || "",
+    estatus_partido: row.estatus_partido || "Pendiente",
+    periodo: row.periodo || "Sin periodo",
+    fecha_carga: row.fecha_carga || "",
+    archivo_origen: row.archivo_origen || "",
+    created_at: row.created_at || "",
+    updated_at: row.updated_at || ""
+  };
+}
+
+function normalizeIntramurosUploadRow(row, index, fileName, seenKeys) {
+  const matricula = normalizeMatricula(pickColumn(row, ["Matrícula", "Matricula", "matricula"]));
+  const torneo = String(pickColumn(row, ["Torneo", "Comentario", "comentario", "Nombre torneo", "Torneo/Evento"]) || "").trim() || "Sin torneo";
+  const equipo = String(pickColumn(row, ["Equipo", "equipo"]) || "").trim() || "Sin equipo";
+  const periodo = String(pickColumn(row, ["Periodo", "Período", "periodo"]) || "").trim().toUpperCase() || "Sin periodo";
+  const payload = {
+    matricula,
+    genero: String(pickColumn(row, ["Género", "Genero", "genero"]) || "").trim() || "No especificado",
+    programa: String(pickColumn(row, ["Programa", "programa"]) || "").trim() || "Sin programa",
+    modalidad: String(pickColumn(row, ["Modalidad", "modalidad"]) || "").trim() || "Sin modalidad",
+    escuela: String(pickColumn(row, ["Escuela", "escuela"]) || "").trim() || "Sin escuela",
+    tipo_actividad: String(pickColumn(row, ["Tipo de actividad", "Tipo actividad", "tipo_actividad"]) || "").trim() || "Sin tipo",
+    torneo,
+    rama: String(pickColumn(row, ["Rama", "rama"]) || "").trim() || "Sin rama",
+    equipo,
+    periodo,
+    fecha_carga: new Date().toISOString(),
+    archivo_origen: fileName || "Registro de participantes",
+    __rowNumber: index + 2
+  };
+  const key = intramurosLogicalKey(payload);
+  const duplicateInFile = seenKeys.has(key);
+  seenKeys.add(key);
+  return { ...payload, __key: key, __duplicateInFile: duplicateInFile, __error: matricula ? "" : "Falta matrícula" };
+}
+
+function parseIntramurosUploadRows(rows, fileName) {
+  const seenKeys = new Set();
+  const ignoredColumns = ["Nombre", "Apellido paterno", "Apellido materno"];
+  const headers = Object.keys(rows[0] || {});
+  const hasMatricula = headers.map(headerKey).includes(headerKey("Matrícula")) || headers.map(headerKey).includes(headerKey("Matricula"));
+  const parsed = rows
+    .map((row, index) => normalizeIntramurosUploadRow(row, index, fileName, seenKeys))
+    .filter((row) => row.matricula || row.torneo !== "Sin torneo" || row.equipo !== "Sin equipo");
+  return {
+    rows: parsed.filter((row) => !row.__duplicateInFile && !row.__error),
+    duplicateRows: parsed.filter((row) => row.__duplicateInFile),
+    errorRows: parsed.filter((row) => row.__error),
+    errors: [
+      ...(!rows.length ? ["El archivo está vacío."] : []),
+      ...(!hasMatricula ? ["Falta la columna obligatoria: Matrícula."] : [])
+    ],
+    ignoredColumns: ignoredColumns.filter((column) => headers.map(headerKey).includes(headerKey(column))),
+    processed: parsed.length
+  };
+}
+
+async function importIntramurosParticipants(file) {
+  if (!file) return;
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("intramuros")) {
+    toast("Ingresa con Supabase y permisos de Intramuros para cargar participantes");
+    return;
+  }
+  intramurosImporting = true;
+  render();
+  try {
+    const rawRows = await rowsFromScheduleFile(file);
+    const parsed = parseIntramurosUploadRows(rawRows, file.name);
+    if (parsed.errors.length) {
+      intramurosUploadSummary = {
+        fileName: file.name,
+        processed: parsed.processed,
+        inserted: 0,
+        updated: 0,
+        duplicates: parsed.duplicateRows.length,
+        errors: parsed.errorRows.length + parsed.errors.length,
+        ignoredColumns: parsed.ignoredColumns,
+        messages: parsed.errors,
+        importedAt: new Date().toISOString()
+      };
+      toast(parsed.errors[0]);
+      return;
+    }
+    const existingKeys = new Set(intramurosParticipants.map(intramurosLogicalKey));
+    const inserted = parsed.rows.filter((row) => !existingKeys.has(row.__key)).length;
+    const updated = parsed.rows.length - inserted;
+    const payload = parsed.rows.map((row) => ({
+      matricula: row.matricula,
+      genero: row.genero,
+      programa: row.programa,
+      modalidad: row.modalidad,
+      escuela: row.escuela,
+      tipo_actividad: row.tipo_actividad,
+      torneo: row.torneo,
+      rama: row.rama,
+      equipo: row.equipo,
+      periodo: row.periodo,
+      fecha_carga: row.fecha_carga,
+      archivo_origen: row.archivo_origen
+    }));
+    for (let index = 0; index < payload.length; index += 500) {
+      const { error } = await supabaseClient
+        .from("intramuros_participantes")
+        .upsert(payload.slice(index, index + 500), { onConflict: "matricula,torneo,equipo,periodo" });
+      if (error) throw error;
+    }
+    await loadIntramurosParticipants();
+    intramurosUploadSummary = {
+      fileName: file.name,
+      processed: parsed.processed,
+      inserted,
+      updated,
+      duplicates: parsed.duplicateRows.length,
+      errors: parsed.errorRows.length,
+      ignoredColumns: parsed.ignoredColumns,
+      messages: [],
+      importedAt: new Date().toISOString()
+    };
+    addAudit("intramuros", `${parsed.rows.length} participantes procesados desde ${file.name}`);
+    toast(`${parsed.rows.length.toLocaleString("es-MX")} registros de Intramuros guardados`);
+  } catch (error) {
+    console.error(error);
+    intramurosUploadSummary = {
+      fileName: file.name,
+      processed: 0,
+      inserted: 0,
+      updated: 0,
+      duplicates: 0,
+      errors: 1,
+      ignoredColumns: [],
+      messages: [supabaseErrorDetail(error) || error.message || "No se pudo cargar el archivo"],
+      importedAt: new Date().toISOString()
+    };
+    toast(`No se pudo cargar Intramuros: ${supabaseErrorDetail(error) || error.message}`);
+  } finally {
+    intramurosImporting = false;
+    render();
+  }
+}
+
+function intramurosRoleColumnIndex(headers, aliases) {
+  const normalized = headers.map(headerKey);
+  return aliases.map(headerKey).map((alias) => normalized.indexOf(alias)).find((index) => index >= 0) ?? -1;
+}
+
+function intramurosGridRowsFromSheet(grid, sheetName, fileName) {
+  const roleRows = [];
+  const missingFields = new Set();
+  let currentTournament = sheetName && !/hoja|sheet/i.test(sheetName) ? sheetName : "";
+  let currentHeaders = [];
+  let currentColumns = null;
+  const aliases = {
+    torneo: ["Torneo", "Competencia", "Actividad"],
+    semana: ["Semana", "Jornada"],
+    fecha: ["Fecha", "Dia", "Día"],
+    hora: ["Hora", "Horario"],
+    cancha: ["Cancha", "Sede", "Instalacion", "Instalación"],
+    grupo: ["Grupo"],
+    rama: ["Rama", "Categoria", "Categoría"],
+    equipo_local: ["Equipo local", "Local", "Equipo 1", "Localía"],
+    equipo_visitante: ["Equipo visitante", "Visitante", "Equipo 2", "Rival"],
+    resultado: ["Resultado", "Marcador", "Score"],
+    observaciones: ["Observaciones", "Comentario", "Notas"],
+    estatus_partido: ["Estatus", "Estado", "Status"],
+    periodo: ["Periodo", "Período"]
+  };
+  grid.forEach((cells, index) => {
+    const values = cells.map((value) => String(value ?? "").trim());
+    const nonEmpty = values.filter(Boolean);
+    if (!nonEmpty.length) return;
+    const headerHits = values.map(headerKey).filter((value) => Object.values(aliases).flat().map(headerKey).includes(value)).length;
+    if (headerHits >= 2) {
+      currentHeaders = values;
+      currentColumns = Object.fromEntries(Object.entries(aliases).map(([field, fieldAliases]) => [field, intramurosRoleColumnIndex(currentHeaders, fieldAliases)]));
+      return;
+    }
+    if (nonEmpty.length === 1 && !/\d{1,2}[:/.-]\d{1,2}/.test(nonEmpty[0]) && index < 20) {
+      currentTournament = nonEmpty[0];
+      return;
+    }
+    if (!currentColumns) return;
+    const pick = (field) => currentColumns[field] >= 0 ? values[currentColumns[field]] : "";
+    const row = {
+      torneo: pick("torneo") || currentTournament || "",
+      semana: pick("semana"),
+      fecha: pick("fecha"),
+      hora: pick("hora"),
+      cancha: pick("cancha"),
+      grupo: pick("grupo"),
+      rama: pick("rama"),
+      equipo_local: pick("equipo_local"),
+      equipo_visitante: pick("equipo_visitante"),
+      resultado: pick("resultado"),
+      observaciones: pick("observaciones"),
+      estatus_partido: pick("estatus_partido") || (pick("resultado") ? "Con resultado" : "Pendiente"),
+      periodo: pick("periodo") || (intramurosFilters.period !== "todos" ? intramurosFilters.period : "Sin periodo"),
+      fecha_carga: new Date().toISOString(),
+      archivo_origen: fileName,
+      __sheetName: sheetName,
+      __rowNumber: index + 1
+    };
+    ["torneo", "fecha", "hora", "cancha", "equipo_local", "equipo_visitante"].forEach((field) => {
+      if (!row[field]) missingFields.add(field);
+    });
+    if (row.torneo || row.fecha || row.hora || row.cancha || row.equipo_local || row.equipo_visitante) roleRows.push(row);
+  });
+  return { rows: roleRows, missingFields: Array.from(missingFields) };
+}
+
+async function parseIntramurosRolesFile(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  const allRows = [];
+  const missingFields = new Set();
+  if (["xlsx", "xls"].includes(ext) && window.XLSX) {
+    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
+    workbook.SheetNames.forEach((sheetName) => {
+      const grid = window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
+      const result = intramurosGridRowsFromSheet(grid, sheetName, file.name);
+      result.rows.forEach((row) => allRows.push(row));
+      result.missingFields.forEach((field) => missingFields.add(field));
+    });
+  } else {
+    const grid = parseCsv(await file.text());
+    const result = intramurosGridRowsFromSheet(grid, "CSV", file.name);
+    result.rows.forEach((row) => allRows.push(row));
+    result.missingFields.forEach((field) => missingFields.add(field));
+  }
+  const seen = new Set();
+  const duplicates = [];
+  const validRows = [];
+  allRows.forEach((row) => {
+    const key = intramurosRoleKey(row);
+    if (seen.has(key)) {
+      duplicates.push(row);
+    } else {
+      seen.add(key);
+      validRows.push(row);
+    }
+  });
+  return { rows: validRows, duplicates, missingFields: Array.from(missingFields), processed: allRows.length };
+}
+
+async function importIntramurosRoles(file) {
+  if (!file) return;
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("intramuros")) {
+    toast("Ingresa con Supabase y permisos de Intramuros para cargar roles");
+    return;
+  }
+  intramurosRolesImporting = true;
+  render();
+  try {
+    const parsed = await parseIntramurosRolesFile(file);
+    if (!parsed.rows.length) {
+      intramurosRolesUploadSummary = {
+        fileName: file.name,
+        processed: parsed.processed,
+        inserted: 0,
+        updated: 0,
+        duplicates: parsed.duplicates.length,
+        errors: 1,
+        missingFields: parsed.missingFields,
+        importedAt: new Date().toISOString(),
+        messages: ["No se detectaron juegos con encabezados confiables."]
+      };
+      toast("No se detectaron juegos en el archivo");
+      return;
+    }
+    const existingKeys = new Set(intramurosGameRoles.map(intramurosRoleKey));
+    const inserted = parsed.rows.filter((row) => !existingKeys.has(intramurosRoleKey(row))).length;
+    const updated = parsed.rows.length - inserted;
+    const payload = parsed.rows.map((row) => ({
+      torneo: row.torneo || "Sin torneo",
+      semana: row.semana || null,
+      fecha: row.fecha || null,
+      hora: row.hora || null,
+      cancha: row.cancha || null,
+      grupo: row.grupo || null,
+      rama: row.rama || null,
+      equipo_local: row.equipo_local || null,
+      equipo_visitante: row.equipo_visitante || null,
+      resultado: row.resultado || null,
+      observaciones: row.observaciones || null,
+      estatus_partido: row.estatus_partido || "Pendiente",
+      periodo: row.periodo || "Sin periodo",
+      fecha_carga: row.fecha_carga,
+      archivo_origen: row.archivo_origen
+    }));
+    for (let index = 0; index < payload.length; index += 500) {
+      const { error } = await supabaseClient
+        .from("intramuros_roles_juego")
+        .upsert(payload.slice(index, index + 500), { onConflict: "torneo,fecha,hora,cancha,equipo_local,equipo_visitante" });
+      if (error) throw error;
+    }
+    await loadIntramurosParticipants();
+    intramurosRolesUploadSummary = {
+      fileName: file.name,
+      processed: parsed.processed,
+      inserted,
+      updated,
+      duplicates: parsed.duplicates.length,
+      errors: 0,
+      missingFields: parsed.missingFields,
+      importedAt: new Date().toISOString(),
+      messages: []
+    };
+    addAudit("intramuros", `${parsed.rows.length} juegos cargados desde ${file.name}`);
+    toast(`${parsed.rows.length.toLocaleString("es-MX")} roles de juego guardados`);
+  } catch (error) {
+    console.error(error);
+    intramurosRolesUploadSummary = {
+      fileName: file.name,
+      processed: 0,
+      inserted: 0,
+      updated: 0,
+      duplicates: 0,
+      errors: 1,
+      missingFields: [],
+      importedAt: new Date().toISOString(),
+      messages: [supabaseErrorDetail(error) || error.message || "No se pudo cargar roles"]
+    };
+    toast(`No se pudo cargar Roles: ${supabaseErrorDetail(error) || error.message}`);
+  } finally {
+    intramurosRolesImporting = false;
+    render();
+  }
+}
+
 function downloadParticipationTemplate(areaId) {
   const config = participationUploadConfigs[areaId];
   const headers = Object.keys(config.sample[0] || {});
@@ -6097,6 +6631,533 @@ function renderExecutiveGeneralDashboard() {
   `;
 }
 
+function intramurosFilterOptions(field) {
+  return Array.from(new Set(intramurosParticipants.map((row) => row[field]).filter(Boolean)))
+    .sort((a, b) => String(a).localeCompare(String(b), "es-MX"));
+}
+
+function filteredIntramurosParticipants() {
+  const search = normalizeText(intramurosFilters.search || "");
+  return intramurosParticipants.filter((row) => {
+    const periodMatch = intramurosFilters.period === "todos" || row.periodo === intramurosFilters.period;
+    const tournamentMatch = intramurosFilters.tournament === "todos" || row.torneo === intramurosFilters.tournament;
+    const branchMatch = intramurosFilters.branch === "todos" || row.rama === intramurosFilters.branch;
+    const schoolMatch = intramurosFilters.school === "todos" || row.escuela === intramurosFilters.school;
+    const genderMatch = intramurosFilters.gender === "todos" || row.genero === intramurosFilters.gender;
+    const programMatch = intramurosFilters.program === "todos" || row.programa === intramurosFilters.program;
+    const haystack = normalizeText([row.matricula, row.genero, row.programa, row.modalidad, row.escuela, row.tipo_actividad, row.torneo, row.rama, row.equipo].join(" "));
+    const searchMatch = !search || haystack.includes(search);
+    return periodMatch && tournamentMatch && branchMatch && schoolMatch && genderMatch && programMatch && searchMatch;
+  });
+}
+
+function intramurosGroupCounts(rows, field, uniqueByMatricula = false) {
+  const groups = new Map();
+  rows.forEach((row) => {
+    const label = row[field] || "Sin dato";
+    if (!groups.has(label)) groups.set(label, uniqueByMatricula ? new Set() : 0);
+    if (uniqueByMatricula) {
+      groups.get(label).add(row.matricula);
+    } else {
+      groups.set(label, groups.get(label) + 1);
+    }
+  });
+  return Array.from(groups.entries())
+    .map(([label, value]) => ({ label, value: uniqueByMatricula ? value.size : value }))
+    .sort((a, b) => b.value - a.value || String(a.label).localeCompare(String(b.label), "es-MX"));
+}
+
+function intramurosTeamsByTournament(rows) {
+  const groups = new Map();
+  rows.forEach((row) => {
+    const tournament = row.torneo || "Sin torneo";
+    if (!groups.has(tournament)) groups.set(tournament, new Set());
+    groups.get(tournament).add(row.equipo || "Sin equipo");
+  });
+  return Array.from(groups.entries())
+    .map(([label, value]) => ({ label, value: value.size }))
+    .sort((a, b) => b.value - a.value || String(a.label).localeCompare(String(b.label), "es-MX"));
+}
+
+function renderIntramurosFilter(name, label, options) {
+  return `
+    <label>${label}
+      <select class="intramuros-filter" data-filter="${name}">
+        <option value="todos" ${intramurosFilters[name] === "todos" ? "selected" : ""}>Todos</option>
+        ${options.map((value) => `<option value="${escapeHtml(value)}" ${intramurosFilters[name] === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+      </select>
+    </label>
+  `;
+}
+
+function renderIntramurosUploadSummary() {
+  if (!intramurosUploadSummary) {
+    return `<div class="upload-empty">Sin carga reciente en esta sesión.</div>`;
+  }
+  const summary = intramurosUploadSummary;
+  return `
+    <div class="intramuros-load-summary">
+      <article><span>Procesados</span><strong>${summary.processed.toLocaleString("es-MX")}</strong></article>
+      <article><span>Nuevos</span><strong>${summary.inserted.toLocaleString("es-MX")}</strong></article>
+      <article><span>Actualizados</span><strong>${summary.updated.toLocaleString("es-MX")}</strong></article>
+      <article><span>Duplicados ignorados</span><strong>${summary.duplicates.toLocaleString("es-MX")}</strong></article>
+      <article><span>Con error</span><strong>${summary.errors.toLocaleString("es-MX")}</strong></article>
+      <article><span>Última carga</span><strong>${new Date(summary.importedAt).toLocaleString("es-MX")}</strong><em>${escapeHtml(summary.fileName)}</em></article>
+      ${summary.ignoredColumns?.length ? `<p>Columnas ignoradas por privacidad: ${summary.ignoredColumns.map(escapeHtml).join(", ")}.</p>` : ""}
+      ${summary.messages?.map((message) => `<p class="red">${escapeHtml(message)}</p>`).join("") || ""}
+    </div>
+  `;
+}
+
+function renderIntramurosParticipantUploadView() {
+  return `
+    <section class="upload-center intramuros-dashboard">
+      <div class="permission-strip">
+        <span>Carga de Registro de Participantes: Omar conserva su Excel; WellSync guarda en Supabase y analiza sin nombres.</span>
+        <span>${intramurosCloudAvailable ? `${intramurosParticipants.length.toLocaleString("es-MX")} registros en Supabase` : "Falta activar intramuros_participantes en Supabase"}</span>
+      </div>
+      <div class="upload-center-grid">
+        <article class="upload-info-panel">
+          <p class="eyebrow">Fase 1</p>
+          <h3>Cargar Registro de Participantes</h3>
+          <p>Sube el Excel/CSV de Omar. Si trae nombres o apellidos, WellSync los ignora completamente y solo usa la matrícula y campos operativos.</p>
+          <div class="upload-required-list">
+            <strong>Campos guardados</strong>
+            ${["Matrícula", "Género", "Programa", "Modalidad", "Escuela", "Tipo de actividad", "Comentario como torneo", "Rama", "Equipo", "Periodo"].map((column) => `<span>${column}</span>`).join("")}
+          </div>
+          <div class="upload-template-preview">
+            <strong>Vista esperada</strong>
+            <table>
+              <thead><tr><th>Matrícula</th><th>Comentario</th><th>Rama</th><th>Equipo</th><th>Escuela</th></tr></thead>
+              <tbody><tr><td>A01234567</td><td>Torneo interno</td><td>Varonil</td><td>Equipo A</td><td>Negocios</td></tr></tbody>
+            </table>
+          </div>
+          <ul class="upload-recommendations">
+            <li>No se guardan nombres ni apellidos.</li>
+            <li>Comentario se usa como torneo cuando identifica la competencia.</li>
+            <li>La llave evita duplicados por matrícula + torneo + equipo + periodo.</li>
+          </ul>
+        </article>
+        <article class="upload-drop-panel">
+          <p class="eyebrow">Carga segura</p>
+          <h3>📤 Cargar Registro de Participantes</h3>
+          <label class="upload-drop-zone" id="intramurosUploadDrop">
+            <input id="intramurosParticipantsFile" type="file" accept=".csv,.xlsx,.xls" hidden />
+            <strong>${intramurosImporting ? "Cargando archivo..." : "Seleccionar Excel / CSV"}</strong>
+            <span>Arrastra aquí o selecciona el archivo de Omar</span>
+            <em>Fuente final: Supabase</em>
+          </label>
+          ${renderIntramurosUploadSummary()}
+        </article>
+      </div>
+    </section>
+  `;
+}
+
+function renderIntramurosRolesUploadSummary() {
+  if (!intramurosRolesUploadSummary) return `<div class="upload-empty">Sin roles cargados en esta sesión.</div>`;
+  const summary = intramurosRolesUploadSummary;
+  return `
+    <div class="intramuros-load-summary">
+      <article><span>Procesados</span><strong>${summary.processed.toLocaleString("es-MX")}</strong></article>
+      <article><span>Nuevos</span><strong>${summary.inserted.toLocaleString("es-MX")}</strong></article>
+      <article><span>Actualizados</span><strong>${summary.updated.toLocaleString("es-MX")}</strong></article>
+      <article><span>Duplicados ignorados</span><strong>${summary.duplicates.toLocaleString("es-MX")}</strong></article>
+      <article><span>Con error</span><strong>${summary.errors.toLocaleString("es-MX")}</strong></article>
+      <article><span>Última carga</span><strong>${new Date(summary.importedAt).toLocaleString("es-MX")}</strong><em>${escapeHtml(summary.fileName)}</em></article>
+      ${summary.missingFields?.length ? `<p>Campos no detectados en algunas filas: ${summary.missingFields.map(escapeHtml).join(", ")}.</p>` : ""}
+      ${summary.messages?.map((message) => `<p class="red">${escapeHtml(message)}</p>`).join("") || ""}
+    </div>
+  `;
+}
+
+function intramurosRoleHasResult(row) {
+  return Boolean(String(row.resultado || "").trim()) || normalizeText(row.estatus_partido).includes("resultado");
+}
+
+function intramurosRoleDay(row) {
+  const value = String(row.fecha || "").trim();
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Sin fecha" : date.toLocaleDateString("es-MX", { weekday: "long" });
+}
+
+function intramurosTournamentSummaries() {
+  const tournamentNames = Array.from(new Set([
+    ...intramurosParticipants.map((row) => row.torneo),
+    ...intramurosGameRoles.map((row) => row.torneo)
+  ].filter(Boolean))).sort((a, b) => a.localeCompare(b, "es-MX"));
+  return tournamentNames.map((torneo) => {
+    const participants = intramurosParticipants.filter((row) => row.torneo === torneo);
+    const games = intramurosGameRoles.filter((row) => row.torneo === torneo);
+    const withResult = games.filter(intramurosRoleHasResult).length;
+    const branches = Array.from(new Set([...participants.map((row) => row.rama), ...games.map((row) => row.rama)].filter(Boolean)));
+    const teams = new Set([...participants.map((row) => row.equipo), ...games.flatMap((row) => [row.equipo_local, row.equipo_visitante])].filter(Boolean));
+    const uniqueParticipants = new Set(participants.map((row) => row.matricula).filter(Boolean));
+    const progress = games.length ? Math.round((withResult / games.length) * 100) : 0;
+    return {
+      torneo,
+      rama: branches.join(", ") || "Sin rama",
+      totalParticipants: uniqueParticipants.size,
+      totalRecords: participants.length,
+      teams: teams.size,
+      games: games.length,
+      withResult,
+      pending: Math.max(0, games.length - withResult),
+      progress,
+      status: games.length ? (progress >= 100 ? "Cerrado" : progress ? "En curso" : "Programado") : "Sin rol"
+    };
+  });
+}
+
+function renderIntramurosRolesDashboard() {
+  const roles = intramurosGameRoles;
+  const withResult = roles.filter(intramurosRoleHasResult).length;
+  const pending = Math.max(0, roles.length - withResult);
+  const activeTournaments = new Set(roles.map((row) => row.torneo).filter(Boolean)).size;
+  return `
+    <section class="intramuros-roles-section">
+      <div class="budget-table-heading">
+        <div><p class="eyebrow">Fase 3</p><h3>Roles de Juego</h3></div>
+        <span>${roles.length.toLocaleString("es-MX")} juegos cargados</span>
+      </div>
+      <div class="upload-center-grid">
+        <article class="upload-info-panel">
+          <h3>📤 Cargar Roles de Juego</h3>
+          <p>Lee roles semanales aunque vengan por bloques. Si un campo no se detecta, queda vacío y se reporta.</p>
+          <div class="upload-required-list">
+            <strong>Campos que intenta extraer</strong>
+            ${["torneo", "semana", "fecha", "hora", "cancha", "grupo", "rama", "equipo_local", "equipo_visitante", "resultado", "observaciones", "estatus_partido"].map((field) => `<span>${field}</span>`).join("")}
+          </div>
+        </article>
+        <article class="upload-drop-panel">
+          <label class="upload-drop-zone" id="intramurosRolesUploadDrop">
+            <input id="intramurosRolesFile" type="file" accept=".csv,.xlsx,.xls" hidden />
+            <strong>${intramurosRolesImporting ? "Cargando roles..." : "Seleccionar Roles de Juego"}</strong>
+            <span>Excel/CSV semanal de Omar</span>
+            <em>No reemplaza roles anteriores</em>
+          </label>
+          ${renderIntramurosRolesUploadSummary()}
+        </article>
+      </div>
+      <div class="upload-kpi-grid">
+        <article><span>Total juegos programados</span><strong>${roles.length.toLocaleString("es-MX")}</strong><em>roles cargados</em></article>
+        <article><span>Juegos por semana</span><strong>${intramurosGroupCounts(roles, "semana").length.toLocaleString("es-MX")}</strong><em>semanas</em></article>
+        <article><span>Juegos por día</span><strong>${intramurosGroupCounts(roles.map((row) => ({ day: intramurosRoleDay(row) })), "day").length.toLocaleString("es-MX")}</strong><em>días</em></article>
+        <article><span>Juegos por cancha</span><strong>${new Set(roles.map((row) => row.cancha).filter(Boolean)).size.toLocaleString("es-MX")}</strong><em>canchas</em></article>
+        <article><span>Torneos activos con rol</span><strong>${activeTournaments.toLocaleString("es-MX")}</strong><em>torneos</em></article>
+        <article><span>Con resultado</span><strong>${withResult.toLocaleString("es-MX")}</strong><em>${pending.toLocaleString("es-MX")} pendientes</em></article>
+      </div>
+      <div class="upload-chart-grid">
+        ${renderUploadBars("Juegos por torneo", intramurosGroupCounts(roles, "torneo"))}
+        ${renderUploadBars("Juegos por semana", intramurosGroupCounts(roles, "semana"))}
+        ${renderUploadBars("Juegos por día de la semana", intramurosGroupCounts(roles.map((row) => ({ day: intramurosRoleDay(row) })), "day"))}
+        ${renderUploadBars("Uso de canchas", intramurosGroupCounts(roles, "cancha"))}
+        ${renderUploadBars("Resultado vs pendientes", [{ label: "Con resultado", value: withResult }, { label: "Pendientes", value: pending }])}
+        ${renderUploadBars("Top torneos con más juegos", intramurosGroupCounts(roles, "torneo").slice(0, 10))}
+      </div>
+    </section>
+  `;
+}
+
+function intramurosOperationMetrics(row) {
+  const teams = row.equipos_varoniles + row.equipos_femeniles + row.equipos_mixtos;
+  const students = row.alumnos_varonil + row.alumnos_femenil;
+  const effectiveness = row.juegos_programados ? Math.round((row.juegos_realizados / row.juegos_programados) * 1000) / 10 : 0;
+  const retention = students ? Math.round(((students - row.bajas) / students) * 1000) / 10 : 0;
+  return { teams, students, effectiveness, retention: Math.max(0, retention) };
+}
+
+function intramurosOperationSummary() {
+  const totals = intramurosOperationRows.reduce((acc, row) => {
+    const metrics = intramurosOperationMetrics(row);
+    acc.teams += metrics.teams;
+    acc.students += metrics.students;
+    acc.games += row.juegos_programados;
+    acc.done += row.juegos_realizados;
+    acc.bajas += row.bajas;
+    if (normalizeText(row.estatus).includes("terminado")) acc.finished += 1;
+    return acc;
+  }, { teams: 0, students: 0, games: 0, done: 0, bajas: 0, finished: 0 });
+  totals.effectiveness = totals.games ? Math.round((totals.done / totals.games) * 1000) / 10 : 0;
+  totals.retention = totals.students ? Math.round(((totals.students - totals.bajas) / totals.students) * 1000) / 10 : 0;
+  return totals;
+}
+
+function renderIntramurosOperationCell(row, field, type = "number") {
+  const value = row[field] ?? "";
+  if (field === "estatus") {
+    return `
+      <select class="intramuros-op-input" data-op-id="${row.id}" data-op-field="${field}">
+        ${["En captura", "En curso", "Terminado", "Cancelado"].map((status) => `<option value="${status}" ${row.estatus === status ? "selected" : ""}>${status}</option>`).join("")}
+      </select>
+    `;
+  }
+  return `<input class="intramuros-op-input" data-op-id="${row.id}" data-op-field="${field}" type="${type}" min="0" value="${escapeHtml(value)}" />`;
+}
+
+function renderIntramurosOmarWorkspace() {
+  const summary = intramurosOperationSummary();
+  const automaticRows = intramurosTournamentSummaries().slice(0, 6);
+  return `
+    <section class="intramuros-omar-direct">
+      <div class="budget-table-heading">
+        <div>
+          <p class="eyebrow">Mesa de trabajo de Omar</p>
+          <h3>Control directo de torneos Intramuros</h3>
+        </div>
+        <span>${intramurosOperationRows.length.toLocaleString("es-MX")} torneos capturados · ${intramurosOperationCloudAvailable ? "Supabase conectado" : "Modo local"}</span>
+      </div>
+      <div class="intramuros-op-kpis">
+        <article><span>Equipos</span><strong>${summary.teams.toLocaleString("es-MX")}</strong><em>capturados</em></article>
+        <article><span>Alumnos</span><strong>${summary.students.toLocaleString("es-MX")}</strong><em>sin nombres</em></article>
+        <article><span>Juegos prog.</span><strong>${summary.games.toLocaleString("es-MX")}</strong><em>planeados</em></article>
+        <article><span>Juegos realizados</span><strong>${summary.done.toLocaleString("es-MX")}</strong><em>avance</em></article>
+        <article><span>% efectividad</span><strong>${summary.effectiveness}%</strong><em>realizados / prog.</em></article>
+        <article><span>% retención</span><strong>${summary.retention}%</strong><em>alumnos - bajas</em></article>
+      </div>
+      <div class="intramuros-op-form">
+        <label>Tipo
+          <select id="intramurosOpTipo">
+            <option>Individual</option>
+            <option>Conjunto</option>
+            <option>Estudiantil</option>
+            <option>Relámpago</option>
+            <option>Selectivo</option>
+          </select>
+        </label>
+        <label>Nombre del torneo
+          <input id="intramurosOpTorneo" placeholder="Ej. Futbol soccer" />
+        </label>
+        <label>Periodo
+          <input id="intramurosOpPeriodo" placeholder="Ej. Febrero - Junio 2026" />
+        </label>
+        <label>Estatus
+          <select id="intramurosOpEstatus">
+            <option>En captura</option>
+            <option>En curso</option>
+            <option>Terminado</option>
+            <option>Cancelado</option>
+          </select>
+        </label>
+        <button class="primary-btn" type="button" id="addIntramurosOperationRow">Agregar torneo</button>
+      </div>
+      <div class="table-wrap intramuros-op-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo</th><th>Nombre del torneo</th><th>Periodo</th><th>Eq. V</th><th>Eq. F</th><th>Eq. M</th><th>Total equipos</th><th>Alum. V</th><th>Alum. F</th><th>Total alumnos</th><th>Juegos prog.</th><th>Juegos realizados</th><th>% efectividad</th><th>Bajas</th><th>% retención</th><th>Estatus</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${intramurosOperationRows.length ? intramurosOperationRows.map((row) => {
+              const metrics = intramurosOperationMetrics(row);
+              return `
+                <tr>
+                  <td>${renderIntramurosOperationCell(row, "tipo", "text")}</td>
+                  <td>${renderIntramurosOperationCell(row, "torneo", "text")}</td>
+                  <td>${renderIntramurosOperationCell(row, "periodo", "text")}</td>
+                  <td>${renderIntramurosOperationCell(row, "equipos_varoniles")}</td>
+                  <td>${renderIntramurosOperationCell(row, "equipos_femeniles")}</td>
+                  <td>${renderIntramurosOperationCell(row, "equipos_mixtos")}</td>
+                  <td><strong>${metrics.teams.toLocaleString("es-MX")}</strong></td>
+                  <td>${renderIntramurosOperationCell(row, "alumnos_varonil")}</td>
+                  <td>${renderIntramurosOperationCell(row, "alumnos_femenil")}</td>
+                  <td><strong>${metrics.students.toLocaleString("es-MX")}</strong></td>
+                  <td>${renderIntramurosOperationCell(row, "juegos_programados")}</td>
+                  <td>${renderIntramurosOperationCell(row, "juegos_realizados")}</td>
+                  <td><strong>${metrics.effectiveness}%</strong></td>
+                  <td>${renderIntramurosOperationCell(row, "bajas")}</td>
+                  <td><strong>${metrics.retention}%</strong></td>
+                  <td>${renderIntramurosOperationCell(row, "estatus")}</td>
+                  <td><button class="danger-btn" type="button" data-delete-intramuros-op="${row.id}">Borrar</button></td>
+                </tr>
+              `;
+            }).join("") : `<tr><td colspan="17">Aún no hay torneos capturados directo en WellSync. Agrega el primer torneo arriba.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+      <div class="intramuros-op-note">
+        <strong>Resumen automático conectado:</strong>
+        ${automaticRows.length ? automaticRows.map((row) => `<span>${escapeHtml(row.torneo)}: ${row.participants.toLocaleString("es-MX")} participantes, ${row.games.toLocaleString("es-MX")} juegos</span>`).join("") : `<span>Cuando subas participantes y roles, aquí aparecerá el cruce automático por torneo.</span>`}
+      </div>
+    </section>
+  `;
+}
+
+function renderTournamentCards() {
+  const summaries = intramurosTournamentSummaries();
+  return `
+    <section class="intramuros-tournament-section">
+      <div class="budget-table-heading">
+        <div><p class="eyebrow">Fase 4</p><h3>Expediente del Torneo</h3></div>
+        <button class="secondary-btn compact-action" type="button" disabled>Generar Archivo Final</button>
+      </div>
+      <div class="intramuros-tournament-grid">
+        ${summaries.length ? summaries.map((row) => `
+          <article class="intramuros-tournament-card">
+            <div><h3>${escapeHtml(row.torneo)}</h3><span>${escapeHtml(row.status)}</span></div>
+            <p>${escapeHtml(row.rama)}</p>
+            <dl>
+              <div><dt>Participantes</dt><dd>${row.totalParticipants}</dd></div>
+              <div><dt>Equipos</dt><dd>${row.teams}</dd></div>
+              <div><dt>Juegos</dt><dd>${row.games}</dd></div>
+              <div><dt>Con resultado</dt><dd>${row.withResult}</dd></div>
+            </dl>
+            <div class="budget-area-track"><span style="width:${row.progress}%"></span></div>
+            <strong>${row.progress}% avance</strong>
+            <button class="primary-btn compact-action" type="button" data-open-intramuros-tournament="${escapeHtml(row.torneo)}">Abrir expediente</button>
+          </article>
+        `).join("") : `<div class="upload-empty">Carga participantes o roles para ver expedientes.</div>`}
+      </div>
+    </section>
+  `;
+}
+
+function renderTournamentExpediente() {
+  if (!selectedIntramurosTournament) return "";
+  const torneo = selectedIntramurosTournament;
+  const participants = intramurosParticipants.filter((row) => row.torneo === torneo);
+  const games = intramurosGameRoles.filter((row) => row.torneo === torneo);
+  const summary = intramurosTournamentSummaries().find((row) => row.torneo === torneo) || {};
+  const withResult = games.filter(intramurosRoleHasResult);
+  const pending = games.filter((row) => !intramurosRoleHasResult(row));
+  const genderRows = intramurosGroupCounts(participants, "genero", true);
+  const teamCount = Math.max(1, new Set(participants.map((row) => row.equipo).filter(Boolean)).size);
+  const participantsPerTeam = Math.round((new Set(participants.map((row) => row.matricula).filter(Boolean)).size / teamCount) * 10) / 10;
+  return `
+    <section class="intramuros-expediente">
+      <div class="budget-table-heading">
+        <div><p class="eyebrow">Expediente activo</p><h3>${escapeHtml(torneo)}</h3></div>
+        <button class="ghost-btn compact-action" type="button" data-close-intramuros-tournament>Cerrar expediente</button>
+      </div>
+      <div class="exec-grid three">
+        <article class="exec-panel"><h3>General</h3><p>Torneo: ${escapeHtml(torneo)}</p><p>Tipo de actividad: ${escapeHtml(participants[0]?.tipo_actividad || "Sin dato")}</p><p>Rama: ${escapeHtml(summary.rama || "Sin rama")}</p><p>Periodo: ${escapeHtml(participants[0]?.periodo || games[0]?.periodo || "Sin periodo")}</p><p>Estado: ${escapeHtml(summary.status || "Sin estado")}</p><p>Responsable: Sin dato</p><p>Observaciones: ${escapeHtml(games.find((row) => row.observaciones)?.observaciones || "Sin dato")}</p></article>
+        <article class="exec-panel"><h3>Participantes</h3>${renderUploadBars("Programas principales", intramurosGroupCounts(participants, "programa", true).slice(0, 6))}</article>
+        <article class="exec-panel"><h3>Indicadores</h3><p>% avance: ${summary.progress || 0}%</p><p>Participantes por equipo: ${participantsPerTeam}</p><p>Equipos promedio por rama: ${summary.teams || 0}</p>${renderUploadBars("Género", genderRows)}</article>
+      </div>
+      <div class="upload-kpi-grid">
+        <article><span>Participantes únicos</span><strong>${(summary.totalParticipants || 0).toLocaleString("es-MX")}</strong></article>
+        <article><span>Total registros</span><strong>${participants.length.toLocaleString("es-MX")}</strong></article>
+        <article><span>Equipos</span><strong>${(summary.teams || 0).toLocaleString("es-MX")}</strong></article>
+        <article><span>Juegos programados</span><strong>${games.length.toLocaleString("es-MX")}</strong></article>
+        <article><span>Juegos con resultado</span><strong>${withResult.length.toLocaleString("es-MX")}</strong></article>
+        <article><span>Juegos pendientes</span><strong>${pending.length.toLocaleString("es-MX")}</strong></article>
+      </div>
+      <div class="exec-grid two">
+        <article class="exec-panel"><h3>Próximos juegos</h3>${renderUploadBars("Pendientes", pending.slice(0, 8).map((row) => ({ label: `${row.fecha || "Sin fecha"} ${row.equipo_local || ""} vs ${row.equipo_visitante || ""}`, value: 1 })))}</article>
+        <article class="exec-panel"><h3>Últimos resultados</h3>${renderUploadBars("Resultados", withResult.slice(0, 8).map((row) => ({ label: `${row.equipo_local || ""} vs ${row.equipo_visitante || ""}: ${row.resultado || row.estatus_partido}`, value: 1 })))}</article>
+      </div>
+      <div class="exec-grid two">
+        <article class="exec-panel"><h3>Finanzas / Operación</h3><div class="upload-empty">Pendiente de conectar con costos / orden de compra.</div></article>
+        <article class="exec-panel"><h3>Reportes</h3><button class="secondary-btn" type="button" disabled>Generar Archivo Final</button><p>Preparado para futura fase.</p></article>
+      </div>
+      <div class="table-wrap">
+        <div class="budget-table-heading"><div><p class="eyebrow">Participantes</p><h3>Sin nombres ni apellidos</h3></div><span>${participants.length} registros</span></div>
+        <table><thead><tr><th>Matrícula</th><th>Género</th><th>Programa</th><th>Escuela</th><th>Rama</th><th>Equipo</th></tr></thead>
+        <tbody>${participants.slice(0, 120).map((row) => `<tr><td>${escapeHtml(row.matricula)}</td><td>${escapeHtml(row.genero)}</td><td>${escapeHtml(row.programa)}</td><td>${escapeHtml(row.escuela)}</td><td>${escapeHtml(row.rama)}</td><td>${escapeHtml(row.equipo)}</td></tr>`).join("") || `<tr><td colspan="6">Sin participantes cargados para este torneo.</td></tr>`}</tbody></table>
+      </div>
+    </section>
+  `;
+}
+
+function renderIntramurosDashboard() {
+  const rows = filteredIntramurosParticipants();
+  const uniqueParticipants = new Set(rows.map((row) => row.matricula).filter(Boolean)).size;
+  const tournaments = new Set(rows.map((row) => row.torneo).filter(Boolean)).size;
+  const teams = new Set(rows.map((row) => `${row.torneo}|${row.equipo}`).filter(Boolean)).size;
+  const men = rows.filter((row) => normalizeText(row.genero).includes("masculino") || normalizeText(row.genero) === "hombre").length;
+  const women = rows.filter((row) => normalizeText(row.genero).includes("femenino") || normalizeText(row.genero) === "mujer").length;
+  const schools = new Set(rows.map((row) => row.escuela).filter(Boolean)).size;
+  const tableRows = rows.slice(0, 250);
+  return `
+    <section class="upload-center intramuros-dashboard">
+      <div class="permission-strip">
+        <span>Intramuros analítico: Omar conserva su Excel; WellSync carga, guarda en Supabase y analiza sin nombres.</span>
+        <span>${intramurosCloudAvailable ? `${intramurosParticipants.length.toLocaleString("es-MX")} registros en Supabase` : "Falta activar intramuros_participantes en Supabase"}</span>
+      </div>
+
+      ${renderPlanningAreaDashboard(areas.find((item) => item.id === "intramuros") || { id: "intramuros", name: "Intramuros" })}
+
+      <div class="intramuros-omar-workspace">
+        <div>
+          <p class="eyebrow">Espacio de Omar</p>
+          <h3>Mesa operativa dentro de WellSync</h3>
+          <p>Omar puede capturar sus torneos directo aquí, y también cargar participantes o roles cuando quiera alimentar las gráficas. WellSync no muestra ni guarda nombres de alumnos en este espacio.</p>
+        </div>
+        <div class="intramuros-omar-actions">
+          <button class="primary-btn" type="button" data-jump="intramuros" data-target-view="schedules">Cargar Registro de Participantes</button>
+          <button class="secondary-btn" type="button" data-jump="intramuros" data-target-view="blueprint">Cargar Roles de Juego</button>
+        </div>
+      </div>
+
+      ${renderIntramurosOmarWorkspace()}
+
+      <div class="intramuros-filter-grid">
+        ${renderIntramurosFilter("period", "Periodo", intramurosFilterOptions("periodo"))}
+        ${renderIntramurosFilter("tournament", "Torneo", intramurosFilterOptions("torneo"))}
+        ${renderIntramurosFilter("branch", "Rama", intramurosFilterOptions("rama"))}
+        ${renderIntramurosFilter("school", "Escuela", intramurosFilterOptions("escuela"))}
+        ${renderIntramurosFilter("gender", "Género", intramurosFilterOptions("genero"))}
+        ${renderIntramurosFilter("program", "Programa", intramurosFilterOptions("programa"))}
+        <label>Buscar
+          <input id="intramurosSearch" value="${escapeHtml(intramurosFilters.search)}" placeholder="Matrícula, torneo, equipo..." />
+        </label>
+      </div>
+
+      <div class="upload-kpi-grid">
+        <article><span>Total participantes únicos</span><strong>${uniqueParticipants.toLocaleString("es-MX")}</strong><em>por matrícula</em></article>
+        <article><span>Total registros de participación</span><strong>${rows.length.toLocaleString("es-MX")}</strong><em>filtrados</em></article>
+        <article><span>Total torneos</span><strong>${tournaments.toLocaleString("es-MX")}</strong><em>activos</em></article>
+        <article><span>Total equipos</span><strong>${teams.toLocaleString("es-MX")}</strong><em>por torneo</em></article>
+        <article><span>Total hombres</span><strong>${men.toLocaleString("es-MX")}</strong><em>registros</em></article>
+        <article><span>Total mujeres</span><strong>${women.toLocaleString("es-MX")}</strong><em>registros</em></article>
+        <article><span>Escuelas representadas</span><strong>${schools.toLocaleString("es-MX")}</strong><em>filtradas</em></article>
+      </div>
+
+      <div class="upload-chart-grid">
+        ${renderUploadBars("Participantes por torneo", intramurosGroupCounts(rows, "torneo", true))}
+        ${renderUploadBars("Equipos por torneo", intramurosTeamsByTournament(rows))}
+        ${renderUploadBars("Participación por género", intramurosGroupCounts(rows, "genero"))}
+        ${renderUploadBars("Participación por escuela", intramurosGroupCounts(rows, "escuela"))}
+        ${renderUploadBars("Participación por rama", intramurosGroupCounts(rows, "rama"))}
+        ${renderUploadBars("Top 10 torneos con mayor participación", intramurosGroupCounts(rows, "torneo", true).slice(0, 10))}
+        ${renderUploadBars("Top 10 programas con mayor participación", intramurosGroupCounts(rows, "programa", true).slice(0, 10))}
+      </div>
+
+      ${renderTournamentCards()}
+      ${renderTournamentExpediente()}
+
+      <div class="table-wrap">
+        <div class="budget-table-heading">
+          <div>
+            <p class="eyebrow">Participantes Intramuros</p>
+            <h3>Tabla sin nombres ni apellidos</h3>
+          </div>
+          <span>${rows.length.toLocaleString("es-MX")} registros filtrados</span>
+        </div>
+        <table>
+          <thead><tr><th>Matrícula</th><th>Género</th><th>Programa</th><th>Modalidad</th><th>Escuela</th><th>Tipo de actividad</th><th>Torneo</th><th>Rama</th><th>Equipo</th></tr></thead>
+          <tbody>
+            ${tableRows.length ? tableRows.map((row) => `
+              <tr>
+                <td>${escapeHtml(row.matricula)}</td>
+                <td>${escapeHtml(row.genero)}</td>
+                <td>${escapeHtml(row.programa)}</td>
+                <td>${escapeHtml(row.modalidad)}</td>
+                <td>${escapeHtml(row.escuela)}</td>
+                <td>${escapeHtml(row.tipo_actividad)}</td>
+                <td>${escapeHtml(row.torneo)}</td>
+                <td>${escapeHtml(row.rama)}</td>
+                <td>${escapeHtml(row.equipo)}</td>
+              </tr>
+            `).join("") : `<tr><td colspan="9">Sin participantes para los filtros seleccionados.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
 function renderDashboard(area) {
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
   if (area.id === "configuracion") return renderConfigurationDashboard();
@@ -6104,7 +7165,8 @@ function renderDashboard(area) {
   if (area.id === "gimnasio") return renderGymDashboard();
   if (area.id === "clases") return renderClassesDashboard();
   if (area.id === "vivencia") return renderVivenciaDashboard();
-  if (area.id === "comunicacion" || area.id === "intramuros") return renderPlanningAreaDashboard(area);
+  if (area.id === "comunicacion") return renderPlanningAreaDashboard(area);
+  if (area.id === "intramuros") return renderIntramurosDashboard();
   if (area.id === "compras") return renderBudgetDashboard();
   if (area.id === "gamer" || area.id === "representativos") return renderParticipationUploadDashboard(area.id);
   const data = filteredStudents();
@@ -9518,8 +10580,6 @@ function inferBookingProfessor(activity) {
   return match?.professor || "Sin profesor asignado";
 }
 
-const BOOKING_DAY_ORDER = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-
 function bookingEmptyState() {
   return `<div class="empty-state">Carga el CSV de reservaciones para ver este análisis.</div>`;
 }
@@ -9846,10 +10906,12 @@ function render() {
   const vivenciaEventsTab = $("#vivenciaEventsViewButton");
   const budgetAllocationTab = $("#budgetAllocationViewButton");
   const budgetRequestTab = $("#budgetRequestViewButton");
+  const schedulesTab = $(`.segmented button[data-view="schedules"]`);
   const systemTab = $(`.segmented button[data-view="blueprint"]`);
   const isGym = activeArea === "gimnasio";
   const isVivencia = activeArea === "vivencia";
   const isBudget = activeArea === "compras";
+  const isIntramuros = activeArea === "intramuros";
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
   if (gradesTab) gradesTab.hidden = activeArea !== "clases";
   if (bookingTab) bookingTab.hidden = activeArea !== "clases";
@@ -9859,16 +10921,23 @@ function render() {
   if (vivenciaEventsTab) vivenciaEventsTab.hidden = !isVivencia;
   if (budgetAllocationTab) budgetAllocationTab.hidden = !isBudget;
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
-  $$(`.segmented button[data-view="schedules"], .segmented button[data-view="reports"]`)
-    .forEach((button) => { button.hidden = isGym; });
-  if (systemTab) systemTab.hidden = isGym || (!isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
+  if (schedulesTab) {
+    schedulesTab.hidden = isGym;
+    schedulesTab.textContent = isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
+  }
+  const reportsTab = $(`.segmented button[data-view="reports"]`);
+  if (reportsTab) reportsTab.hidden = isGym;
+  if (systemTab) {
+    systemTab.hidden = isGym || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
+    systemTab.textContent = isIntramuros ? "Cargar Roles de Juego" : "Sistema";
+  }
   const filtersBand = $(".filters-band");
   if (filtersBand) filtersBand.hidden = isGym || isBudget;
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isVivencia && activeView === "vivencia-events") activeView = "dashboard";
   if (!isBudget && ["budget-allocation", "budget-request"].includes(activeView)) activeView = "dashboard";
-  if (activeView === "blueprint" && !isLeadership() && !(activeArea === "clases" && canEditArea("clases"))) activeView = "dashboard";
+  if (activeView === "blueprint" && !isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases"))) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
   if (activeView === "booking" && activeArea !== "clases") activeView = "dashboard";
@@ -9889,7 +10958,7 @@ function render() {
               : activeView === "budget-request"
                 ? renderBudgetRequestView()
       : activeView === "schedules"
-        ? renderSchedules(area)
+        ? (isIntramuros ? renderIntramurosParticipantUploadView() : renderSchedules(area))
         : activeView === "booking"
           ? renderClassBookingDashboard()
         : activeView === "simulator"
@@ -9900,7 +10969,9 @@ function render() {
             ? renderClassGrades()
             : activeView === "evaluations"
               ? renderPhysicalEvaluationsDashboard()
-              : renderBlueprint(area);
+              : isIntramuros
+                ? renderIntramurosRolesDashboard()
+                : renderBlueprint(area);
   $$("[data-jump]").forEach((button) => button.addEventListener("click", () => {
     activeArea = button.dataset.jump;
     activeView = button.dataset.targetView || "dashboard";
@@ -10014,6 +11085,109 @@ function render() {
   $$("[data-import-participation-upload]").forEach((button) => button.addEventListener("click", async () => {
     await importParticipationUpload(button.dataset.importParticipationUpload);
   }));
+  $("#intramurosParticipantsFile")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importIntramurosParticipants(file);
+    event.target.value = "";
+  });
+  $("#intramurosRolesFile")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importIntramurosRoles(file);
+    event.target.value = "";
+  });
+  $("#intramurosUploadDrop")?.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    event.currentTarget.classList.add("dragging");
+  });
+  $("#intramurosUploadDrop")?.addEventListener("dragleave", (event) => {
+    event.currentTarget.classList.remove("dragging");
+  });
+  $("#intramurosUploadDrop")?.addEventListener("drop", async (event) => {
+    event.preventDefault();
+    event.currentTarget.classList.remove("dragging");
+    const file = event.dataTransfer?.files?.[0];
+    if (file) await importIntramurosParticipants(file);
+  });
+  $("#intramurosRolesUploadDrop")?.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    event.currentTarget.classList.add("dragging");
+  });
+  $("#intramurosRolesUploadDrop")?.addEventListener("dragleave", (event) => {
+    event.currentTarget.classList.remove("dragging");
+  });
+  $("#intramurosRolesUploadDrop")?.addEventListener("drop", async (event) => {
+    event.preventDefault();
+    event.currentTarget.classList.remove("dragging");
+    const file = event.dataTransfer?.files?.[0];
+    if (file) await importIntramurosRoles(file);
+  });
+  $$(".intramuros-filter").forEach((input) => input.addEventListener("input", (event) => {
+    intramurosFilters[event.target.dataset.filter] = event.target.value;
+    render();
+  }));
+  $("#intramurosSearch")?.addEventListener("input", (event) => {
+    intramurosFilters.search = event.target.value;
+    render();
+  });
+  $("#addIntramurosOperationRow")?.addEventListener("click", async () => {
+    const row = normalizeIntramurosOperationRow({
+      tipo: $("#intramurosOpTipo")?.value,
+      torneo: $("#intramurosOpTorneo")?.value,
+      periodo: $("#intramurosOpPeriodo")?.value,
+      estatus: $("#intramurosOpEstatus")?.value
+    });
+    if (!row.torneo) {
+      toast("Escribe el nombre del torneo");
+      return;
+    }
+    intramurosOperationRows = [...intramurosOperationRows, row];
+    saveIntramurosOperationRows();
+    const cloudRow = await saveIntramurosOperationRowCloud(row);
+    if (cloudRow) {
+      intramurosOperationRows = intramurosOperationRows.map((item) => item.id === row.id ? cloudRow : item);
+      saveIntramurosOperationRows();
+    }
+    addAudit("intramuros", `Torneo agregado a mesa Omar: ${row.torneo}`);
+    render();
+    toast(cloudRow ? "Torneo guardado en Supabase" : "Torneo guardado localmente");
+  });
+  $$(".intramuros-op-input").forEach((input) => input.addEventListener("change", async (event) => {
+    const { opId, opField } = event.target.dataset;
+    let updatedRow = null;
+    intramurosOperationRows = intramurosOperationRows.map((row) => {
+      if (row.id !== opId) return row;
+      updatedRow = normalizeIntramurosOperationRow({ ...row, [opField]: event.target.value });
+      return updatedRow;
+    });
+    saveIntramurosOperationRows();
+    if (updatedRow?.torneo) {
+      const cloudRow = await saveIntramurosOperationRowCloud(updatedRow);
+      if (cloudRow) {
+        intramurosOperationRows = intramurosOperationRows.map((row) => row.id === cloudRow.id ? cloudRow : row);
+        saveIntramurosOperationRows();
+      }
+    }
+    render();
+  }));
+  $$("[data-delete-intramuros-op]").forEach((button) => button.addEventListener("click", async () => {
+    const id = button.dataset.deleteIntramurosOp;
+    intramurosOperationRows = intramurosOperationRows.filter((row) => row.id !== id);
+    saveIntramurosOperationRows();
+    await deleteIntramurosOperationRowCloud(id);
+    addAudit("intramuros", "Torneo eliminado de mesa Omar");
+    render();
+    toast("Torneo eliminado");
+  }));
+  $$("[data-open-intramuros-tournament]").forEach((button) => button.addEventListener("click", () => {
+    selectedIntramurosTournament = button.dataset.openIntramurosTournament;
+    render();
+  }));
+  $("[data-close-intramuros-tournament]")?.addEventListener("click", () => {
+    selectedIntramurosTournament = "";
+    render();
+  });
   $$(".budget-filter").forEach((input) => input.addEventListener("input", (event) => {
     budgetFilters[event.target.dataset.filter] = event.target.value;
     render();
@@ -10971,3 +12145,4 @@ document.addEventListener("mock-config-save", () => {
 
 loadUniformesData();
 loadClassGradeSeedData().then(() => render());
+

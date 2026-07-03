@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>WellSync | Wellness Center</title>
-    <link rel="stylesheet" href="./styles.css?v=20260702-intramuros-supabase" />
+    <link rel="stylesheet" href="./styles.css?v=20260703-consolidado-booking-intramuros" />
   </head>
   <body>
     <div id="loginRoot"></div>
@@ -16,7 +16,7 @@
           </div>
           <div>
             <strong>WellSync</strong>
-            <span>DirecciÃ³n Deportiva</span>
+            <span>Dirección Deportiva</span>
           </div>
         </div>
         <nav id="areaNav" class="nav-list"></nav>
@@ -25,8 +25,8 @@
       <main class="workspace">
         <header class="topbar">
           <div class="search-wrap">
-            <span class="search-icon">âŒ•</span>
-            <input id="globalSearch" type="search" placeholder="Buscar mÃ³dulo, indicador, reporte o matrÃ­cula" />
+            <span class="search-icon">&#8981;</span>
+            <input id="globalSearch" type="search" placeholder="Buscar módulo, indicador, reporte o matrícula" />
           </div>
           <div class="top-actions">
             <select id="themeSelect" aria-label="Tema visual">
@@ -54,7 +54,7 @@
           </div>
           <div class="hero-kpis" id="executiveKpis"></div>
           <div class="hero-actions">
-            <a class="planning-link" href="https://planeacion-semestral-recsports.vercel.app/" target="_blank" rel="noopener noreferrer">PlaneaciÃ³n</a>
+            <a class="planning-link" href="https://planeacion-semestral-recsports.vercel.app/" target="_blank" rel="noopener noreferrer">Planeación</a>
             <img class="hero-borregos-logo" src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
           </div>
         </section>
@@ -83,7 +83,7 @@
             </select>
           </label>
           <label>
-            GÃ©nero
+            Género
             <select id="genderFilter">
               <option value="todos">Todos</option>
               <option>Femenino</option>
@@ -110,9 +110,9 @@
                 <button id="bookingViewButton" data-view="booking" hidden>Booking</button>
                 <button id="simulatorViewButton" data-view="simulator" hidden>Simulador</button>
                 <button id="gymAttendanceViewButton" data-view="gym-attendance" hidden>Registro de Asistencia</button>
-                <button id="gymRegistrationsViewButton" data-view="gym-registrations" hidden>Registro de MatrÃ­culas</button>
+                <button id="gymRegistrationsViewButton" data-view="gym-registrations" hidden>Registro de Matrículas</button>
                 <button data-view="reports">Reportes</button>
-                <button id="evaluationsViewButton" data-view="evaluations" hidden>Evaluaciones FÃ­sicas</button>
+                <button id="evaluationsViewButton" data-view="evaluations" hidden>Evaluaciones Físicas</button>
                 <button data-view="blueprint">Sistema</button>
               </div>
             </div>
@@ -126,6 +126,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="./app.js?v=20260702-intramuros-supabase"></script>
+    <script src="./app.js?v=20260703-consolidado-booking-intramuros"></script>
   </body>
 </html>
+

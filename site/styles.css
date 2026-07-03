@@ -4523,6 +4523,278 @@ tbody tr:hover td {
   text-align: center;
 }
 
+.intramuros-filter-grid {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 14px;
+}
+
+.intramuros-filter-grid label {
+  min-width: 0;
+}
+
+.intramuros-omar-workspace {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(0, 91, 172, 0.08), #fff);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--blue);
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 18px;
+}
+
+.intramuros-omar-workspace h3 {
+  margin: 4px 0 6px;
+}
+
+.intramuros-omar-workspace p:not(.eyebrow) {
+  color: var(--muted);
+  margin: 0;
+}
+
+.intramuros-omar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.intramuros-omar-actions button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.intramuros-omar-direct {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.intramuros-op-kpis {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.intramuros-op-kpis article {
+  background: #f7fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.intramuros-op-kpis span,
+.intramuros-op-kpis em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.intramuros-op-kpis strong {
+  color: var(--ink);
+  font-size: 22px;
+}
+
+.intramuros-op-form {
+  align-items: end;
+  background: #f7fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 160px minmax(220px, 1fr) minmax(180px, 260px) 160px auto;
+  padding: 14px;
+}
+
+.intramuros-op-table {
+  margin-top: 0;
+  max-height: 520px;
+}
+
+.intramuros-op-table table {
+  min-width: 1580px;
+}
+
+.intramuros-op-table th {
+  background: #eef3f7;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.intramuros-op-table td {
+  vertical-align: middle;
+}
+
+.intramuros-op-table input,
+.intramuros-op-table select {
+  background: #fff;
+  border: 1px solid #d5e0ea;
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  min-height: 34px;
+  min-width: 78px;
+  padding: 6px 8px;
+  width: 100%;
+}
+
+.intramuros-op-table td:nth-child(2) input,
+.intramuros-op-table td:nth-child(3) input {
+  min-width: 190px;
+}
+
+.intramuros-op-note {
+  align-items: center;
+  background: #f7fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+}
+
+.intramuros-op-note strong {
+  color: var(--ink);
+}
+
+.intramuros-op-note span {
+  background: #e9f4ff;
+  border-radius: 999px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 6px 10px;
+}
+
+.intramuros-load-summary {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.intramuros-load-summary article {
+  background: #f7fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
+.intramuros-load-summary span,
+.intramuros-load-summary em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.intramuros-load-summary strong {
+  font-size: 18px;
+}
+
+.intramuros-load-summary p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.intramuros-load-summary p.red {
+  background: #fff1f1;
+  border-radius: 8px;
+  color: #9f1d19;
+  font-weight: 800;
+  padding: 9px 10px;
+}
+
+.intramuros-roles-section,
+.intramuros-tournament-section,
+.intramuros-expediente {
+  display: grid;
+  gap: 14px;
+}
+
+.intramuros-tournament-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.intramuros-tournament-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--blue);
+  border-radius: 8px;
+  box-shadow: 0 7px 20px rgba(13, 42, 62, .04);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.intramuros-tournament-card > div:first-child {
+  align-items: start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.intramuros-tournament-card h3 {
+  margin: 0;
+}
+
+.intramuros-tournament-card span {
+  background: #e9f4ff;
+  border-radius: 999px;
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 900;
+  padding: 5px 9px;
+}
+
+.intramuros-tournament-card p {
+  color: var(--muted);
+  font-weight: 800;
+  margin: 0;
+}
+
+.intramuros-tournament-card dl {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.intramuros-tournament-card dl div {
+  background: #f7fafc;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.intramuros-tournament-card dt {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.intramuros-tournament-card dd {
+  font-size: 18px;
+  font-weight: 900;
+  margin: 0;
+}
+
 .schedule-filter-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -6153,18 +6425,7 @@ body.planning-modal-open {
 @media (max-width: 760px) {
   .workspace, .sidebar { padding: 14px; }
   .topbar, .top-actions, .section-title, .report-row, .permission-strip, .collaborator-table-header { flex-direction: column; align-items: stretch; }
-  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps, .booking-kpi-grid, .booking-dashboard-grid, .booking-mini-grid, .booking-filter-row, .upload-center-grid, .upload-kpi-grid, .upload-chart-grid, .upload-bar-row, .exec-controls, .exec-hero-row, .exec-status-strip, .exec-grid.three, .exec-grid.two, .exec-grid.wide-left, .exec-link-grid, .exec-pie-wrap, .exec-footer-kpis { grid-template-columns: 1fr; }
-  .booking-visual-card { min-height: 0; padding: 16px; }
-  .booking-leaderboard-list li { grid-template-columns: 26px 34px minmax(0, 1fr) auto; padding-right: 8px; }
-  .booking-weekday-chart { gap: 4px; min-height: 230px; }
-  .booking-weekday-column { grid-template-rows: 20px 160px 18px; }
-  .booking-weekday-column > span { height: 160px; }
-  .booking-heatmap-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .booking-visual-heat-cell { min-height: 84px; padding: 10px; }
-  .booking-donut-layout { grid-template-columns: 1fr; }
-  .booking-visual-donut-chart { max-width: 190px; }
-  .booking-stack-summary strong { font-size: 32px; }
-  .booking-activity-copy strong { white-space: normal; overflow-wrap: anywhere; }
+  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps, .booking-kpi-grid, .booking-dashboard-grid, .booking-mini-grid, .booking-filter-row, .upload-center-grid, .upload-kpi-grid, .upload-chart-grid, .upload-bar-row, .intramuros-omar-workspace, .intramuros-op-kpis, .intramuros-op-form, .intramuros-filter-grid, .intramuros-load-summary, .intramuros-tournament-grid, .exec-controls, .exec-hero-row, .exec-status-strip, .exec-grid.three, .exec-grid.two, .exec-grid.wide-left, .exec-link-grid, .exec-pie-wrap, .exec-footer-kpis { grid-template-columns: 1fr; }
   .exec-pie { justify-self: center; }
   .exec-page { padding: 16px; }
   .exec-week-bars { grid-template-columns: repeat(6, minmax(0, 1fr)); }
@@ -8103,5 +8364,6 @@ tbody tr:hover td {
 .import-collaborators-callout {
   margin-top: 18px;
 }
+
 
 

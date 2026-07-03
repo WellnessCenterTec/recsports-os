@@ -10580,22 +10580,155 @@ function inferBookingProfessor(activity) {
   return match?.professor || "Sin profesor asignado";
 }
 
-function renderBookingRank(title, rows, tone = "") {
-  const max = Math.max(...rows.map((row) => row.count), 1);
+function bookingEmptyState() {
+  return `<div class="empty-state">Carga el CSV de reservaciones para ver este análisis.</div>`;
+}
+
+function bookingPercent(value, total) {
+  return total > 0 ? Math.round((Number(value || 0) / total) * 100) : 0;
+}
+
+function bookingVisualHeader(eyebrow, title, icon) {
   return `
-    <article class="booking-card">
-      <h3>${title}</h3>
-      <div class="booking-rank-list">
-        ${rows.length ? rows.slice(0, 7).map((row) => `
-          <div class="booking-rank-row ${tone}">
-            <div>
-              <strong>${escapeHtml(row.label)}</strong>
-              <span>${row.count.toLocaleString("es-MX")} reservaciones</span>
+    <header class="booking-visual-header">
+      <span class="booking-visual-icon" aria-hidden="true"><i data-lucide="${icon}"></i></span>
+      <div><p>${eyebrow}</p><h3>${title}</h3></div>
+    </header>
+  `;
+}
+
+function renderBookingActivityBars(rows) {
+  const visible = rows.slice(0, 7);
+  const max = Math.max(...visible.map((row) => row.count), 1);
+  return `
+    <article class="booking-card booking-visual-card booking-visual-bars">
+      ${bookingVisualHeader("Demanda por servicio", "Actividades con más Booking", "chart-no-axes-column-increasing")}
+      ${visible.length ? `<div class="booking-activity-bars">
+        ${visible.map((row, index) => {
+          const width = Math.max(5, Math.round((row.count / max) * 100));
+          return `<div class="booking-activity-row" title="${escapeHtml(row.label)}: ${row.count.toLocaleString("es-MX")} reservaciones">
+            <span class="booking-rank-badge">${index + 1}</span>
+            <div class="booking-activity-copy"><strong>${escapeHtml(row.label)}</strong><small>${row.count.toLocaleString("es-MX")} reservaciones</small>
+              <em><i style="--booking-width:${width}%"></i></em>
             </div>
-            <em style="--booking-width:${Math.max(6, Math.round((row.count / max) * 100))}%"></em>
-          </div>
-        `).join("") : `<div class="empty-state">Carga el CSV de reservaciones para ver este análisis.</div>`}
-      </div>
+          </div>`;
+        }).join("")}
+      </div>` : bookingEmptyState()}
+    </article>
+  `;
+}
+
+function renderBookingStudentLeaderboard(rows) {
+  const visible = rows.slice(0, 7);
+  return `
+    <article class="booking-card booking-visual-card booking-visual-leaderboard">
+      ${bookingVisualHeader("Frecuencia individual", "Alumnos que más lo usan", "users-round")}
+      ${visible.length ? `<ol class="booking-leaderboard-list">
+        ${visible.map((row, index) => `
+          <li>
+            <span class="booking-leaderboard-position">${index + 1}</span>
+            <span class="booking-student-avatar" aria-hidden="true">${escapeHtml(String(row.label || "A").slice(-2).toUpperCase())}</span>
+            <strong title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</strong>
+            <span>${row.count.toLocaleString("es-MX")} <small>reservaciones</small></span>
+          </li>
+        `).join("")}
+      </ol>` : bookingEmptyState()}
+    </article>
+  `;
+}
+
+function bookingDayRow(rows, label) {
+  const target = normalizeText(label);
+  return rows.find((row) => normalizeText(row.label) === target) || { label, count: 0 };
+}
+
+function renderBookingDayColumns(rows) {
+  const ordered = BOOKING_DAY_ORDER.map((day) => bookingDayRow(rows, day));
+  const max = Math.max(...ordered.map((row) => row.count), 1);
+  return `
+    <article class="booking-card booking-visual-card booking-visual-columns">
+      ${bookingVisualHeader("Comportamiento semanal", "Días con mayor demanda", "calendar-days")}
+      ${rows.length ? `<div class="booking-weekday-chart" aria-label="Reservaciones por día de la semana">
+        ${ordered.map((row) => {
+          const height = row.count ? Math.max(8, Math.round((row.count / max) * 100)) : 2;
+          const peak = row.count === max && row.count > 0 ? " peak" : "";
+          return `<div class="booking-weekday-column${peak}" aria-label="${escapeHtml(row.label)}: ${row.count.toLocaleString("es-MX")} reservaciones">
+            <strong>${row.count.toLocaleString("es-MX")}</strong>
+            <span><i style="--booking-height:${height}%"></i></span>
+            <small>${escapeHtml(row.label.slice(0, 3))}</small>
+          </div>`;
+        }).join("")}
+      </div>` : bookingEmptyState()}
+    </article>
+  `;
+}
+
+function renderBookingHourHeatmap(rows) {
+  const visible = rows.slice(0, 8);
+  const max = Math.max(...visible.map((row) => row.count), 1);
+  return `
+    <article class="booking-card booking-visual-card booking-visual-heatmap">
+      ${bookingVisualHeader("Concentración horaria", "Horarios más usados", "clock-3")}
+      ${visible.length ? `<div class="booking-heatmap-grid">
+        ${visible.map((row) => {
+          const intensity = Math.max(.12, row.count / max);
+          return `<div class="booking-visual-heat-cell" style="--booking-intensity:${intensity.toFixed(2)}" aria-label="${escapeHtml(row.label)}: ${row.count.toLocaleString("es-MX")} reservaciones">
+            <strong>${escapeHtml(row.label)}</strong><span>${row.count.toLocaleString("es-MX")}</span><small>reservaciones</small>
+          </div>`;
+        }).join("")}
+      </div>` : bookingEmptyState()}
+    </article>
+  `;
+}
+
+function bookingStatusTone(value) {
+  const clean = String(value || "").toUpperCase();
+  if (clean === "APPROVED") return "teal";
+  if (clean === "PENDING") return "gold";
+  if (clean === "CANCELLED") return "red";
+  return "blue";
+}
+
+function renderBookingStatusDonut(rows, total) {
+  const visible = rows.filter((row) => row.count > 0);
+  let start = 0;
+  const segments = visible.map((row) => {
+    const end = start + bookingPercent(row.count, total) * 3.6;
+    const segment = `var(--${bookingStatusTone(row.label)}) ${start.toFixed(1)}deg ${end.toFixed(1)}deg`;
+    start = end;
+    return segment;
+  }).join(", ");
+  return `
+    <article class="booking-card booking-visual-card booking-visual-donut">
+      ${bookingVisualHeader("Estado de reservaciones", "Estatus", "circle-check-big")}
+      ${visible.length ? `<div class="booking-donut-layout">
+        <div class="booking-visual-donut-chart" style="--booking-donut:${segments}" role="img" aria-label="Distribución de ${total.toLocaleString("es-MX")} reservaciones por estatus">
+          <strong>${total.toLocaleString("es-MX")}</strong><span>reservaciones</span>
+        </div>
+        <div class="booking-donut-legend">
+          ${visible.map((row) => `<div><i class="${bookingStatusTone(row.label)}"></i><span>${escapeHtml(bookingStatusLabel(row.label))}</span><strong>${row.count.toLocaleString("es-MX")}</strong><em>${bookingPercent(row.count, total)}%</em></div>`).join("")}
+        </div>
+      </div>` : bookingEmptyState()}
+    </article>
+  `;
+}
+
+function renderBookingTypeStack(rows, total) {
+  const visible = rows.filter((row) => row.count > 0);
+  const online = visible.find((row) => String(row.label).toUpperCase() === "ONLINE")?.count || 0;
+  const presential = visible.find((row) => String(row.label).toUpperCase() === "PRESENTIAL")?.count || 0;
+  return `
+    <article class="booking-card booking-visual-card booking-visual-stack">
+      ${bookingVisualHeader("Formato de servicio", "Modalidad", "panels-top-left")}
+      ${visible.length ? `<div class="booking-stack-layout">
+        <div class="booking-stack-summary"><strong>${total.toLocaleString("es-MX")}</strong><span>reservaciones filtradas</span></div>
+        <div class="booking-stacked-bar" aria-label="${online.toLocaleString("es-MX")} online y ${presential.toLocaleString("es-MX")} presenciales">
+          ${visible.map((row, index) => `<i class="tone-${index + 1}" style="--booking-share:${bookingPercent(row.count, total)}%" title="${escapeHtml(bookingTypeLabel(row.label))}: ${row.count.toLocaleString("es-MX")}"></i>`).join("")}
+        </div>
+        <div class="booking-stack-legend">
+          ${visible.map((row, index) => `<div><i class="tone-${index + 1}"></i><span>${escapeHtml(bookingTypeLabel(row.label))}</span><strong>${row.count.toLocaleString("es-MX")}</strong><em>${bookingPercent(row.count, total)}%</em></div>`).join("")}
+        </div>
+      </div>` : bookingEmptyState()}
     </article>
   `;
 }
@@ -10643,15 +10776,13 @@ function renderClassBookingDashboard() {
         <label>Actividad<select class="booking-filter" data-filter="activity"><option value="todos">Todas</option>${activityOptions.map((value) => `<option value="${escapeHtml(value)}" ${classBookingFilters.activity === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select></label>
         <label>Buscar<input class="booking-filter" data-filter="search" value="${escapeHtml(classBookingFilters.search)}" placeholder="Matrícula, actividad, hora..." /></label>
       </div>
-      <div class="booking-dashboard-grid">
-        ${renderBookingRank("Actividades con más booking", activities, "green")}
-        ${renderBookingRank("Alumnos que más lo usan", students, "blue")}
-        ${renderBookingRank("Días con mayor demanda", days, "gold")}
-        ${renderBookingRank("Horarios más usados", hours, "red")}
-      </div>
-      <div class="booking-mini-grid">
-        ${renderBookingRank("Estatus", statuses)}
-        ${renderBookingRank("Modalidad", types)}
+      <div class="booking-dashboard-grid booking-visual-grid">
+        ${renderBookingActivityBars(activities)}
+        ${renderBookingStudentLeaderboard(students)}
+        ${renderBookingDayColumns(days)}
+        ${renderBookingHourHeatmap(hours)}
+        ${renderBookingStatusDonut(statuses, rows.length)}
+        ${renderBookingTypeStack(types, rows.length)}
       </div>
       <section class="booking-table-panel">
         <div class="class-grade-table-header">
@@ -12014,3 +12145,4 @@ document.addEventListener("mock-config-save", () => {
 
 loadUniformesData();
 loadClassGradeSeedData().then(() => render());
+
