@@ -4,6 +4,268 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>WellSync | Wellness Center</title>
+    <link rel="stylesheet" href="./styles.css?v=20260703-booking-visual" />
+  </head>
+  <body>
+    <div id="loginRoot"></div>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Menu principal">
+        <div class="brand">
+          <div class="brand-logo-tile">
+            <img class="brand-logo" src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
+          </div>
+          <div>
+            <strong>WellSync</strong>
+            <span>DirecciÃ³n Deportiva</span>
+          </div>
+        </div>
+        <nav id="areaNav" class="nav-list"></nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="search-wrap">
+            <span class="search-icon">âŒ•</span>
+            <input id="globalSearch" type="search" placeholder="Buscar mÃ³dulo, indicador, reporte o matrÃ­cula" />
+          </div>
+          <div class="top-actions">
+            <select id="themeSelect" aria-label="Tema visual">
+              <option value="tec">Tec deportivo</option>
+              <option value="power">Power BI limpio</option>
+              <option value="dark">Modo nocturno</option>
+            </select>
+            <select id="roleSelect" aria-label="Rol activo">
+              <option value="dir">Direccion Deportiva</option>
+              <option value="maestro-clases">Maestro de Clases Deportivas</option>
+            </select>
+            <button class="ghost-btn" id="exportExcel">Exportar Excel</button>
+            <button class="primary-btn" id="exportPdf">Exportar PDF</button>
+            <button class="danger-btn" id="logoutButton">Salir</button>
+          </div>
+        </header>
+
+        <section class="hero-dashboard">
+          <div class="hero-identity">
+            <span class="hero-mark" aria-hidden="true">WS</span>
+            <div>
+              <h1>WellSync</h1>
+              <p>Panel operativo</p>
+            </div>
+          </div>
+          <div class="hero-kpis" id="executiveKpis"></div>
+          <div class="hero-actions">
+            <a class="planning-link" href="https://planeacion-semestral-recsports.vercel.app/" target="_blank" rel="noopener noreferrer">PlaneaciÃ³n</a>
+            <img class="hero-borregos-logo" src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
+          </div>
+        </section>
+
+        <section class="filters-band" aria-label="Filtros recomendados">
+          <label>
+            Periodo
+            <select id="periodFilter">
+              <option>AD26</option>
+              <option>FJ26</option>
+              <option>IN26</option>
+            </select>
+          </label>
+          <label>
+            Nivel
+            <select id="levelFilter">
+              <option value="todos">Todos</option>
+              <option>Profesional</option>
+              <option>Posgrado</option>
+            </select>
+          </label>
+          <label>
+            Carrera
+            <select id="careerFilter">
+              <option value="todos">Todas</option>
+            </select>
+          </label>
+          <label>
+            GÃ©nero
+            <select id="genderFilter">
+              <option value="todos">Todos</option>
+              <option>Femenino</option>
+              <option>Masculino</option>
+              <option>No especificado</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="view-grid">
+          <div class="main-panel">
+            <div class="section-title">
+              <div>
+                <p class="eyebrow">Dashboard ejecutivo</p>
+                <h2 id="currentTitle">Vista general</h2>
+              </div>
+              <div class="segmented" role="tablist" aria-label="Vista">
+                <button class="active" data-view="dashboard">Dashboard</button>
+                <button id="budgetAllocationViewButton" data-view="budget-allocation" hidden>Asignar presupuesto</button>
+                <button id="budgetRequestViewButton" data-view="budget-request" hidden>Nueva solicitud</button>
+                <button id="vivenciaEventsViewButton" data-view="vivencia-events" hidden>Carga de eventos</button>
+                <button id="gradesViewButton" data-view="grades">Calificaciones</button>
+                <button data-view="schedules">Horarios</button>
+                <button id="bookingViewButton" data-view="booking" hidden>Booking</button>
+                <button id="simulatorViewButton" data-view="simulator" hidden>Simulador</button>
+                <button id="gymAttendanceViewButton" data-view="gym-attendance" hidden>Registro de Asistencia</button>
+                <button id="gymRegistrationsViewButton" data-view="gym-registrations" hidden>Registro de MatrÃ­culas</button>
+                <button data-view="reports">Reportes</button>
+                <button id="evaluationsViewButton" data-view="evaluations" hidden>Evaluaciones FÃ­sicas</button>
+                <button data-view="blueprint">Sistema</button>
+              </div>
+            </div>
+            <div id="contentArea"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script>window.RECSPORTS_ENV = window.RECSPORTS_ENV || {};</script>
+    <script src="./env.js?v=20260610-students-db"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="./app.js?v=20260703-booking-visual"></script>
+  </body>
+</html>
+﻿<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WellSync | Wellness Center</title>
+    <link rel="stylesheet" href="./styles.css?v=20260703-booking-visual" />
+  </head>
+  <body>
+    <div id="loginRoot"></div>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Menu principal">
+        <div class="brand">
+          <div class="brand-logo-tile">
+            <img class="brand-logo" src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
+          </div>
+          <div>
+            <strong>WellSync</strong>
+            <span>DirecciÃ³n Deportiva</span>
+          </div>
+        </div>
+        <nav id="areaNav" class="nav-list"></nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="search-wrap">
+            <span class="search-icon">âŒ•</span>
+            <input id="globalSearch" type="search" placeholder="Buscar mÃ³dulo, indicador, reporte o matrÃ­cula" />
+          </div>
+          <div class="top-actions">
+            <select id="themeSelect" aria-label="Tema visual">
+              <option value="tec">Tec deportivo</option>
+              <option value="power">Power BI limpio</option>
+              <option value="dark">Modo nocturno</option>
+            </select>
+            <select id="roleSelect" aria-label="Rol activo">
+              <option value="dir">Direccion Deportiva</option>
+              <option value="maestro-clases">Maestro de Clases Deportivas</option>
+            </select>
+            <button class="ghost-btn" id="exportExcel">Exportar Excel</button>
+            <button class="primary-btn" id="exportPdf">Exportar PDF</button>
+            <button class="danger-btn" id="logoutButton">Salir</button>
+          </div>
+        </header>
+
+        <section class="hero-dashboard">
+          <div class="hero-identity">
+            <span class="hero-mark" aria-hidden="true">WS</span>
+            <div>
+              <h1>WellSync</h1>
+              <p>Panel operativo</p>
+            </div>
+          </div>
+          <div class="hero-kpis" id="executiveKpis"></div>
+          <div class="hero-actions">
+            <a class="planning-link" href="https://planeacion-semestral-recsports.vercel.app/" target="_blank" rel="noopener noreferrer">PlaneaciÃ³n</a>
+            <img class="hero-borregos-logo" src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
+          </div>
+        </section>
+
+        <section class="filters-band" aria-label="Filtros recomendados">
+          <label>
+            Periodo
+            <select id="periodFilter">
+              <option>AD26</option>
+              <option>FJ26</option>
+              <option>IN26</option>
+            </select>
+          </label>
+          <label>
+            Nivel
+            <select id="levelFilter">
+              <option value="todos">Todos</option>
+              <option>Profesional</option>
+              <option>Posgrado</option>
+            </select>
+          </label>
+          <label>
+            Carrera
+            <select id="careerFilter">
+              <option value="todos">Todas</option>
+            </select>
+          </label>
+          <label>
+            GÃ©nero
+            <select id="genderFilter">
+              <option value="todos">Todos</option>
+              <option>Femenino</option>
+              <option>Masculino</option>
+              <option>No especificado</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="view-grid">
+          <div class="main-panel">
+            <div class="section-title">
+              <div>
+                <p class="eyebrow">Dashboard ejecutivo</p>
+                <h2 id="currentTitle">Vista general</h2>
+              </div>
+              <div class="segmented" role="tablist" aria-label="Vista">
+                <button class="active" data-view="dashboard">Dashboard</button>
+                <button id="budgetAllocationViewButton" data-view="budget-allocation" hidden>Asignar presupuesto</button>
+                <button id="budgetRequestViewButton" data-view="budget-request" hidden>Nueva solicitud</button>
+                <button id="vivenciaEventsViewButton" data-view="vivencia-events" hidden>Carga de eventos</button>
+                <button id="gradesViewButton" data-view="grades">Calificaciones</button>
+                <button data-view="schedules">Horarios</button>
+                <button id="bookingViewButton" data-view="booking" hidden>Booking</button>
+                <button id="simulatorViewButton" data-view="simulator" hidden>Simulador</button>
+                <button id="gymAttendanceViewButton" data-view="gym-attendance" hidden>Registro de Asistencia</button>
+                <button id="gymRegistrationsViewButton" data-view="gym-registrations" hidden>Registro de MatrÃ­culas</button>
+                <button data-view="reports">Reportes</button>
+                <button id="evaluationsViewButton" data-view="evaluations" hidden>Evaluaciones FÃ­sicas</button>
+                <button data-view="blueprint">Sistema</button>
+              </div>
+            </div>
+            <div id="contentArea"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script>window.RECSPORTS_ENV = window.RECSPORTS_ENV || {};</script>
+    <script src="./env.js?v=20260610-students-db"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="./app.js?v=20260703-booking-visual"></script>
+  </body>
+</html>
+﻿<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WellSync | Wellness Center</title>
     <link rel="stylesheet" href="./styles.css?v=20260702-intramuros-supabase" />
   </head>
   <body>
