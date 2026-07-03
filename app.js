@@ -463,6 +463,7 @@ let intramurosRolesUploadSummary = null;
 let selectedIntramurosTournament = "";
 let intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", search: "" };
 let intramurosOperationRows = loadIntramurosOperationRows();
+let intramurosOperationCloudAvailable = true;
 let participationUploadState = {
   gamer: { fileName: "", draft: null, imported: null },
   representativos: { fileName: "", draft: null, imported: null }
@@ -671,6 +672,75 @@ function loadIntramurosOperationRows() {
 function saveIntramurosOperationRows() {
   intramurosOperationRows = intramurosOperationRows.map(normalizeIntramurosOperationRow).filter((row) => row.torneo);
   localStorage.setItem(INTRAMUROS_OPERATION_KEY, JSON.stringify(intramurosOperationRows));
+}
+
+function intramurosOperationCloudRow(row = {}) {
+  return normalizeIntramurosOperationRow({
+    id: row.id,
+    tipo: row.tipo,
+    torneo: row.torneo,
+    periodo: row.periodo,
+    equipos_varoniles: row.equipos_varoniles,
+    equipos_femeniles: row.equipos_femeniles,
+    equipos_mixtos: row.equipos_mixtos,
+    alumnos_varonil: row.alumnos_varonil,
+    alumnos_femenil: row.alumnos_femenil,
+    juegos_programados: row.juegos_programados,
+    juegos_realizados: row.juegos_realizados,
+    bajas: row.bajas,
+    estatus: row.estatus
+  });
+}
+
+function intramurosOperationToCloud(row) {
+  const normalized = normalizeIntramurosOperationRow(row);
+  return {
+    id: normalized.id,
+    tipo: normalized.tipo,
+    torneo: normalized.torneo,
+    periodo: normalized.periodo,
+    equipos_varoniles: normalized.equipos_varoniles,
+    equipos_femeniles: normalized.equipos_femeniles,
+    equipos_mixtos: normalized.equipos_mixtos,
+    alumnos_varonil: normalized.alumnos_varonil,
+    alumnos_femenil: normalized.alumnos_femenil,
+    juegos_programados: normalized.juegos_programados,
+    juegos_realizados: normalized.juegos_realizados,
+    bajas: normalized.bajas,
+    estatus: normalized.estatus
+  };
+}
+
+async function saveIntramurosOperationRowCloud(row) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("intramuros") || !intramurosOperationCloudAvailable) return null;
+  const { data, error } = await supabaseClient
+    .from("intramuros_operacion_torneos")
+    .upsert(intramurosOperationToCloud(row), { onConflict: "id" })
+    .select("*")
+    .single();
+  if (error) {
+    intramurosOperationCloudAvailable = false;
+    console.warn("No se pudo guardar mesa de Omar", error);
+    toast(`No se pudo guardar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
+    return null;
+  }
+  intramurosOperationCloudAvailable = true;
+  return intramurosOperationCloudRow(data);
+}
+
+async function deleteIntramurosOperationRowCloud(id) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("intramuros") || !intramurosOperationCloudAvailable) return false;
+  const { error } = await supabaseClient
+    .from("intramuros_operacion_torneos")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    intramurosOperationCloudAvailable = false;
+    console.warn("No se pudo borrar mesa de Omar", error);
+    toast(`No se pudo borrar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
+    return false;
+  }
+  return true;
 }
 
 function budgetPlanFromCloud(row) {
@@ -5600,7 +5670,7 @@ function intramurosRoleKey(row) {
 
 async function loadIntramurosParticipants() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const [participantsResult, rolesResult] = await Promise.all([
+  const [participantsResult, rolesResult, operationResult] = await Promise.all([
     supabaseClient
     .from("intramuros_participantes")
     .select("id, matricula, genero, programa, modalidad, escuela, tipo_actividad, torneo, rama, equipo, periodo, fecha_carga, archivo_origen, created_at, updated_at")
@@ -5610,6 +5680,11 @@ async function loadIntramurosParticipants() {
       .from("intramuros_roles_juego")
       .select("id, torneo, semana, fecha, hora, cancha, grupo, rama, equipo_local, equipo_visitante, resultado, observaciones, estatus_partido, periodo, fecha_carga, archivo_origen, created_at, updated_at")
       .order("fecha", { ascending: false })
+      .limit(50000),
+    supabaseClient
+      .from("intramuros_operacion_torneos")
+      .select("id, tipo, torneo, periodo, equipos_varoniles, equipos_femeniles, equipos_mixtos, alumnos_varonil, alumnos_femenil, juegos_programados, juegos_realizados, bajas, estatus, created_at, updated_at")
+      .order("updated_at", { ascending: false })
       .limit(50000)
   ]);
   if (participantsResult.error) {
@@ -5618,6 +5693,14 @@ async function loadIntramurosParticipants() {
     return;
   }
   if (rolesResult.error) console.warn("Intramuros roles no disponibles", rolesResult.error);
+  if (operationResult.error) {
+    intramurosOperationCloudAvailable = false;
+    console.warn("Mesa de Omar no disponible", operationResult.error);
+  } else {
+    intramurosOperationCloudAvailable = true;
+    intramurosOperationRows = (operationResult.data || []).map(intramurosOperationCloudRow).filter((row) => row.torneo);
+    saveIntramurosOperationRows();
+  }
   intramurosCloudAvailable = true;
   intramurosParticipants = (participantsResult.data || []).map(intramurosCloudRow).filter((row) => row.matricula);
   intramurosGameRoles = (rolesResult.data || []).map(intramurosRoleCloudRow);
@@ -6822,7 +6905,7 @@ function renderIntramurosOmarWorkspace() {
           <p class="eyebrow">Mesa de trabajo de Omar</p>
           <h3>Control directo de torneos Intramuros</h3>
         </div>
-        <span>${intramurosOperationRows.length.toLocaleString("es-MX")} torneos capturados</span>
+        <span>${intramurosOperationRows.length.toLocaleString("es-MX")} torneos capturados · ${intramurosOperationCloudAvailable ? "Supabase conectado" : "Modo local"}</span>
       </div>
       <div class="intramuros-op-kpis">
         <article><span>Equipos</span><strong>${summary.teams.toLocaleString("es-MX")}</strong><em>capturados</em></article>
@@ -10917,7 +11000,7 @@ function render() {
     intramurosFilters.search = event.target.value;
     render();
   });
-  $("#addIntramurosOperationRow")?.addEventListener("click", () => {
+  $("#addIntramurosOperationRow")?.addEventListener("click", async () => {
     const row = normalizeIntramurosOperationRow({
       tipo: $("#intramurosOpTipo")?.value,
       torneo: $("#intramurosOpTorneo")?.value,
@@ -10930,23 +11013,38 @@ function render() {
     }
     intramurosOperationRows = [...intramurosOperationRows, row];
     saveIntramurosOperationRows();
+    const cloudRow = await saveIntramurosOperationRowCloud(row);
+    if (cloudRow) {
+      intramurosOperationRows = intramurosOperationRows.map((item) => item.id === row.id ? cloudRow : item);
+      saveIntramurosOperationRows();
+    }
     addAudit("intramuros", `Torneo agregado a mesa Omar: ${row.torneo}`);
     render();
-    toast("Torneo agregado a la mesa de Omar");
+    toast(cloudRow ? "Torneo guardado en Supabase" : "Torneo guardado localmente");
   });
-  $$(".intramuros-op-input").forEach((input) => input.addEventListener("change", (event) => {
+  $$(".intramuros-op-input").forEach((input) => input.addEventListener("change", async (event) => {
     const { opId, opField } = event.target.dataset;
+    let updatedRow = null;
     intramurosOperationRows = intramurosOperationRows.map((row) => {
       if (row.id !== opId) return row;
-      return normalizeIntramurosOperationRow({ ...row, [opField]: event.target.value });
+      updatedRow = normalizeIntramurosOperationRow({ ...row, [opField]: event.target.value });
+      return updatedRow;
     });
     saveIntramurosOperationRows();
+    if (updatedRow?.torneo) {
+      const cloudRow = await saveIntramurosOperationRowCloud(updatedRow);
+      if (cloudRow) {
+        intramurosOperationRows = intramurosOperationRows.map((row) => row.id === cloudRow.id ? cloudRow : row);
+        saveIntramurosOperationRows();
+      }
+    }
     render();
   }));
-  $$("[data-delete-intramuros-op]").forEach((button) => button.addEventListener("click", () => {
+  $$("[data-delete-intramuros-op]").forEach((button) => button.addEventListener("click", async () => {
     const id = button.dataset.deleteIntramurosOp;
     intramurosOperationRows = intramurosOperationRows.filter((row) => row.id !== id);
     saveIntramurosOperationRows();
+    await deleteIntramurosOperationRowCloud(id);
     addAudit("intramuros", "Torneo eliminado de mesa Omar");
     render();
     toast("Torneo eliminado");
