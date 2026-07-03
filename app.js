@@ -198,6 +198,7 @@ const AUDIT_KEY = "recsports_os_audit_log";
 const UNIFORMES_DATA_URL = "./uniformes-data.json";
 const CLASS_GRADES_DATA_URL = "./class-grades-data.json";
 const PLANNING_SEMESTRAL_CSV_URL = "https://docs.google.com/spreadsheets/d/1DL1GIPjzqPqXlJWlnWlAOWEiMJM9tPqknT6M4HCXEHM/gviz/tq?tqx=out:csv&sheet=Respuestas%20de%20formulario%201";
+const PLANNING_SEMESTRAL_DATA_URL = "./planning-semestral-data.json";
 const BASE_COLLABORATOR_COLUMNS = [
   "Nomina",
   "Colaboradores",
@@ -2521,13 +2522,20 @@ async function fetchPlanningSemestralRows() {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10_000);
   try {
-    const response = await fetch(`${PLANNING_SEMESTRAL_CSV_URL}&cacheBust=${Date.now()}`, {
-      cache: "no-store",
-      signal: controller.signal
-    });
-    if (!response.ok) throw new Error(`No se pudo leer Planeacion Semestral (${response.status})`);
-    const text = await response.text();
-    return planningRowsFromGrid(parseCsv(text));
+    try {
+      const response = await fetch(`${PLANNING_SEMESTRAL_CSV_URL}&cacheBust=${Date.now()}`, {
+        cache: "no-store",
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`No se pudo leer Planeacion Semestral (${response.status})`);
+      const text = await response.text();
+      return planningRowsFromGrid(parseCsv(text));
+    } catch (remoteError) {
+      const fallback = await fetch(`${PLANNING_SEMESTRAL_DATA_URL}?v=20260703-planning-fix`, { cache: "no-store" });
+      if (!fallback.ok) throw remoteError;
+      const rows = await fallback.json();
+      return Array.isArray(rows) ? rows : [];
+    }
   } finally {
     clearTimeout(timeoutId);
   }
@@ -8940,7 +8948,7 @@ function vivenciaStateLabel(status) {
 }
 
 function vivenciaVisibleEvents() {
-  return vivenciaEvents
+  return vivenciaDashboardEvents()
     .filter(isVisibleVivenciaEvent)
     .sort((a, b) => String(a.event_date || "").localeCompare(String(b.event_date || "")));
 }
@@ -8948,6 +8956,31 @@ function vivenciaVisibleEvents() {
 function vivenciaVisibleMetrics() {
   const visibleIds = new Set(vivenciaVisibleEvents().map((event) => event.id));
   return vivenciaEventMetrics.filter((row) => visibleIds.has(row.event_id));
+}
+
+function vivenciaPlanningEvents() {
+  return (planningCalendarRows || [])
+    .map((row) => buildVivenciaEventPayloadFromPlanningRow(row))
+    .filter(Boolean)
+    .map((event) => ({
+      ...event,
+      id: `planning-${event.planning_activity_id}`,
+      responsible_name: "Planeación Semestral",
+      participation_goal: 0,
+      reported_total_participants: 0,
+      is_signature_event: false,
+      archived_at: null,
+      __planningFallback: true
+    }));
+}
+
+function vivenciaDashboardEvents() {
+  const existingKeys = new Set(vivenciaEvents
+    .map((event) => event.planning_activity_id || event.source_row_key || `${normalizeText(event.event_name)}|${event.event_date}`)
+    .filter(Boolean));
+  const fallback = vivenciaPlanningEvents()
+    .filter((event) => !existingKeys.has(event.planning_activity_id || event.source_row_key || `${normalizeText(event.event_name)}|${event.event_date}`));
+  return [...vivenciaEvents, ...fallback];
 }
 
 function vivenciaCalendarBaseDate(events) {
