@@ -1610,6 +1610,85 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   font-weight: 900;
 }
 
+.gym-attendance-combined-wrap {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.gym-attendance-combined-table {
+  min-width: 1320px;
+  table-layout: fixed;
+}
+
+.gym-attendance-combined-table th {
+  background: #eef3f6;
+  text-transform: none;
+}
+
+.gym-attendance-combined-table th,
+.gym-attendance-combined-table td {
+  padding: 8px 8px;
+  white-space: nowrap;
+  font-size: 12px;
+  text-align: right;
+}
+
+.gym-attendance-combined-table th:first-child,
+.gym-attendance-combined-table td:first-child {
+  width: 42px;
+  text-align: center;
+}
+
+.gym-attendance-combined-table th:nth-child(2),
+.gym-attendance-combined-table td:nth-child(2),
+.gym-attendance-combined-table th:nth-child(12),
+.gym-attendance-combined-table td:nth-child(12) {
+  width: 190px;
+  text-align: left;
+  font-weight: 800;
+}
+
+.gym-attendance-combined-table th:nth-child(3),
+.gym-attendance-combined-table td:nth-child(3),
+.gym-attendance-combined-table th:nth-child(13),
+.gym-attendance-combined-table td:nth-child(13) {
+  width: 92px;
+}
+
+.gym-attendance-combined-table .gym-table-gap {
+  width: 28px;
+  min-width: 28px;
+  background: #f1dce7;
+  border-left: 1px solid #d8c3ce;
+  border-right: 1px solid #d8c3ce;
+}
+
+.gym-attendance-combined-table tbody td:nth-child(2),
+.gym-attendance-combined-table tbody td:nth-child(3),
+.gym-attendance-combined-table tbody td:nth-child(12),
+.gym-attendance-combined-table tbody td:nth-child(13) {
+  background: #f3dce7;
+}
+
+.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(2),
+.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(3),
+.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(12),
+.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(13) {
+  background: #f6e7ee;
+}
+
+.gym-attendance-combined-table strong {
+  color: var(--blue);
+}
+
+.gym-attendance-combined-table tfoot td {
+  background: #eef3f6;
+  border-top: 2px solid #c7d3dc;
+  font-weight: 900;
+}
+
 .gym-form-layout .form-panel,
 .gym-form-layout .chart-panel {
   min-width: 0;

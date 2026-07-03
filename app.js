@@ -5412,6 +5412,77 @@ function renderGymFacilityAttendanceTable(facility) {
   `;
 }
 
+function renderGymCombinedAttendanceTable() {
+  const wellnessRows = gymAttendanceWeeklySummary("Wellness");
+  const emisRows = gymAttendanceWeeklySummary("EMIS");
+  const wellnessByWeek = new Map(wellnessRows.map((row) => [row.week, row]));
+  const emisByWeek = new Map(emisRows.map((row) => [row.week, row]));
+  const weeks = Array.from(new Set([...wellnessByWeek.keys(), ...emisByWeek.keys()])).sort((a, b) => a - b);
+  const dayLabels = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
+  const blankDays = GYM_DAYS.reduce((acc, day) => {
+    acc[day] = 0;
+    return acc;
+  }, {});
+  const totalsFor = (rows) => ({
+    total: rows.reduce((sum, row) => sum + row.total, 0),
+    days: GYM_DAYS.reduce((acc, day) => {
+      acc[day] = rows.reduce((sum, row) => sum + Number(row.days[day] || 0), 0);
+      return acc;
+    }, {})
+  });
+  const wellnessTotals = totalsFor(wellnessRows);
+  const emisTotals = totalsFor(emisRows);
+  const dayCells = (row) => GYM_DAYS.map((day) => `<td>${row?.days?.[day] ? formatCount(row.days[day]) : ""}</td>`).join("");
+  return `
+    <div class="table-wrap gym-attendance-combined-wrap">
+      <table class="gym-attendance-combined-table">
+        <thead>
+          <tr>
+            <th>Fila</th>
+            <th>Gimnasio Wellness Center</th>
+            <th>Cantidad de alumnos</th>
+            ${dayLabels.map((label) => `<th>${label}</th>`).join("")}
+            <th class="gym-table-gap"></th>
+            <th>EMIS</th>
+            <th>Cantidad de alumnos EMIS</th>
+            ${dayLabels.map((label) => `<th>${label}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${weeks.length ? weeks.map((week, index) => {
+            const wellness = wellnessByWeek.get(week) || { label: "", total: 0, days: blankDays };
+            const emis = emisByWeek.get(week) || { label: "", total: 0, days: blankDays };
+            return `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${escapeHtml(wellness.label)}</td>
+                <td><strong>${wellness.total ? formatCount(wellness.total) : ""}</strong></td>
+                ${dayCells(wellness)}
+                <td class="gym-table-gap"></td>
+                <td>${escapeHtml(emis.label)}</td>
+                <td><strong>${emis.total ? formatCount(emis.total) : ""}</strong></td>
+                ${dayCells(emis)}
+              </tr>
+            `;
+          }).join("") : `<tr><td colspan="20">Sin asistencias cargadas todavía.</td></tr>`}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td></td>
+            <td>Total</td>
+            <td>${formatCount(wellnessTotals.total)}</td>
+            ${GYM_DAYS.map((day) => `<td>${wellnessTotals.days[day] ? formatCount(wellnessTotals.days[day]) : ""}</td>`).join("")}
+            <td class="gym-table-gap"></td>
+            <td>Total</td>
+            <td>${formatCount(emisTotals.total)}</td>
+            ${GYM_DAYS.map((day) => `<td>${emisTotals.days[day] ? formatCount(emisTotals.days[day]) : ""}</td>`).join("")}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  `;
+}
+
 function renderGymAttendanceLoadedSummary() {
   return `
     <section class="chart-panel gym-attendance-loaded-summary">
@@ -5422,10 +5493,7 @@ function renderGymAttendanceLoadedSummary() {
         </div>
         <span>${formatCount(gymAttendanceRecords.length)} registros consolidados</span>
       </div>
-      <div class="gym-attendance-summary-grid">
-        ${renderGymFacilityAttendanceTable("Wellness")}
-        ${renderGymFacilityAttendanceTable("EMIS")}
-      </div>
+      ${renderGymCombinedAttendanceTable()}
     </section>
   `;
 }
