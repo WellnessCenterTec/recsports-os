@@ -11848,9 +11848,9 @@ async function saveGymAttendance(event) {
   }
   addAudit("gimnasio", `Asistencia ${payload.facility}: ${payload.attendee_count}`);
   await loadGymData();
-  activeView = "dashboard";
+  activeView = "gym-attendance";
   render();
-  toast("Asistencia guardada y gráficas actualizadas");
+  toast("Asistencia guardada; tabla semanal actualizada");
 }
 
 async function deleteGymAttendance(recordId) {
