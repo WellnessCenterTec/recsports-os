@@ -7076,8 +7076,6 @@ function renderIntramurosDashboard() {
         <span>${intramurosCloudAvailable ? `${intramurosParticipants.length.toLocaleString("es-MX")} registros en Supabase` : "Falta activar intramuros_participantes en Supabase"}</span>
       </div>
 
-      ${renderPlanningAreaDashboard(areas.find((item) => item.id === "intramuros") || { id: "intramuros", name: "Intramuros" })}
-
       <div class="intramuros-omar-workspace">
         <div>
           <p class="eyebrow">Espacio de Omar</p>
@@ -7091,6 +7089,8 @@ function renderIntramurosDashboard() {
       </div>
 
       ${renderIntramurosOmarWorkspace()}
+
+      ${renderPlanningAreaDashboard(areas.find((item) => item.id === "intramuros") || { id: "intramuros", name: "Intramuros" })}
 
       <div class="intramuros-filter-grid">
         ${renderIntramurosFilter("period", "Periodo", intramurosFilterOptions("periodo"))}
