@@ -6631,8 +6631,7 @@ body.planning-modal-open {
   .class-grade-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .physical-code-panel { grid-template-columns: 1fr; }
   .physical-hof-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .gym-form-layout,
-  .gym-attendance-summary-grid { grid-template-columns: 1fr; }
+  .gym-form-layout { grid-template-columns: 1fr; }
   .class-simulator-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .class-simulator-maps { grid-template-columns: 1fr; }
   .vivencia-event-layout { grid-template-columns: 1fr; }
@@ -6649,7 +6648,7 @@ body.planning-modal-open {
 @media (max-width: 760px) {
   .workspace, .sidebar { padding: 14px; }
   .topbar, .top-actions, .section-title, .report-row, .permission-strip, .collaborator-table-header { flex-direction: column; align-items: stretch; }
-  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps, .booking-kpi-grid, .booking-dashboard-grid, .booking-mini-grid, .booking-filter-row, .upload-center-grid, .upload-kpi-grid, .upload-chart-grid, .upload-bar-row, .intramuros-omar-workspace, .intramuros-op-kpis, .intramuros-op-form, .intramuros-filter-grid, .intramuros-load-summary, .intramuros-tournament-grid, .exec-controls, .exec-hero-row, .exec-status-strip, .exec-grid.three, .exec-grid.two, .exec-grid.wide-left, .exec-link-grid, .exec-pie-wrap, .exec-footer-kpis { grid-template-columns: 1fr; }
+  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps, .booking-kpi-grid, .booking-dashboard-grid, .booking-mini-grid, .booking-filter-row, .upload-center-grid, .upload-kpi-grid, .upload-chart-grid, .upload-bar-row, .intramuros-omar-workspace, .intramuros-op-kpis, .intramuros-op-form, .intramuros-filter-grid, .intramuros-load-summary, .intramuros-tournament-grid, .exec-controls, .exec-hero-row, .exec-status-strip, .exec-grid.three, .exec-grid.two, .exec-grid.wide-left, .exec-link-grid, .exec-pie-wrap, .exec-footer-kpis, .gym-attendance-summary-grid { grid-template-columns: 1fr; }
   .exec-pie { justify-self: center; }
   .exec-page { padding: 16px; }
   .exec-week-bars { grid-template-columns: repeat(6, minmax(0, 1fr)); }
