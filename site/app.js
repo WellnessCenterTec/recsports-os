@@ -4384,7 +4384,21 @@ function collaboratorEditorControl(row, column, editable) {
   const common = `class="collab-cell" data-row-id="${escapeHtml(row.__id || row.Nomina)}" data-column="${escapeHtml(column)}" ${disabled}`;
   if (COLLABORATOR_WEEK_COLUMNS.includes(column)) {
     const selected = new Set(String(value || "").split(",").map((item) => item.trim()).filter(Boolean));
-    return `<select ${common} multiple size="4" title="Selecciona una o varias semanas">${SEMESTER_WEEK_OPTIONS.map((week) => `<option value="${week}" ${selected.has(week) ? "selected" : ""}>${week}</option>`).join("")}</select>`;
+    const summary = selected.size ? [...selected].join(", ") : "Seleccionar";
+    const rowId = escapeHtml(row.__id || row.Nomina);
+    const columnName = escapeHtml(column);
+    return `
+      <details class="collab-week-picker" data-row-id="${rowId}" data-column="${columnName}" ${editable ? "" : "data-disabled=\"true\""}>
+        <summary>${escapeHtml(summary)}</summary>
+        <div class="collab-week-menu">
+          ${SEMESTER_WEEK_OPTIONS.map((week) => `
+            <label>
+              <input class="collab-week-check" type="checkbox" value="${week}" ${selected.has(week) ? "checked" : ""} ${editable ? "" : "disabled"}>
+              <span>${week}</span>
+            </label>
+          `).join("")}
+        </div>
+      </details>`;
   }
   if (["Playeras Joma", "Talla pants"].includes(column)) {
     const sizes = ["", "XS", "S", "M", "L", "XL", "XXL"];
@@ -11953,6 +11967,14 @@ function render() {
       ? [...target.selectedOptions].map((option) => option.value).join(", ")
       : target.value;
     updateCollaboratorCell(target.dataset.rowId, target.dataset.column, value);
+  }));
+  $$(".collab-week-check").forEach((control) => control.addEventListener("change", (event) => {
+    const picker = event.target.closest(".collab-week-picker");
+    if (!picker || picker.dataset.disabled === "true") return;
+    const value = [...picker.querySelectorAll(".collab-week-check:checked")]
+      .map((checkbox) => checkbox.value)
+      .join(", ");
+    updateCollaboratorCell(picker.dataset.rowId, picker.dataset.column, value);
   }));
   $$(".collab-cell").forEach((control) => control.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;

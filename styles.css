@@ -3316,9 +3316,78 @@ tbody tr:hover td {
   -webkit-text-fill-color: var(--ink);
 }
 
-.collab-cell[multiple] {
-  min-height: 96px;
-  background: #fbfdff;
+.collab-week-picker {
+  position: relative;
+  width: 100%;
+}
+
+.collab-week-picker summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f8fbfd;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.collab-week-picker summary::-webkit-details-marker {
+  display: none;
+}
+
+.collab-week-picker summary::after {
+  content: "⌄";
+  color: var(--muted);
+  font-size: 13px;
+  margin-left: 8px;
+}
+
+.collab-week-picker[open] summary {
+  border-color: #9ec3dc;
+  background: #fff;
+}
+
+.collab-week-menu {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(48px, 1fr));
+  gap: 6px;
+  width: 148px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(20, 35, 51, .16);
+}
+
+.collab-week-menu label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.collab-week-menu input {
+  accent-color: var(--blue);
+}
+
+.collab-week-picker[data-disabled="true"] summary {
+  cursor: not-allowed;
+  opacity: .65;
 }
 
 .column-heading {
@@ -8698,9 +8767,78 @@ tbody tr:hover td {
   -webkit-text-fill-color: var(--ink);
 }
 
-.collab-cell[multiple] {
-  min-height: 96px;
-  background: #fbfdff;
+.collab-week-picker {
+  position: relative;
+  width: 100%;
+}
+
+.collab-week-picker summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #f8fbfd;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.collab-week-picker summary::-webkit-details-marker {
+  display: none;
+}
+
+.collab-week-picker summary::after {
+  content: "⌄";
+  color: var(--muted);
+  font-size: 13px;
+  margin-left: 8px;
+}
+
+.collab-week-picker[open] summary {
+  border-color: #9ec3dc;
+  background: #fff;
+}
+
+.collab-week-menu {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(48px, 1fr));
+  gap: 6px;
+  width: 148px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(20, 35, 51, .16);
+}
+
+.collab-week-menu label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.collab-week-menu input {
+  accent-color: var(--blue);
+}
+
+.collab-week-picker[data-disabled="true"] summary {
+  cursor: not-allowed;
+  opacity: .65;
 }
 
 .column-heading {
