@@ -1945,13 +1945,17 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 
 .physical-filter-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(118px, 1fr));
   gap: 10px;
   margin: 16px 0 12px;
   padding: 14px;
   background: #f5f8fa;
   border: 1px solid var(--line);
   border-radius: 8px;
+}
+
+.physical-filter-grid label {
+  min-width: 0;
 }
 
 .physical-filter-grid select,
@@ -3310,6 +3314,11 @@ tbody tr:hover td {
 .collab-cell:disabled {
   opacity: 1;
   -webkit-text-fill-color: var(--ink);
+}
+
+.collab-cell[multiple] {
+  min-height: 96px;
+  background: #fbfdff;
 }
 
 .column-heading {
@@ -6767,8 +6776,24 @@ body.planning-modal-open {
   .planning-calendar-panel { grid-row: auto; }
 }
 
+@media (max-width: 1280px) {
+  .physical-filter-grid {
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .physical-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 560px) {
   .planning-detail-form {
+    grid-template-columns: 1fr;
+  }
+
+  .physical-filter-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -8671,6 +8696,11 @@ tbody tr:hover td {
 .collab-cell:disabled {
   opacity: 1;
   -webkit-text-fill-color: var(--ink);
+}
+
+.collab-cell[multiple] {
+  min-height: 96px;
+  background: #fbfdff;
 }
 
 .column-heading {

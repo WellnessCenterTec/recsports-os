@@ -211,6 +211,8 @@ const BASE_COLLABORATOR_COLUMNS = [
   "Genero",
   "Primeros auxilios"
 ];
+const COLLABORATOR_WEEK_COLUMNS = ["Destacados", "En Desarrollo"];
+const SEMESTER_WEEK_OPTIONS = Array.from({ length: 20 }, (_, index) => `S${index + 1}`);
 const SUPABASE_ENV = window.RECSPORTS_ENV || {};
 const supabaseClient = window.supabase && SUPABASE_ENV.SUPABASE_URL && SUPABASE_ENV.SUPABASE_ANON_KEY
   ? window.supabase.createClient(SUPABASE_ENV.SUPABASE_URL, SUPABASE_ENV.SUPABASE_ANON_KEY)
@@ -4351,13 +4353,16 @@ function knownCollaboratorColumns() {
       }
     });
   });
+  COLLABORATOR_WEEK_COLUMNS.forEach((column) => custom.add(column));
   return [...BASE_COLLABORATOR_COLUMNS, ...custom];
 }
 
 function collaboratorColumns() {
   const known = knownCollaboratorColumns();
   if (!collaboratorColumnOrder.length) return known;
-  return collaboratorColumnOrder.filter((column) => known.includes(column));
+  const ordered = collaboratorColumnOrder.filter((column) => known.includes(column));
+  const missing = known.filter((column) => !ordered.includes(column));
+  return [...ordered, ...missing];
 }
 
 function escapeHtml(value) {
@@ -4377,6 +4382,10 @@ function collaboratorEditorControl(row, column, editable) {
   const value = row[column] ?? "";
   const disabled = editable ? "" : "disabled";
   const common = `class="collab-cell" data-row-id="${escapeHtml(row.__id || row.Nomina)}" data-column="${escapeHtml(column)}" ${disabled}`;
+  if (COLLABORATOR_WEEK_COLUMNS.includes(column)) {
+    const selected = new Set(String(value || "").split(",").map((item) => item.trim()).filter(Boolean));
+    return `<select ${common} multiple size="4" title="Selecciona una o varias semanas">${SEMESTER_WEEK_OPTIONS.map((week) => `<option value="${week}" ${selected.has(week) ? "selected" : ""}>${week}</option>`).join("")}</select>`;
+  }
   if (["Playeras Joma", "Talla pants"].includes(column)) {
     const sizes = ["", "XS", "S", "M", "L", "XL", "XXL"];
     return `<select ${common}>${sizes.map((size) => `<option value="${size}" ${String(value) === size ? "selected" : ""}>${size || "Sin dato"}</option>`).join("")}</select>`;
@@ -6414,9 +6423,14 @@ function downloadParticipationTemplate(areaId) {
 }
 
 function participationUploadRowToCloud(areaId, row, fileName = "") {
+  const matricula = normalizeMatricula(row.matricula);
+  const importKey = areaId === "representativos"
+    ? [matricula, row.clave_materia || "", row.representativo || "", row.coach || ""].map((value) => normalizeText(value)).join("|")
+    : normalizeText(matricula);
   return {
     area_key: areaId,
-    matricula: normalizeMatricula(row.matricula),
+    import_key: importKey,
+    matricula,
     found_in_student_base: Boolean(row.found),
     duplicate_in_file: Boolean(row.duplicate),
     clave_materia: areaId === "representativos" ? (row.clave_materia || null) : null,
@@ -6428,7 +6442,8 @@ function participationUploadRowToCloud(areaId, row, fileName = "") {
     programa: row.programa || null,
     source_name: fileName || participationUploadConfigs[areaId]?.title || areaId,
     source_row_number: row.rowNumber || null,
-    created_by: currentUser?.auth === "supabase" ? currentUser.id : null
+    created_by: currentUser?.auth === "supabase" ? currentUser.id : null,
+    updated_at: new Date().toISOString()
   };
 }
 
@@ -6505,21 +6520,14 @@ async function loadParticipationUploadsCloud() {
 
 async function saveParticipationUploadCloud(areaId, draft) {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea(areaId)) return false;
-  const { error: deleteError } = await supabaseClient
-    .from("participation_upload_rows")
-    .delete()
-    .eq("area_key", areaId);
-  if (deleteError) {
-    participationUploadCloudAvailable = false;
-    toast(`La carga quedó local; falta activar Supabase: ${supabaseErrorDetail(deleteError) || deleteError.message}`);
-    return false;
-  }
   const payload = draft.rows
-    .filter((row) => row.matricula)
+    .filter((row) => row.matricula && !row.duplicate)
     .map((row) => participationUploadRowToCloud(areaId, row, draft.fileName));
   for (let index = 0; index < payload.length; index += 500) {
     const chunk = payload.slice(index, index + 500);
-    const { error } = await supabaseClient.from("participation_upload_rows").insert(chunk);
+    const { error } = await supabaseClient
+      .from("participation_upload_rows")
+      .upsert(chunk, { onConflict: "area_key,import_key" });
     if (error) {
       participationUploadCloudAvailable = false;
       toast(`La carga quedó local; no pude guardar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
@@ -11940,7 +11948,11 @@ function render() {
     render();
   });
   $$(".collab-cell").forEach((control) => control.addEventListener("change", (event) => {
-    updateCollaboratorCell(event.target.dataset.rowId, event.target.dataset.column, event.target.value);
+    const target = event.target;
+    const value = target.multiple
+      ? [...target.selectedOptions].map((option) => option.value).join(", ")
+      : target.value;
+    updateCollaboratorCell(target.dataset.rowId, target.dataset.column, value);
   }));
   $$(".collab-cell").forEach((control) => control.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;

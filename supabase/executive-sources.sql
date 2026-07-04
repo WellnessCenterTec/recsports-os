@@ -39,6 +39,7 @@ for each row execute function public.set_updated_at();
 create table if not exists public.participation_upload_rows (
   id uuid primary key default gen_random_uuid(),
   area_key text not null check (area_key in ('gamer', 'representativos')),
+  import_key text,
   matricula text not null,
   found_in_student_base boolean not null default false,
   duplicate_in_file boolean not null default false,
@@ -61,6 +62,12 @@ create index if not exists participation_upload_rows_area_idx
 
 create index if not exists participation_upload_rows_matricula_idx
   on public.participation_upload_rows(matricula);
+
+alter table public.participation_upload_rows
+drop constraint if exists participation_upload_rows_area_import_key_key;
+
+alter table public.participation_upload_rows
+add constraint participation_upload_rows_area_import_key_key unique (area_key, import_key);
 
 create index if not exists participation_upload_rows_representativo_idx
   on public.participation_upload_rows(representativo)
