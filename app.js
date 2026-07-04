@@ -5563,10 +5563,10 @@ function gymStudentDistributionRows(profiles, field, options = {}) {
   return rows;
 }
 
-function renderGymStudentDistribution(title, subtitle, rows, total, unmatchedCount) {
+function renderGymStudentDistribution(title, subtitle, rows, total, unmatchedCount, variant = "") {
   const max = Math.max(1, ...rows.map((row) => row.count));
   return `
-    <section class="chart-panel gym-distribution-chart">
+    <section class="chart-panel gym-distribution-chart ${variant ? `gym-distribution-${variant}` : ""}">
       <div class="gym-chart-heading">
         <div><p class="eyebrow">Asistencia</p><h3>${escapeHtml(title)}</h3></div>
         <span>${escapeHtml(subtitle)}</span>
@@ -5798,7 +5798,7 @@ function renderGymDashboard() {
           ${emptyMessage}
           <div class="gym-bars">${gymBarRows(dailyRows)}</div>
         </section>
-        ${renderGymStudentDistribution("Por semestre", "% de alumnos asistentes", semesterRows, attendanceProfiles.length, unmatchedAttendance)}
+        ${renderGymStudentDistribution("Por semestre", "% de alumnos asistentes", semesterRows, attendanceProfiles.length, unmatchedAttendance, "semester")}
         ${renderGymStudentDistribution("Por carrera", "Top 10 + Otras", careerRows, attendanceProfiles.length, unmatchedAttendance)}
       </div>
       <section class="chart-panel gym-week-chart">
