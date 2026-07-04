@@ -1615,11 +1615,12 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: none;
+  overflow: auto;
 }
 
 .gym-attendance-combined-table {
-  min-width: 1320px;
-  table-layout: fixed;
+  min-width: 1620px;
+  table-layout: auto;
 }
 
 .gym-attendance-combined-table th {
