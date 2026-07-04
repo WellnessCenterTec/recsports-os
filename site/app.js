@@ -3376,7 +3376,7 @@ async function loadSupabaseCollaborators({ loadSettings = true } = {}) {
     toast("No pude leer colaboradores de Supabase");
     return;
   }
-  cloudCollaborators = (data || []).map(collaboratorFromCloud);
+  cloudCollaborators = (data || []).filter((row) => !row.archived_at).map(collaboratorFromCloud);
   await loadCollaboratorPhotoUrls();
   collaboratorsCloudLoaded = true;
   if (loadSettings) await loadCollaboratorTableSettings();
@@ -3900,23 +3900,33 @@ async function deleteCollaboratorColumn(column) {
 }
 
 async function deleteCollaboratorRow(rowId) {
-  if (!supabaseClient || !canManageStructure()) return;
-  const row = cloudCollaborators.find((item) => item.__id === rowId);
-  if (!row) return;
-  if (!window.confirm(`¿Eliminar a ${row.Colaboradores || rowId}? Esta acción se guardará en la base.`)) return;
-  const { error } = await supabaseClient.from("collaborators").delete().eq("nomina", rowId);
-  if (error) {
-    console.error(error);
-    toast("No se pudo eliminar el registro");
+  if (!supabaseClient || !canManageCollaboratorRows()) {
+    toast("No tienes permiso para dar de baja colaboradores");
     return;
   }
-  if (row.__photoPath) {
-    await supabaseClient.storage.from("collaborator-photos").remove([row.__photoPath]);
+  const row = cloudCollaborators.find((item) => item.__id === rowId);
+  if (!row) return;
+  if (!window.confirm(`¿Dar de baja a ${row.Colaboradores || rowId}? Ya no aparecerá en la tabla ni en las gráficas activas, pero se conservará el historial.`)) return;
+  const { error } = await supabaseClient
+    .from("collaborators")
+    .update({
+      archived_at: new Date().toISOString(),
+      archived_by: currentUser?.id || null,
+      archive_reason: "Baja operativa desde WellSync"
+    })
+    .eq("nomina", rowId);
+  if (error) {
+    console.error(error);
+    const detail = supabaseErrorDetail(error) || error.message || "";
+    toast(detail.includes("archived_at")
+      ? "Falta activar el campo de baja en Supabase"
+      : `No se pudo dar de baja el registro${detail ? `: ${detail}` : ""}`);
+    return;
   }
   addAudit("colaboradores", `Baja de ${rowId} - ${row.Colaboradores || ""}`);
   await loadSupabaseCollaborators();
   render();
-  toast("Registro eliminado y gráficas actualizadas");
+  toast("Colaborador dado de baja y gráficas actualizadas");
 }
 
 async function prepareCollaboratorPhoto(file) {
@@ -4223,6 +4233,10 @@ function canUseAuthorizedUploads() {
 
 function canManageStructure() {
   return currentUser?.auth === "supabase" && isLeadership();
+}
+
+function canManageCollaboratorRows() {
+  return currentUser?.auth === "supabase" && canEditArea("colaboradores");
 }
 
 function canEditArea(areaId) {
@@ -10062,6 +10076,7 @@ function renderCollaboratorsDashboard() {
   const columns = collaboratorColumns();
   const directEdit = canManageStructure();
   const operationalEntry = currentUser?.auth === "supabase" && canEditArea("colaboradores");
+  const rowManagement = canManageCollaboratorRows();
   const authorizedUpload = canUseAuthorizedUploads()
     || (currentUser?.auth === "supabase" && currentUser?.area === "colaboradores");
   const allRows = collaboratorRows();
@@ -10147,7 +10162,7 @@ function renderCollaboratorsDashboard() {
             <tr data-row-id="${escapeHtml(row.__id || row.Nomina)}">
               <td class="photo-cell">${collaboratorAvatar(row, authorizedUpload)}</td>
               ${columns.map((column) => `<td>${collaboratorEditorControl(row, column, directEdit)}</td>`).join("")}
-              <td class="row-actions-cell"><button class="delete-row-btn" data-delete-row="${escapeHtml(row.__id || row.Nomina)}" type="button" ${directEdit ? "" : "disabled"} title="Eliminar fila">x</button></td>
+              <td class="row-actions-cell"><button class="delete-row-btn" data-delete-row="${escapeHtml(row.__id || row.Nomina)}" type="button" ${rowManagement ? "" : "disabled"} title="Dar de baja colaborador">Baja</button></td>
             </tr>
           `).join("") || `<tr><td colspan="${columns.length + 2}">No hay registros con los filtros seleccionados.</td></tr>`}
         </tbody>

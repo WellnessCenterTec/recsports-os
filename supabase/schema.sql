@@ -208,6 +208,9 @@ create table if not exists public.collaborators (
   emergency_phone_1 text,
   emergency_contact_2 text,
   emergency_phone_2 text,
+  archived_at timestamptz,
+  archived_by uuid,
+  archive_reason text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
