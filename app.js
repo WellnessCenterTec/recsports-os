@@ -5514,6 +5514,84 @@ function gymDailyRows(facility = gymDashboardFacility) {
   });
 }
 
+function gymAttendanceStudentProfiles(facility = gymDashboardFacility) {
+  const profilesByMatricula = new Map();
+  gymAsistencias
+    .filter((row) => gymFacilityMatches(row.sitio, facility))
+    .forEach((row) => {
+      const matricula = normalizeMatricula(row.matricula);
+      if (!matricula || profilesByMatricula.has(matricula)) return;
+      const student = findStudentInDatabase(matricula);
+      profilesByMatricula.set(matricula, {
+        matricula,
+        matched: Boolean(student),
+        semestre: student?.semestre ? String(student.semestre) : "Sin identificar",
+        carrera: student?.carrera || "Sin identificar"
+      });
+    });
+  return Array.from(profilesByMatricula.values());
+}
+
+function gymStudentDistributionRows(profiles, field, options = {}) {
+  const total = profiles.length;
+  const counts = profiles.reduce((acc, row) => {
+    const label = String(row[field] || "Sin identificar").trim() || "Sin identificar";
+    acc[label] = (acc[label] || 0) + 1;
+    return acc;
+  }, {});
+  let rows = Object.entries(counts)
+    .map(([label, count]) => ({
+      label,
+      count,
+      percent: total ? Math.round((count / total) * 1000) / 10 : 0
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "es"));
+  if (options.semesterOrder) {
+    const order = new Map([...options.semesterOrder, "Sin identificar"].map((label, index) => [label, index]));
+    rows = rows.sort((a, b) => (order.get(a.label) ?? 99) - (order.get(b.label) ?? 99));
+  }
+  if (options.top && rows.length > options.top) {
+    const visible = rows.slice(0, options.top);
+    const otherCount = rows.slice(options.top).reduce((sum, row) => sum + row.count, 0);
+    visible.push({
+      label: "Otras",
+      count: otherCount,
+      percent: total ? Math.round((otherCount / total) * 1000) / 10 : 0
+    });
+    rows = visible;
+  }
+  return rows;
+}
+
+function renderGymStudentDistribution(title, subtitle, rows, total, unmatchedCount) {
+  const max = Math.max(1, ...rows.map((row) => row.count));
+  return `
+    <section class="chart-panel gym-distribution-chart">
+      <div class="gym-chart-heading">
+        <div><p class="eyebrow">Asistencia</p><h3>${escapeHtml(title)}</h3></div>
+        <span>${escapeHtml(subtitle)}</span>
+      </div>
+      <div class="gym-distribution-summary">
+        <strong>${total.toLocaleString("es-MX")}</strong>
+        <span>alumnos únicos con asistencia</span>
+        <em>${unmatchedCount.toLocaleString("es-MX")} sin cruce en Base Maestra</em>
+      </div>
+      <div class="gym-distribution-bars">
+        ${rows.length ? rows.map((row) => `
+          <div class="gym-distribution-row">
+            <div>
+              <strong>${escapeHtml(row.label)}</strong>
+              <span>${row.count.toLocaleString("es-MX")} alumnos</span>
+            </div>
+            <div class="gym-bar-track"><i style="width:${Math.round((row.count / max) * 100)}%"></i></div>
+            <em>${row.percent.toLocaleString("es-MX", { maximumFractionDigits: 1 })}%</em>
+          </div>
+        `).join("") : `<p class="form-message">Sin asistencias con matrícula para ${escapeHtml(gymDashboardFacility)}.</p>`}
+      </div>
+    </section>
+  `;
+}
+
 function gymAttendanceWeekLabel(week, facility) {
   const records = gymAttendanceRecords
     .filter((row) => Number(row.week_number) === week && gymFacilityMatches(row.facility, facility) && row.attendance_date)
@@ -5691,6 +5769,10 @@ function renderGymAttendanceLoadedSummary() {
 
 function renderGymDashboard() {
   const dailyRows = gymDailyRows(gymDashboardFacility);
+  const attendanceProfiles = gymAttendanceStudentProfiles(gymDashboardFacility);
+  const unmatchedAttendance = attendanceProfiles.filter((row) => !row.matched).length;
+  const semesterRows = gymStudentDistributionRows(attendanceProfiles, "semestre", { semesterOrder: ["1", "2", "3", "4", "5", "6", "7", "8", "9"] });
+  const careerRows = gymStudentDistributionRows(attendanceProfiles, "carrera", { top: 10 });
   const emptyMessage = !gymDataLoaded
     ? `<p class="form-message">Activa las tablas de Gimnasio en Supabase para comenzar.</p>`
     : !gymAttendanceRecords.length
@@ -5707,14 +5789,18 @@ function renderGymDashboard() {
         </div>
         <p>El filtro se aplica a todas las gr&aacute;ficas de asistencia.</p>
       </div>
-      <section class="chart-panel gym-daily-chart">
-        <div class="gym-chart-heading">
-          <div><p class="eyebrow">Asistencia</p><h3>Promedio diario</h3></div>
-          <span>Promedio de asistentes registrados</span>
-        </div>
-        ${emptyMessage}
-        <div class="gym-bars">${gymBarRows(dailyRows)}</div>
-      </section>
+      <div class="gym-dashboard-main-row">
+        <section class="chart-panel gym-daily-chart">
+          <div class="gym-chart-heading">
+            <div><p class="eyebrow">Asistencia</p><h3>Promedio diario</h3></div>
+            <span>Promedio de asistentes registrados</span>
+          </div>
+          ${emptyMessage}
+          <div class="gym-bars">${gymBarRows(dailyRows)}</div>
+        </section>
+        ${renderGymStudentDistribution("Por semestre", "% de alumnos asistentes", semesterRows, attendanceProfiles.length, unmatchedAttendance)}
+        ${renderGymStudentDistribution("Por carrera", "Top 10 + Otras", careerRows, attendanceProfiles.length, unmatchedAttendance)}
+      </div>
       <section class="chart-panel gym-week-chart">
         <div class="gym-chart-heading">
           <div><p class="eyebrow">${gymDashboardFacility}</p><h3>Asistencia semanal</h3></div>
@@ -11320,13 +11406,17 @@ function renderClassBookingDashboard() {
         <label>Actividad<select class="booking-filter" data-filter="activity"><option value="todos">Todas</option>${activityOptions.map((value) => `<option value="${escapeHtml(value)}" ${classBookingFilters.activity === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select></label>
         <label>Buscar<input class="booking-filter" data-filter="search" value="${escapeHtml(classBookingFilters.search)}" placeholder="Matrícula, actividad, hora..." /></label>
       </div>
-      <div class="booking-dashboard-grid booking-visual-grid">
-        ${renderBookingActivityBars(activities)}
-        ${renderBookingStudentLeaderboard(students)}
-        ${renderBookingDayColumns(days)}
-        ${renderBookingHourHeatmap(hours)}
-        ${renderBookingStatusDonut(statuses, rows.length)}
-        ${renderBookingTypeStack(types, rows.length)}
+      <div class="booking-visual-layout">
+        <div class="booking-visual-row booking-visual-row-top">
+          ${renderBookingActivityBars(activities)}
+          ${renderBookingStudentLeaderboard(students)}
+          ${renderBookingStatusDonut(statuses, rows.length)}
+        </div>
+        <div class="booking-visual-row booking-visual-row-bottom">
+          ${renderBookingDayColumns(days)}
+          ${renderBookingTypeStack(types, rows.length)}
+          ${renderBookingHourHeatmap(hours)}
+        </div>
       </div>
       <section class="booking-table-panel">
         <div class="class-grade-table-header">

@@ -1269,8 +1269,78 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   font-size: 13px;
 }
 
-.gym-daily-chart {
+.gym-dashboard-main-row {
   grid-column: 1 / -1;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gym-daily-chart,
+.gym-distribution-chart {
+  min-width: 0;
+}
+
+.gym-distribution-summary {
+  display: grid;
+  gap: 3px;
+  margin: 6px 0 14px;
+}
+
+.gym-distribution-summary strong {
+  color: var(--blue);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.gym-distribution-summary span,
+.gym-distribution-summary em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.gym-distribution-summary em {
+  color: var(--teal);
+}
+
+.gym-distribution-bars {
+  display: grid;
+  gap: 10px;
+}
+
+.gym-distribution-row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(96px, 1fr) minmax(88px, 1.2fr) 44px;
+}
+
+.gym-distribution-row div:first-child {
+  min-width: 0;
+}
+
+.gym-distribution-row strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gym-distribution-row span {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.gym-distribution-row em {
+  color: var(--ink);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+  text-align: right;
 }
 
 .gym-week-chart {
@@ -3667,6 +3737,33 @@ tbody tr:hover td {
 
 .booking-dashboard-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.booking-visual-layout {
+  display: grid;
+  gap: 12px;
+}
+
+.booking-visual-row {
+  align-items: stretch;
+  display: grid;
+  gap: 12px;
+}
+
+.booking-visual-row-top {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.booking-visual-row-bottom {
+  grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr) minmax(0, 2fr);
+}
+
+.booking-visual-row-bottom .booking-stack-layout {
+  gap: 18px;
+}
+
+.booking-visual-row-bottom .booking-stack-summary strong {
+  font-size: 30px;
 }
 
 .booking-mini-grid {
@@ -6917,6 +7014,8 @@ body.planning-modal-open {
   .workspace, .sidebar { padding: 14px; }
   .topbar, .top-actions, .section-title, .report-row, .permission-strip, .collaborator-table-header { flex-direction: column; align-items: stretch; }
   .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps, .booking-kpi-grid, .booking-dashboard-grid, .booking-mini-grid, .booking-filter-row, .upload-center-grid, .upload-kpi-grid, .upload-chart-grid, .upload-bar-row, .intramuros-omar-workspace, .intramuros-op-kpis, .intramuros-op-form, .intramuros-filter-grid, .intramuros-load-summary, .intramuros-tournament-grid, .exec-controls, .exec-hero-row, .exec-status-strip, .exec-grid.three, .exec-grid.two, .exec-grid.wide-left, .exec-link-grid, .exec-pie-wrap, .exec-footer-kpis, .gym-attendance-summary-grid { grid-template-columns: 1fr; }
+  .booking-visual-row,
+  .gym-dashboard-main-row { grid-template-columns: 1fr; }
   .exec-pie { justify-self: center; }
   .exec-page { padding: 16px; }
   .exec-week-bars { grid-template-columns: repeat(6, minmax(0, 1fr)); }
