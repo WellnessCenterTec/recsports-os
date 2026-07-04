@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --ink: #142333;
   --muted: #657381;
   --line: #d8e0e7;
@@ -3369,10 +3369,11 @@ tbody tr:hover td {
 .row-actions-cell {
   position: sticky;
   right: 0;
-  min-width: 64px !important;
-  width: 64px;
+  min-width: 88px !important;
+  width: 88px;
   text-align: center;
   background: #fff;
+  box-shadow: -8px 0 18px rgba(15, 54, 78, .06);
 }
 
 .row-actions-heading {
@@ -3381,15 +3382,24 @@ tbody tr:hover td {
 }
 
 .delete-row-btn {
-  width: 34px;
-  height: 34px;
-  border: 1px solid #efb9b9;
-  border-radius: 6px;
-  background: #fff;
-  color: var(--red);
-  font-size: 22px;
+  min-width: 64px;
+  height: 30px;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  background: #fff5f5;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 900;
   line-height: 1;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgba(185, 28, 28, .08);
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.delete-row-btn:hover:not(:disabled) {
+  border-color: #f87171;
+  background: #fee2e2;
+  transform: translateY(-1px);
 }
 
 .delete-row-btn:disabled {
@@ -5483,7 +5493,7 @@ tbody tr:hover td {
 
 .class-simulator-day-menu summary::after {
   color: var(--muted);
-  content: "âŒ„";
+  content: "⌄";
   font-size: 14px;
 }
 
@@ -8720,10 +8730,11 @@ tbody tr:hover td {
 .row-actions-cell {
   position: sticky;
   right: 0;
-  min-width: 64px !important;
-  width: 64px;
+  min-width: 88px !important;
+  width: 88px;
   text-align: center;
   background: #fff;
+  box-shadow: -8px 0 18px rgba(15, 54, 78, .06);
 }
 
 .row-actions-heading {
@@ -8732,15 +8743,24 @@ tbody tr:hover td {
 }
 
 .delete-row-btn {
-  width: 34px;
-  height: 34px;
-  border: 1px solid #efb9b9;
-  border-radius: 6px;
-  background: #fff;
-  color: var(--red);
-  font-size: 22px;
+  min-width: 64px;
+  height: 30px;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  background: #fff5f5;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 900;
   line-height: 1;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgba(185, 28, 28, .08);
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.delete-row-btn:hover:not(:disabled) {
+  border-color: #f87171;
+  background: #fee2e2;
+  transform: translateY(-1px);
 }
 
 .delete-row-btn:disabled {
@@ -8751,6 +8771,7 @@ tbody tr:hover td {
 .import-collaborators-callout {
   margin-top: 18px;
 }
+
 
 
 
