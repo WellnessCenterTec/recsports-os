@@ -1796,16 +1796,18 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 
 .collaborator-infographic-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 12px;
 }
 
 .collaborator-infographic-card {
   display: grid;
+  grid-template-rows: auto minmax(34px, auto);
+  align-content: start;
   justify-items: center;
-  gap: 9px;
-  min-height: 154px;
-  padding: 14px 10px;
+  gap: 12px;
+  min-height: 166px;
+  padding: 16px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -1822,8 +1824,16 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 }
 
 .collaborator-infographic-card strong {
-  font-size: 13px;
-  line-height: 1.2;
+  display: -webkit-box;
+  max-width: 100%;
+  min-height: 34px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 12.5px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .collaborator-infographic-photo,
@@ -1832,6 +1842,7 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   place-items: center;
   width: 74px;
   height: 74px;
+  margin: 0 auto;
   overflow: hidden;
   border: 1px solid #d2e1eb;
   border-radius: 50%;
@@ -6674,9 +6685,82 @@ body.planning-modal-open {
 .planning-detail-panel dt { color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; }
 .planning-detail-panel dd { margin: 4px 0 0; overflow-wrap: anywhere; color: var(--ink); font-weight: 700; }
 
+.planning-detail-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.planning-detail-form label,
+.planning-detail-reference {
+  display: grid;
+  gap: 6px;
+}
+
+.planning-detail-form label span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.planning-detail-form input,
+.planning-detail-form select,
+.planning-detail-form textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+}
+
+.planning-detail-form textarea {
+  resize: vertical;
+}
+
+.planning-detail-form .wide-field,
+.planning-detail-reference,
+.planning-detail-actions,
+.planning-detail-form .form-warning {
+  grid-column: 1 / -1;
+}
+
+.planning-detail-reference {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7fafc;
+}
+
+.planning-detail-reference strong {
+  color: var(--ink);
+}
+
+.planning-detail-reference span,
+.planning-detail-form .form-warning {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.planning-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 @media (max-width: 1120px) {
   .planning-dashboard-grid { grid-template-columns: 1fr; }
   .planning-calendar-panel { grid-row: auto; }
+}
+
+@media (max-width: 560px) {
+  .planning-detail-form {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 760px) {

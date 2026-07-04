@@ -83,11 +83,11 @@
     id: "colaboradores",
     name: "Colaboradores",
     tone: "blue",
-    source: "Uniformes, Pruebas fisicas, Gimnasio, Historial de profesores, layouts AD26 y Verano26",
+    source: "Uniformes, Evaluaciones Físicas, Gimnasio, Historial de profesores, layouts AD26 y Verano26",
     capture: ["Nómina", "Colaborador", "Puesto", "Coordinador", "Talla playera", "Talla pants", "Correo", "Cumpleaños", "Género", "Primeros auxilios", "Contacto de emergencia"],
     indicators: ["Colaboradores registrados", "Uniformes por talla", "Cursos completados", "Primeros auxilios", "Asistencia a gimnasio", "Contratos por layout"],
     charts: ["Tallas de playera", "Cursos por coordinador", "Primeros auxilios", "Asistencia a gimnasio", "Costo de contratos"],
-    reports: ["Directorio de colaboradores", "Reporte de uniformes", "Pruebas fisicas", "Layouts de contratacion"]
+    reports: ["Directorio de colaboradores", "Reporte de uniformes", "Evaluaciones Físicas", "Layouts de contratacion"]
   },
   {
     id: "compras",
@@ -306,7 +306,7 @@ const dataModelEntities = [
   ["events", "Vivencia / Comunicacion", "Evento, fecha, meta, clasificacion", "Baja", "Eventos y activaciones"],
   ["tournaments", "Intramuros", "Torneo, tipo, rama, periodo, estatus", "Baja", "Competencias internas"],
   ["collaborators", "Colaboradores", "Nomina, nombre, contacto, uniformes, cursos", "Alta", "Informacion completa autorizada"],
-  ["collaborator_physical_tests", "Colaboradores", "Pruebas fisicas y asistencia", "Alta", "Seguimiento interno autorizado"],
+  ["collaborator_physical_tests", "Colaboradores", "Evaluaciones Físicas y asistencia", "Alta", "Seguimiento interno autorizado"],
   ["purchases", "Compras y Presupuesto", "Area, concepto, proveedor, monto, estatus", "Media", "Gestion financiera"],
   ["app_users", "Sistema", "Usuario, rol, area, activo", "Alta", "Control de acceso"],
   ["audit_log", "Sistema", "Usuario, accion, entidad, fecha", "Media", "Trazabilidad"],
@@ -518,6 +518,9 @@ let planningCalendarLoaded = false;
 let planningCalendarError = "";
 let planningCalendarRequestSequence = 0;
 let planningCalendarMonthByArea = { comunicacion: "", intramuros: "" };
+let planningEventOverrides = [];
+let planningEventOverridesLoaded = false;
+let planningEventOverridesAvailable = true;
 let selectedPlanningActivityId = "";
 let planningDetailTrigger = null;
 let planningDetailTriggerInstance = "";
@@ -2235,11 +2238,38 @@ function getPlanningCalendarActivityId(row, rowIndex = "") {
 function normalizePlanningCalendarRow(row, rowIndex = "") {
   return {
     id: getPlanningCalendarActivityId(row, rowIndex),
+    planningActivityId: getPlanningActivityId(row),
     date: normalizePlanningCalendarDate(planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"])),
     area: normalizePlanningArea(planningValue(row, ["Área", "Area", "area"])),
     activity: String(planningValue(row, ["Actividad", "activity"]) || "").trim(),
     responsible: String(planningValue(row, ["Responsable", "responsible"]) || "").trim(),
     status: String(planningValue(row, ["Estatus", "Estado", "status"]) || "").trim()
+  };
+}
+
+function planningEventOverrideFor(activity) {
+  if (!activity?.id) return null;
+  const planningActivityId = activity.planningActivityId || activity.id;
+  return planningEventOverrides.find((row) => row.area === activity.area && row.planning_activity_id === planningActivityId) || null;
+}
+
+function applyPlanningEventOverride(activity) {
+  const override = planningEventOverrideFor(activity);
+  if (!override) return activity;
+  return {
+    ...activity,
+    activity: override.event_name || activity.activity,
+    date: override.event_date || activity.date,
+    responsible: override.responsible_name || activity.responsible,
+    status: override.status || activity.status,
+    notes: override.notes || "",
+    __overrideId: override.id,
+    __original: {
+      activity: activity.activity,
+      date: activity.date,
+      responsible: activity.responsible,
+      status: activity.status
+    }
   };
 }
 
@@ -2249,6 +2279,7 @@ function planningActivitiesForArea(rows, areaId) {
     .filter((row) => row.activity
       && !normalizeText(row.activity).startsWith("__ocultar_actividad__")
       && row.area === normalizePlanningArea(areaId))
+    .map(applyPlanningEventOverride)
     .sort((a, b) => String(a.date || "9999-12-31").localeCompare(String(b.date || "9999-12-31")));
 }
 
@@ -2313,6 +2344,59 @@ function renderPlanningActivityDetail(activity) {
   const areaLabel = activity.area === "comunicacion"
     ? "Comunicación"
     : activity.area === "intramuros" ? "Intramuros" : activity.area;
+  const editable = activity.area === "comunicacion"
+    && supabaseClient
+    && currentUser?.auth === "supabase"
+    && canEditArea("comunicacion")
+    && planningEventOverridesAvailable;
+  if (activity.area === "comunicacion") {
+    const statusOptions = ["Planeado", "En proceso", "Completado", "Cancelado", "Reprogramado"];
+    return `
+      <div class="planning-modal-backdrop" data-planning-overlay role="presentation">
+      <aside class="planning-detail-panel" role="dialog" aria-modal="true" aria-labelledby="planningDetailTitle" tabindex="-1">
+        <div class="planning-detail-heading">
+          <div><p class="eyebrow">Evento de Comunicación</p><h3 id="planningDetailTitle">${escapeHtml(activity.activity)}</h3></div>
+          <button type="button" class="planning-detail-close" data-close-planning-detail aria-label="Cerrar detalle" title="Cerrar detalle">&times;</button>
+        </div>
+        <form id="planningActivityForm" class="planning-detail-form">
+          <input type="hidden" name="area" value="${escapeHtml(activity.area)}">
+          <input type="hidden" name="planning_activity_id" value="${escapeHtml(activity.planningActivityId || activity.id)}">
+          <label>
+            <span>Evento</span>
+            <input name="event_name" value="${escapeHtml(activity.activity)}" ${editable ? "" : "disabled"} required>
+          </label>
+          <label>
+            <span>Fecha</span>
+            <input type="date" name="event_date" value="${escapeHtml(activity.date || "")}" ${editable ? "" : "disabled"}>
+          </label>
+          <label>
+            <span>Responsable</span>
+            <input name="responsible_name" value="${escapeHtml(activity.responsible || "")}" ${editable ? "" : "disabled"}>
+          </label>
+          <label>
+            <span>Estado</span>
+            <select name="status" ${editable ? "" : "disabled"}>
+              ${statusOptions.map((status) => `<option value="${escapeHtml(status)}" ${normalizeText(activity.status) === normalizeText(status) ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}
+              ${activity.status && !statusOptions.some((status) => normalizeText(status) === normalizeText(activity.status)) ? `<option value="${escapeHtml(activity.status)}" selected>${escapeHtml(activity.status)}</option>` : ""}
+            </select>
+          </label>
+          <label class="wide-field">
+            <span>Notas de seguimiento</span>
+            <textarea name="notes" rows="4" ${editable ? "" : "disabled"}>${escapeHtml(activity.notes || "")}</textarea>
+          </label>
+          <div class="planning-detail-reference">
+            <strong>Vinculado a Planeación</strong>
+            <span>${escapeHtml(activity.__original?.activity || activity.activity)} · ${escapeHtml(areaLabel || "Comunicación")} · ${escapeHtml(formattedDate)}</span>
+          </div>
+          <div class="planning-detail-actions">
+            <button type="button" class="ghost-btn" data-close-planning-detail>Cancelar</button>
+            <button type="submit" class="primary-btn" ${editable ? "" : "disabled"}>${editable ? "Guardar cambios" : "Solo lectura"}</button>
+          </div>
+          ${planningEventOverridesAvailable ? "" : `<p class="form-warning">Activa la tabla planning_event_overrides en Supabase para guardar cambios.</p>`}
+        </form>
+      </aside>
+      </div>`;
+  }
   return `
     <div class="planning-modal-backdrop" data-planning-overlay role="presentation">
     <aside class="planning-detail-panel" role="dialog" aria-modal="true" aria-labelledby="planningDetailTitle" tabindex="-1">
@@ -2555,6 +2639,75 @@ async function loadPlanningCalendarRows() {
   } finally {
     if (requestSequence === planningCalendarRequestSequence) planningCalendarLoaded = true;
   }
+}
+
+async function loadPlanningEventOverrides() {
+  planningEventOverridesLoaded = true;
+  planningEventOverridesAvailable = true;
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    planningEventOverrides = [];
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from("planning_event_overrides")
+    .select("*")
+    .order("updated_at", { ascending: false });
+  if (error) {
+    planningEventOverrides = [];
+    planningEventOverridesAvailable = false;
+    console.warn("No se pudieron cargar ajustes de calendario", error);
+    return;
+  }
+  planningEventOverrides = data || [];
+}
+
+async function savePlanningActivityOverride(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const values = Object.fromEntries(new FormData(form).entries());
+  const area = normalizePlanningArea(values.area);
+  if (area !== "comunicacion") return;
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("comunicacion")) {
+    toast("Necesitas permisos de Comunicación para guardar");
+    return;
+  }
+  const sourceActivity = planningActivitiesForArea(planningCalendarRows, area)
+    .find((activity) => activity.id === values.planning_activity_id || activity.planningActivityId === values.planning_activity_id);
+  if (!sourceActivity) {
+    toast("No encontré el evento de Planeación vinculado");
+    return;
+  }
+  const payload = {
+    area,
+    planning_activity_id: values.planning_activity_id,
+    event_name: String(values.event_name || "").trim() || sourceActivity.activity,
+    event_date: values.event_date || null,
+    responsible_name: String(values.responsible_name || "").trim(),
+    status: String(values.status || "").trim(),
+    notes: String(values.notes || "").trim(),
+    updated_by: currentUser?.id || null,
+    updated_at: new Date().toISOString()
+  };
+  const { data, error } = await supabaseClient
+    .from("planning_event_overrides")
+    .upsert(payload, { onConflict: "area,planning_activity_id" })
+    .select()
+    .single();
+  if (error) {
+    planningEventOverridesAvailable = false;
+    console.error(error);
+    toast("No se pudo guardar el ajuste de Comunicación");
+    render();
+    return;
+  }
+  const saved = data || payload;
+  const index = planningEventOverrides.findIndex((row) => row.area === area && row.planning_activity_id === values.planning_activity_id);
+  if (index >= 0) planningEventOverrides[index] = saved;
+  else planningEventOverrides.unshift(saved);
+  planningEventOverridesAvailable = true;
+  addAudit("comunicacion", `Ajuste de evento ${payload.event_name}`);
+  toast("Evento de Comunicación actualizado");
+  render();
 }
 
 async function syncVivenciaEventsFromPlanningRows(rows, client, currentUserId = currentUser?.id || null) {
@@ -3920,11 +4073,12 @@ async function loadSupabaseDataBundle() {
     ["Base de alumnos", loadStudentDatabase],
     ["Capturas", loadSupabaseCaptures],
     ["Colaboradores", loadSupabaseCollaborators],
-    ["Evaluaciones fisicas", loadPhysicalEvaluations],
+    ["Evaluaciones Físicas", loadPhysicalEvaluations],
     ["Calificaciones", loadClassGrades],
     ["Gimnasio", loadGymData],
     ["Simulador de clases", loadClassScheduleSimulatorCloud],
     ["Vivencia", loadVivenciaEvents],
+    ["Calendario Comunicación", loadPlanningEventOverrides],
     ["Intramuros", loadIntramurosParticipants],
     ["Booking", loadClassBookingReservationsCloud],
     ["Gamer y Representativos", loadParticipationUploadsCloud],
@@ -8343,11 +8497,7 @@ function renderBudgetDashboard() {
 }
 
 function renderClassesDashboard() {
-  const summary = classOperationalSummary();
   return `
-    ${renderClassExecutiveKpis(summary)}
-    ${renderClassStudentLookup()}
-    ${renderClassBookingDashboard()}
     ${renderClassDisciplineIndicators()}
     ${renderClassTeacherPerformance()}
     ${renderClassScheduleComparison()}
@@ -9716,7 +9866,7 @@ function renderConfigurationDashboard() {
           </article>
           <article class="module-card" data-tone="blue">
             <h3>Archivo Uniformes</h3>
-            <p>Importacion completa autorizada para Colaboradores: uniformes, pruebas fisicas, contactos, layouts y gimnasio.</p>
+            <p>Importacion completa autorizada para Colaboradores: uniformes, Evaluaciones Físicas, contactos, layouts y gimnasio.</p>
           </article>
           <article class="module-card" data-tone="gold">
             <h3>Validacion previa</h3>
@@ -11378,7 +11528,8 @@ function render() {
     selectedPlanningActivityId = "";
     render();
   }));
-  $("[data-close-planning-detail]")?.addEventListener("click", closePlanningActivityDetail);
+  $$("[data-close-planning-detail]").forEach((button) => button.addEventListener("click", closePlanningActivityDetail));
+  $("#planningActivityForm")?.addEventListener("submit", savePlanningActivityOverride);
   $("[data-planning-overlay]")?.addEventListener("click", (event) => {
     if (event.target === event.currentTarget) closePlanningActivityDetail();
   });
