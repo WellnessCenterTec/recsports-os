@@ -475,6 +475,7 @@ let participationUploadState = {
 };
 let participationUploadCloudAvailable = true;
 let executiveReportState = { week: 15, period: "FJ26", title: "Reporte Ejecutivo Semana 15" };
+let executivePlanningFilters = { area: "todos", status: "todos", days: "30" };
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
 let classScheduleComparison = null;
@@ -573,6 +574,9 @@ let uniformesData = {};
 let uniformesLoaded = false;
 let collaboratorFilter = { coordinator: "todos", shirt: "todos", firstAid: "todos" };
 let auditLog = loadAuditLog();
+let configQuickLinks = [];
+let configQuickLinksLoaded = false;
+let configQuickLinksCloudAvailable = true;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -2247,7 +2251,8 @@ function normalizePlanningCalendarRow(row, rowIndex = "") {
     area: normalizePlanningArea(planningValue(row, ["Área", "Area", "area"])),
     activity: String(planningValue(row, ["Actividad", "activity"]) || "").trim(),
     responsible: String(planningValue(row, ["Responsable", "responsible"]) || "").trim(),
-    status: String(planningValue(row, ["Estatus", "Estado", "status"]) || "").trim()
+    status: String(planningValue(row, ["Estatus", "Estado", "status"]) || "").trim(),
+    place: String(planningValue(row, ["Lugar", "Ubicación", "Ubicacion", "Sede", "location", "place"]) || "").trim()
   };
 }
 
@@ -2507,7 +2512,7 @@ function openPlanningActivityDetail(trigger, activityId, triggerInstance) {
   $(".planning-detail-close")?.focus();
 }
 
-function renderPlanningAreaDashboard(area, rows = planningCalendarRows, loaded = planningCalendarLoaded, error = planningCalendarError, preferredDate, selectedId = null) {
+function renderPlanningAreaDashboard(area, rows = planningCalendarRows, loaded = planningCalendarLoaded, error = planningCalendarError, preferredDate, selectedId = null, options = {}) {
   const refreshButton = `<button class="ghost-btn" id="refreshPlanningCalendar" type="button" ${loaded ? "" : "disabled"}>Actualizar calendario</button>`;
   if (!loaded) return `<section class="planning-calendar-state" aria-live="polite"><strong>Cargando calendario...</strong><span>Consultando Planeación Semestral.</span>${refreshButton}</section>`;
   if (error) return `<section class="planning-calendar-state error" role="alert"><strong>No se pudo cargar el calendario</strong><span>${escapeHtml(error)}</span>${refreshButton}</section>`;
@@ -2526,12 +2531,13 @@ function renderPlanningAreaDashboard(area, rows = planningCalendarRows, loaded =
   const agenda = upcoming.length ? upcoming : dated.slice(0, 6);
   const effectiveSelectedId = selectedId === null && typeof selectedPlanningActivityId !== "undefined" ? selectedPlanningActivityId : selectedId;
   const selected = activities.find((activity) => activity.id === effectiveSelectedId);
+  const showHeader = !options.compactHeader;
   return `
     <section class="planning-area-dashboard">
-      <div class="vivencia-hero planning-area-hero">
+      ${showHeader ? `<div class="vivencia-hero planning-area-hero">
         <div><p class="eyebrow">Planeación Semestral</p><h3>${escapeHtml(area.name)}</h3><p>Calendario operativo y seguimiento de actividades</p></div>
         <div class="planning-area-actions"><span>${activities.length} actividades</span>${refreshButton}</div>
-      </div>
+      </div>` : `<div class="planning-area-compact-head"><div><p class="eyebrow">Planeación Semestral</p><h3>Calendario operativo</h3></div><div class="planning-area-actions"><span>${activities.length} actividades</span>${refreshButton}</div></div>`}
       <div class="kpi-grid planning-kpi-strip">
         <div class="kpi"><span>Actividades</span><strong>${activities.length}</strong><em>total del área</em></div>
         <div class="kpi"><span>Con fecha</span><strong>${dated.length}</strong><em>en calendario</em></div>
@@ -4096,6 +4102,7 @@ async function loadSupabaseDataBundle() {
     ["Intramuros", loadIntramurosParticipants],
     ["Booking", loadClassBookingReservationsCloud],
     ["Gamer y Representativos", loadParticipationUploadsCloud],
+    ["Vinculos rapidos", loadConfigQuickLinks],
     ["Presupuesto", loadBudgetData]
   ];
   const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
@@ -6863,7 +6870,8 @@ function executiveGymWeekly() {
   const counts = new Map();
   gymAttendanceRecords.forEach((row) => {
     const week = Number(row.week_number) || 0;
-    if (week > 0 && week <= 18) counts.set(week, (counts.get(week) || 0) + 1);
+    const count = Number(row.attendee_count ?? row.cantidad ?? row.total ?? 0) || 0;
+    if (week > 0 && week <= 18) counts.set(week, (counts.get(week) || 0) + count);
   });
   return Array.from({ length: 18 }, (_, index) => ({ label: `S${index + 1}`, value: counts.get(index + 1) || 0 }));
 }
@@ -6887,14 +6895,15 @@ function executiveStatus(areaId, value, options = {}) {
 
 function executiveAreaCards() {
   const classes = executiveClassSummary();
-  const gymUnique = new Set(gymAttendanceRecords.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
+  const gymUnique = new Set(gymAsistencias.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
+  const gymTotal = gymAttendanceRecords.reduce((sum, row) => sum + (Number(row.attendee_count ?? row.cantidad ?? row.total ?? 0) || 0), 0);
   const vivenciaParticipants = vivenciaVisibleMetrics().reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
   const representativos = executiveCountByArea().find((row) => row.areaId === "representativos")?.value || participationUploadState.representativos.imported?.summary?.found || 0;
   const gamer = executiveCountByArea().find((row) => row.areaId === "gamer")?.value || participationUploadState.gamer.imported?.summary?.found || 0;
   const intramuros = executiveCountByArea().find((row) => row.areaId === "intramuros")?.value || 0;
   return [
     { id: "clases", view: "dashboard", area: "Clases Deportivas", metric: `${classes.effectiveness}% efectividad`, action: classes.np > classes.bajas ? "Revisar NP por disciplina" : "Mantener seguimiento", detail: `${classes.banner.toLocaleString("es-MX")} inscritos | ${classes.finished.toLocaleString("es-MX")} acreditados`, ...executiveStatus("clases", classes.banner, { warning: classes.effectiveness < 70 }) },
-    { id: "gimnasio", view: "dashboard", area: "Gimnasio", metric: `${gymUnique.toLocaleString("es-MX")} usuarios únicos`, action: gymAttendanceRecords.length ? "Monitorear horarios pico" : "Cargar asistencia semanal", detail: `${gymAttendanceRecords.length.toLocaleString("es-MX")} asistencias registradas`, ...executiveStatus("gimnasio", gymAttendanceRecords.length) },
+    { id: "gimnasio", view: "dashboard", area: "Gimnasio", metric: `${(gymUnique || gymTotal).toLocaleString("es-MX")} asistencias`, action: gymAttendanceRecords.length ? "Monitorear horarios pico" : "Cargar asistencia semanal", detail: `${gymAttendanceRecords.length.toLocaleString("es-MX")} semanas/días consolidados`, ...executiveStatus("gimnasio", gymTotal || gymAttendanceRecords.length) },
     { id: "vivencia", view: "dashboard", area: "Vivencia", metric: `${vivenciaParticipants.toLocaleString("es-MX")} participantes`, action: vivenciaEvents.length ? "Actualizar próximos eventos" : "Cargar planeación", detail: `${vivenciaEvents.length.toLocaleString("es-MX")} eventos en seguimiento`, ...executiveStatus("vivencia", vivenciaEvents.length) },
     { id: "representativos", view: "dashboard", area: "Representativos", metric: `${representativos.toLocaleString("es-MX")} alumnos`, action: "Validar matrículas no encontradas", detail: `${participationUploadState.representativos.imported?.summary?.notFound || 0} no encontradas`, ...executiveStatus("representativos", representativos, { warning: Boolean(participationUploadState.representativos.imported?.summary?.notFound) }) },
     { id: "gamer", view: "dashboard", area: "Gamer", metric: `${gamer.toLocaleString("es-MX")} participantes`, action: "Actualizar lista de matrículas", detail: `${participationUploadState.gamer.imported?.summary?.notFound || 0} no encontradas`, ...executiveStatus("gamer", gamer, { warning: Boolean(participationUploadState.gamer.imported?.summary?.notFound) }) },
@@ -6989,13 +6998,119 @@ function renderExecutiveWeeklyBars(rows, tone = "blue") {
   `;
 }
 
+function executivePlanningUpcomingRows() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(today);
+  end.setDate(end.getDate() + Number(executivePlanningFilters.days || 30));
+  return (planningCalendarRows || [])
+    .map((row, index) => normalizePlanningCalendarRow(row, index))
+    .filter((row) => row.activity && row.date)
+    .filter((row) => executivePlanningFilters.area === "todos" || row.area === executivePlanningFilters.area)
+    .filter((row) => executivePlanningFilters.status === "todos" || normalizeText(row.status || "sin estado") === normalizeText(executivePlanningFilters.status))
+    .filter((row) => {
+      const date = new Date(`${row.date}T00:00:00`);
+      return date >= today && date <= end;
+    })
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    .slice(0, 12);
+}
+
+function executivePlanningFilterOptions(field) {
+  return Array.from(new Set((planningCalendarRows || [])
+    .map((row, index) => normalizePlanningCalendarRow(row, index))
+    .map((row) => row[field])
+    .filter(Boolean)))
+    .sort((a, b) => String(a).localeCompare(String(b), "es-MX"));
+}
+
+function renderExecutivePlanningCalendar() {
+  if (!planningCalendarLoaded) {
+    return `<article class="exec-panel exec-planning-panel exec-planning-standalone no-print"><h3>Próximos 30 días</h3><div class="exec-empty">Cargando Planeación Semestral.</div></article>`;
+  }
+  if (planningCalendarError) {
+    return `<article class="exec-panel exec-planning-panel exec-planning-standalone no-print"><h3>Próximos 30 días</h3><div class="exec-empty">No se pudo cargar Planeación Semestral.</div></article>`;
+  }
+  const rows = executivePlanningUpcomingRows();
+  const areaOptions = executivePlanningFilterOptions("area");
+  const statusOptions = executivePlanningFilterOptions("status");
+  const areaLabel = (area) => areas.find((item) => item.id === area)?.name || area || "Sin área";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  const daysVisible = Number(executivePlanningFilters.days || 30);
+  const calendarDays = Array.from({ length: Math.ceil((daysVisible + ((today.getDay() + 6) % 7)) / 7) * 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return date;
+  });
+  const rowsByDate = rows.reduce((acc, row) => {
+    if (!acc[row.date]) acc[row.date] = [];
+    acc[row.date].push(row);
+    return acc;
+  }, {});
+  return `
+    <article class="exec-panel exec-planning-panel exec-planning-standalone no-print">
+      <div class="exec-planning-head">
+        <div><h3>Próximos ${Number(executivePlanningFilters.days || 30)} días</h3><p>Calendario conectado a Planeación Semestral</p></div>
+        <div class="exec-planning-filters no-print">
+          <select id="executivePlanningArea">
+            <option value="todos" ${executivePlanningFilters.area === "todos" ? "selected" : ""}>Todas las áreas</option>
+            ${areaOptions.map((area) => `<option value="${escapeHtml(area)}" ${executivePlanningFilters.area === area ? "selected" : ""}>${escapeHtml(areaLabel(area))}</option>`).join("")}
+          </select>
+          <select id="executivePlanningStatus">
+            <option value="todos" ${executivePlanningFilters.status === "todos" ? "selected" : ""}>Todos los estados</option>
+            ${statusOptions.map((status) => `<option value="${escapeHtml(status)}" ${executivePlanningFilters.status === status ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}
+          </select>
+          <select id="executivePlanningDays">
+            ${[7, 15, 30].map((days) => `<option value="${days}" ${String(executivePlanningFilters.days) === String(days) ? "selected" : ""}>${days} días</option>`).join("")}
+          </select>
+        </div>
+      </div>
+      <div class="exec-calendar-grid" aria-label="Calendario de próximos días">
+        ${["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((day) => `<strong>${day}</strong>`).join("")}
+        ${calendarDays.map((date) => {
+          const key = date.toISOString().slice(0, 10);
+          const dayRows = rowsByDate[key] || [];
+          const isOutsideRange = date < today || date > new Date(today.getTime() + daysVisible * 86400000);
+          return `
+            <div class="exec-calendar-day ${isOutsideRange ? "muted" : ""} ${key === today.toISOString().slice(0, 10) ? "today" : ""}">
+              <time datetime="${key}">${date.getDate()}</time>
+              ${dayRows.slice(0, 3).map((row) => `
+                <button type="button" data-planning-detail="${escapeHtml(row.id)}" data-planning-instance="exec-calendar:${escapeHtml(row.id)}">
+                  <span>${escapeHtml(areaLabel(row.area))}</span>
+                  ${escapeHtml(row.activity)}
+                </button>
+              `).join("")}
+              ${dayRows.length > 3 ? `<em>+${dayRows.length - 3} más</em>` : ""}
+            </div>
+          `;
+        }).join("")}
+      </div>
+      <div class="exec-planning-list">
+        ${rows.length ? rows.map((row) => `
+          <div class="exec-planning-item">
+            <time>${escapeHtml(new Date(`${row.date}T00:00:00`).toLocaleDateString("es-MX", { day: "2-digit", month: "short" }))}</time>
+            <strong>${escapeHtml(row.activity)}</strong>
+            <span>${escapeHtml(areaLabel(row.area))}</span>
+            <em>${escapeHtml(row.responsible || "Responsable pendiente")}</em>
+            <b>${escapeHtml(row.status || "Sin estado")}</b>
+            <small>${escapeHtml(row.place || "Sin lugar")}</small>
+          </div>
+        `).join("") : `<div class="exec-empty">No hay actividades dentro del rango seleccionado.</div>`}
+      </div>
+    </article>
+  `;
+}
+
 function renderExecutiveGeneralDashboard() {
   const rows = executiveOperationalRows();
   const unique = executiveUniqueCount(rows);
   const baseUniverse = cloudStudentDatabase.length || 18322;
   const impact = baseUniverse ? Math.round((unique / baseUniverse) * 1000) / 10 : 0;
   const classes = executiveClassSummary();
-  const gymTotal = gymAttendanceRecords.length;
+  const gymTotal = gymAttendanceRecords.reduce((sum, row) => sum + (Number(row.attendee_count ?? row.cantidad ?? row.total ?? 0) || 0), 0);
   const bookingVivencia = classBookingReservations.length + vivenciaVisibleMetrics().reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
   const areaCounts = executiveCountByArea();
   const cards = executiveAreaCards();
@@ -7147,6 +7262,86 @@ function intramurosTeamsByTournament(rows) {
   return Array.from(groups.entries())
     .map(([label, value]) => ({ label, value: value.size }))
     .sort((a, b) => b.value - a.value || String(a.label).localeCompare(String(b.label), "es-MX"));
+}
+
+function filteredIntramurosRoles() {
+  return intramurosGameRoles.filter((row) => {
+    const periodMatch = intramurosFilters.period === "todos" || row.periodo === intramurosFilters.period;
+    const tournamentMatch = intramurosFilters.tournament === "todos" || row.torneo === intramurosFilters.tournament;
+    const branchMatch = intramurosFilters.branch === "todos" || row.rama === intramurosFilters.branch;
+    return periodMatch && tournamentMatch && branchMatch;
+  });
+}
+
+function intramurosRoleCounts(rows, field) {
+  const groups = new Map();
+  rows.forEach((row) => {
+    const label = row[field] || "Sin dato";
+    groups.set(label, (groups.get(label) || 0) + 1);
+  });
+  return Array.from(groups.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value || String(a.label).localeCompare(String(b.label), "es-MX"));
+}
+
+function renderIntramurosExecutiveBars(title, rows, options = {}) {
+  const max = Math.max(...rows.map((row) => Number(row.value || 0)), 1);
+  return `
+    <article class="intramuros-exec-card ${options.accent || ""}">
+      <h3>${escapeHtml(title)}</h3>
+      <div class="intramuros-exec-bars">
+        ${rows.length ? rows.slice(0, options.limit || 8).map((row) => `
+          <div>
+            <span>${escapeHtml(row.label)}</span>
+            <i><b style="width:${Math.max(4, Math.round((Number(row.value || 0) / max) * 100))}%"></b></i>
+            <strong>${Number(row.value || 0).toLocaleString("es-MX")}</strong>
+          </div>
+        `).join("") : `<p class="upload-empty">Sin datos suficientes.</p>`}
+      </div>
+    </article>
+  `;
+}
+
+function renderIntramurosProgressCard(summaries) {
+  return `
+    <article class="intramuros-exec-card">
+      <h3>Avance por torneo</h3>
+      <div class="intramuros-progress-list">
+        ${summaries.length ? summaries.slice(0, 8).map((row) => `
+          <div>
+            <span>${escapeHtml(row.torneo)}</span>
+            <i><b style="width:${Math.max(4, Number(row.progress || 0))}%"></b></i>
+            <strong>${Number(row.progress || 0)}%</strong>
+            <em>${escapeHtml(row.status || "Sin estado")}</em>
+          </div>
+        `).join("") : `<p class="upload-empty">Carga roles para medir avance.</p>`}
+      </div>
+    </article>
+  `;
+}
+
+function renderIntramurosExecutiveCharts(rows) {
+  const roles = filteredIntramurosRoles();
+  const summaries = intramurosTournamentSummaries()
+    .filter((row) => intramurosFilters.tournament === "todos" || row.torneo === intramurosFilters.tournament)
+    .sort((a, b) => b.totalParticipants - a.totalParticipants);
+  const roleResultRows = [
+    { label: "Con resultado", value: roles.filter(intramurosRoleHasResult).length },
+    { label: "Pendientes", value: roles.filter((row) => !intramurosRoleHasResult(row)).length }
+  ];
+  return `
+    <div class="intramuros-exec-grid">
+      ${renderIntramurosExecutiveBars("Participantes por torneo", intramurosGroupCounts(rows, "torneo", true), { accent: "blue", limit: 7 })}
+      ${renderIntramurosExecutiveBars("Participación por género", intramurosGroupCounts(rows, "genero"), { accent: "teal", limit: 5 })}
+      ${renderIntramurosExecutiveBars("Equipos por torneo", intramurosTeamsByTournament(rows), { accent: "gold", limit: 7 })}
+      ${renderIntramurosExecutiveBars("Juegos programados", intramurosRoleCounts(roles, "torneo"), { accent: "red", limit: 7 })}
+      ${renderIntramurosProgressCard(summaries)}
+      ${renderIntramurosExecutiveBars("Participación por rama", intramurosGroupCounts(rows, "rama"), { accent: "teal", limit: 7 })}
+      ${renderIntramurosExecutiveBars("Top torneos", intramurosGroupCounts(rows, "torneo", true).slice(0, 10), { accent: "blue", limit: 10 })}
+      ${renderIntramurosExecutiveBars("Juegos por cancha", intramurosRoleCounts(roles, "cancha"), { accent: "gold", limit: 8 })}
+      ${renderIntramurosExecutiveBars("Resultados vs pendientes", roleResultRows.filter((row) => row.value), { accent: "red", limit: 2 })}
+    </div>
+  `;
 }
 
 function renderIntramurosFilter(name, label, options) {
@@ -7563,7 +7758,7 @@ function renderIntramurosDashboard() {
 
       ${renderIntramurosOmarWorkspace()}
 
-      ${renderPlanningAreaDashboard(areas.find((item) => item.id === "intramuros") || { id: "intramuros", name: "Intramuros" })}
+      ${renderPlanningAreaDashboard(areas.find((item) => item.id === "intramuros") || { id: "intramuros", name: "Intramuros" }, planningCalendarRows, planningCalendarLoaded, planningCalendarError, undefined, null, { compactHeader: true })}
 
       <div class="intramuros-filter-grid">
         ${renderIntramurosFilter("period", "Periodo", intramurosFilterOptions("periodo"))}
@@ -7587,15 +7782,7 @@ function renderIntramurosDashboard() {
         <article><span>Escuelas representadas</span><strong>${schools.toLocaleString("es-MX")}</strong><em>filtradas</em></article>
       </div>
 
-      <div class="upload-chart-grid">
-        ${renderUploadBars("Participantes por torneo", intramurosGroupCounts(rows, "torneo", true))}
-        ${renderUploadBars("Equipos por torneo", intramurosTeamsByTournament(rows))}
-        ${renderUploadBars("Participación por género", intramurosGroupCounts(rows, "genero"))}
-        ${renderUploadBars("Participación por escuela", intramurosGroupCounts(rows, "escuela"))}
-        ${renderUploadBars("Participación por rama", intramurosGroupCounts(rows, "rama"))}
-        ${renderUploadBars("Top 10 torneos con mayor participación", intramurosGroupCounts(rows, "torneo", true).slice(0, 10))}
-        ${renderUploadBars("Top 10 programas con mayor participación", intramurosGroupCounts(rows, "programa", true).slice(0, 10))}
-      </div>
+      ${renderIntramurosExecutiveCharts(rows)}
 
       ${renderTournamentCards()}
       ${renderTournamentExpediente()}
@@ -7638,7 +7825,7 @@ function renderDashboard(area) {
   if (area.id === "gimnasio") return renderGymDashboard();
   if (area.id === "clases") return renderClassesDashboard();
   if (area.id === "vivencia") return renderVivenciaDashboard();
-  if (area.id === "comunicacion") return renderPlanningAreaDashboard(area);
+  if (area.id === "comunicacion") return renderPlanningAreaDashboard(area, planningCalendarRows, planningCalendarLoaded, planningCalendarError, undefined, null, { compactHeader: true });
   if (area.id === "intramuros") return renderIntramurosDashboard();
   if (area.id === "compras") return renderBudgetDashboard();
   if (area.id === "gamer" || area.id === "representativos") return renderParticipationUploadDashboard(area.id);
@@ -8249,6 +8436,18 @@ async function deleteBudgetRequest(id) {
   addAudit("presupuesto", `Solicitud eliminada: ${row?.concept || id}`);
   render();
   toast("Solicitud eliminada");
+}
+
+function renderExecutiveCalendarView() {
+  return `
+    <section class="executive-calendar-view">
+      <div class="permission-strip">
+        <span>Calendario Ejecutivo: próximas actividades programadas por todas las áreas desde Planeación Semestral.</span>
+        <span>${planningCalendarLoaded ? `${executivePlanningUpcomingRows().length.toLocaleString("es-MX")} actividades visibles` : "Cargando planeación"}</span>
+      </div>
+      ${renderExecutivePlanningCalendar()}
+    </section>
+  `;
 }
 
 function selectedBudgetRequestEdit() {
@@ -9952,7 +10151,7 @@ function renderAlertCenter(compact = false) {
   `;
 }
 
-function loadConfigLinks() {
+function loadConfigLinksLocal() {
   try {
     const rows = JSON.parse(localStorage.getItem(CONFIG_LINKS_KEY) || "[]");
     return Array.isArray(rows)
@@ -9967,13 +10166,55 @@ function saveConfigLinks(rows) {
   localStorage.setItem(CONFIG_LINKS_KEY, JSON.stringify(rows));
 }
 
+function configLinksForRender() {
+  if (configQuickLinksLoaded && configQuickLinksCloudAvailable) return configQuickLinks;
+  return loadConfigLinksLocal();
+}
+
+function configLinkId() {
+  return window.crypto?.randomUUID ? window.crypto.randomUUID() : `link-${Date.now()}-${Math.round(Math.random() * 10000)}`;
+}
+
+async function loadConfigQuickLinks() {
+  const localRows = loadConfigLinksLocal();
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    configQuickLinks = localRows;
+    configQuickLinksLoaded = true;
+    configQuickLinksCloudAvailable = false;
+    return;
+  }
+  const { data, error } = await supabaseClient
+    .from("config_quick_links")
+    .select("id,name,url,created_by,created_at,updated_at")
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.warn("No se pudieron cargar vinculos rapidos", error);
+    configQuickLinks = localRows;
+    configQuickLinksLoaded = true;
+    configQuickLinksCloudAvailable = false;
+    return;
+  }
+  configQuickLinks = (data || []).map((row) => ({
+    id: String(row.id || ""),
+    name: row.name || "",
+    url: row.url || "",
+    createdAt: row.created_at || "",
+    updatedAt: row.updated_at || ""
+  })).filter((row) => row.id && row.name && row.url);
+  if (localRows.length && !configQuickLinks.length) {
+    configQuickLinks = localRows;
+  }
+  configQuickLinksLoaded = true;
+  configQuickLinksCloudAvailable = true;
+}
+
 function normalizeConfigLinkUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
   return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
 }
 
-function saveConfigLinkFromForm(event) {
+async function saveConfigLinkFromForm(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const formData = new FormData(form);
@@ -9984,12 +10225,36 @@ function saveConfigLinkFromForm(event) {
     toast("Escribe nombre y liga");
     return;
   }
-  const rows = loadConfigLinks();
+  const rows = configLinksForRender();
   const now = new Date().toISOString();
+  const linkId = id || configLinkId();
   const nextRows = id
     ? rows.map((row) => row.id === id ? { ...row, name, url, updatedAt: now } : row)
-    : [{ id: `link-${Date.now()}`, name, url, createdAt: now, updatedAt: now }, ...rows];
-  saveConfigLinks(nextRows);
+    : [{ id: linkId, name, url, createdAt: now, updatedAt: now }, ...rows];
+  if (supabaseClient && currentUser?.auth === "supabase" && configQuickLinksCloudAvailable) {
+    const { error } = await supabaseClient
+      .from("config_quick_links")
+      .upsert({
+        id: linkId,
+        name,
+        url,
+        created_by: currentUser.id || null,
+        updated_at: now
+      }, { onConflict: "id" });
+    if (error) {
+      console.warn("No se pudo guardar vinculo en Supabase", error);
+      configQuickLinksCloudAvailable = false;
+      saveConfigLinks(nextRows);
+      toast("No pude guardar en Supabase; lo deje local");
+    } else {
+      saveConfigLinks(nextRows);
+      await loadConfigQuickLinks();
+    }
+  } else {
+    saveConfigLinks(nextRows);
+    configQuickLinks = nextRows;
+    configQuickLinksLoaded = true;
+  }
   configLinkEditingId = "";
   addAudit("configuracion", id ? `Vinculo editado: ${name}` : `Vinculo guardado: ${name}`);
   render();
@@ -10001,10 +10266,22 @@ function editConfigLink(id) {
   render();
 }
 
-function deleteConfigLink(id) {
-  const rows = loadConfigLinks();
+async function deleteConfigLink(id) {
+  const rows = configLinksForRender();
   const link = rows.find((row) => row.id === id);
-  saveConfigLinks(rows.filter((row) => row.id !== id));
+  const nextRows = rows.filter((row) => row.id !== id);
+  if (supabaseClient && currentUser?.auth === "supabase" && configQuickLinksCloudAvailable) {
+    const { error } = await supabaseClient.from("config_quick_links").delete().eq("id", id);
+    if (error) {
+      console.warn("No se pudo borrar vinculo en Supabase", error);
+      configQuickLinksCloudAvailable = false;
+      toast("No pude borrar en Supabase; lo quite local");
+    } else {
+      await loadConfigQuickLinks();
+    }
+  }
+  saveConfigLinks(nextRows);
+  configQuickLinks = nextRows;
   if (configLinkEditingId === id) configLinkEditingId = "";
   addAudit("configuracion", `Vinculo eliminado: ${link?.name || id}`);
   render();
@@ -10013,8 +10290,9 @@ function deleteConfigLink(id) {
 
 function renderConfigurationDashboard() {
   const systemCatalogs = getSystemCatalogs();
-  const configLinks = loadConfigLinks();
+  const configLinks = configLinksForRender();
   const editingLink = configLinks.find((link) => link.id === configLinkEditingId) || null;
+  const configLinkSource = configQuickLinksCloudAvailable && configQuickLinksLoaded ? "Supabase" : "local";
   return `
     <div class="permission-strip">Panel exclusivo para Direccion Deportiva y administracion del sistema.</div>
     <div class="kpi-grid">
@@ -10031,7 +10309,7 @@ function renderConfigurationDashboard() {
             <h3>Vinculos rapidos</h3>
             <p>Guarda accesos a formularios, reportes o paginas externas para abrirlos desde WellSync.</p>
           </div>
-          <strong>${configLinks.length.toLocaleString("es-MX")} ligas</strong>
+          <strong>${configLinks.length.toLocaleString("es-MX")} ligas · ${configLinkSource}</strong>
         </div>
         <form id="configLinkForm" class="config-link-form">
           <input type="hidden" name="id" value="${escapeHtml(editingLink?.id || "")}" />
@@ -11661,6 +11939,7 @@ function render() {
   const isVivencia = activeArea === "vivencia";
   const isBudget = activeArea === "compras";
   const isIntramuros = activeArea === "intramuros";
+  const isGeneral = activeArea === "general";
   const isCollaborators = activeArea === "colaboradores";
   const isParticipationOnly = activeArea === "gamer" || activeArea === "representativos";
   $$(".segmented button").forEach((button) => { button.style.order = ""; });
@@ -11676,7 +11955,8 @@ function render() {
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
   if (schedulesTab) {
     schedulesTab.hidden = isGym || isBudget || isCollaborators || isParticipationOnly;
-    schedulesTab.textContent = isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
+    schedulesTab.textContent = isGeneral ? "Calendario" : isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
+    if (isGeneral) schedulesTab.style.order = "2";
   }
   if (reportsTab) reportsTab.hidden = isGym;
   if (systemTab) {
@@ -11712,7 +11992,7 @@ function render() {
     else if (activeView === "vivencia-events") contentHtml = renderVivenciaEventsView();
     else if (activeView === "budget-allocation") contentHtml = renderBudgetAllocationView();
     else if (activeView === "budget-request") contentHtml = renderBudgetRequestView();
-    else if (activeView === "schedules") contentHtml = isIntramuros ? renderIntramurosParticipantUploadView() : renderSchedules(area);
+    else if (activeView === "schedules") contentHtml = isGeneral ? renderExecutiveCalendarView() : isIntramuros ? renderIntramurosParticipantUploadView() : renderSchedules(area);
     else if (activeView === "booking") contentHtml = renderClassBookingDashboard();
     else if (activeView === "simulator") contentHtml = renderScheduleSimulatorView();
     else if (activeView === "reports") contentHtml = renderReports(area);
@@ -11827,6 +12107,18 @@ function render() {
     await loadSupabaseDataBundle();
     render();
     toast("Dashboard ejecutivo actualizado");
+  });
+  $("#executivePlanningArea")?.addEventListener("input", (event) => {
+    executivePlanningFilters.area = event.target.value;
+    render();
+  });
+  $("#executivePlanningStatus")?.addEventListener("input", (event) => {
+    executivePlanningFilters.status = event.target.value;
+    render();
+  });
+  $("#executivePlanningDays")?.addEventListener("input", (event) => {
+    executivePlanningFilters.days = event.target.value;
+    render();
   });
   $$("[data-download-upload-template]").forEach((button) => button.addEventListener("click", () => downloadParticipationTemplate(button.dataset.downloadUploadTemplate)));
   $$("[data-participation-upload]").forEach((input) => input.addEventListener("change", async (event) => {

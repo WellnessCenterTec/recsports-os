@@ -4512,6 +4512,179 @@ tbody tr:hover td {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
+.exec-planning-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.exec-planning-standalone {
+  margin: 0 auto;
+  max-width: 1120px;
+  width: 100%;
+}
+
+.exec-planning-head {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.exec-planning-head h3,
+.exec-planning-head p {
+  margin: 0;
+}
+
+.exec-planning-head p {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.exec-planning-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.exec-planning-filters select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  min-height: 34px;
+  padding: 0 9px;
+}
+
+.exec-planning-list {
+  display: grid;
+  gap: 8px;
+}
+
+.exec-calendar-grid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.exec-calendar-grid > strong {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 950;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.exec-calendar-day {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 5px;
+  min-height: 116px;
+  min-width: 0;
+  padding: 8px;
+}
+
+.exec-calendar-day.muted {
+  background: #f5f8fa;
+  opacity: .62;
+}
+
+.exec-calendar-day.today {
+  border-color: var(--blue);
+  box-shadow: inset 0 0 0 2px rgba(0, 91, 169, .12);
+}
+
+.exec-calendar-day time {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.exec-calendar-day button {
+  background: #e9f4ff;
+  border: 0;
+  border-left: 3px solid var(--blue);
+  border-radius: 6px;
+  color: var(--ink);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.2;
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+.exec-calendar-day button span {
+  color: var(--blue);
+  display: block;
+  font-size: 9px;
+  font-weight: 950;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+.exec-calendar-day em {
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.exec-planning-item {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 74px minmax(160px, 1.4fr) minmax(90px, .8fr) minmax(110px, 1fr) minmax(80px, .7fr) minmax(80px, .8fr);
+  padding: 9px 10px;
+}
+
+.exec-planning-item time {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.exec-planning-item strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exec-planning-item span,
+.exec-planning-item em,
+.exec-planning-item small {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 850;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exec-planning-item b {
+  background: #e8f4ee;
+  border: 1px solid #b8e0cb;
+  border-radius: 999px;
+  color: var(--teal);
+  font-size: 11px;
+  padding: 4px 8px;
+  text-align: center;
+}
+
 .exec-status-strip article,
 .exec-panel {
   background: #fff;
@@ -5097,6 +5270,90 @@ tbody tr:hover td {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.intramuros-exec-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.intramuros-exec-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--blue);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.intramuros-exec-card.teal { border-left-color: var(--teal); }
+.intramuros-exec-card.gold { border-left-color: var(--gold); }
+.intramuros-exec-card.red { border-left-color: var(--red); }
+
+.intramuros-exec-card h3 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.intramuros-exec-bars,
+.intramuros-progress-list {
+  display: grid;
+  gap: 10px;
+}
+
+.intramuros-exec-bars > div,
+.intramuros-progress-list > div {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(92px, 1fr) minmax(90px, 1.2fr) auto;
+}
+
+.intramuros-progress-list > div {
+  grid-template-columns: minmax(92px, 1fr) minmax(90px, 1.2fr) auto auto;
+}
+
+.intramuros-exec-bars span,
+.intramuros-progress-list span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intramuros-exec-bars i,
+.intramuros-progress-list i {
+  background: #e7eef3;
+  border-radius: 999px;
+  display: block;
+  height: 9px;
+  overflow: hidden;
+}
+
+.intramuros-exec-bars b,
+.intramuros-progress-list b {
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+}
+
+.intramuros-exec-bars strong,
+.intramuros-progress-list strong {
+  font-size: 13px;
+  text-align: right;
+}
+
+.intramuros-progress-list em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
 }
 
 .upload-chart-card h3 {
@@ -6736,6 +6993,23 @@ tbody tr:hover td {
   background: #10232a;
 }
 
+.planning-area-compact-head {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--blue);
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 14px 16px;
+}
+
+.planning-area-compact-head h3,
+.planning-area-compact-head p {
+  margin: 0;
+}
+
 .planning-area-actions {
   display: flex;
   align-items: center;
@@ -6747,6 +7021,11 @@ tbody tr:hover td {
 .planning-area-actions .ghost-btn {
   border-color: rgb(255 255 255 / 45%);
   color: #fff;
+}
+
+.planning-area-compact-head .planning-area-actions .ghost-btn {
+  border-color: var(--line);
+  color: var(--blue);
 }
 
 .planning-kpi-strip {
@@ -7053,6 +7332,10 @@ body.planning-modal-open {
 @media (max-width: 1120px) {
   .planning-dashboard-grid { grid-template-columns: 1fr; }
   .planning-calendar-panel { grid-row: auto; }
+  .intramuros-exec-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .exec-planning-item { grid-template-columns: 72px minmax(160px, 1fr) minmax(90px, .8fr); }
+  .exec-planning-item em,
+  .exec-planning-item small { display: none; }
 }
 
 @media (max-width: 1280px) {
@@ -7079,6 +7362,8 @@ body.planning-modal-open {
 
 @media (max-width: 760px) {
   .planning-area-actions { width: 100%; align-items: stretch; flex-direction: column; }
+  .planning-area-compact-head,
+  .exec-planning-head { align-items: stretch; flex-direction: column; }
   .planning-kpi-strip { grid-template-columns: 1fr; }
   .planning-calendar { gap: 3px; }
   .planning-calendar > strong { font-size: 10px; }
@@ -7126,11 +7411,19 @@ body.planning-modal-open {
 @media (max-width: 760px) {
   .workspace, .sidebar { padding: 14px; }
   .topbar, .top-actions, .section-title, .report-row, .permission-strip, .collaborator-table-header { flex-direction: column; align-items: stretch; }
-  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps, .booking-kpi-grid, .booking-dashboard-grid, .booking-mini-grid, .booking-filter-row, .upload-center-grid, .upload-kpi-grid, .upload-chart-grid, .upload-bar-row, .intramuros-omar-workspace, .intramuros-op-kpis, .intramuros-op-form, .intramuros-filter-grid, .intramuros-load-summary, .intramuros-tournament-grid, .exec-controls, .exec-hero-row, .exec-status-strip, .exec-grid.three, .exec-grid.two, .exec-grid.wide-left, .exec-link-grid, .exec-pie-wrap, .exec-footer-kpis, .gym-attendance-summary-grid { grid-template-columns: 1fr; }
+  .filters-band, .kpi-grid, .module-grid, .form-grid, .form-panel form, .nav-list, .ops-summary, .teacher-summary, .teacher-row, .schedule-upload-grid, .schedule-filter-row, .availability-grid, .admin-summary, .conflict-item, .simulator-workspace, .simulator-lower-grid, .two-col, .simulator-summary-table div, .class-simulator-form, .class-simulator-maps, .booking-kpi-grid, .booking-dashboard-grid, .booking-mini-grid, .booking-filter-row, .upload-center-grid, .upload-kpi-grid, .upload-chart-grid, .upload-bar-row, .intramuros-exec-grid, .intramuros-omar-workspace, .intramuros-op-kpis, .intramuros-op-form, .intramuros-filter-grid, .intramuros-load-summary, .intramuros-tournament-grid, .exec-controls, .exec-hero-row, .exec-status-strip, .exec-grid.three, .exec-grid.two, .exec-grid.wide-left, .exec-link-grid, .exec-pie-wrap, .exec-footer-kpis, .gym-attendance-summary-grid { grid-template-columns: 1fr; }
   .booking-visual-row,
   .gym-dashboard-main-row { grid-template-columns: 1fr; }
   .exec-pie { justify-self: center; }
   .exec-page { padding: 16px; }
+  .exec-planning-filters,
+  .exec-planning-item { grid-template-columns: 1fr; justify-content: stretch; }
+  .exec-planning-item { display: grid; }
+  .exec-calendar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .exec-calendar-grid > strong { display: none; }
+  .exec-calendar-day { min-height: 96px; }
+  .exec-planning-item em,
+  .exec-planning-item small { display: block; }
   .exec-week-bars { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .nav-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .config-links-heading,
