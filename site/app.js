@@ -301,6 +301,8 @@ const scheduledReports = [
   ["Compras y Presupuesto", "Presupuesto ejercido", "PDF/Excel", "Mensual", "Compras", "Pendiente"],
   ["Configuracion", "Matriz de permisos y auditoria", "Excel", "Bajo demanda", "Direccion Deportiva", "En prototipo"]
 ];
+const CONFIG_LINKS_KEY = "wellsync_config_links";
+let configLinkEditingId = "";
 const dataModelEntities = [
   ["students_minimal", "Alumnos", "Matricula, genero, carrera, semestre, nivel escolar", "Media", "Base de segmentacion permitida"],
   ["participations", "Todos los modulos de alumnos", "Matricula, area, periodo, fecha, estatus, operacion", "Media", "Registro transaccional de participacion"],
@@ -9950,8 +9952,69 @@ function renderAlertCenter(compact = false) {
   `;
 }
 
+function loadConfigLinks() {
+  try {
+    const rows = JSON.parse(localStorage.getItem(CONFIG_LINKS_KEY) || "[]");
+    return Array.isArray(rows)
+      ? rows.filter((row) => row?.id && row?.name && row?.url)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveConfigLinks(rows) {
+  localStorage.setItem(CONFIG_LINKS_KEY, JSON.stringify(rows));
+}
+
+function normalizeConfigLinkUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+}
+
+function saveConfigLinkFromForm(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const id = String(formData.get("id") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  const url = normalizeConfigLinkUrl(formData.get("url"));
+  if (!name || !url) {
+    toast("Escribe nombre y liga");
+    return;
+  }
+  const rows = loadConfigLinks();
+  const now = new Date().toISOString();
+  const nextRows = id
+    ? rows.map((row) => row.id === id ? { ...row, name, url, updatedAt: now } : row)
+    : [{ id: `link-${Date.now()}`, name, url, createdAt: now, updatedAt: now }, ...rows];
+  saveConfigLinks(nextRows);
+  configLinkEditingId = "";
+  addAudit("configuracion", id ? `Vinculo editado: ${name}` : `Vinculo guardado: ${name}`);
+  render();
+  toast(id ? "Vinculo actualizado" : "Vinculo guardado");
+}
+
+function editConfigLink(id) {
+  configLinkEditingId = id;
+  render();
+}
+
+function deleteConfigLink(id) {
+  const rows = loadConfigLinks();
+  const link = rows.find((row) => row.id === id);
+  saveConfigLinks(rows.filter((row) => row.id !== id));
+  if (configLinkEditingId === id) configLinkEditingId = "";
+  addAudit("configuracion", `Vinculo eliminado: ${link?.name || id}`);
+  render();
+  toast("Vinculo eliminado");
+}
+
 function renderConfigurationDashboard() {
   const systemCatalogs = getSystemCatalogs();
+  const configLinks = loadConfigLinks();
+  const editingLink = configLinks.find((link) => link.id === configLinkEditingId) || null;
   return `
     <div class="permission-strip">Panel exclusivo para Direccion Deportiva y administracion del sistema.</div>
     <div class="kpi-grid">
@@ -9961,6 +10024,43 @@ function renderConfigurationDashboard() {
       <div class="kpi"><span>Privacidad</span><strong>Activa</strong><em>politica por modulo</em></div>
     </div>
     <div class="blueprint-grid">
+      <section class="blueprint-card wide config-links-panel">
+        <div class="config-links-heading">
+          <div>
+            <p class="eyebrow">Tablero de control</p>
+            <h3>Vinculos rapidos</h3>
+            <p>Guarda accesos a formularios, reportes o paginas externas para abrirlos desde WellSync.</p>
+          </div>
+          <strong>${configLinks.length.toLocaleString("es-MX")} ligas</strong>
+        </div>
+        <form id="configLinkForm" class="config-link-form">
+          <input type="hidden" name="id" value="${escapeHtml(editingLink?.id || "")}" />
+          <label>Nombre de la liga
+            <input name="name" value="${escapeHtml(editingLink?.name || "")}" placeholder="Formulario de asistencias" required />
+          </label>
+          <label>Pegar liga
+            <input name="url" value="${escapeHtml(editingLink?.url || "")}" placeholder="https://..." required />
+          </label>
+          <div class="config-link-actions">
+            <button class="primary-btn" type="submit">${editingLink ? "Guardar cambios" : "Guardar vinculo"}</button>
+            ${editingLink ? `<button class="ghost-btn" type="button" id="cancelConfigLinkEdit">Cancelar</button>` : ""}
+          </div>
+        </form>
+        <div class="config-link-list">
+          ${configLinks.length ? configLinks.map((link) => `
+            <article class="config-link-item">
+              <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">
+                <strong>${escapeHtml(link.name)}</strong>
+                <span>${escapeHtml(link.url)}</span>
+              </a>
+              <div>
+                <button class="ghost-btn" type="button" data-edit-config-link="${escapeHtml(link.id)}">Editar</button>
+                <button class="danger-btn" type="button" data-delete-config-link="${escapeHtml(link.id)}">Eliminar</button>
+              </div>
+            </article>
+          `).join("") : `<p class="form-message">Aun no hay vinculos guardados. Agrega el primero para convertir WellSync en tu tablero de control.</p>`}
+        </div>
+      </section>
       <section class="blueprint-card">
         <h3>Roles y permisos</h3>
         <div class="table-wrap">
@@ -12039,6 +12139,13 @@ function render() {
     render();
     toast("Bitacora local eliminada");
   });
+  $("#configLinkForm")?.addEventListener("submit", saveConfigLinkFromForm);
+  $("#cancelConfigLinkEdit")?.addEventListener("click", () => {
+    configLinkEditingId = "";
+    render();
+  });
+  $$("[data-edit-config-link]").forEach((button) => button.addEventListener("click", () => editConfigLink(button.dataset.editConfigLink)));
+  $$("[data-delete-config-link]").forEach((button) => button.addEventListener("click", () => deleteConfigLink(button.dataset.deleteConfigLink)));
   $$(".collab-filter").forEach((select) => select.addEventListener("input", (event) => {
     collaboratorFilter[event.target.dataset.filter] = event.target.value;
     render();
