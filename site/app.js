@@ -10496,32 +10496,170 @@ function collaboratorPhotoMarkup(row, className = "collaborator-infographic-phot
   return `<span class="${className}"><span>${escapeHtml(collaboratorInitials(name))}</span></span>`;
 }
 
+function collaboratorProfileValue(row, aliases, fallback = "") {
+  const normalizedAliases = aliases.map((alias) => normalizeText(alias).replace(/[^a-z0-9]/g, ""));
+  for (const [key, value] of Object.entries(row || {})) {
+    const normalizedKey = normalizeText(key).replace(/[^a-z0-9]/g, "");
+    if (!normalizedAliases.includes(normalizedKey)) continue;
+    const text = String(value ?? "").trim();
+    if (text && !/^(#n\/a|n\/a|na|null|undefined)$/i.test(text)) return text;
+  }
+  return fallback;
+}
+
+function collaboratorProfileBoolean(value) {
+  const normalized = normalizeText(value);
+  if (["true", "si", "1", "yes"].includes(normalized)) return "Sí";
+  if (["false", "no", "0"].includes(normalized)) return "No";
+  return value ? String(value) : "Sin dato";
+}
+
+function collaboratorProfilePercent(value) {
+  const number = numberFrom(value);
+  if (!String(value ?? "").trim()) return "Sin dato";
+  if (!Number.isFinite(number)) return String(value);
+  const percent = Math.abs(number) <= 1 ? number * 100 : number;
+  return `${Math.round(percent * 10) / 10}%`;
+}
+
+function collaboratorProfileEvaluations(row) {
+  const nominaKey = collaboratorMatchKey(row?.Nomina || row?.nomina || "");
+  if (!nominaKey) return [];
+  return physicalEvaluations
+    .filter((evaluation) => collaboratorMatchKey(evaluation.collaborator_nomina || "") === nominaKey)
+    .sort((a, b) => String(b.evaluated_at || "").localeCompare(String(a.evaluated_at || "")));
+}
+
+function collaboratorProfileInfo(icon, label, value) {
+  return `
+    <div class="collaborator-profile-info-item">
+      <span class="collaborator-profile-info-icon" aria-hidden="true">${icon}</span>
+      <div><small>${escapeHtml(label)}</small><strong>${escapeHtml(value || "Sin dato")}</strong></div>
+    </div>
+  `;
+}
+
+function collaboratorProfileEvaluationMarkup(evaluation) {
+  const date = evaluation?.evaluated_at ? new Date(evaluation.evaluated_at) : null;
+  const year = date && !Number.isNaN(date.getTime()) ? date.getFullYear() : "Sin año";
+  const dateLabel = date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString("es-MX") : "Sin fecha";
+  const tests = ["cooper_12m", "abdominales", "lagartijas", "saltos_cuerda", "wall_ball", "remo_distancia"];
+  return `
+    <article class="collaborator-profile-evaluation">
+      <div class="collaborator-profile-evaluation-heading"><strong>Evaluación física ${year}</strong><span>${dateLabel}</span></div>
+      <div class="collaborator-profile-test-grid">
+        ${tests.map((testKey) => `<div><small>${escapeHtml(PHYSICAL_TEST_LABELS[testKey])}</small><strong>${escapeHtml(physicalResultDisplay(evaluation, testKey))}</strong></div>`).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function collaboratorProfileBadge(icon, label) {
+  return `<div class="collaborator-profile-badge"><span>${icon}</span><strong>${escapeHtml(label)}</strong></div>`;
+}
+
 function renderCollaboratorInfographicDetail(rows) {
   const selected = rows.find((row) => (row.__id || row.Nomina) === selectedCollaboratorInfographicId);
   if (!selected) return "";
-  const hiddenKeys = new Set(["__id", "__photoPath", "__photoUrl"]);
-  const details = Object.entries(selected)
-    .filter(([key, value]) => !hiddenKeys.has(key) && String(value ?? "").trim())
-    .map(([key, value]) => [key, String(value)]);
+  const name = collaboratorProfileValue(selected, ["Colaboradores", "full_name"], "Sin nombre");
+  const nomina = collaboratorProfileValue(selected, ["Nomina", "Nómina"], "Sin dato");
+  const puesto = collaboratorProfileValue(selected, ["Puesto", "Rol", "Materia"], "Colaborador");
+  const coordinator = collaboratorProfileValue(selected, ["Coordinador"], "Sin dato");
+  const email = collaboratorProfileValue(selected, ["correo institucional", "Correo", "Email"], "Sin dato");
+  const birthday = collaboratorProfileValue(selected, ["Fecha cumpleaños", "Cumpleaños", "Cumpleanos"], "Sin dato");
+  const gender = collaboratorProfileValue(selected, ["Genero", "Género"], "Sin dato");
+  const shirt = collaboratorProfileValue(selected, ["Playeras Joma", "Playera Joma"], "Sin dato");
+  const pants = collaboratorProfileValue(selected, ["Talla pants", "Pants"], "Sin dato");
+  const firstAidRaw = collaboratorProfileValue(selected, ["Primeros auxilios"], "");
+  const firstAid = collaboratorProfileBoolean(firstAidRaw);
+  const team = collaboratorProfileValue(selected, ["Equipo", "Sede", "CRN / sede"], "Wellness Center");
+  const courses = collaboratorProfilePercent(collaboratorProfileValue(selected, ["% de cursos", "Cursos"], ""));
+  const campus = collaboratorProfileValue(selected, ["Campus"], "Monterrey");
+  const department = collaboratorProfileValue(selected, ["Departamento"], "Formación Deportiva");
+  const division = collaboratorProfileValue(selected, ["División", "Division"], "Liderazgo y Formación Estudiantil");
+  const subject = collaboratorProfileValue(selected, ["Materia", "Rol"], puesto);
+  const contact1 = collaboratorProfileValue(selected, ["Contacto de emergencia", "Contacto 1"], "Sin dato");
+  const phone1 = collaboratorProfileValue(selected, ["Numero 1", "Número 1"], "Sin dato");
+  const contact2 = collaboratorProfileValue(selected, ["Contacto de emergencia 2", "Contacto 2"], "Sin dato");
+  const phone2 = collaboratorProfileValue(selected, ["Numero 2", "Número 2"], "Sin dato");
+  const highlights = collaboratorProfileValue(selected, ["Destacados"], "Sin dato");
+  const development = collaboratorProfileValue(selected, ["En Desarrollo", "En desarrollo"], "Sin dato");
+  const goal = collaboratorProfilePercent(collaboratorProfileValue(selected, ["Meta de %", "Meta"], ""));
+  const gymAttendanceRaw = collaboratorProfileValue(selected, ["Asistencia a gimnasio de colaboradores", "Asistencia al gimnasio"], "");
+  const gymAttendance = collaboratorProfilePercent(gymAttendanceRaw);
+  const chipinqueRaw = collaboratorProfileValue(selected, ["Evento de integacion Chipinque", "Evento Chipinque"], "");
+  const cozumelRaw = collaboratorProfileValue(selected, ["Evento de integacion Cozumelito", "Evento Cozumelito"], "");
+  const chipinque = collaboratorProfileBoolean(chipinqueRaw);
+  const cozumel = collaboratorProfileBoolean(cozumelRaw);
+  const evaluations = collaboratorProfileEvaluations(selected).slice(0, 2);
+  const badges = [];
+  if (evaluations.length) badges.push(collaboratorProfileBadge("🏅", `Evaluación física ${new Date(evaluations[0].evaluated_at).getFullYear() || "registrada"}`));
+  if (firstAid === "Sí") badges.push(collaboratorProfileBadge("✚", "Primeros auxilios"));
+  if (gymAttendance !== "Sin dato" && numberFrom(gymAttendanceRaw) > 0) badges.push(collaboratorProfileBadge("🏋️", "Asistencia al gimnasio"));
+  if (chipinque === "Sí") badges.push(collaboratorProfileBadge("⛰️", "Chipinque"));
+  if (cozumel === "Sí") badges.push(collaboratorProfileBadge("🌊", "Cozumelito"));
   return `
     <div class="modal-backdrop collaborator-profile-backdrop" role="presentation">
-      <section class="collaborator-profile-modal" role="dialog" aria-modal="true" aria-label="Detalle de colaborador">
-        <div class="collaborator-profile-heading">
+      <section class="collaborator-profile-modal collaborator-profile-executive" role="dialog" aria-modal="true" aria-label="Expediente ejecutivo de ${escapeHtml(name)}">
+        <header class="collaborator-profile-hero">
           ${collaboratorPhotoMarkup(selected, "collaborator-profile-photo")}
-          <div>
-            <p class="eyebrow">Perfil completo</p>
-            <h3>${escapeHtml(selected.Colaboradores || "Sin nombre")}</h3>
-            <span>${escapeHtml(selected.Puesto || "Colaborador")} · ${escapeHtml(selected.Nomina || selected.__id || "")}</span>
+          <div class="collaborator-profile-identity">
+            <p class="eyebrow">Expediente ejecutivo</p>
+            <h3>${escapeHtml(name)}</h3>
+            <strong>${escapeHtml(puesto)}</strong>
+            <span>${escapeHtml(nomina)}</span>
+            <div class="collaborator-profile-hero-meta"><span>Coordinador: ${escapeHtml(coordinator)}</span><span>Cumpleaños: ${escapeHtml(birthday)}</span><span>Género: ${escapeHtml(gender)}</span></div>
           </div>
-          <button class="ghost-btn compact-action" type="button" data-close-collab-profile>Cerrar</button>
-        </div>
-        <div class="collaborator-profile-details">
-          ${details.map(([key, value]) => `
-            <div>
-              <span>${escapeHtml(key)}</span>
-              <strong>${escapeHtml(value)}</strong>
+          <div class="collaborator-profile-brand"><img src="assets/borregos_logo_manual_oficial.png" alt="Borregos"><span>BORREGOS</span></div>
+          <button class="collaborator-profile-close" type="button" data-close-collab-profile aria-label="Cerrar expediente">×</button>
+        </header>
+
+        <div class="collaborator-profile-content">
+          <section class="collaborator-profile-section profile-blue wide">
+            <h4>Perfil confirmado</h4>
+            <div class="collaborator-profile-info-grid four">
+              ${collaboratorProfileInfo("▣", "Nómina", nomina)}
+              ${collaboratorProfileInfo("✉", "Correo institucional", email)}
+              ${collaboratorProfileInfo("▦", "Cumpleaños", birthday)}
+              ${collaboratorProfileInfo("◎", "Género", gender)}
             </div>
-          `).join("")}
+          </section>
+
+          <section class="collaborator-profile-section profile-green wide">
+            <h4>Uniforme y equipo</h4>
+            <div class="collaborator-profile-info-grid five">
+              ${collaboratorProfileInfo("♧", "Playera Joma", shirt)}
+              ${collaboratorProfileInfo("▥", "Pants", pants)}
+              ${collaboratorProfileInfo("✚", "Primeros auxilios", firstAid)}
+              ${collaboratorProfileInfo("◉", "Equipo", team)}
+              ${collaboratorProfileInfo("◷", "% de cursos", courses)}
+            </div>
+          </section>
+
+          <section class="collaborator-profile-section profile-orange">
+            <h4>Información laboral</h4>
+            <div class="collaborator-profile-list"><p><b>Puesto:</b> ${escapeHtml(puesto)}</p><p><b>Coordinador:</b> ${escapeHtml(coordinator)}</p><p><b>Campus:</b> ${escapeHtml(campus)}</p><p><b>División:</b> ${escapeHtml(division)}</p><p><b>Departamento:</b> ${escapeHtml(department)}</p><p><b>Materia / rol:</b> ${escapeHtml(subject)}</p></div>
+          </section>
+
+          <section class="collaborator-profile-section profile-purple">
+            <h4>Registro deportivo</h4>
+            <div class="collaborator-profile-evaluations">${evaluations.length ? evaluations.map(collaboratorProfileEvaluationMarkup).join("") : `<div class="collaborator-profile-empty">Sin registro localizado</div>`}</div>
+          </section>
+
+          <section class="collaborator-profile-section profile-purple">
+            <h4>Contactos de emergencia</h4>
+            <div class="collaborator-profile-list"><p><b>Contacto 1:</b> ${escapeHtml(contact1)}</p><p><b>Número 1:</b> ${escapeHtml(phone1)}</p><p><b>Contacto 2:</b> ${escapeHtml(contact2)}</p><p><b>Número 2:</b> ${escapeHtml(phone2)}</p></div>
+          </section>
+
+          <section class="collaborator-profile-section profile-blue">
+            <h4>Datos adicionales</h4>
+            <div class="collaborator-profile-list two-columns"><p><b>Destacados:</b> ${escapeHtml(highlights)}</p><p><b>En desarrollo:</b> ${escapeHtml(development)}</p><p><b>Evento Chipinque:</b> ${escapeHtml(chipinque)}</p><p><b>Evento Cozumelito:</b> ${escapeHtml(cozumel)}</p><p><b>Meta:</b> ${escapeHtml(goal)}</p><p><b>Asistencia al gimnasio:</b> ${escapeHtml(gymAttendance)}</p></div>
+          </section>
+
+          <section class="collaborator-profile-section profile-navy wide">
+            <h4>Insignias y logros</h4>
+            <div class="collaborator-profile-badges">${badges.length ? badges.join("") : `<div class="collaborator-profile-empty">Sin insignias registradas</div>`}</div>
+          </section>
         </div>
       </section>
     </div>
@@ -13241,4 +13379,3 @@ document.addEventListener("mock-config-save", () => {
 
 loadUniformesData();
 loadClassGradeSeedData().then(() => render());
-
