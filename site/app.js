@@ -474,9 +474,31 @@ const EXECUTIVE_PRESENTATION_SLIDES = [
   { key: "detailed-schedules", title: "Horarios detallados", icon: "calendar-clock" },
   { key: "map", title: "Mapa / distribución de espacios", icon: "map" }
 ];
+const EXECUTIVE_PRESENTATION_EDIT_FIELDS = {
+  cover: [],
+  "general-indicators": [["comment_general-indicators", "Comentario ejecutivo", "Lectura o mensaje clave para la junta"]],
+  priorities: [["priorities", "Puntos prioritarios", "Un punto por línea"]],
+  performance: [["highlight_nominas", "Destacados", ""], ["improving_nominas", "En mejora", ""]],
+  budget: [["comment_budget", "Comentario de presupuesto", "Riesgos, decisiones o contexto financiero"]],
+  "block-activities": [["comment_block-activities", "Comentario del calendario", "Prioridades o cambios relevantes"]],
+  inventory: [["inventory", "Bodegas e inventario", "Estado, alertas y pendientes; un punto por línea"]],
+  schedules: [["comment_schedules", "Comentario de horarios", "Cambios, cobertura o decisiones"]],
+  "weekly-topics": [
+    ["area_topics", "Temas por área", "Área: tema, un punto por línea"],
+    ["topics", "Temas semanales", "Un tema por línea"],
+    ["agreements", "Acuerdos", "Un acuerdo por línea"],
+    ["pending", "Pendientes", "Un pendiente por línea"],
+    ["observations", "Observaciones", "Notas generales para la junta"]
+  ],
+  team: [["comment_team", "Comentario del equipo", "Movimientos, reconocimientos o seguimiento"]],
+  "detailed-schedules": [["comment_detailed-schedules", "Comentario de horarios detallados", "Incidencias o ajustes"]],
+  map: [["map_notes", "Mapa y distribución de espacios", "Cambios, bloqueos o necesidades de espacio"]]
+};
+const MAX_PRESENTATION_SELECTION = 3;
 let executivePresentationIndex = 0;
 let executivePresentationMode = false;
 let executivePresentationEditorOpen = false;
+let executivePresentationEditingSlide = "priorities";
 let executivePresentationCloudAvailable = true;
 let executivePresentationSaving = false;
 let executivePresentationNotes = loadExecutivePresentationLocalNotes();
@@ -7870,7 +7892,7 @@ function saveExecutivePresentationLocalNotes(notes = executivePresentationNotes)
 
 function presentationNotesForCurrentWeek() {
   const key = presentationWeekKey();
-  return executivePresentationNotes[key] || { priorities: "", topics: "", agreements: "", observations: "", pending: "" };
+  return executivePresentationNotes[key] || {};
 }
 
 function presentationTextItems(value) {
@@ -7895,6 +7917,43 @@ function executivePresentationBudgetData() {
   return { summaries, assigned, spent, committed, available: Math.max(0, assigned - spent - committed) };
 }
 
+function executivePresentationLatestPurchases(summaries = executivePresentationBudgetData().summaries) {
+  return summaries.slice(0, 6).map((summary) => {
+    const rows = budgetRequestRows
+      .filter((row) => row.period === budgetFilters.period && row.area === summary.area && row.status !== "rechazado")
+      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+    return { area: summary.area, owner: summary.owner || "Sin responsable", count: rows.length, purchase: rows[0] || null };
+  });
+}
+
+function budgetPresentationTone(index) {
+  return ["blue", "green", "gold", "purple", "teal", "navy"][index % 6];
+}
+
+function renderExecutivePresentationBudget(budget, notes) {
+  if (!budget.assigned) return presentationEmptyState();
+  const usage = Math.round(((budget.spent + budget.committed) / budget.assigned) * 100);
+  const latest = executivePresentationLatestPurchases(budget.summaries);
+  return `<div class="executive-presentation-budget">
+    <div class="executive-presentation-budget-summary">
+      ${presentationMetric("Asignado", money(budget.assigned), "Presupuesto del periodo")}
+      ${presentationMetric("Ejercido", money(budget.spent), `${Math.round(budget.spent / budget.assigned * 100)}% del total`)}
+      ${presentationMetric("Comprometido", money(budget.committed), `${Math.round(budget.committed / budget.assigned * 100)}% del total`)}
+      ${presentationMetric("Disponible", money(budget.available), `${Math.max(0, 100 - usage)}% disponible`)}
+    </div>
+    <div class="executive-presentation-budget-global"><span>Uso global</span><b><i style="width:${Math.min(100, usage)}%"></i></b><strong>${usage}%</strong></div>
+    <div class="executive-presentation-budget-middle">
+      <section><h3>Detalle por área</h3>${budget.summaries.slice(0, 6).map((row, index) => {
+        const used = row.assigned ? Math.min(100, Math.round((row.spent + row.committed) / row.assigned * 100)) : 0;
+        return `<div class="executive-presentation-budget-area ${budgetPresentationTone(index)}"><span>${escapeHtml(budgetAreaLabel(row.area))}</span><b><i style="width:${used}%"></i></b><strong>${used}%</strong><em>${money(row.available)}</em></div>`;
+      }).join("")}</section>
+      <aside><h3>Registros por responsable</h3>${latest.map((row, index) => `<div class="executive-presentation-budget-owner ${budgetPresentationTone(index)}"><span>${escapeHtml(row.owner)}</span><b><i style="width:${Math.min(100, row.count * 12)}%"></i></b><strong>${row.count}</strong></div>`).join("")}</aside>
+    </div>
+    <div class="executive-presentation-budget-latest">${latest.map((row, index) => `<article class="${budgetPresentationTone(index)}"><strong>${escapeHtml(budgetAreaLabel(row.area))}</strong>${row.purchase ? `<span>${escapeHtml(row.purchase.concept || "Sin concepto")}</span><em>${escapeHtml(row.purchase.date || "Sin fecha")} · ${money(row.purchase.amount || 0)}</em>` : `<span>Sin compras registradas</span><em>${escapeHtml(budgetFilters.period)}</em>`}</article>`).join("")}</div>
+    ${presentationManualNote(notes, "comment_budget")}
+  </div>`;
+}
+
 function executivePresentationActivities() {
   return planningCalendarRows.map((row, index) => normalizePlanningCalendarRow(row, index)).filter((row) => row.activity && row.date)
     .sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 7);
@@ -7904,6 +7963,60 @@ function executivePresentationScheduleSummary() {
   const rows = scheduleMasterRows();
   const byDay = scheduleDays.map((day) => ({ day, value: rows.filter((row) => row.day === day).length }));
   return { rows, byDay, teachers: new Set(rows.map((row) => row.professor).filter(Boolean)).size, installations: new Set(rows.map((row) => row.installation).filter(Boolean)).size };
+}
+
+function executivePresentationPerformanceData() {
+  const teachers = classDashboardMetrics().teachers || [];
+  const ranked = teachers.filter((row) => Number.isFinite(Number(row.approvedRate)) && Number(row.total || 0) > 0);
+  return {
+    highlights: [...ranked].sort((a, b) => Number(b.approvedRate) - Number(a.approvedRate)).slice(0, 3),
+    improving: [...ranked].sort((a, b) => Number(a.approvedRate) - Number(b.approvedRate)).slice(0, 3)
+  };
+}
+
+function presentationCollaboratorProfile(row) {
+  const nomina = String(row.Nomina || row.nomina || "").trim();
+  const name = String(row.Colaboradores || row.full_name || row.nombre_completo || "Sin nombre").trim();
+  return {
+    nomina,
+    name,
+    role: String(row.Puesto || row.role || "Sin dato").trim(),
+    photoUrl: row.__photoUrl || row.photo_url || "",
+    initials: collaboratorInitials(name)
+  };
+}
+
+function presentationSelectedCollaborators(notes, key) {
+  const selected = String(notes[key] || "").split(",").map((value) => value.trim()).filter(Boolean).slice(0, MAX_PRESENTATION_SELECTION);
+  const profiles = new Map(collaboratorRows().map((row) => {
+    const profile = presentationCollaboratorProfile(row);
+    return [collaboratorMatchKey(profile.nomina), profile];
+  }));
+  return selected.map((nomina) => profiles.get(collaboratorMatchKey(nomina))).filter(Boolean);
+}
+
+function renderPresentationPortraitGroup(title, tone, profiles) {
+  const slots = [...profiles.slice(0, MAX_PRESENTATION_SELECTION)];
+  while (slots.length < MAX_PRESENTATION_SELECTION) slots.push(null);
+  return `<section class="executive-presentation-portrait-group ${tone}"><h3>${escapeHtml(title)}</h3><div class="executive-presentation-portrait-grid">${slots.map((profile) => profile ? `<article>${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="Foto de ${escapeHtml(profile.name)}" />` : `<span>${escapeHtml(profile.initials)}</span>`}<strong>${escapeHtml(profile.name)}</strong><em>${escapeHtml(profile.role)}</em></article>` : `<article class="empty"><span>+</span><strong>Sin seleccionar</strong><em>Editable</em></article>`).join("")}</div></section>`;
+}
+
+function renderPresentationCollaboratorPicker(key, label, notes) {
+  const selected = new Set(String(notes[key] || "").split(",").map((value) => value.trim()).filter(Boolean));
+  return `<fieldset class="executive-presentation-collaborator-picker"><legend>${escapeHtml(label)} <span>Máximo ${MAX_PRESENTATION_SELECTION}</span></legend><div>${collaboratorRows().map((row) => {
+    const profile = presentationCollaboratorProfile(row);
+    return `<label class="${selected.has(profile.nomina) ? "selected" : ""}"><input type="checkbox" name="${escapeHtml(key)}" value="${escapeHtml(profile.nomina)}" data-presentation-collaborator="${escapeHtml(key)}" ${selected.has(profile.nomina) ? "checked" : ""} />${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="" />` : `<i>${escapeHtml(profile.initials)}</i>`}<span><strong>${escapeHtml(profile.name)}</strong><em>${escapeHtml(profile.nomina)} · ${escapeHtml(profile.role)}</em></span></label>`;
+  }).join("")}</div></fieldset>`;
+}
+
+function presentationManualNote(notes, key, title = "Nota para la junta") {
+  const content = String(notes[key] || "").trim();
+  return content ? `<div class="executive-presentation-manual-note"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(content)}</span></div>` : "";
+}
+
+function renderPresentationPeopleList(rows, emptyLabel) {
+  if (!rows.length) return presentationEmptyState(emptyLabel);
+  return `<div class="executive-presentation-people">${rows.map((row, index) => `<article><span>${index + 1}</span><div><strong>${escapeHtml(row.teacher || "Sin dato")}</strong><em>${Number(row.approvedRate || 0)}% aprobados · ${Number(row.total || 0)} alumnos</em></div></article>`).join("")}</div>`;
 }
 
 function renderExecutivePresentationSlide(slide, index) {
@@ -7925,27 +8038,27 @@ function renderExecutivePresentationSlide(slide, index) {
   } else if (slide.key === "general-indicators") {
     const unique = new Set(operational.map((row) => row.matricula).filter(Boolean)).size;
     const total = operational.reduce((sum, row) => sum + Number(row.registros || 0), 0);
-    body = `<div class="executive-presentation-metrics">${presentationMetric("Matrículas únicas", unique || null, "Registros consolidados")}${presentationMetric("Atenciones", total || null, "Acumulado actual")}${presentationMetric("Clases acreditadas", classes.finished || null, "Corte disponible")}${presentationMetric("Eventos de Vivencia", vivenciaEvents.length || null, "Historial cargado")}</div><div class="executive-presentation-callout"><strong>Lectura ejecutiva</strong><span>${notes.observations ? escapeHtml(notes.observations) : "Sin información disponible"}</span></div>`;
+    body = `<div class="executive-presentation-metrics">${presentationMetric("Matrículas únicas", unique || null, "Registros consolidados")}${presentationMetric("Atenciones", total || null, "Acumulado actual")}${presentationMetric("Clases acreditadas", classes.finished || null, "Corte disponible")}${presentationMetric("Eventos de Vivencia", vivenciaEvents.length || null, "Historial cargado")}</div>${presentationManualNote(notes, "comment_general-indicators", "Lectura ejecutiva")}`;
   } else if (slide.key === "priorities") {
     body = manualList("priorities");
   } else if (slide.key === "performance") {
-    body = `<div class="executive-presentation-metrics">${presentationMetric("Colaboradores", collaborators.length || null, "Directorio actual")}${presentationMetric("Evaluaciones físicas", physicalCount || null, "Registros disponibles")}${presentationMetric("Primeros auxilios", collaboratorMetrics().firstAid || null, "Colaboradores registrados")}${presentationMetric("Promedio de cursos", collaboratorMetrics().courseAvg ? `${collaboratorMetrics().courseAvg}%` : null, "Avance del equipo")}</div>`;
+    body = `<div class="executive-presentation-performance selected">${renderPresentationPortraitGroup("Destacados", "highlight", presentationSelectedCollaborators(notes, "highlight_nominas"))}${renderPresentationPortraitGroup("En mejora", "improving", presentationSelectedCollaborators(notes, "improving_nominas"))}</div>`;
   } else if (slide.key === "budget") {
-    body = budget.assigned ? `<div class="executive-presentation-metrics">${presentationMetric("Asignado", money(budget.assigned))}${presentationMetric("Ejercido", money(budget.spent))}${presentationMetric("Comprometido", money(budget.committed))}${presentationMetric("Disponible", money(budget.available))}</div><div class="executive-presentation-bars">${budget.summaries.slice(0, 6).map((row) => { const used = row.assigned ? Math.min(100, Math.round((row.spent + row.committed) / row.assigned * 100)) : 0; return `<div><span>${escapeHtml(budgetAreaLabel(row.area))}</span><b><i style="width:${used}%"></i></b><strong>${used}%</strong></div>`; }).join("")}</div>` : presentationEmptyState();
+    body = renderExecutivePresentationBudget(budget, notes);
   } else if (slide.key === "block-activities") {
-    body = activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => `<div><time>${escapeHtml(row.date)}</time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em>${escapeHtml(row.status || "Sin estado")}</em></div>`).join("")}</div>` : presentationEmptyState();
+    body = `${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => `<div><time>${escapeHtml(row.date)}</time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em>${escapeHtml(row.status || "Sin estado")}</em></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_block-activities")}`;
   } else if (slide.key === "inventory") {
-    body = presentationEmptyState("Sin información disponible");
+    body = presentationTextItems(notes.inventory).length ? manualList("inventory") : presentationEmptyState("Sin información de bodegas capturada");
   } else if (slide.key === "schedules") {
-    body = schedule.rows.length ? `<div class="executive-presentation-metrics">${presentationMetric("Clases activas", schedule.rows.length)}${presentationMetric("Profesores", schedule.teachers)}${presentationMetric("Instalaciones", schedule.installations)}</div><div class="executive-presentation-columns">${schedule.byDay.map((row) => `<div><strong>${row.value}</strong><i style="height:${Math.max(8, Math.min(100, row.value * 3))}%"></i><span>${escapeHtml(row.day.slice(0, 3))}</span></div>`).join("")}</div>` : presentationEmptyState();
+    body = `${schedule.rows.length ? `<div class="executive-presentation-metrics">${presentationMetric("Clases activas", schedule.rows.length)}${presentationMetric("Profesores", schedule.teachers)}${presentationMetric("Instalaciones", schedule.installations)}</div><div class="executive-presentation-columns">${schedule.byDay.map((row) => `<div><strong>${row.value}</strong><i style="height:${Math.max(8, Math.min(100, row.value * 3))}%"></i><span>${escapeHtml(row.day.slice(0, 3))}</span></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_schedules")}`;
   } else if (slide.key === "weekly-topics") {
-    body = `<div class="executive-presentation-split"><section><h3>Temas para revisión</h3>${manualList("topics")}</section><section><h3>Acuerdos y pendientes</h3>${manualList("agreements")}${manualList("pending")}</section></div>`;
+    body = `<div class="executive-presentation-split"><section><h3>Temas por área</h3>${manualList("area_topics")}<h3>Temas semanales</h3>${manualList("topics")}</section><section><h3>Acuerdos</h3>${manualList("agreements")}<h3>Pendientes</h3>${manualList("pending")}</section></div>${presentationManualNote(notes, "observations", "Observaciones")}`;
   } else if (slide.key === "team") {
-    body = collaborators.length ? `<div class="executive-presentation-team">${collaborators.slice(0, 10).map((row) => { const name = row.Colaboradores || row.collaborator_name || row.nombre || "Colaborador"; const image = row.photo_url || row.foto_url || row.image_url || ""; return `<article>${image ? `<img src="${escapeHtml(image)}" alt="" />` : `<span>${escapeHtml(String(name).split(/\s+/).slice(0, 2).map((part) => part[0] || "").join(""))}</span>`}<strong>${escapeHtml(name)}</strong><em>${escapeHtml(row.Puesto || row.role || "Sin dato")}</em></article>`; }).join("")}</div>` : presentationEmptyState();
+    body = `${collaborators.length ? `<div class="executive-presentation-team">${collaborators.slice(0, 10).map((row) => { const name = row.Colaboradores || row.collaborator_name || row.nombre || "Colaborador"; const image = row.photo_url || row.foto_url || row.image_url || ""; return `<article>${image ? `<img src="${escapeHtml(image)}" alt="" />` : `<span>${escapeHtml(String(name).split(/\s+/).slice(0, 2).map((part) => part[0] || "").join(""))}</span>`}<strong>${escapeHtml(name)}</strong><em>${escapeHtml(row.Puesto || row.role || "Sin dato")}</em></article>`; }).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_team")}`;
   } else if (slide.key === "detailed-schedules") {
-    body = schedule.rows.length ? `<div class="executive-presentation-table schedule"><div class="head"><span>Día</span><span>Horario</span><span>Clase</span><span>Profesor</span></div>${schedule.rows.slice(0, 9).map((row) => `<div><span>${escapeHtml(row.day)}</span><strong>${escapeHtml(`${row.start || ""} - ${row.end || ""}`)}</strong><span>${escapeHtml(row.discipline || "Sin dato")}</span><em>${escapeHtml(row.professor || "Sin dato")}</em></div>`).join("")}</div>` : presentationEmptyState();
+    body = `${schedule.rows.length ? `<div class="executive-presentation-table schedule"><div class="head"><span>Día</span><span>Horario</span><span>Clase</span><span>Profesor</span></div>${schedule.rows.slice(0, 9).map((row) => `<div><span>${escapeHtml(row.day)}</span><strong>${escapeHtml(`${row.start || ""} - ${row.end || ""}`)}</strong><span>${escapeHtml(row.discipline || "Sin dato")}</span><em>${escapeHtml(row.professor || "Sin dato")}</em></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_detailed-schedules")}`;
   } else if (slide.key === "map") {
-    body = presentationEmptyState("Sin información disponible");
+    body = presentationTextItems(notes.map_notes).length ? manualList("map_notes") : presentationEmptyState("Sin información de distribución capturada");
   }
   return `<article class="executive-presentation-slide" data-slide-key="${slide.key}" aria-label="Diapositiva ${index + 1}: ${escapeHtml(slide.title)}"><header><div class="executive-presentation-number">${index + 1}</div><div><h2>${escapeHtml(slide.title)}</h2><p>${index === 0 ? "Junta semanal" : presentationWeekKey()}</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></header><div class="executive-presentation-slide-body">${body}</div><footer>WellSync · Dirección Deportiva</footer></article>`;
 }
@@ -7953,17 +8066,28 @@ function renderExecutivePresentationSlide(slide, index) {
 function renderExecutivePresentationEditor() {
   if (!executivePresentationEditorOpen) return "";
   const notes = presentationNotesForCurrentWeek();
-  return `<div class="executive-presentation-editor-backdrop" data-presentation-editor-close><aside class="executive-presentation-editor" role="dialog" aria-modal="true" aria-labelledby="presentationEditorTitle"><header><div><p class="eyebrow">${escapeHtml(presentationWeekKey())}</p><h2 id="presentationEditorTitle">Editar junta semanal</h2></div><button type="button" data-presentation-editor-close aria-label="Cerrar">&times;</button></header><form id="executivePresentationForm">${[["priorities", "Puntos prioritarios"], ["topics", "Temas semanales"], ["agreements", "Acuerdos"], ["observations", "Observaciones"], ["pending", "Pendientes"]].map(([key, label]) => `<label>${label}<textarea name="${key}" rows="4" placeholder="Un punto por línea">${escapeHtml(notes[key] || "")}</textarea></label>`).join("")}<div class="executive-presentation-editor-actions"><button class="ghost-btn" type="button" data-presentation-editor-close>Cancelar</button><button class="primary-btn" type="submit" ${executivePresentationSaving ? "disabled" : ""}>${executivePresentationSaving ? "Guardando..." : "Guardar semana"}</button></div><p>${executivePresentationCloudAvailable ? "Se guardará en Supabase cuando las tablas estén activas." : "Guardado local disponible; activa las tablas para compartir entre computadoras."}</p></form></aside></div>`;
+  const selectedSlide = EXECUTIVE_PRESENTATION_SLIDES.find((slide) => slide.key === executivePresentationEditingSlide) || EXECUTIVE_PRESENTATION_SLIDES[2];
+  const fields = EXECUTIVE_PRESENTATION_EDIT_FIELDS[selectedSlide.key] || [];
+  const editorFields = selectedSlide.key === "performance"
+    ? `${renderPresentationCollaboratorPicker("highlight_nominas", "Destacados", notes)}${renderPresentationCollaboratorPicker("improving_nominas", "En mejora", notes)}`
+    : fields.map(([key, label, placeholder]) => `<label>${escapeHtml(label)}<textarea name="${escapeHtml(key)}" rows="5" placeholder="${escapeHtml(placeholder)}">${escapeHtml(notes[key] || "")}</textarea></label>`).join("");
+  return `<div class="executive-presentation-editor-backdrop" data-presentation-editor-close><aside class="executive-presentation-editor" role="dialog" aria-modal="true" aria-labelledby="presentationEditorTitle"><header><div><p class="eyebrow">${escapeHtml(presentationWeekKey())}</p><h2 id="presentationEditorTitle">Editor de la junta semanal</h2><span>Los datos automáticos permanecen conectados; aquí agregas contexto y decisiones.</span></div><button type="button" data-presentation-editor-close aria-label="Cerrar">&times;</button></header><div class="executive-presentation-editor-layout"><nav class="executive-presentation-editor-nav" aria-label="Diapositivas editables">${EXECUTIVE_PRESENTATION_SLIDES.map((slide, index) => `<button type="button" class="${slide.key === selectedSlide.key ? "active" : ""}" data-presentation-editor-slide="${escapeHtml(slide.key)}"><span>${index + 1}</span><div><strong>${escapeHtml(slide.title)}</strong><em>${(EXECUTIVE_PRESENTATION_EDIT_FIELDS[slide.key] || []).length ? "Editable" : "Automática"}</em></div></button>`).join("")}</nav><form id="executivePresentationForm"><div class="executive-presentation-editor-heading"><span>Diapositiva ${EXECUTIVE_PRESENTATION_SLIDES.indexOf(selectedSlide) + 1}</span><h3>${escapeHtml(selectedSlide.title)}</h3></div>${fields.length ? editorFields : `<div class="executive-presentation-editor-automatic"><i data-lucide="refresh-cw"></i><strong>Diapositiva automática</strong><p>Se alimenta directamente con la información disponible en WellSync.</p></div>`}<div class="executive-presentation-editor-actions"><button class="ghost-btn" type="button" data-presentation-editor-close>Cancelar</button>${fields.length ? `<button class="primary-btn" type="submit" ${executivePresentationSaving ? "disabled" : ""}>${executivePresentationSaving ? "Guardando..." : "Guardar diapositiva"}</button>` : ""}</div><p>${executivePresentationCloudAvailable ? "Guardado semanal en Supabase activo cuando las tablas están disponibles." : "Guardado local disponible; activa las tablas para compartir entre computadoras."}</p></form></div></aside></div>`;
 }
 
 function renderExecutivePresentationStage() {
   if (!executivePresentationMode) return "";
   const slide = EXECUTIVE_PRESENTATION_SLIDES[executivePresentationIndex] || EXECUTIVE_PRESENTATION_SLIDES[0];
-  return `<div class="executive-presentation-stage" role="dialog" aria-modal="true" aria-label="Modo presentación"><div class="executive-presentation-stage-toolbar"><span>${executivePresentationIndex + 1} / ${EXECUTIVE_PRESENTATION_SLIDES.length}</span><button type="button" data-presentation-close aria-label="Cerrar presentación">&times;</button></div><div class="executive-presentation-canvas">${renderExecutivePresentationSlide(slide, executivePresentationIndex)}</div><button class="executive-presentation-nav previous" type="button" data-presentation-step="-1" aria-label="Diapositiva anterior">&#8249;</button><button class="executive-presentation-nav next" type="button" data-presentation-step="1" aria-label="Siguiente diapositiva">&#8250;</button></div>`;
+  return `<div class="executive-presentation-stage" role="dialog" aria-modal="true" aria-label="Modo presentación"><div class="executive-presentation-stage-toolbar"><span>${executivePresentationIndex + 1} / ${EXECUTIVE_PRESENTATION_SLIDES.length}</span><div><button class="executive-presentation-stage-edit" type="button" data-presentation-edit-slide="${escapeHtml(slide.key)}">Editar diapositiva</button><button type="button" data-presentation-close aria-label="Cerrar presentación">&times;</button></div></div><div class="executive-presentation-canvas">${renderExecutivePresentationSlide(slide, executivePresentationIndex)}</div><button class="executive-presentation-nav previous" type="button" data-presentation-step="-1" aria-label="Diapositiva anterior">&#8249;</button><button class="executive-presentation-nav next" type="button" data-presentation-step="1" aria-label="Siguiente diapositiva">&#8250;</button></div>`;
 }
 
 function renderExecutivePresentationHub() {
-  return `<section class="executive-presentation-hub"><div class="executive-presentation-hero"><div><p class="eyebrow">WellSync · Dirección Deportiva</p><h2>Presentación Ejecutiva</h2><p>Prepara y presenta la junta semanal con la información actual del sistema.</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div><div class="executive-presentation-template-grid"><article class="executive-presentation-template active"><div class="executive-presentation-template-preview">${renderExecutivePresentationSlide(EXECUTIVE_PRESENTATION_SLIDES[0], 0)}</div><div><span>Formato activo</span><h3>Junta semanal</h3><p>12 diapositivas conectadas con WellSync.</p><div class="executive-presentation-actions"><button class="primary-btn" type="button" data-presentation-action="present">Presentar</button><button class="ghost-btn" type="button" data-presentation-action="edit">Editar</button><button class="ghost-btn" type="button" data-presentation-action="pdf">Exportar PDF</button><button class="ghost-btn" type="button" data-presentation-action="powerpoint">PowerPoint</button></div></div></article>${["Informe mensual", "Rectoría", "Coordinadores"].map((title) => `<article class="executive-presentation-template coming"><span>Próximamente</span><h3>${title}</h3><p>Formato preparado para una siguiente fase.</p></article>`).join("")}</div><div class="executive-presentation-slide-grid">${EXECUTIVE_PRESENTATION_SLIDES.map((slide, index) => `<button type="button" data-presentation-slide="${index}"><span>${index + 1}</span><i data-lucide="${slide.icon}"></i><strong>${escapeHtml(slide.title)}</strong></button>`).join("")}</div><div class="executive-presentation-print-deck">${EXECUTIVE_PRESENTATION_SLIDES.map(renderExecutivePresentationSlide).join("")}</div></section>${renderExecutivePresentationStage()}${renderExecutivePresentationEditor()}`;
+  return `<section class="executive-presentation-hub"><div class="executive-presentation-hero"><div><p class="eyebrow">WellSync · Dirección Deportiva</p><h2>Presentación Ejecutiva</h2><p>Datos automáticos del sistema y contenido editable por semana, en una sola junta.</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div><div class="executive-presentation-template-grid"><article class="executive-presentation-template active"><div class="executive-presentation-template-preview">${renderExecutivePresentationSlide(EXECUTIVE_PRESENTATION_SLIDES[0], 0)}</div><div><span>Formato activo · ${escapeHtml(presentationWeekKey())}</span><h3>Junta semanal híbrida</h3><p>12 diapositivas: indicadores, presupuesto, calendario, desempeño y equipo se actualizan desde WellSync; acuerdos y notas se editan por semana.</p><div class="executive-presentation-actions"><button class="primary-btn" type="button" data-presentation-action="present">Presentar</button><button class="ghost-btn" type="button" data-presentation-action="edit">Editar contenido</button><button class="ghost-btn" type="button" data-presentation-action="refresh">Actualizar datos</button><button class="ghost-btn" type="button" data-presentation-action="pdf">Exportar PDF</button><button class="ghost-btn" type="button" data-presentation-action="powerpoint">PowerPoint</button></div></div></article>${["Informe mensual", "Rectoría", "Coordinadores"].map((title) => `<article class="executive-presentation-template coming"><span>Próximamente</span><h3>${title}</h3><p>Formato preparado para una siguiente fase.</p></article>`).join("")}</div><div class="executive-presentation-slide-grid">${EXECUTIVE_PRESENTATION_SLIDES.map((slide, index) => `<article><button type="button" data-presentation-slide="${index}"><span>${index + 1}</span><i data-lucide="${slide.icon}"></i><strong>${escapeHtml(slide.title)}</strong></button><button class="executive-presentation-slide-edit" type="button" data-presentation-edit-slide="${escapeHtml(slide.key)}" aria-label="Editar ${escapeHtml(slide.title)}"><i data-lucide="pencil"></i></button></article>`).join("")}</div><div class="executive-presentation-print-deck">${EXECUTIVE_PRESENTATION_SLIDES.map(renderExecutivePresentationSlide).join("")}</div></section>${renderExecutivePresentationStage()}${renderExecutivePresentationEditor()}`;
+}
+
+async function refreshExecutivePresentationData() {
+  if (supabaseClient && currentUser?.auth === "supabase") await loadSupabaseDataBundle();
+  await loadPlanningCalendarRows();
+  await loadExecutivePresentationNotes();
 }
 
 async function loadExecutivePresentationNotes() {
@@ -7987,8 +8111,13 @@ async function loadExecutivePresentationNotes() {
 
 async function saveExecutivePresentationNotes(form) {
   const weekKey = presentationWeekKey();
-  const values = Object.fromEntries(new FormData(form).entries());
-  executivePresentationNotes[weekKey] = values;
+  const formData = new FormData(form);
+  const values = {};
+  [...new Set([...formData.keys()])].forEach((key) => {
+    const entries = formData.getAll(key).map((value) => String(value || "").trim()).filter(Boolean);
+    values[key] = entries.length > 1 || key.endsWith("_nominas") ? entries.slice(0, MAX_PRESENTATION_SELECTION).join(",") : (entries[0] || "");
+  });
+  executivePresentationNotes[weekKey] = { ...presentationNotesForCurrentWeek(), ...values };
   saveExecutivePresentationLocalNotes();
   if (!supabaseClient || currentUser?.auth !== "supabase") return false;
   const head = await supabaseClient.from("presentaciones").upsert({ week_key: weekKey, presentation_type: "weekly", title: `Junta semanal ${weekKey}`, status: "draft", updated_at: new Date().toISOString() }, { onConflict: "week_key,presentation_type" }).select("id").single();
@@ -8003,10 +8132,17 @@ async function saveExecutivePresentationNotes(form) {
 }
 
 function bindExecutivePresentationControls() {
-  $$('[data-presentation-action]').forEach((button) => button.addEventListener("click", () => {
+  $$('[data-presentation-action]').forEach((button) => button.addEventListener("click", async () => {
     const action = button.dataset.presentationAction;
     if (action === "present") { executivePresentationIndex = 0; executivePresentationMode = true; render(); }
-    if (action === "edit") { executivePresentationEditorOpen = true; render(); }
+    if (action === "edit") { executivePresentationEditingSlide = "priorities"; executivePresentationEditorOpen = true; render(); }
+    if (action === "refresh") {
+      button.disabled = true;
+      button.textContent = "Actualizando...";
+      await refreshExecutivePresentationData();
+      render();
+      toast("Presentación actualizada con la información disponible de WellSync");
+    }
     if (action === "pdf") {
       const printRoot = document.createElement("div");
       printRoot.className = "executive-presentation-print-root";
@@ -8019,6 +8155,17 @@ function bindExecutivePresentationControls() {
     if (action === "powerpoint") toast("Exportación PowerPoint preparada para una siguiente fase");
   }));
   $$('[data-presentation-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Number(button.dataset.presentationSlide) || 0; executivePresentationMode = true; render(); }));
+  $$('[data-presentation-edit-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditSlide || "priorities"; executivePresentationEditorOpen = true; render(); }));
+  $$('[data-presentation-editor-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditorSlide || "priorities"; render(); }));
+  $$('[data-presentation-collaborator]').forEach((input) => input.addEventListener("change", () => {
+    const group = input.dataset.presentationCollaborator;
+    const checked = $$(`[data-presentation-collaborator="${group}"]:checked`);
+    if (checked.length > MAX_PRESENTATION_SELECTION) {
+      input.checked = false;
+      toast(`Selecciona máximo ${MAX_PRESENTATION_SELECTION} colaboradores`);
+    }
+    input.closest("label")?.classList.toggle("selected", input.checked);
+  }));
   $$('[data-presentation-step]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Math.max(0, Math.min(EXECUTIVE_PRESENTATION_SLIDES.length - 1, executivePresentationIndex + Number(button.dataset.presentationStep))); render(); }));
   $('[data-presentation-close]')?.addEventListener("click", () => { executivePresentationMode = false; render(); });
   $$('[data-presentation-editor-close]').forEach((button) => button.addEventListener("click", (event) => { if (event.target === event.currentTarget || event.currentTarget.tagName === "BUTTON") { executivePresentationEditorOpen = false; render(); } }));
