@@ -6153,11 +6153,22 @@ async function importParticipationUpload(areaId) {
     return;
   }
   const savedCloud = await saveParticipationUploadCloud(areaId, draft);
+  if (!savedCloud) {
+    participationUploadState[areaId].draft = {
+      ...draft,
+      errors: [...draft.errors, "No se guardó la información en Supabase. Inicia sesión con permisos de Coordinador o Dirección e intenta nuevamente."],
+      warnings: draft.warnings.filter((message) => !message.includes("No se guardó la información en Supabase"))
+    };
+    render();
+    toast("No se guardó la información en Supabase");
+    return;
+  }
   participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
-  if (savedCloud) await loadParticipationUploadsCloud();
-  addAudit(areaId, `${draft.summary.total} registros importados desde ${draft.fileName}`);
+  participationUploadState[areaId].draft = null;
+  await loadParticipationUploadsCloud();
+  addAudit(areaId, `${draft.summary.total} registros guardados en Supabase desde ${draft.fileName}`);
   render();
-  toast(savedCloud ? "Información guardada en Supabase" : "Información importada localmente");
+  toast("Información guardada en Supabase");
 }
 
 function intramurosCloudRow(row) {
@@ -7793,11 +7804,6 @@ function renderIntramurosDashboard() {
   const tableRows = rows.slice(0, 250);
   return `
     <section class="upload-center intramuros-dashboard">
-      <div class="permission-strip">
-        <span>Intramuros analítico: Omar conserva su Excel; WellSync carga, guarda en Supabase y analiza sin nombres.</span>
-        <span>${intramurosCloudAvailable ? `${intramurosParticipants.length.toLocaleString("es-MX")} registros en Supabase` : "Falta activar intramuros_participantes en Supabase"}</span>
-      </div>
-
       <div class="intramuros-omar-workspace">
         <div>
           <p class="eyebrow">Espacio de Omar</p>
@@ -12464,7 +12470,7 @@ function render() {
     if (reportsTab) reportsTab.style.order = "30";
   }
   const filtersBand = $(".filters-band");
-  if (filtersBand) filtersBand.hidden = isGym || isBudget || isPresentation;
+  if (filtersBand) filtersBand.hidden = isGym || isBudget || isPresentation || isCollaborators;
   const segmentedNav = $(".segmented");
   if (segmentedNav) segmentedNav.hidden = isPresentation;
   if (isParticipationOnly && !["dashboard", "reports"].includes(activeView)) activeView = "dashboard";
