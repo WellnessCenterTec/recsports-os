@@ -7072,7 +7072,8 @@ tbody tr:hover td {
 }
 
 .vivencia-calendar-panel {
-  grid-row: span 4;
+  /* Keep the calendar prominent without reserving an empty full-height column. */
+  grid-row: span 3;
 }
 
 .vivencia-month-panel,
