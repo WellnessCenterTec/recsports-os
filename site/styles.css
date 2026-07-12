@@ -6988,7 +6988,7 @@ tbody tr:hover td {
 }
 
 .vivencia-dashboard-grid {
-  grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+  grid-template-columns: minmax(0, 3.6fr) minmax(320px, 1.4fr);
   display: grid;
   gap: 12px;
 }
@@ -7072,8 +7072,143 @@ tbody tr:hover td {
 }
 
 .vivencia-calendar-panel {
-  grid-row: span 2;
+  grid-row: span 4;
 }
+
+.vivencia-month-panel,
+.vivencia-top-panel,
+.vivencia-recent-panel,
+.vivencia-impact-goal-card,
+.vivencia-gender-card {
+  min-width: 0;
+}
+
+.vivencia-month-panel {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.vivencia-impact-amount {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.vivencia-impact-amount strong {
+  color: var(--ink);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.vivencia-impact-amount span,
+.vivencia-impact-goal-card p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.vivencia-impact-goal-card p {
+  margin: 9px 0 0;
+}
+
+.vivencia-impact-track {
+  height: 10px;
+  margin-top: 13px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e6edf1;
+}
+
+.vivencia-impact-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--blue), var(--teal));
+}
+
+.vivencia-impact-goal-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 13px;
+}
+
+.vivencia-impact-goal-form label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.vivencia-impact-goal-form input {
+  min-height: 34px;
+}
+
+.vivencia-gender-content {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  margin-top: 10px;
+}
+
+.vivencia-gender-donut {
+  display: grid;
+  width: 118px;
+  height: 118px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.vivencia-gender-donut > div {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-content: center;
+  border-radius: 50%;
+  background: #fff;
+  text-align: center;
+}
+
+.vivencia-gender-donut strong {
+  color: var(--ink);
+  font-size: 23px;
+  line-height: 1;
+}
+
+.vivencia-gender-donut span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.vivencia-gender-legend {
+  display: grid;
+  width: 100%;
+  gap: 9px;
+}
+
+.vivencia-gender-legend div {
+  display: grid;
+  grid-template-columns: 11px 1fr auto;
+  gap: 7px;
+  align-items: center;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.vivencia-gender-legend span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.vivencia-gender-legend .tone-1 { background: #bf307e; }
+.vivencia-gender-legend .tone-2 { background: #1672ae; }
+.vivencia-gender-legend .tone-3 { background: #9ba9b5; }
+.vivencia-gender-legend em { color: var(--muted); font-style: normal; font-weight: 900; }
 
 .vivencia-calendar {
   display: grid;
@@ -7240,6 +7375,72 @@ tbody tr:hover td {
 .vivencia-alert-list span {
   display: block;
 }
+
+.vivencia-recent-list {
+  display: grid;
+  gap: 7px;
+}
+
+.vivencia-recent-list button {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.vivencia-recent-list button:last-child { border-bottom: 0; }
+.vivencia-recent-list button > span {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8f2ff;
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 900;
+}
+.vivencia-recent-list strong,
+.vivencia-recent-list small { display: block; }
+.vivencia-recent-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.vivencia-recent-list small,
+.vivencia-recent-list em { color: var(--muted); font-size: 11px; font-style: normal; }
+
+.vivencia-gallery-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.vivencia-gallery-panel h3 { margin: 3px 0 0; }
+.vivencia-gallery-panel > p { margin: 0; color: var(--muted); font-size: 13px; }
+.vivencia-gallery-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.vivencia-gallery-heading span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+.vivencia-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 10px;
+}
+.vivencia-gallery figure { min-width: 0; margin: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.vivencia-gallery a { display: block; height: 100px; background: #eef3f5; }
+.vivencia-gallery img { width: 100%; height: 100%; object-fit: cover; }
+.vivencia-gallery figcaption { display: grid; gap: 7px; padding: 7px; }
+.vivencia-gallery figcaption span { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 
 .vivencia-upcoming-list {
   display: grid;
@@ -7751,6 +7952,7 @@ body.planning-modal-open {
   .vivencia-bar-row strong { text-align: left; }
   .vivencia-upcoming-list article { grid-template-columns: 1fr; }
   .vivencia-calendar-panel { grid-row: auto; }
+  .vivencia-month-panel { max-height: none; }
   .vivencia-event-card { grid-template-columns: 1fr; align-items: start; }
   .vivencia-event-card em { justify-self: start; }
   .career-bar-row { grid-template-columns: minmax(160px, 240px) minmax(0, 1fr) 64px; }
@@ -7831,6 +8033,9 @@ body.planning-modal-open {
   .vivencia-calendar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .vivencia-calendar > strong { display: none; }
   .vivencia-calendar-day { min-height: 74px; }
+  .vivencia-impact-goal-form { grid-template-columns: 1fr; }
+  .vivencia-gender-content { align-items: flex-start; }
+  .vivencia-gallery-heading { flex-direction: column; }
   .vivencia-top-list article { grid-template-columns: 28px minmax(0, 1fr); }
   .vivencia-top-list .bar-track { grid-column: 2; }
   .collaborator-charts-grid {
