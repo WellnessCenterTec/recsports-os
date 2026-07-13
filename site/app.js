@@ -11145,6 +11145,35 @@ function collaboratorPhotoMarkup(row, className = "collaborator-infographic-phot
   return `<span class="${className}"><span>${escapeHtml(collaboratorInitials(name))}</span></span>`;
 }
 
+function collaboratorWeekValues(row, keys) {
+  const raw = keys.map((key) => row?.[key]).find((value) => String(value ?? "").trim()) || "";
+  return String(raw)
+    .split(",")
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean);
+}
+
+function collaboratorPerformanceRating(row) {
+  const highlighted = collaboratorWeekValues(row, ["Destacados", "Destacado"]);
+  const developing = collaboratorWeekValues(row, ["Mejorable", "Mejorables", "En Desarrollo", "Mejoramiento", "En desarrollo"]);
+  const score = Math.max(0, Math.min(10, 9 + highlighted.length * 0.2 - developing.length * 0.2));
+  const label = score >= 9.4 ? "Perfil destacado" : score >= 9 ? "Perfil sólido" : score >= 8.4 ? "Aceptable" : score >= 7.9 ? "Moderablemente aceptable" : "Requiere seguimiento";
+  const tone = score >= 9.4 ? "excellent" : score >= 9 ? "good" : score >= 8.4 ? "watch" : "risk";
+  const action = !highlighted.length && !developing.length
+    ? "Calificación base inicial; sin semanas destacadas o mejorables registradas."
+    : developing.length
+      ? `Dar seguimiento a ${developing.join(", ")}.`
+      : "Mantener el desempeño y documentar nuevas semanas destacadas.";
+  return {
+    score,
+    label,
+    tone,
+    summary: `${highlighted.length} semana(s) destacada(s) y ${developing.length} semana(s) en desarrollo. ${action}`,
+    highlighted,
+    developing
+  };
+}
+
 function collaboratorProfileValue(row, aliases, fallback = "") {
   const normalizedAliases = aliases.map((alias) => normalizeText(alias).replace(/[^a-z0-9]/g, ""));
   for (const [key, value] of Object.entries(row || {})) {
@@ -11210,6 +11239,7 @@ function collaboratorProfileBadge(icon, label) {
 function renderCollaboratorInfographicDetail(rows) {
   const selected = rows.find((row) => (row.__id || row.Nomina) === selectedCollaboratorInfographicId);
   if (!selected) return "";
+  const rating = collaboratorPerformanceRating(selected);
   const name = collaboratorProfileValue(selected, ["Colaboradores", "full_name"], "Sin nombre");
   const nomina = collaboratorProfileValue(selected, ["Nomina", "Nómina"], "Sin dato");
   const puesto = collaboratorProfileValue(selected, ["Puesto", "Rol", "Materia"], "Colaborador");
@@ -11282,6 +11312,21 @@ function renderCollaboratorInfographicDetail(rows) {
               ${collaboratorProfileInfo("✚", "Primeros auxilios", firstAid)}
               ${collaboratorProfileInfo("◉", "Equipo", team)}
               ${collaboratorProfileInfo("◷", "% de cursos", courses)}
+            </div>
+          </section>
+
+          <section class="collaborator-profile-section collaborator-profile-rating wide" data-tone="${rating.tone}">
+            <h4>Calificación de perfil</h4>
+            <div class="collaborator-rating-summary">
+              <div>
+                <strong>${rating.score.toFixed(1)}</strong>
+                <em>${escapeHtml(rating.label)}</em>
+              </div>
+              <p>${escapeHtml(rating.summary)}</p>
+            </div>
+            <div class="collaborator-rating-weeks">
+              <span><b>Destacado:</b> ${escapeHtml(rating.highlighted.join(", ") || "Sin semanas")}</span>
+              <span><b>Mejorable:</b> ${escapeHtml(rating.developing.join(", ") || "Sin semanas")}</span>
             </div>
           </section>
 

@@ -452,8 +452,11 @@ button:active {
   border-radius: 8px;
   background: var(--teal);
   color: #fff;
+  cursor: pointer;
   text-decoration: none;
   font-weight: 800;
+  font-family: inherit;
+  font-size: 14px;
 }
 
 .planning-link:hover {
@@ -1991,6 +1994,91 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 .collaborator-profile-heading span {
   color: var(--muted);
   font-weight: 800;
+}
+
+.collaborator-profile-section.collaborator-profile-rating {
+  border-left: 7px solid var(--brand);
+  background: linear-gradient(90deg, #f8fbff 0%, #fff 68%);
+}
+
+.collaborator-profile-section.collaborator-profile-rating h4 {
+  background: #0b66c3;
+}
+
+.collaborator-profile-section.collaborator-profile-rating[data-tone="excellent"],
+.collaborator-profile-section.collaborator-profile-rating[data-tone="good"] {
+  border-left-color: #07946c;
+}
+
+.collaborator-profile-section.collaborator-profile-rating[data-tone="excellent"] h4,
+.collaborator-profile-section.collaborator-profile-rating[data-tone="good"] h4 {
+  background: #07946c;
+}
+
+.collaborator-profile-section.collaborator-profile-rating[data-tone="watch"] {
+  border-left-color: #d99a00;
+}
+
+.collaborator-profile-section.collaborator-profile-rating[data-tone="watch"] h4 {
+  background: #d99a00;
+}
+
+.collaborator-profile-section.collaborator-profile-rating[data-tone="risk"] {
+  border-left-color: #ba3038;
+}
+
+.collaborator-profile-section.collaborator-profile-rating[data-tone="risk"] h4 {
+  background: #ba3038;
+}
+
+.collaborator-rating-summary {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 16px 18px 6px;
+}
+
+.collaborator-rating-summary strong {
+  display: block;
+  color: var(--brand);
+  font-size: 42px;
+  line-height: 1;
+}
+
+.collaborator-rating-summary em {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eaf3ff;
+  color: var(--brand);
+  font-style: normal;
+  font-weight: 900;
+}
+
+.collaborator-rating-summary p {
+  margin: 0;
+  color: var(--text);
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.collaborator-rating-weeks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0 18px 18px;
+}
+
+.collaborator-rating-weeks span {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  text-transform: none;
 }
 
 .collaborator-profile-details {
