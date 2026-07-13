@@ -1296,11 +1296,22 @@ function normalizeMatricula(value) {
 
 async function loadStudentDatabase() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const { data, error } = await supabaseClient
-    .from("Base de datos_alumnos")
-    .select("*")
-    .order("Matricula", { ascending: true })
-    .limit(12000);
+  const rows = [];
+  const pageSize = 1000;
+  let error = null;
+  for (let offset = 0; ; offset += pageSize) {
+    const response = await supabaseClient
+      .from("Base de datos_alumnos")
+      .select("*")
+      .order("Matricula", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (response.error) {
+      error = response.error;
+      break;
+    }
+    rows.push(...(response.data || []));
+    if (!response.data || response.data.length < pageSize) break;
+  }
   if (error) {
     studentDatabaseLoaded = false;
     console.error(error);
@@ -1308,7 +1319,7 @@ async function loadStudentDatabase() {
     toast(`No pude leer Base de datos_alumnos${detail ? `: ${detail}` : ""}`);
     return;
   }
-  cloudStudentDatabase = (data || []).map(studentDatabaseFromCloud);
+  cloudStudentDatabase = rows.map(studentDatabaseFromCloud);
   studentDatabaseLoaded = true;
 }
 
@@ -1369,7 +1380,7 @@ async function loadGymData() {
 }
 
 function studentFromDatabase(matricula) {
-  return cloudStudentDatabase.find((student) => student.matricula === matricula);
+  return findStudentInDatabase(matricula);
 }
 
 function parseCsv(text) {
@@ -10546,7 +10557,12 @@ function renderClassGrades() {
           <p class="eyebrow">CD Lista de Alumnos</p>
           <h2>Registro de calificaciones</h2>
         </div>
-        <button class="ghost-btn" type="button" id="exportClassGrades">Exportar Excel</button>
+        <div class="class-grade-actions">
+          <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
+          <button class="primary-btn" type="button" id="uploadClassGrades" ${editable && !classGradesImporting ? "" : "disabled"}>${classGradesImporting ? "Procesando..." : "Subir calificaciones"}</button>
+          <button class="ghost-btn" type="button" data-download-class-template="grades">Plantilla calificaciones</button>
+          <button class="ghost-btn" type="button" id="exportClassGrades">Exportar Excel</button>
+        </div>
       </div>
       ${!classGradesAvailable ? `
         <div class="permission-strip grade-warning">
@@ -10672,9 +10688,12 @@ function renderClassGradesSystemUpload() {
       </div>
       <p>Actualiza la lista de alumnos y sus calificaciones en Supabase. Cada carga reemplaza primero el periodo/semestre incluido en el archivo para evitar duplicados.</p>
       <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
-      <button class="primary-btn" id="uploadClassGrades" type="button" ${editable && !classGradesImporting ? "" : "disabled"}>
-        ${classGradesImporting ? "Procesando archivo..." : "Cargar archivo de Calificaciones"}
-      </button>
+      <div class="upload-action-row">
+        <button class="primary-btn" id="uploadClassGrades" type="button" ${editable && !classGradesImporting ? "" : "disabled"}>
+          ${classGradesImporting ? "Procesando archivo..." : "Cargar archivo de Calificaciones"}
+        </button>
+        <button class="ghost-btn" type="button" data-download-class-template="grades">Plantilla calificaciones</button>
+      </div>
       <p class="form-message">Columnas requeridas: matricula, materia, calificacion y periodo. El periodo puede ser FJ26; el bloque PMT1, PMT2 o PMT3 se detecta desde la materia. También se aceptan clave_materia, CRN, grupo, profesor, carrera y semestre.</p>
       ${!editable ? `<div class="permission-strip grade-warning">Ingresa con un perfil autorizado de Clases Deportivas para realizar la carga.</div>` : ""}
       ${summary ? `
@@ -11924,10 +11943,13 @@ function renderMasterScheduleUploader(count, errors) {
         <h3>Subir archivo maestro de Indicadores</h3>
         <p>WellSync lee automaticamente las hojas "programacion clases" y "booking ofertados", consolida ambas y actualiza el Calendario Maestro.</p>
       </div>
-      <label class="file-button">
-        Subir archivo maestro
-        <input type="file" accept=".xlsx,.xls" data-schedule-upload="master" />
-      </label>
+      <div class="upload-action-row">
+        <label class="file-button">
+          Subir archivo maestro
+          <input type="file" accept=".xlsx,.xls" data-schedule-upload="master" />
+        </label>
+        <button class="ghost-btn" type="button" data-download-class-template="master">Plantilla archivo maestro</button>
+      </div>
       <strong>${count} eventos PMT1 consolidados</strong>
       ${errors?.length ? `
         <details class="schedule-errors" open>
@@ -11948,10 +11970,13 @@ function renderScheduleUploader(type, title, count, errors) {
         <h3>${title}</h3>
         <p>Usar solo si el archivo maestro no trae esta hoja o si se quiere actualizar esta fuente manualmente.</p>
       </div>
-      <label class="file-button">
-        ${title}
-        <input type="file" accept=".xlsx,.xls,.csv" data-schedule-upload="${type}" />
-      </label>
+      <div class="upload-action-row">
+        <label class="file-button">
+          ${title}
+          <input type="file" accept=".xlsx,.xls,.csv" data-schedule-upload="${type}" />
+        </label>
+        <button class="ghost-btn" type="button" data-download-class-template="${type}">Plantilla ${type === "official" ? "programación oficial" : "Booking"}</button>
+      </div>
       <strong>${count} registros validos</strong>
       ${errors?.length ? `
         <details class="schedule-errors" open>
@@ -13374,6 +13399,9 @@ function render() {
   }));
   $("#exportClassGrades")?.addEventListener("click", downloadClassGradesCsv);
   $("#uploadClassGrades")?.addEventListener("click", () => $("#classGradesFile")?.click());
+  $$('[data-download-class-template]').forEach((button) => button.addEventListener("click", () => {
+    downloadClassTemplate(button.dataset.downloadClassTemplate);
+  }));
   $("#classGradesFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -13695,6 +13723,43 @@ function downloadClassGradesCsv() {
   downloadBlob(csv, `calificaciones-clases-${new Date().toISOString().slice(0, 10)}.csv`);
   addAudit("exportacion", "Registro de calificaciones de Clases Deportivas");
   toast("Calificaciones exportadas");
+}
+
+function downloadClassTemplate(type) {
+  const templates = {
+    grades: {
+      filename: "plantilla-calificaciones.csv",
+      rows: [{ matricula: "A01234567", materia: "ACONDICIONAMIENTO FISICO PMT1", calificacion: "95", periodo: "AD26", clave_materia: "DEP101", CRN: "12345", grupo: "1", profesor: "Nombre del profesor", carrera: "ITC", semestre: "3" }]
+    },
+    official: {
+      filename: "plantilla-programacion-oficial.csv",
+      rows: [{ profesor: "Nombre del profesor", disciplina: "Nombre de clase", dia: "Lunes", hora_inicio: "09:00", hora_fin: "10:00", instalacion: "Gimnasio", frecuencia: "Semanal", grupo: "1" }]
+    },
+    booking: {
+      filename: "plantilla-booking.csv",
+      rows: [{ profesor: "Nombre del profesor", actividad: "Nombre de actividad", dia: "Lunes", hora_inicio: "09:00", hora_fin: "10:00", instalacion: "Gimnasio", frecuencia: "Semanal" }]
+    }
+  };
+  if (type === "master") {
+    if (!window.XLSX) {
+      toast("La plantilla maestra requiere el lector de Excel. Intenta de nuevo cuando cargue la página.");
+      return;
+    }
+    const workbook = window.XLSX.utils.book_new();
+    const official = templates.official.rows;
+    const booking = templates.booking.rows;
+    window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(official), "programacion clases");
+    window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(booking), "booking ofertados");
+    window.XLSX.writeFile(workbook, "plantilla-archivo-maestro-indicadores.xlsx");
+    toast("Plantilla archivo maestro descargada");
+    return;
+  }
+  const template = templates[type];
+  if (!template) return;
+  const headers = Object.keys(template.rows[0]);
+  const csv = [headers.join(","), ...template.rows.map((row) => headers.map((key) => csvEscape(row[key])).join(","))].join("\n");
+  downloadBlob(csv, template.filename);
+  toast(`Plantilla ${type === "grades" ? "de calificaciones" : type === "official" ? "de programación oficial" : "de Booking"} descargada`);
 }
 
 function downloadBlob(text, filename) {
