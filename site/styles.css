@@ -3567,12 +3567,35 @@ tbody tr:hover td {
 
 .class-grade-filters {
   display: grid;
-  grid-template-columns: minmax(190px, 1.25fr) repeat(5, minmax(135px, 1fr));
+  grid-template-columns: minmax(175px, 1.18fr) repeat(6, minmax(120px, 1fr));
   gap: 10px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f5f8fa;
+}
+
+.class-grade-actions,
+.upload-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.class-grade-actions .primary-btn,
+.class-grade-actions .ghost-btn,
+.upload-action-row .ghost-btn,
+.upload-action-row .file-button {
+  min-height: 38px;
+  width: auto;
+  padding: 0 13px;
+}
+
+.upload-action-row .file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .class-grade-filters label {
@@ -9551,7 +9574,7 @@ tbody tr:hover td {
 
 .class-grade-filters {
   display: grid;
-  grid-template-columns: minmax(190px, 1.25fr) repeat(5, minmax(135px, 1fr));
+  grid-template-columns: minmax(175px, 1.18fr) repeat(6, minmax(120px, 1fr));
   gap: 10px;
   padding: 12px;
   border: 1px solid var(--line);
