@@ -100,16 +100,6 @@
     reports: ["Solicitudes por area", "Presupuesto mensual", "Ordenes de compra"]
   },
   {
-    id: "presentacion",
-    name: "Presentación Ejecutiva",
-    tone: "blue",
-    source: "Indicadores y módulos activos de WellSync",
-    capture: ["Semana", "Puntos prioritarios", "Temas", "Acuerdos", "Observaciones", "Pendientes"],
-    indicators: ["Resumen ejecutivo", "Planeación", "Presupuesto", "Equipo", "Horarios"],
-    charts: ["Indicadores generales", "Evolución operativa", "Agenda semanal"],
-    reports: ["Junta semanal", "PDF ejecutivo", "PowerPoint preparado"]
-  },
-  {
     id: "configuracion",
     name: "Configuración",
     tone: "blue",
@@ -459,49 +449,6 @@ const PHYSICAL_HALL_TESTS = [
 
 let activeArea = "general";
 let activeView = "dashboard";
-const EXECUTIVE_PRESENTATION_STORAGE_KEY = "wellsync_executive_presentation_notes";
-const EXECUTIVE_PRESENTATION_SLIDES = [
-  { key: "cover", title: "Portada", icon: "presentation" },
-  { key: "general-indicators", title: "Indicadores generales", icon: "chart-no-axes-combined" },
-  { key: "priorities", title: "Puntos prioritarios", icon: "list-checks" },
-  { key: "performance", title: "Evaluación de desempeño", icon: "badge-check" },
-  { key: "budget", title: "Presupuesto", icon: "wallet-cards" },
-  { key: "block-activities", title: "Actividades del bloque", icon: "calendar-days" },
-  { key: "inventory", title: "Bodegas / inventario", icon: "warehouse" },
-  { key: "schedules", title: "Horarios", icon: "clock-3" },
-  { key: "weekly-topics", title: "Temas semanales", icon: "notebook-tabs" },
-  { key: "team", title: "Equipo", icon: "users" },
-  { key: "detailed-schedules", title: "Horarios detallados", icon: "calendar-clock" },
-  { key: "map", title: "Mapa / distribución de espacios", icon: "map" }
-];
-const EXECUTIVE_PRESENTATION_EDIT_FIELDS = {
-  cover: [],
-  "general-indicators": [["comment_general-indicators", "Comentario ejecutivo", "Lectura o mensaje clave para la junta"]],
-  priorities: [["priorities", "Puntos prioritarios", "Un punto por línea"]],
-  performance: [["highlight_nominas", "Destacados", ""], ["improving_nominas", "En mejora", ""]],
-  budget: [["comment_budget", "Comentario de presupuesto", "Riesgos, decisiones o contexto financiero"]],
-  "block-activities": [["comment_block-activities", "Comentario del calendario", "Prioridades o cambios relevantes"]],
-  inventory: [["inventory", "Bodegas e inventario", "Estado, alertas y pendientes; un punto por línea"]],
-  schedules: [["comment_schedules", "Comentario de horarios", "Cambios, cobertura o decisiones"]],
-  "weekly-topics": [
-    ["area_topics", "Temas por área", "Área: tema, un punto por línea"],
-    ["topics", "Temas semanales", "Un tema por línea"],
-    ["agreements", "Acuerdos", "Un acuerdo por línea"],
-    ["pending", "Pendientes", "Un pendiente por línea"],
-    ["observations", "Observaciones", "Notas generales para la junta"]
-  ],
-  team: [["comment_team", "Comentario del equipo", "Movimientos, reconocimientos o seguimiento"]],
-  "detailed-schedules": [["comment_detailed-schedules", "Comentario de horarios detallados", "Incidencias o ajustes"]],
-  map: [["map_notes", "Mapa y distribución de espacios", "Cambios, bloqueos o necesidades de espacio"]]
-};
-const MAX_PRESENTATION_SELECTION = 3;
-let executivePresentationIndex = 0;
-let executivePresentationMode = false;
-let executivePresentationEditorOpen = false;
-let executivePresentationEditingSlide = "priorities";
-let executivePresentationCloudAvailable = true;
-let executivePresentationSaving = false;
-let executivePresentationNotes = loadExecutivePresentationLocalNotes();
 let physicalHallOfFameOpen = false;
 let physicalHallOfFameGender = "todos";
 let physicalHallOfFameTopTest = "";
@@ -569,8 +516,6 @@ let vivenciaEvents = [];
 let vivenciaEventMetrics = [];
 let vivenciaParticipants = [];
 let vivenciaParticipantUploads = [];
-let vivenciaEventImages = [];
-let vivenciaDashboardSettings = { impact_goal: 3800 };
 let vivenciaEventsLoaded = false;
 let vivenciaEventsAvailable = true;
 let planningCalendarRows = [];
@@ -593,7 +538,6 @@ let vivenciaParticipantImportResult = null;
 let selectedVivenciaEventForParticipants = "";
 let selectedVivenciaEventForDetail = "";
 let vivenciaParticipantsModalOpen = false;
-let vivenciaEventImagesUploading = false;
 let classGradePage = 1;
 let classGradeFilter = {
   search: "",
@@ -1296,22 +1240,11 @@ function normalizeMatricula(value) {
 
 async function loadStudentDatabase() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const rows = [];
-  const pageSize = 1000;
-  let error = null;
-  for (let offset = 0; ; offset += pageSize) {
-    const response = await supabaseClient
-      .from("Base de datos_alumnos")
-      .select("*")
-      .order("Matricula", { ascending: true })
-      .range(offset, offset + pageSize - 1);
-    if (response.error) {
-      error = response.error;
-      break;
-    }
-    rows.push(...(response.data || []));
-    if (!response.data || response.data.length < pageSize) break;
-  }
+  const { data, error } = await supabaseClient
+    .from("Base de datos_alumnos")
+    .select("*")
+    .order("Matricula", { ascending: true })
+    .limit(12000);
   if (error) {
     studentDatabaseLoaded = false;
     console.error(error);
@@ -1319,7 +1252,7 @@ async function loadStudentDatabase() {
     toast(`No pude leer Base de datos_alumnos${detail ? `: ${detail}` : ""}`);
     return;
   }
-  cloudStudentDatabase = rows.map(studentDatabaseFromCloud);
+  cloudStudentDatabase = (data || []).map(studentDatabaseFromCloud);
   studentDatabaseLoaded = true;
 }
 
@@ -1380,7 +1313,7 @@ async function loadGymData() {
 }
 
 function studentFromDatabase(matricula) {
-  return findStudentInDatabase(matricula);
+  return cloudStudentDatabase.find((student) => student.matricula === matricula);
 }
 
 function parseCsv(text) {
@@ -2228,13 +2161,10 @@ async function loadVivenciaEvents() {
     vivenciaEventMetrics = [];
     vivenciaParticipants = [];
     vivenciaParticipantUploads = [];
-    vivenciaEventImages = [];
-    vivenciaDashboardSettings = { impact_goal: 3800 };
-    vivenciaEventImages = [];
     console.error(error);
     return;
   }
-  const [metricsResult, participantsResult, uploadsResult, imagesResult, settingsResult] = await Promise.all([
+  const [metricsResult, participantsResult, uploadsResult] = await Promise.all([
     supabaseClient
       .from("vivencia_event_metrics")
       .select("*")
@@ -2249,32 +2179,15 @@ async function loadVivenciaEvents() {
       .from("vivencia_participant_uploads")
       .select("*")
       .order("upload_date", { ascending: false })
-      .limit(200),
-    supabaseClient
-      .from("vivencia_event_images")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(3000),
-    supabaseClient
-      .from("vivencia_dashboard_settings")
-      .select("impact_goal, updated_at")
-      .eq("id", 1)
-      .maybeSingle()
+      .limit(200)
   ]);
-  if (metricsResult.error || participantsResult.error || uploadsResult.error || imagesResult.error || settingsResult.error) {
-    console.warn(metricsResult.error || participantsResult.error || uploadsResult.error || imagesResult.error || settingsResult.error);
+  if (metricsResult.error || participantsResult.error || uploadsResult.error) {
+    console.warn(metricsResult.error || participantsResult.error || uploadsResult.error);
   }
   vivenciaEventsAvailable = true;
   vivenciaEvents = data || [];
   vivenciaEventMetrics = metricsResult.error ? [] : (metricsResult.data || []);
   vivenciaParticipantUploads = uploadsResult.error ? [] : (uploadsResult.data || []);
-  vivenciaEventImages = (imagesResult.error ? [] : (imagesResult.data || [])).map((image) => ({
-    ...image,
-    public_url: supabaseClient.storage.from("vivencia-event-images").getPublicUrl(image.storage_path).data.publicUrl
-  }));
-  vivenciaDashboardSettings = settingsResult.error || !settingsResult.data
-    ? { impact_goal: 3800 }
-    : { ...settingsResult.data, impact_goal: Number(settingsResult.data.impact_goal || 3800) };
   vivenciaParticipants = (participantsResult.error ? [] : (participantsResult.data || [])).map((participant) => {
     const student = findStudentInDatabase(participant.matricula) || {};
     return {
@@ -3373,103 +3286,6 @@ async function importVivenciaParticipants(file, eventId) {
     vivenciaParticipantImporting = false;
     render();
   }
-}
-
-async function saveVivenciaImpactGoal(event) {
-  event.preventDefault();
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("vivencia")) {
-    toast("Necesitas permiso de Vivencia para cambiar la meta");
-    return;
-  }
-  const form = new FormData(event.currentTarget);
-  const impactGoal = Number(form.get("impact_goal"));
-  if (!Number.isInteger(impactGoal) || impactGoal < 1) {
-    toast("Escribe una meta válida de al menos 1 alumno");
-    return;
-  }
-  const { error } = await supabaseClient
-    .from("vivencia_dashboard_settings")
-    .upsert({ id: 1, impact_goal: impactGoal, updated_at: new Date().toISOString(), updated_by: currentUser.id });
-  if (error) {
-    console.error(error);
-    toast(`No se pudo guardar la meta: ${supabaseErrorDetail(error) || error.message}`);
-    return;
-  }
-  vivenciaDashboardSettings = { ...vivenciaDashboardSettings, impact_goal: impactGoal };
-  addAudit("vivencia", `Meta de impacto único actualizada a ${impactGoal}`);
-  render();
-  toast("Meta de alumnos únicos actualizada");
-}
-
-async function uploadVivenciaEventImages(files, eventId) {
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("vivencia")) {
-    toast("Necesitas permiso de Vivencia para cargar imágenes");
-    return;
-  }
-  const eventRow = vivenciaEvents.find((row) => row.id === eventId);
-  if (!eventRow) {
-    toast("Guarda primero el evento para poder asociar sus imágenes");
-    return;
-  }
-  const imageFiles = [...(files || [])];
-  if (!imageFiles.length) return;
-  const supportedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-  const invalid = imageFiles.find((file) => !supportedTypes.has(file.type) || file.size > 8 * 1024 * 1024);
-  if (invalid) {
-    toast("Cada imagen debe ser JPG, PNG o WEBP y pesar máximo 8 MB");
-    return;
-  }
-  vivenciaEventImagesUploading = true;
-  render();
-  const uploadedPaths = [];
-  try {
-    for (const file of imageFiles) {
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
-      const storagePath = `${eventId}/${crypto.randomUUID()}-${safeName || "imagen"}`;
-      const { error: storageError } = await supabaseClient.storage
-        .from("vivencia-event-images")
-        .upload(storagePath, file, { contentType: file.type, upsert: false });
-      if (storageError) throw storageError;
-      uploadedPaths.push(storagePath);
-      const { error: metadataError } = await supabaseClient
-        .from("vivencia_event_images")
-        .insert({
-          event_id: eventId,
-          storage_path: storagePath,
-          file_name: file.name,
-          content_type: file.type,
-          uploaded_by: currentUser.id
-        });
-      if (metadataError) throw metadataError;
-    }
-    await loadVivenciaEvents();
-    addAudit("vivencia", `${imageFiles.length} imágenes cargadas para ${eventRow.event_name}`);
-    toast(`${imageFiles.length} imagen${imageFiles.length === 1 ? "" : "es"} guardada${imageFiles.length === 1 ? "" : "s"} en el evento`);
-  } catch (error) {
-    console.error(error);
-    if (uploadedPaths.length) await supabaseClient.storage.from("vivencia-event-images").remove(uploadedPaths);
-    toast(`No se pudieron cargar las imágenes: ${supabaseErrorDetail(error) || error.message}`);
-  } finally {
-    vivenciaEventImagesUploading = false;
-    render();
-  }
-}
-
-async function deleteVivenciaEventImage(imageId) {
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("vivencia")) return;
-  const image = vivenciaEventImages.find((row) => row.id === imageId);
-  if (!image || !window.confirm(`¿Eliminar la imagen ${image.file_name || "seleccionada"}?`)) return;
-  const { error } = await supabaseClient.from("vivencia_event_images").delete().eq("id", image.id);
-  if (error) {
-    console.error(error);
-    toast(`No se pudo eliminar la imagen: ${supabaseErrorDetail(error) || error.message}`);
-    return;
-  }
-  const { error: storageError } = await supabaseClient.storage.from("vivencia-event-images").remove([image.storage_path]);
-  if (storageError) console.warn(storageError);
-  vivenciaEventImages = vivenciaEventImages.filter((row) => row.id !== image.id);
-  render();
-  toast("Imagen eliminada del evento");
 }
 
 async function deleteVivenciaEvent(eventId) {
@@ -5359,7 +5175,6 @@ function renderNav() {
     gamer: "gamepad-2",
     colaboradores: "users",
     compras: "wallet-cards",
-    presentacion: "presentation",
     configuracion: "settings"
   };
   if (!allowed.some((area) => area.id === activeArea)) {
@@ -6284,22 +6099,11 @@ async function importParticipationUpload(areaId) {
     return;
   }
   const savedCloud = await saveParticipationUploadCloud(areaId, draft);
-  if (!savedCloud) {
-    participationUploadState[areaId].draft = {
-      ...draft,
-      errors: [...draft.errors, "No se guardó la información en Supabase. Inicia sesión con permisos de Coordinador o Dirección e intenta nuevamente."],
-      warnings: draft.warnings.filter((message) => !message.includes("No se guardó la información en Supabase"))
-    };
-    render();
-    toast("No se guardó la información en Supabase");
-    return;
-  }
   participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
-  participationUploadState[areaId].draft = null;
-  await loadParticipationUploadsCloud();
-  addAudit(areaId, `${draft.summary.total} registros guardados en Supabase desde ${draft.fileName}`);
+  if (savedCloud) await loadParticipationUploadsCloud();
+  addAudit(areaId, `${draft.summary.total} registros importados desde ${draft.fileName}`);
   render();
-  toast("Información guardada en Supabase");
+  toast(savedCloud ? "Información guardada en Supabase" : "Información importada localmente");
 }
 
 function intramurosCloudRow(row) {
@@ -6853,36 +6657,6 @@ function uploadGroupCounts(rows, field, options = {}) {
   return Array.from(counts.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
 }
 
-function gamerAcademicRows(rows) {
-  const studentsByMatricula = new Map(
-    cloudStudentDatabase.map((student) => [normalizeMatricula(student.matricula), student])
-  );
-  return rows.map((row) => {
-    const matricula = normalizeMatricula(row.matricula);
-    const student = studentsByMatricula.get(matricula);
-    if (!student) {
-      return {
-        ...row,
-        matricula,
-        found: false,
-        genero: "No encontrado",
-        carrera: "No encontrado",
-        nivel: "No encontrado",
-        programa: "No encontrado"
-      };
-    }
-    return {
-      ...row,
-      matricula,
-      found: true,
-      genero: student.genero || "No especificado",
-      carrera: student.carrera || "Sin carrera",
-      nivel: student.nivel || "Sin nivel",
-      programa: student.programa || student.carrera || "Sin programa"
-    };
-  });
-}
-
 function renderUploadBars(title, rows) {
   const max = Math.max(...rows.map((row) => row.value), 1);
   return `
@@ -6907,31 +6681,9 @@ function renderParticipationUploadDashboard(areaId) {
   const result = state.imported || state.draft;
   const imported = state.imported;
   const rows = result?.rows || [];
-  const dashboardRows = areaId === "gamer" ? gamerAcademicRows(rows) : rows;
-  const dashboardSummary = areaId === "gamer" ? {
-    ...result?.summary,
-    found: dashboardRows.filter((row) => row.matricula && row.found && !row.duplicate).length,
-    notFound: dashboardRows.filter((row) => row.matricula && !row.found).length
-  } : result?.summary;
-  const notFound = dashboardRows.filter((row) => row.matricula && !row.found);
+  const notFound = rows.filter((row) => row.matricula && !row.found);
   const canImport = result && !result.errors?.length && rows.length;
   const title = areaId === "gamer" ? "Gamer" : "Representativos";
-  const previewSection = areaId === "representativos" && result ? `
-        <section class="upload-preview-panel">
-          <div class="class-grade-table-header">
-            <div><p class="eyebrow">Vista previa</p><h3>${imported ? "Información importada" : "Archivo listo para revisión"}</h3></div>
-            <span>${result.preview.length} de ${rows.length} registros</span>
-          </div>
-          <div class="class-grade-table-wrap">
-            <table class="class-grade-table">
-              <thead><tr><th>Matrícula</th><th>Clave</th><th>Representativo</th><th>Coach</th><th>Base</th></tr></thead>
-              <tbody>${result.preview.map((row) => `
-                <tr><td>${escapeHtml(row.matricula || "Sin matrícula")}</td><td>${escapeHtml(row.clave_materia || "")}</td><td>${escapeHtml(row.representativo || "")}</td><td>${escapeHtml(row.coach || "")}</td><td><span class="upload-pill ${row.found ? "green" : "blue"}">${row.found ? "Encontrada" : "No encontrada"}</span></td></tr>
-              `).join("")}</tbody>
-            </table>
-          </div>
-        </section>
-      ` : "";
   return `
     <section class="upload-center">
       <div class="permission-strip">
@@ -6986,18 +6738,33 @@ function renderParticipationUploadDashboard(areaId) {
       ${result ? `
         <div class="upload-kpi-grid">
           <article><span>Total cargado</span><strong>${result.summary.total}</strong><em>registros</em></article>
-          <article><span>${areaId === "gamer" ? "Encontradas" : "Válidas"}</span><strong>${dashboardSummary.found}</strong><em>en base general</em></article>
-          <article><span>No encontradas</span><strong>${dashboardSummary.notFound}</strong><em>revisar matrícula</em></article>
+          <article><span>${areaId === "gamer" ? "Encontradas" : "Válidas"}</span><strong>${result.summary.found}</strong><em>en base general</em></article>
+          <article><span>No encontradas</span><strong>${result.summary.notFound}</strong><em>revisar matrícula</em></article>
           <article><span>Duplicados</span><strong>${result.summary.duplicates}</strong><em>en archivo</em></article>
           ${areaId === "representativos" ? `<article><span>Representativos</span><strong>${result.summary.representativos}</strong><em>equipos</em></article><article><span>Coaches</span><strong>${result.summary.coaches}</strong><em>responsables</em></article>` : ""}
         </div>
-        ${previewSection}
+        <section class="upload-preview-panel">
+          <div class="class-grade-table-header">
+            <div><p class="eyebrow">Vista previa</p><h3>${imported ? "Información importada" : "Archivo listo para revisión"}</h3></div>
+            <span>${result.preview.length} de ${rows.length} registros</span>
+          </div>
+          <div class="class-grade-table-wrap">
+            <table class="class-grade-table">
+              <thead><tr>${areaId === "representativos" ? "<th>Matrícula</th><th>Clave</th><th>Representativo</th><th>Coach</th><th>Base</th>" : "<th>Matrícula</th><th>Base</th><th>Género</th><th>Carrera</th><th>Nivel</th><th>Programa</th>"}</tr></thead>
+              <tbody>${result.preview.map((row) => areaId === "representativos" ? `
+                <tr><td>${escapeHtml(row.matricula || "Sin matrícula")}</td><td>${escapeHtml(row.clave_materia || "")}</td><td>${escapeHtml(row.representativo || "")}</td><td>${escapeHtml(row.coach || "")}</td><td><span class="upload-pill ${row.found ? "green" : "blue"}">${row.found ? "Encontrada" : "No encontrada"}</span></td></tr>
+              ` : `
+                <tr><td>${escapeHtml(row.matricula || "Sin matrícula")}</td><td><span class="upload-pill ${row.found ? "green" : "blue"}">${row.found ? "Encontrada" : "No encontrada"}</span></td><td>${escapeHtml(row.genero)}</td><td>${escapeHtml(row.carrera)}</td><td>${escapeHtml(row.nivel)}</td><td>${escapeHtml(row.programa)}</td></tr>
+              `).join("")}</tbody>
+            </table>
+          </div>
+        </section>
         <div class="upload-chart-grid">
-          ${areaId === "representativos" ? renderUploadBars("Alumnos por representativo", uploadGroupCounts(dashboardRows, "representativo")) + renderUploadBars("Alumnos por coach", uploadGroupCounts(dashboardRows, "coach")) : ""}
-          ${renderUploadBars("Por género", uploadGroupCounts(dashboardRows, "genero", { foundOnly: true }))}
-          ${renderUploadBars("Por carrera", uploadGroupCounts(dashboardRows, "carrera", { foundOnly: true }))}
-          ${renderUploadBars("Por nivel", uploadGroupCounts(dashboardRows, "nivel", { foundOnly: true }))}
-          ${renderUploadBars("Por programa", uploadGroupCounts(dashboardRows, "programa", { foundOnly: true }))}
+          ${areaId === "representativos" ? renderUploadBars("Alumnos por representativo", uploadGroupCounts(rows, "representativo")) + renderUploadBars("Alumnos por coach", uploadGroupCounts(rows, "coach")) : ""}
+          ${renderUploadBars("Por género", uploadGroupCounts(rows, "genero", { foundOnly: true }))}
+          ${renderUploadBars("Por carrera", uploadGroupCounts(rows, "carrera", { foundOnly: true }))}
+          ${renderUploadBars("Por nivel", uploadGroupCounts(rows, "nivel", { foundOnly: true }))}
+          ${renderUploadBars("Por programa", uploadGroupCounts(rows, "programa", { foundOnly: true }))}
         </div>
         <section class="upload-preview-panel">
           <div class="class-grade-table-header">
@@ -7972,6 +7739,11 @@ function renderIntramurosDashboard() {
   const tableRows = rows.slice(0, 250);
   return `
     <section class="upload-center intramuros-dashboard">
+      <div class="permission-strip">
+        <span>Intramuros analítico: Omar conserva su Excel; WellSync carga, guarda en Supabase y analiza sin nombres.</span>
+        <span>${intramurosCloudAvailable ? `${intramurosParticipants.length.toLocaleString("es-MX")} registros en Supabase` : "Falta activar intramuros_participantes en Supabase"}</span>
+      </div>
+
       <div class="intramuros-omar-workspace">
         <div>
           <p class="eyebrow">Espacio de Omar</p>
@@ -8046,308 +7818,7 @@ function renderIntramurosDashboard() {
   `;
 }
 
-function presentationWeekKey(date = new Date()) {
-  const first = new Date(date.getFullYear(), 0, 1);
-  const days = Math.floor((date - first) / 86400000);
-  return `${date.getFullYear()}-W${String(Math.ceil((days + first.getDay() + 1) / 7)).padStart(2, "0")}`;
-}
-
-function loadExecutivePresentationLocalNotes() {
-  try {
-    return JSON.parse(localStorage.getItem(EXECUTIVE_PRESENTATION_STORAGE_KEY) || "{}") || {};
-  } catch {
-    return {};
-  }
-}
-
-function saveExecutivePresentationLocalNotes(notes = executivePresentationNotes) {
-  localStorage.setItem(EXECUTIVE_PRESENTATION_STORAGE_KEY, JSON.stringify(notes));
-}
-
-function presentationNotesForCurrentWeek() {
-  const key = presentationWeekKey();
-  return executivePresentationNotes[key] || {};
-}
-
-function presentationTextItems(value) {
-  return String(value || "").split(/\n+/).map((item) => item.trim()).filter(Boolean);
-}
-
-function presentationEmptyState(label = "Sin información disponible") {
-  return `<div class="executive-presentation-empty"><i data-lucide="database-zap"></i><strong>${escapeHtml(label)}</strong><span>La diapositiva se actualizará cuando exista una fuente conectada.</span></div>`;
-}
-
-function presentationMetric(label, value, note = "") {
-  const shown = value === null || value === undefined || value === "" ? "Sin información disponible" : value;
-  return `<article class="executive-presentation-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(shown))}</strong>${note ? `<em>${escapeHtml(note)}</em>` : ""}</article>`;
-}
-
-function executivePresentationBudgetData() {
-  const areasForPeriod = budgetAreaPlans.filter((row) => !row.period || row.period === budgetFilters.period);
-  const summaries = areasForPeriod.map((row) => budgetAreaSummary(row.area));
-  const assigned = summaries.reduce((sum, row) => sum + Number(row.assigned || 0), 0);
-  const spent = summaries.reduce((sum, row) => sum + Number(row.spent || 0), 0);
-  const committed = summaries.reduce((sum, row) => sum + Number(row.committed || 0), 0);
-  return { summaries, assigned, spent, committed, available: Math.max(0, assigned - spent - committed) };
-}
-
-function executivePresentationLatestPurchases(summaries = executivePresentationBudgetData().summaries) {
-  return summaries.slice(0, 6).map((summary) => {
-    const rows = budgetRequestRows
-      .filter((row) => row.period === budgetFilters.period && row.area === summary.area && row.status !== "rechazado")
-      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-    return { area: summary.area, owner: summary.owner || "Sin responsable", count: rows.length, purchase: rows[0] || null };
-  });
-}
-
-function budgetPresentationTone(index) {
-  return ["blue", "green", "gold", "purple", "teal", "navy"][index % 6];
-}
-
-function renderExecutivePresentationBudget(budget, notes) {
-  if (!budget.assigned) return presentationEmptyState();
-  const usage = Math.round(((budget.spent + budget.committed) / budget.assigned) * 100);
-  const latest = executivePresentationLatestPurchases(budget.summaries);
-  return `<div class="executive-presentation-budget">
-    <div class="executive-presentation-budget-summary">
-      ${presentationMetric("Asignado", money(budget.assigned), "Presupuesto del periodo")}
-      ${presentationMetric("Ejercido", money(budget.spent), `${Math.round(budget.spent / budget.assigned * 100)}% del total`)}
-      ${presentationMetric("Comprometido", money(budget.committed), `${Math.round(budget.committed / budget.assigned * 100)}% del total`)}
-      ${presentationMetric("Disponible", money(budget.available), `${Math.max(0, 100 - usage)}% disponible`)}
-    </div>
-    <div class="executive-presentation-budget-global"><span>Uso global</span><b><i style="width:${Math.min(100, usage)}%"></i></b><strong>${usage}%</strong></div>
-    <div class="executive-presentation-budget-middle">
-      <section><h3>Detalle por área</h3>${budget.summaries.slice(0, 6).map((row, index) => {
-        const used = row.assigned ? Math.min(100, Math.round((row.spent + row.committed) / row.assigned * 100)) : 0;
-        return `<div class="executive-presentation-budget-area ${budgetPresentationTone(index)}"><span>${escapeHtml(budgetAreaLabel(row.area))}</span><b><i style="width:${used}%"></i></b><strong>${used}%</strong><em>${money(row.available)}</em></div>`;
-      }).join("")}</section>
-      <aside><h3>Registros por responsable</h3>${latest.map((row, index) => `<div class="executive-presentation-budget-owner ${budgetPresentationTone(index)}"><span>${escapeHtml(row.owner)}</span><b><i style="width:${Math.min(100, row.count * 12)}%"></i></b><strong>${row.count}</strong></div>`).join("")}</aside>
-    </div>
-    <div class="executive-presentation-budget-latest">${latest.map((row, index) => `<article class="${budgetPresentationTone(index)}"><strong>${escapeHtml(budgetAreaLabel(row.area))}</strong>${row.purchase ? `<span>${escapeHtml(row.purchase.concept || "Sin concepto")}</span><em>${escapeHtml(row.purchase.date || "Sin fecha")} · ${money(row.purchase.amount || 0)}</em>` : `<span>Sin compras registradas</span><em>${escapeHtml(budgetFilters.period)}</em>`}</article>`).join("")}</div>
-    ${presentationManualNote(notes, "comment_budget")}
-  </div>`;
-}
-
-function executivePresentationActivities() {
-  return planningCalendarRows.map((row, index) => normalizePlanningCalendarRow(row, index)).filter((row) => row.activity && row.date)
-    .sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 7);
-}
-
-function executivePresentationScheduleSummary() {
-  const rows = scheduleMasterRows();
-  const byDay = scheduleDays.map((day) => ({ day, value: rows.filter((row) => row.day === day).length }));
-  return { rows, byDay, teachers: new Set(rows.map((row) => row.professor).filter(Boolean)).size, installations: new Set(rows.map((row) => row.installation).filter(Boolean)).size };
-}
-
-function executivePresentationPerformanceData() {
-  const teachers = classDashboardMetrics().teachers || [];
-  const ranked = teachers.filter((row) => Number.isFinite(Number(row.approvedRate)) && Number(row.total || 0) > 0);
-  return {
-    highlights: [...ranked].sort((a, b) => Number(b.approvedRate) - Number(a.approvedRate)).slice(0, 3),
-    improving: [...ranked].sort((a, b) => Number(a.approvedRate) - Number(b.approvedRate)).slice(0, 3)
-  };
-}
-
-function presentationCollaboratorProfile(row) {
-  const nomina = String(row.Nomina || row.nomina || "").trim();
-  const name = String(row.Colaboradores || row.full_name || row.nombre_completo || "Sin nombre").trim();
-  return {
-    nomina,
-    name,
-    role: String(row.Puesto || row.role || "Sin dato").trim(),
-    photoUrl: row.__photoUrl || row.photo_url || "",
-    initials: collaboratorInitials(name)
-  };
-}
-
-function presentationSelectedCollaborators(notes, key) {
-  const selected = String(notes[key] || "").split(",").map((value) => value.trim()).filter(Boolean).slice(0, MAX_PRESENTATION_SELECTION);
-  const profiles = new Map(collaboratorRows().map((row) => {
-    const profile = presentationCollaboratorProfile(row);
-    return [collaboratorMatchKey(profile.nomina), profile];
-  }));
-  return selected.map((nomina) => profiles.get(collaboratorMatchKey(nomina))).filter(Boolean);
-}
-
-function renderPresentationPortraitGroup(title, tone, profiles) {
-  const slots = [...profiles.slice(0, MAX_PRESENTATION_SELECTION)];
-  while (slots.length < MAX_PRESENTATION_SELECTION) slots.push(null);
-  return `<section class="executive-presentation-portrait-group ${tone}"><h3>${escapeHtml(title)}</h3><div class="executive-presentation-portrait-grid">${slots.map((profile) => profile ? `<article>${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="Foto de ${escapeHtml(profile.name)}" />` : `<span>${escapeHtml(profile.initials)}</span>`}<strong>${escapeHtml(profile.name)}</strong><em>${escapeHtml(profile.role)}</em></article>` : `<article class="empty"><span>+</span><strong>Sin seleccionar</strong><em>Editable</em></article>`).join("")}</div></section>`;
-}
-
-function renderPresentationCollaboratorPicker(key, label, notes) {
-  const selected = new Set(String(notes[key] || "").split(",").map((value) => value.trim()).filter(Boolean));
-  return `<fieldset class="executive-presentation-collaborator-picker"><legend>${escapeHtml(label)} <span>Máximo ${MAX_PRESENTATION_SELECTION}</span></legend><div>${collaboratorRows().map((row) => {
-    const profile = presentationCollaboratorProfile(row);
-    return `<label class="${selected.has(profile.nomina) ? "selected" : ""}"><input type="checkbox" name="${escapeHtml(key)}" value="${escapeHtml(profile.nomina)}" data-presentation-collaborator="${escapeHtml(key)}" ${selected.has(profile.nomina) ? "checked" : ""} />${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="" />` : `<i>${escapeHtml(profile.initials)}</i>`}<span><strong>${escapeHtml(profile.name)}</strong><em>${escapeHtml(profile.nomina)} · ${escapeHtml(profile.role)}</em></span></label>`;
-  }).join("")}</div></fieldset>`;
-}
-
-function presentationManualNote(notes, key, title = "Nota para la junta") {
-  const content = String(notes[key] || "").trim();
-  return content ? `<div class="executive-presentation-manual-note"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(content)}</span></div>` : "";
-}
-
-function renderPresentationPeopleList(rows, emptyLabel) {
-  if (!rows.length) return presentationEmptyState(emptyLabel);
-  return `<div class="executive-presentation-people">${rows.map((row, index) => `<article><span>${index + 1}</span><div><strong>${escapeHtml(row.teacher || "Sin dato")}</strong><em>${Number(row.approvedRate || 0)}% aprobados · ${Number(row.total || 0)} alumnos</em></div></article>`).join("")}</div>`;
-}
-
-function renderExecutivePresentationSlide(slide, index) {
-  const notes = presentationNotesForCurrentWeek();
-  const operational = executiveOperationalRows();
-  const classes = executiveClassSummary();
-  const activities = executivePresentationActivities();
-  const schedule = executivePresentationScheduleSummary();
-  const budget = executivePresentationBudgetData();
-  const collaborators = collaboratorRows();
-  const physicalCount = physicalEvaluationsLoaded ? physicalEvaluations.length : physicalRows().length;
-  const manualList = (key) => {
-    const items = presentationTextItems(notes[key]);
-    return items.length ? `<ul class="executive-presentation-checklist">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : presentationEmptyState();
-  };
-  let body = "";
-  if (slide.key === "cover") {
-    body = `<div class="executive-presentation-cover"><div><p>WellSync · Athletics & Wellness</p><h2>Presentación semanal</h2><strong>${escapeHtml(presentationWeekKey())}</strong><span>${new Date().toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })}</span></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div>`;
-  } else if (slide.key === "general-indicators") {
-    const unique = new Set(operational.map((row) => row.matricula).filter(Boolean)).size;
-    const total = operational.reduce((sum, row) => sum + Number(row.registros || 0), 0);
-    body = `<div class="executive-presentation-metrics">${presentationMetric("Matrículas únicas", unique || null, "Registros consolidados")}${presentationMetric("Atenciones", total || null, "Acumulado actual")}${presentationMetric("Clases acreditadas", classes.finished || null, "Corte disponible")}${presentationMetric("Eventos de Vivencia", vivenciaEvents.length || null, "Historial cargado")}</div>${presentationManualNote(notes, "comment_general-indicators", "Lectura ejecutiva")}`;
-  } else if (slide.key === "priorities") {
-    body = manualList("priorities");
-  } else if (slide.key === "performance") {
-    body = `<div class="executive-presentation-performance selected">${renderPresentationPortraitGroup("Destacados", "highlight", presentationSelectedCollaborators(notes, "highlight_nominas"))}${renderPresentationPortraitGroup("En mejora", "improving", presentationSelectedCollaborators(notes, "improving_nominas"))}</div>`;
-  } else if (slide.key === "budget") {
-    body = renderExecutivePresentationBudget(budget, notes);
-  } else if (slide.key === "block-activities") {
-    body = `${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => `<div><time>${escapeHtml(row.date)}</time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em>${escapeHtml(row.status || "Sin estado")}</em></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_block-activities")}`;
-  } else if (slide.key === "inventory") {
-    body = presentationTextItems(notes.inventory).length ? manualList("inventory") : presentationEmptyState("Sin información de bodegas capturada");
-  } else if (slide.key === "schedules") {
-    body = `${schedule.rows.length ? `<div class="executive-presentation-metrics">${presentationMetric("Clases activas", schedule.rows.length)}${presentationMetric("Profesores", schedule.teachers)}${presentationMetric("Instalaciones", schedule.installations)}</div><div class="executive-presentation-columns">${schedule.byDay.map((row) => `<div><strong>${row.value}</strong><i style="height:${Math.max(8, Math.min(100, row.value * 3))}%"></i><span>${escapeHtml(row.day.slice(0, 3))}</span></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_schedules")}`;
-  } else if (slide.key === "weekly-topics") {
-    body = `<div class="executive-presentation-split"><section><h3>Temas por área</h3>${manualList("area_topics")}<h3>Temas semanales</h3>${manualList("topics")}</section><section><h3>Acuerdos</h3>${manualList("agreements")}<h3>Pendientes</h3>${manualList("pending")}</section></div>${presentationManualNote(notes, "observations", "Observaciones")}`;
-  } else if (slide.key === "team") {
-    body = `${collaborators.length ? `<div class="executive-presentation-team">${collaborators.slice(0, 10).map((row) => { const name = row.Colaboradores || row.collaborator_name || row.nombre || "Colaborador"; const image = row.photo_url || row.foto_url || row.image_url || ""; return `<article>${image ? `<img src="${escapeHtml(image)}" alt="" />` : `<span>${escapeHtml(String(name).split(/\s+/).slice(0, 2).map((part) => part[0] || "").join(""))}</span>`}<strong>${escapeHtml(name)}</strong><em>${escapeHtml(row.Puesto || row.role || "Sin dato")}</em></article>`; }).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_team")}`;
-  } else if (slide.key === "detailed-schedules") {
-    body = `${schedule.rows.length ? `<div class="executive-presentation-table schedule"><div class="head"><span>Día</span><span>Horario</span><span>Clase</span><span>Profesor</span></div>${schedule.rows.slice(0, 9).map((row) => `<div><span>${escapeHtml(row.day)}</span><strong>${escapeHtml(`${row.start || ""} - ${row.end || ""}`)}</strong><span>${escapeHtml(row.discipline || "Sin dato")}</span><em>${escapeHtml(row.professor || "Sin dato")}</em></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_detailed-schedules")}`;
-  } else if (slide.key === "map") {
-    body = presentationTextItems(notes.map_notes).length ? manualList("map_notes") : presentationEmptyState("Sin información de distribución capturada");
-  }
-  return `<article class="executive-presentation-slide" data-slide-key="${slide.key}" aria-label="Diapositiva ${index + 1}: ${escapeHtml(slide.title)}"><header><div class="executive-presentation-number">${index + 1}</div><div><h2>${escapeHtml(slide.title)}</h2><p>${index === 0 ? "Junta semanal" : presentationWeekKey()}</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></header><div class="executive-presentation-slide-body">${body}</div><footer>WellSync · Dirección Deportiva</footer></article>`;
-}
-
-function renderExecutivePresentationEditor() {
-  if (!executivePresentationEditorOpen) return "";
-  const notes = presentationNotesForCurrentWeek();
-  const selectedSlide = EXECUTIVE_PRESENTATION_SLIDES.find((slide) => slide.key === executivePresentationEditingSlide) || EXECUTIVE_PRESENTATION_SLIDES[2];
-  const fields = EXECUTIVE_PRESENTATION_EDIT_FIELDS[selectedSlide.key] || [];
-  const editorFields = selectedSlide.key === "performance"
-    ? `${renderPresentationCollaboratorPicker("highlight_nominas", "Destacados", notes)}${renderPresentationCollaboratorPicker("improving_nominas", "En mejora", notes)}`
-    : fields.map(([key, label, placeholder]) => `<label>${escapeHtml(label)}<textarea name="${escapeHtml(key)}" rows="5" placeholder="${escapeHtml(placeholder)}">${escapeHtml(notes[key] || "")}</textarea></label>`).join("");
-  return `<div class="executive-presentation-editor-backdrop" data-presentation-editor-close><aside class="executive-presentation-editor" role="dialog" aria-modal="true" aria-labelledby="presentationEditorTitle"><header><div><p class="eyebrow">${escapeHtml(presentationWeekKey())}</p><h2 id="presentationEditorTitle">Editor de la junta semanal</h2><span>Los datos automáticos permanecen conectados; aquí agregas contexto y decisiones.</span></div><button type="button" data-presentation-editor-close aria-label="Cerrar">&times;</button></header><div class="executive-presentation-editor-layout"><nav class="executive-presentation-editor-nav" aria-label="Diapositivas editables">${EXECUTIVE_PRESENTATION_SLIDES.map((slide, index) => `<button type="button" class="${slide.key === selectedSlide.key ? "active" : ""}" data-presentation-editor-slide="${escapeHtml(slide.key)}"><span>${index + 1}</span><div><strong>${escapeHtml(slide.title)}</strong><em>${(EXECUTIVE_PRESENTATION_EDIT_FIELDS[slide.key] || []).length ? "Editable" : "Automática"}</em></div></button>`).join("")}</nav><form id="executivePresentationForm"><div class="executive-presentation-editor-heading"><span>Diapositiva ${EXECUTIVE_PRESENTATION_SLIDES.indexOf(selectedSlide) + 1}</span><h3>${escapeHtml(selectedSlide.title)}</h3></div>${fields.length ? editorFields : `<div class="executive-presentation-editor-automatic"><i data-lucide="refresh-cw"></i><strong>Diapositiva automática</strong><p>Se alimenta directamente con la información disponible en WellSync.</p></div>`}<div class="executive-presentation-editor-actions"><button class="ghost-btn" type="button" data-presentation-editor-close>Cancelar</button>${fields.length ? `<button class="primary-btn" type="submit" ${executivePresentationSaving ? "disabled" : ""}>${executivePresentationSaving ? "Guardando..." : "Guardar diapositiva"}</button>` : ""}</div><p>${executivePresentationCloudAvailable ? "Guardado semanal en Supabase activo cuando las tablas están disponibles." : "Guardado local disponible; activa las tablas para compartir entre computadoras."}</p></form></div></aside></div>`;
-}
-
-function renderExecutivePresentationStage() {
-  if (!executivePresentationMode) return "";
-  const slide = EXECUTIVE_PRESENTATION_SLIDES[executivePresentationIndex] || EXECUTIVE_PRESENTATION_SLIDES[0];
-  return `<div class="executive-presentation-stage" role="dialog" aria-modal="true" aria-label="Modo presentación"><div class="executive-presentation-stage-toolbar"><span>${executivePresentationIndex + 1} / ${EXECUTIVE_PRESENTATION_SLIDES.length}</span><div><button class="executive-presentation-stage-edit" type="button" data-presentation-edit-slide="${escapeHtml(slide.key)}">Editar diapositiva</button><button type="button" data-presentation-close aria-label="Cerrar presentación">&times;</button></div></div><div class="executive-presentation-canvas">${renderExecutivePresentationSlide(slide, executivePresentationIndex)}</div><button class="executive-presentation-nav previous" type="button" data-presentation-step="-1" aria-label="Diapositiva anterior">&#8249;</button><button class="executive-presentation-nav next" type="button" data-presentation-step="1" aria-label="Siguiente diapositiva">&#8250;</button></div>`;
-}
-
-function renderExecutivePresentationHub() {
-  return `<section class="executive-presentation-hub"><div class="executive-presentation-hero"><div><p class="eyebrow">WellSync · Dirección Deportiva</p><h2>Presentación Ejecutiva</h2><p>Datos automáticos del sistema y contenido editable por semana, en una sola junta.</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div><div class="executive-presentation-template-grid"><article class="executive-presentation-template active"><div class="executive-presentation-template-preview">${renderExecutivePresentationSlide(EXECUTIVE_PRESENTATION_SLIDES[0], 0)}</div><div><span>Formato activo · ${escapeHtml(presentationWeekKey())}</span><h3>Junta semanal híbrida</h3><p>12 diapositivas: indicadores, presupuesto, calendario, desempeño y equipo se actualizan desde WellSync; acuerdos y notas se editan por semana.</p><div class="executive-presentation-actions"><button class="primary-btn" type="button" data-presentation-action="present">Presentar</button><button class="ghost-btn" type="button" data-presentation-action="edit">Editar contenido</button><button class="ghost-btn" type="button" data-presentation-action="refresh">Actualizar datos</button><button class="ghost-btn" type="button" data-presentation-action="pdf">Exportar PDF</button><button class="ghost-btn" type="button" data-presentation-action="powerpoint">PowerPoint</button></div></div></article>${["Informe mensual", "Rectoría", "Coordinadores"].map((title) => `<article class="executive-presentation-template coming"><span>Próximamente</span><h3>${title}</h3><p>Formato preparado para una siguiente fase.</p></article>`).join("")}</div><div class="executive-presentation-slide-grid">${EXECUTIVE_PRESENTATION_SLIDES.map((slide, index) => `<article><button type="button" data-presentation-slide="${index}"><span>${index + 1}</span><i data-lucide="${slide.icon}"></i><strong>${escapeHtml(slide.title)}</strong></button><button class="executive-presentation-slide-edit" type="button" data-presentation-edit-slide="${escapeHtml(slide.key)}" aria-label="Editar ${escapeHtml(slide.title)}"><i data-lucide="pencil"></i></button></article>`).join("")}</div><div class="executive-presentation-print-deck">${EXECUTIVE_PRESENTATION_SLIDES.map(renderExecutivePresentationSlide).join("")}</div></section>${renderExecutivePresentationStage()}${renderExecutivePresentationEditor()}`;
-}
-
-async function refreshExecutivePresentationData() {
-  if (supabaseClient && currentUser?.auth === "supabase") await loadSupabaseDataBundle();
-  await loadPlanningCalendarRows();
-  await loadExecutivePresentationNotes();
-}
-
-async function loadExecutivePresentationNotes() {
-  if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const weekKey = presentationWeekKey();
-  const presentation = await supabaseClient.from("presentaciones").select("id").eq("week_key", weekKey).eq("presentation_type", "weekly").maybeSingle();
-  if (presentation.error) {
-    executivePresentationCloudAvailable = false;
-    return;
-  }
-  if (!presentation.data?.id) return;
-  const result = await supabaseClient.from("presentacion_notas").select("section_key, content").eq("presentacion_id", presentation.data.id);
-  if (result.error) {
-    executivePresentationCloudAvailable = false;
-    return;
-  }
-  executivePresentationCloudAvailable = true;
-  executivePresentationNotes[weekKey] = { ...presentationNotesForCurrentWeek(), ...Object.fromEntries((result.data || []).map((row) => [row.section_key, row.content || ""])) };
-  saveExecutivePresentationLocalNotes();
-}
-
-async function saveExecutivePresentationNotes(form) {
-  const weekKey = presentationWeekKey();
-  const formData = new FormData(form);
-  const values = {};
-  [...new Set([...formData.keys()])].forEach((key) => {
-    const entries = formData.getAll(key).map((value) => String(value || "").trim()).filter(Boolean);
-    values[key] = entries.length > 1 || key.endsWith("_nominas") ? entries.slice(0, MAX_PRESENTATION_SELECTION).join(",") : (entries[0] || "");
-  });
-  executivePresentationNotes[weekKey] = { ...presentationNotesForCurrentWeek(), ...values };
-  saveExecutivePresentationLocalNotes();
-  if (!supabaseClient || currentUser?.auth !== "supabase") return false;
-  const head = await supabaseClient.from("presentaciones").upsert({ week_key: weekKey, presentation_type: "weekly", title: `Junta semanal ${weekKey}`, status: "draft", updated_at: new Date().toISOString() }, { onConflict: "week_key,presentation_type" }).select("id").single();
-  if (head.error || !head.data?.id) {
-    executivePresentationCloudAvailable = false;
-    return false;
-  }
-  const rows = Object.entries(values).map(([section_key, content]) => ({ presentacion_id: head.data.id, section_key, content, updated_at: new Date().toISOString() }));
-  const notes = await supabaseClient.from("presentacion_notas").upsert(rows, { onConflict: "presentacion_id,section_key" });
-  executivePresentationCloudAvailable = !notes.error;
-  return !notes.error;
-}
-
-function bindExecutivePresentationControls() {
-  $$('[data-presentation-action]').forEach((button) => button.addEventListener("click", async () => {
-    const action = button.dataset.presentationAction;
-    if (action === "present") { executivePresentationIndex = 0; executivePresentationMode = true; render(); }
-    if (action === "edit") { executivePresentationEditingSlide = "priorities"; executivePresentationEditorOpen = true; render(); }
-    if (action === "refresh") {
-      button.disabled = true;
-      button.textContent = "Actualizando...";
-      await refreshExecutivePresentationData();
-      render();
-      toast("Presentación actualizada con la información disponible de WellSync");
-    }
-    if (action === "pdf") {
-      const printRoot = document.createElement("div");
-      printRoot.className = "executive-presentation-print-root";
-      printRoot.innerHTML = EXECUTIVE_PRESENTATION_SLIDES.map(renderExecutivePresentationSlide).join("");
-      document.body.appendChild(printRoot);
-      document.body.classList.add("executive-presentation-print");
-      toast("Abriendo impresión para guardar como PDF");
-      setTimeout(() => { window.print(); document.body.classList.remove("executive-presentation-print"); printRoot.remove(); }, 250);
-    }
-    if (action === "powerpoint") toast("Exportación PowerPoint preparada para una siguiente fase");
-  }));
-  $$('[data-presentation-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Number(button.dataset.presentationSlide) || 0; executivePresentationMode = true; render(); }));
-  $$('[data-presentation-edit-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditSlide || "priorities"; executivePresentationEditorOpen = true; render(); }));
-  $$('[data-presentation-editor-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditorSlide || "priorities"; render(); }));
-  $$('[data-presentation-collaborator]').forEach((input) => input.addEventListener("change", () => {
-    const group = input.dataset.presentationCollaborator;
-    const checked = $$(`[data-presentation-collaborator="${group}"]:checked`);
-    if (checked.length > MAX_PRESENTATION_SELECTION) {
-      input.checked = false;
-      toast(`Selecciona máximo ${MAX_PRESENTATION_SELECTION} colaboradores`);
-    }
-    input.closest("label")?.classList.toggle("selected", input.checked);
-  }));
-  $$('[data-presentation-step]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Math.max(0, Math.min(EXECUTIVE_PRESENTATION_SLIDES.length - 1, executivePresentationIndex + Number(button.dataset.presentationStep))); render(); }));
-  $('[data-presentation-close]')?.addEventListener("click", () => { executivePresentationMode = false; render(); });
-  $$('[data-presentation-editor-close]').forEach((button) => button.addEventListener("click", (event) => { if (event.target === event.currentTarget || event.currentTarget.tagName === "BUTTON") { executivePresentationEditorOpen = false; render(); } }));
-  $('#executivePresentationForm')?.addEventListener("submit", async (event) => { event.preventDefault(); executivePresentationSaving = true; render(); const cloud = await saveExecutivePresentationNotes(event.currentTarget); executivePresentationSaving = false; executivePresentationEditorOpen = false; render(); toast(cloud ? "Junta semanal guardada en Supabase" : "Junta semanal guardada en este navegador"); });
-}
-
 function renderDashboard(area) {
-  if (area.id === "presentacion") return renderExecutivePresentationHub();
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
   if (area.id === "configuracion") return renderConfigurationDashboard();
   if (area.id === "general") return renderExecutiveGeneralDashboard();
@@ -10030,94 +9501,6 @@ function vivenciaEventParticipants(eventId) {
   return vivenciaParticipants.filter((participant) => participant.event_id === eventId);
 }
 
-function vivenciaUniqueParticipantRows(events = vivenciaVisibleEvents()) {
-  const eventIds = new Set(events.map((event) => event.id));
-  const seen = new Set();
-  return vivenciaParticipants.filter((participant) => {
-    if (!eventIds.has(participant.event_id)) return false;
-    const matricula = normalizeMatricula(participant.matricula);
-    if (!matricula || seen.has(matricula)) return false;
-    seen.add(matricula);
-    return true;
-  });
-}
-
-function vivenciaEventUniqueParticipantCount(eventId) {
-  return new Set(
-    vivenciaEventParticipants(eventId)
-      .map((participant) => normalizeMatricula(participant.matricula))
-      .filter(Boolean)
-  ).size;
-}
-
-function vivenciaParticipantGender(value) {
-  const gender = normalizeText(value);
-  if (["mujer", "femenino", "femenina", "female"].includes(gender)) return "Mujeres";
-  if (["hombre", "masculino", "masculina", "male"].includes(gender)) return "Hombres";
-  return "Sin dato";
-}
-
-function vivenciaGenderRows(events = vivenciaVisibleEvents()) {
-  const totals = { Mujeres: 0, Hombres: 0, "Sin dato": 0 };
-  vivenciaUniqueParticipantRows(events).forEach((participant) => {
-    const student = findStudentInDatabase(participant.matricula);
-    const gender = vivenciaParticipantGender(student?.genero || participant.genero);
-    totals[gender] += 1;
-  });
-  return Object.entries(totals).map(([label, value]) => ({ label, value }));
-}
-
-function vivenciaImagesForEvent(eventId) {
-  return vivenciaEventImages.filter((image) => image.event_id === eventId);
-}
-
-function renderVivenciaGenderBreakdown(events) {
-  const rows = vivenciaGenderRows(events);
-  const total = rows.reduce((sum, row) => sum + row.value, 0);
-  const gradient = total
-    ? rows.reduce((parts, row, index) => {
-      const colors = ["#bf307e", "#1672ae", "#9ba9b5"];
-      const start = rows.slice(0, index).reduce((sum, current) => sum + current.value, 0) / total * 100;
-      const end = start + row.value / total * 100;
-      return `${parts}${colors[index]} ${start}% ${end}%, `;
-    }, "").replace(/, $/, "")
-    : "#dfe7ed 0 100%";
-  return `
-    <article class="chart-panel vivencia-gender-card">
-      <div class="chart-title-row">
-        <div><p class="eyebrow">Composición</p><h3>Impacto por género</h3></div>
-        <span>Únicos</span>
-      </div>
-      <div class="vivencia-gender-content">
-        <div class="vivencia-gender-donut" style="background:conic-gradient(${gradient})"><div><strong>${total}</strong><span>únicos</span></div></div>
-        <div class="vivencia-gender-legend">
-          ${rows.map((row, index) => `<div><span class="tone-${index + 1}"></span><strong>${escapeHtml(row.label)}</strong><em>${row.value}</em></div>`).join("")}
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-function renderVivenciaRecentEvents(events) {
-  const rows = events
-    .filter((event) => !event.__planningFallback)
-    .slice()
-    .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
-    .slice(0, 10);
-  if (!rows.length) return `<div class="vivencia-empty-mini">Todavía no hay eventos registrados.</div>`;
-  return `
-    <div class="vivencia-recent-list">
-      ${rows.map((event, index) => `
-        <button type="button" data-vivencia-detail="${escapeHtml(event.id)}">
-          <span>${index + 1}</span>
-          <div><strong>${escapeHtml(event.event_name || "Evento sin nombre")}</strong><small>${escapeHtml(event.event_date || "Sin fecha")} · ${escapeHtml(event.campus || "Sin campus")}</small></div>
-          <em>${vivenciaImagesForEvent(event.id).length ? `${vivenciaImagesForEvent(event.id).length} fotos` : ""}</em>
-        </button>
-      `).join("")}
-    </div>
-  `;
-}
-
 function groupVivenciaParticipants(field, fallback = "Sin dato") {
   const uniqueByGroup = new Map();
   vivenciaParticipants.forEach((participant) => {
@@ -10336,11 +9719,11 @@ function renderVivenciaTopEvents(events, metricsByEvent) {
   const rows = events
     .map((event) => ({
       event,
-      participants: vivenciaEventUniqueParticipantCount(event.id),
+      participants: vivenciaEventParticipantsCount(event, metricsByEvent),
       goal: vivenciaEventGoal(event, metricsByEvent)
     }))
     .sort((a, b) => b.participants - a.participants || b.goal - a.goal || String(a.event.event_date).localeCompare(String(b.event.event_date)))
-    .slice(0, 10);
+    .slice(0, 5);
   if (!rows.length) return `<div class="vivencia-empty-mini">Sin eventos para ranking.</div>`;
   const max = Math.max(...rows.map((row) => row.participants || row.goal), 1);
   return `
@@ -10350,35 +9733,12 @@ function renderVivenciaTopEvents(events, metricsByEvent) {
           <span>${index + 1}</span>
           <div>
             <strong>${escapeHtml(row.event.event_name || "Evento sin nombre")}</strong>
-            <small>${row.participants ? `${row.participants} matrículas únicas` : `Meta ${row.goal || "sin meta"}`}</small>
+            <small>${row.participants ? `${row.participants} participantes` : `Meta ${row.goal || "sin meta"}`}</small>
           </div>
           <div class="bar-track"><div class="bar-fill" style="width:${Math.max(5, Math.round(((row.participants || row.goal) / max) * 100))}%"></div></div>
         </article>
       `).join("")}
     </div>
-  `;
-}
-
-function renderVivenciaImpactGoal(uniqueCount, editable) {
-  const goal = Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1);
-  const progress = Math.round((uniqueCount / goal) * 100);
-  const remaining = goal - uniqueCount;
-  return `
-    <article class="chart-panel vivencia-impact-goal-card">
-      <div class="chart-title-row">
-        <div><p class="eyebrow">Meta institucional</p><h3>Meta de alumnos únicos impactados</h3></div>
-        <span>${progress}%</span>
-      </div>
-      <div class="vivencia-impact-amount"><strong>${uniqueCount.toLocaleString("es-MX")}</strong><span>de ${goal.toLocaleString("es-MX")} matrículas únicas</span></div>
-      <div class="vivencia-impact-track"><span style="width:${Math.min(100, progress)}%"></span></div>
-      <p>${remaining > 0 ? `Faltan ${remaining.toLocaleString("es-MX")} para alcanzar la meta.` : `Meta superada por ${Math.abs(remaining).toLocaleString("es-MX")} matrículas.`}</p>
-      ${editable ? `
-        <form id="vivenciaImpactGoalForm" class="vivencia-impact-goal-form">
-          <label>Editar meta<input name="impact_goal" type="number" min="1" step="1" value="${goal}" required /></label>
-          <button class="ghost-btn compact-action" type="submit">Guardar meta</button>
-        </form>
-      ` : ""}
-    </article>
   `;
 }
 
@@ -10444,9 +9804,10 @@ function renderVivenciaDashboard() {
     const date = vivenciaEventDate(event);
     return date && date >= today;
   });
-  const uniqueParticipantRows = vivenciaUniqueParticipantRows(events);
-  const uniqueMatriculas = new Set(uniqueParticipantRows.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean));
+  const uniqueMatriculas = new Set(vivenciaParticipants.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean));
   const participantTotal = metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
+  const totalGoal = events.reduce((sum, event) => sum + vivenciaEventGoal(event, metricsByEvent), 0);
+  const goalProgress = totalGoal ? Math.round((participantTotal / totalGoal) * 100) : 0;
   const monthRowsMap = new Map();
   events.forEach((event) => {
     const key = vivenciaMonthLabel(event.event_date);
@@ -10455,14 +9816,14 @@ function renderVivenciaDashboard() {
   });
   const monthRows = [...monthRowsMap.entries()].map(([label, value]) => ({ label, value }));
   const calendarDate = vivenciaCalendarBaseDate(events);
-  const editable = canEditArea("vivencia");
+  const alerts = vivenciaOperationalAlerts(events, metricsByEvent);
   return `
     <section class="vivencia-dashboard">
       <div class="kpi-grid vivencia-kpi-strip">
         <div class="kpi"><span>Eventos del semestre</span><strong>${events.length}</strong><em>desde Planeación/Vivencia</em></div>
         <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
         <div class="kpi"><span>Alumnos únicos impactados</span><strong>${uniqueMatriculas.size}</strong><em>por matrícula</em></div>
-        <div class="kpi"><span>Avance de meta</span><strong>${Math.round((uniqueMatriculas.size / Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1)) * 100)}%</strong><em>sobre impacto único</em></div>
+        <div class="kpi"><span>Avance de meta</span><strong>${goalProgress}%</strong><em>${totalGoal || "sin metas capturadas"}</em></div>
       </div>
 
       <div class="vivencia-dashboard-grid">
@@ -10474,26 +9835,24 @@ function renderVivenciaDashboard() {
           </div>
           ${renderVivenciaEventCards(upcoming, metricsByEvent)}
         </article>
-        ${renderVivenciaImpactGoal(uniqueMatriculas.size, editable)}
-        ${renderVivenciaGenderBreakdown(events)}
-        <article class="chart-panel vivencia-month-panel">
+        <article class="chart-panel">
           <div class="chart-title-row">
             <div><p class="eyebrow">Impacto mensual</p><h3>${participantTotal ? "Participaciones por mes" : "Eventos por mes"}</h3></div>
           </div>
-          ${renderVivenciaBars(monthRows, { compact: true })}
+          ${renderVivenciaBars(monthRows)}
         </article>
-        <article class="chart-panel vivencia-top-panel">
+        <article class="chart-panel">
           <div class="chart-title-row">
-            <div><p class="eyebrow">Top eventos</p><h3>Top 10 eventos del semestre</h3></div>
+            <div><p class="eyebrow">Top eventos</p><h3>Top eventos del semestre</h3></div>
           </div>
           ${renderVivenciaTopEvents(events, metricsByEvent)}
         </article>
-        <article class="chart-panel vivencia-recent-panel">
+        <article class="chart-panel vivencia-alert-panel">
           <div class="chart-title-row">
-            <div><p class="eyebrow">Registro</p><h3>Ultimos eventos registrados</h3></div>
-            <span>10 recientes</span>
+            <div><p class="eyebrow">Pendientes y alertas</p><h3>Seguimiento operativo</h3></div>
+            <span>${alerts.length} alertas</span>
           </div>
-          ${renderVivenciaRecentEvents(events)}
+          ${renderVivenciaAlerts(alerts)}
         </article>
       </div>
     </section>
@@ -10557,12 +9916,7 @@ function renderClassGrades() {
           <p class="eyebrow">CD Lista de Alumnos</p>
           <h2>Registro de calificaciones</h2>
         </div>
-        <div class="class-grade-actions">
-          <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
-          <button class="primary-btn" type="button" id="uploadClassGrades" ${editable && !classGradesImporting ? "" : "disabled"}>${classGradesImporting ? "Procesando..." : "Subir calificaciones"}</button>
-          <button class="ghost-btn" type="button" data-download-class-template="grades">Plantilla calificaciones</button>
-          <button class="ghost-btn" type="button" id="exportClassGrades">Exportar Excel</button>
-        </div>
+        <button class="ghost-btn" type="button" id="exportClassGrades">Exportar Excel</button>
       </div>
       ${!classGradesAvailable ? `
         <div class="permission-strip grade-warning">
@@ -10688,12 +10042,9 @@ function renderClassGradesSystemUpload() {
       </div>
       <p>Actualiza la lista de alumnos y sus calificaciones en Supabase. Cada carga reemplaza primero el periodo/semestre incluido en el archivo para evitar duplicados.</p>
       <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
-      <div class="upload-action-row">
-        <button class="primary-btn" id="uploadClassGrades" type="button" ${editable && !classGradesImporting ? "" : "disabled"}>
-          ${classGradesImporting ? "Procesando archivo..." : "Cargar archivo de Calificaciones"}
-        </button>
-        <button class="ghost-btn" type="button" data-download-class-template="grades">Plantilla calificaciones</button>
-      </div>
+      <button class="primary-btn" id="uploadClassGrades" type="button" ${editable && !classGradesImporting ? "" : "disabled"}>
+        ${classGradesImporting ? "Procesando archivo..." : "Cargar archivo de Calificaciones"}
+      </button>
       <p class="form-message">Columnas requeridas: matricula, materia, calificacion y periodo. El periodo puede ser FJ26; el bloque PMT1, PMT2 o PMT3 se detecta desde la materia. También se aceptan clave_materia, CRN, grupo, profesor, carrera y semestre.</p>
       ${!editable ? `<div class="permission-strip grade-warning">Ingresa con un perfil autorizado de Clases Deportivas para realizar la carga.</div>` : ""}
       ${summary ? `
@@ -11145,215 +10496,32 @@ function collaboratorPhotoMarkup(row, className = "collaborator-infographic-phot
   return `<span class="${className}"><span>${escapeHtml(collaboratorInitials(name))}</span></span>`;
 }
 
-function collaboratorWeekValues(row, keys) {
-  const raw = keys.map((key) => row?.[key]).find((value) => String(value ?? "").trim()) || "";
-  return String(raw)
-    .split(",")
-    .map((item) => item.trim().toUpperCase())
-    .filter(Boolean);
-}
-
-function collaboratorPerformanceRating(row) {
-  const highlighted = collaboratorWeekValues(row, ["Destacados", "Destacado"]);
-  const developing = collaboratorWeekValues(row, ["Mejorable", "Mejorables", "En Desarrollo", "Mejoramiento", "En desarrollo"]);
-  const score = Math.max(0, Math.min(10, 9 + highlighted.length * 0.2 - developing.length * 0.2));
-  const label = score >= 9.4 ? "Perfil destacado" : score >= 9 ? "Perfil sólido" : score >= 8.4 ? "Aceptable" : score >= 7.9 ? "Moderablemente aceptable" : "Requiere seguimiento";
-  const tone = score >= 9.4 ? "excellent" : score >= 9 ? "good" : score >= 8.4 ? "watch" : "risk";
-  const action = !highlighted.length && !developing.length
-    ? "Calificación base inicial; sin semanas destacadas o mejorables registradas."
-    : developing.length
-      ? `Dar seguimiento a ${developing.join(", ")}.`
-      : "Mantener el desempeño y documentar nuevas semanas destacadas.";
-  return {
-    score,
-    label,
-    tone,
-    summary: `${highlighted.length} semana(s) destacada(s) y ${developing.length} semana(s) en desarrollo. ${action}`,
-    highlighted,
-    developing
-  };
-}
-
-function collaboratorProfileValue(row, aliases, fallback = "") {
-  const normalizedAliases = aliases.map((alias) => normalizeText(alias).replace(/[^a-z0-9]/g, ""));
-  for (const [key, value] of Object.entries(row || {})) {
-    const normalizedKey = normalizeText(key).replace(/[^a-z0-9]/g, "");
-    if (!normalizedAliases.includes(normalizedKey)) continue;
-    const text = String(value ?? "").trim();
-    if (text && !/^(#n\/a|n\/a|na|null|undefined)$/i.test(text)) return text;
-  }
-  return fallback;
-}
-
-function collaboratorProfileBoolean(value) {
-  const normalized = normalizeText(value);
-  if (["true", "si", "1", "yes"].includes(normalized)) return "Sí";
-  if (["false", "no", "0"].includes(normalized)) return "No";
-  return value ? String(value) : "Sin dato";
-}
-
-function collaboratorProfilePercent(value) {
-  const number = numberFrom(value);
-  if (!String(value ?? "").trim()) return "Sin dato";
-  if (!Number.isFinite(number)) return String(value);
-  const percent = Math.abs(number) <= 1 ? number * 100 : number;
-  return `${Math.round(percent * 10) / 10}%`;
-}
-
-function collaboratorProfileEvaluations(row) {
-  const nominaKey = collaboratorMatchKey(row?.Nomina || row?.nomina || "");
-  if (!nominaKey) return [];
-  return physicalEvaluations
-    .filter((evaluation) => collaboratorMatchKey(evaluation.collaborator_nomina || "") === nominaKey)
-    .sort((a, b) => String(b.evaluated_at || "").localeCompare(String(a.evaluated_at || "")));
-}
-
-function collaboratorProfileInfo(icon, label, value) {
-  return `
-    <div class="collaborator-profile-info-item">
-      <span class="collaborator-profile-info-icon" aria-hidden="true">${icon}</span>
-      <div><small>${escapeHtml(label)}</small><strong>${escapeHtml(value || "Sin dato")}</strong></div>
-    </div>
-  `;
-}
-
-function collaboratorProfileEvaluationMarkup(evaluation) {
-  const date = evaluation?.evaluated_at ? new Date(evaluation.evaluated_at) : null;
-  const year = date && !Number.isNaN(date.getTime()) ? date.getFullYear() : "Sin año";
-  const dateLabel = date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString("es-MX") : "Sin fecha";
-  const tests = ["cooper_12m", "abdominales", "lagartijas", "saltos_cuerda", "wall_ball", "remo_distancia"];
-  return `
-    <article class="collaborator-profile-evaluation">
-      <div class="collaborator-profile-evaluation-heading"><strong>Evaluación física ${year}</strong><span>${dateLabel}</span></div>
-      <div class="collaborator-profile-test-grid">
-        ${tests.map((testKey) => `<div><small>${escapeHtml(PHYSICAL_TEST_LABELS[testKey])}</small><strong>${escapeHtml(physicalResultDisplay(evaluation, testKey))}</strong></div>`).join("")}
-      </div>
-    </article>
-  `;
-}
-
-function collaboratorProfileBadge(icon, label) {
-  return `<div class="collaborator-profile-badge"><span>${icon}</span><strong>${escapeHtml(label)}</strong></div>`;
-}
-
 function renderCollaboratorInfographicDetail(rows) {
   const selected = rows.find((row) => (row.__id || row.Nomina) === selectedCollaboratorInfographicId);
   if (!selected) return "";
-  const rating = collaboratorPerformanceRating(selected);
-  const name = collaboratorProfileValue(selected, ["Colaboradores", "full_name"], "Sin nombre");
-  const nomina = collaboratorProfileValue(selected, ["Nomina", "Nómina"], "Sin dato");
-  const puesto = collaboratorProfileValue(selected, ["Puesto", "Rol", "Materia"], "Colaborador");
-  const coordinator = collaboratorProfileValue(selected, ["Coordinador"], "Sin dato");
-  const email = collaboratorProfileValue(selected, ["correo institucional", "Correo", "Email"], "Sin dato");
-  const birthday = collaboratorProfileValue(selected, ["Fecha cumpleaños", "Cumpleaños", "Cumpleanos"], "Sin dato");
-  const gender = collaboratorProfileValue(selected, ["Genero", "Género"], "Sin dato");
-  const shirt = collaboratorProfileValue(selected, ["Playeras Joma", "Playera Joma"], "Sin dato");
-  const pants = collaboratorProfileValue(selected, ["Talla pants", "Pants"], "Sin dato");
-  const firstAidRaw = collaboratorProfileValue(selected, ["Primeros auxilios"], "");
-  const firstAid = collaboratorProfileBoolean(firstAidRaw);
-  const team = collaboratorProfileValue(selected, ["Equipo", "Sede", "CRN / sede"], "Wellness Center");
-  const courses = collaboratorProfilePercent(collaboratorProfileValue(selected, ["% de cursos", "Cursos"], ""));
-  const campus = collaboratorProfileValue(selected, ["Campus"], "Monterrey");
-  const department = collaboratorProfileValue(selected, ["Departamento"], "Formación Deportiva");
-  const division = collaboratorProfileValue(selected, ["División", "Division"], "Liderazgo y Formación Estudiantil");
-  const subject = collaboratorProfileValue(selected, ["Materia", "Rol"], puesto);
-  const contact1 = collaboratorProfileValue(selected, ["Contacto de emergencia", "Contacto 1"], "Sin dato");
-  const phone1 = collaboratorProfileValue(selected, ["Numero 1", "Número 1"], "Sin dato");
-  const contact2 = collaboratorProfileValue(selected, ["Contacto de emergencia 2", "Contacto 2"], "Sin dato");
-  const phone2 = collaboratorProfileValue(selected, ["Numero 2", "Número 2"], "Sin dato");
-  const highlights = collaboratorProfileValue(selected, ["Destacados"], "Sin dato");
-  const development = collaboratorProfileValue(selected, ["En Desarrollo", "En desarrollo"], "Sin dato");
-  const goal = collaboratorProfilePercent(collaboratorProfileValue(selected, ["Meta de %", "Meta"], ""));
-  const gymAttendanceRaw = collaboratorProfileValue(selected, ["Asistencia a gimnasio de colaboradores", "Asistencia al gimnasio"], "");
-  const gymAttendance = collaboratorProfilePercent(gymAttendanceRaw);
-  const chipinqueRaw = collaboratorProfileValue(selected, ["Evento de integacion Chipinque", "Evento Chipinque"], "");
-  const cozumelRaw = collaboratorProfileValue(selected, ["Evento de integacion Cozumelito", "Evento Cozumelito"], "");
-  const chipinque = collaboratorProfileBoolean(chipinqueRaw);
-  const cozumel = collaboratorProfileBoolean(cozumelRaw);
-  const evaluations = collaboratorProfileEvaluations(selected).slice(0, 2);
-  const badges = [];
-  if (evaluations.length) badges.push(collaboratorProfileBadge("🏅", `Evaluación física ${new Date(evaluations[0].evaluated_at).getFullYear() || "registrada"}`));
-  if (firstAid === "Sí") badges.push(collaboratorProfileBadge("✚", "Primeros auxilios"));
-  if (gymAttendance !== "Sin dato" && numberFrom(gymAttendanceRaw) > 0) badges.push(collaboratorProfileBadge("🏋️", "Asistencia al gimnasio"));
-  if (chipinque === "Sí") badges.push(collaboratorProfileBadge("⛰️", "Chipinque"));
-  if (cozumel === "Sí") badges.push(collaboratorProfileBadge("🌊", "Cozumelito"));
+  const hiddenKeys = new Set(["__id", "__photoPath", "__photoUrl"]);
+  const details = Object.entries(selected)
+    .filter(([key, value]) => !hiddenKeys.has(key) && String(value ?? "").trim())
+    .map(([key, value]) => [key, String(value)]);
   return `
     <div class="modal-backdrop collaborator-profile-backdrop" role="presentation">
-      <section class="collaborator-profile-modal collaborator-profile-executive" role="dialog" aria-modal="true" aria-label="Expediente ejecutivo de ${escapeHtml(name)}">
-        <header class="collaborator-profile-hero">
+      <section class="collaborator-profile-modal" role="dialog" aria-modal="true" aria-label="Detalle de colaborador">
+        <div class="collaborator-profile-heading">
           ${collaboratorPhotoMarkup(selected, "collaborator-profile-photo")}
-          <div class="collaborator-profile-identity">
-            <p class="eyebrow">Expediente ejecutivo</p>
-            <h3>${escapeHtml(name)}</h3>
-            <strong>${escapeHtml(puesto)}</strong>
-            <span>${escapeHtml(nomina)}</span>
-            <div class="collaborator-profile-hero-meta"><span>Coordinador: ${escapeHtml(coordinator)}</span><span>Cumpleaños: ${escapeHtml(birthday)}</span><span>Género: ${escapeHtml(gender)}</span></div>
+          <div>
+            <p class="eyebrow">Perfil completo</p>
+            <h3>${escapeHtml(selected.Colaboradores || "Sin nombre")}</h3>
+            <span>${escapeHtml(selected.Puesto || "Colaborador")} · ${escapeHtml(selected.Nomina || selected.__id || "")}</span>
           </div>
-          <div class="collaborator-profile-brand"><img src="assets/borregos_logo_manual_oficial.png" alt="Borregos"><span>BORREGOS</span></div>
-          <button class="collaborator-profile-close" type="button" data-close-collab-profile aria-label="Cerrar expediente">×</button>
-        </header>
-
-        <div class="collaborator-profile-content">
-          <section class="collaborator-profile-section profile-blue wide">
-            <h4>Perfil confirmado</h4>
-            <div class="collaborator-profile-info-grid four">
-              ${collaboratorProfileInfo("▣", "Nómina", nomina)}
-              ${collaboratorProfileInfo("✉", "Correo institucional", email)}
-              ${collaboratorProfileInfo("▦", "Cumpleaños", birthday)}
-              ${collaboratorProfileInfo("◎", "Género", gender)}
+          <button class="ghost-btn compact-action" type="button" data-close-collab-profile>Cerrar</button>
+        </div>
+        <div class="collaborator-profile-details">
+          ${details.map(([key, value]) => `
+            <div>
+              <span>${escapeHtml(key)}</span>
+              <strong>${escapeHtml(value)}</strong>
             </div>
-          </section>
-
-          <section class="collaborator-profile-section profile-green wide">
-            <h4>Uniforme y equipo</h4>
-            <div class="collaborator-profile-info-grid five">
-              ${collaboratorProfileInfo("♧", "Playera Joma", shirt)}
-              ${collaboratorProfileInfo("▥", "Pants", pants)}
-              ${collaboratorProfileInfo("✚", "Primeros auxilios", firstAid)}
-              ${collaboratorProfileInfo("◉", "Equipo", team)}
-              ${collaboratorProfileInfo("◷", "% de cursos", courses)}
-            </div>
-          </section>
-
-          <section class="collaborator-profile-section collaborator-profile-rating wide" data-tone="${rating.tone}">
-            <h4>Calificación de perfil</h4>
-            <div class="collaborator-rating-summary">
-              <div>
-                <strong>${rating.score.toFixed(1)}</strong>
-                <em>${escapeHtml(rating.label)}</em>
-              </div>
-              <p>${escapeHtml(rating.summary)}</p>
-            </div>
-            <div class="collaborator-rating-weeks">
-              <span><b>Destacado:</b> ${escapeHtml(rating.highlighted.join(", ") || "Sin semanas")}</span>
-              <span><b>Mejorable:</b> ${escapeHtml(rating.developing.join(", ") || "Sin semanas")}</span>
-            </div>
-          </section>
-
-          <section class="collaborator-profile-section profile-orange">
-            <h4>Información laboral</h4>
-            <div class="collaborator-profile-list"><p><b>Puesto:</b> ${escapeHtml(puesto)}</p><p><b>Coordinador:</b> ${escapeHtml(coordinator)}</p><p><b>Campus:</b> ${escapeHtml(campus)}</p><p><b>División:</b> ${escapeHtml(division)}</p><p><b>Departamento:</b> ${escapeHtml(department)}</p><p><b>Materia / rol:</b> ${escapeHtml(subject)}</p></div>
-          </section>
-
-          <section class="collaborator-profile-section profile-purple">
-            <h4>Registro deportivo</h4>
-            <div class="collaborator-profile-evaluations">${evaluations.length ? evaluations.map(collaboratorProfileEvaluationMarkup).join("") : `<div class="collaborator-profile-empty">Sin registro localizado</div>`}</div>
-          </section>
-
-          <section class="collaborator-profile-section profile-purple">
-            <h4>Contactos de emergencia</h4>
-            <div class="collaborator-profile-list"><p><b>Contacto 1:</b> ${escapeHtml(contact1)}</p><p><b>Número 1:</b> ${escapeHtml(phone1)}</p><p><b>Contacto 2:</b> ${escapeHtml(contact2)}</p><p><b>Número 2:</b> ${escapeHtml(phone2)}</p></div>
-          </section>
-
-          <section class="collaborator-profile-section profile-blue">
-            <h4>Datos adicionales</h4>
-            <div class="collaborator-profile-list two-columns"><p><b>Destacados:</b> ${escapeHtml(highlights)}</p><p><b>En desarrollo:</b> ${escapeHtml(development)}</p><p><b>Evento Chipinque:</b> ${escapeHtml(chipinque)}</p><p><b>Evento Cozumelito:</b> ${escapeHtml(cozumel)}</p><p><b>Meta:</b> ${escapeHtml(goal)}</p><p><b>Asistencia al gimnasio:</b> ${escapeHtml(gymAttendance)}</p></div>
-          </section>
-
-          <section class="collaborator-profile-section profile-navy wide">
-            <h4>Insignias y logros</h4>
-            <div class="collaborator-profile-badges">${badges.length ? badges.join("") : `<div class="collaborator-profile-empty">Sin insignias registradas</div>`}</div>
-          </section>
+          `).join("")}
         </div>
       </section>
     </div>
@@ -11691,37 +10859,6 @@ function renderVivenciaEventHistory() {
   `;
 }
 
-function renderVivenciaEventGallery(event, editable) {
-  if (!event) {
-    return `
-      <section class="vivencia-gallery-panel">
-        <div><p class="eyebrow">Galería</p><h3>Imágenes del evento</h3></div>
-        <p>Guarda primero un evento para poder agregar imágenes asociadas a él.</p>
-      </section>
-    `;
-  }
-  const images = vivenciaImagesForEvent(event.id);
-  return `
-    <section class="vivencia-gallery-panel">
-      <div class="vivencia-gallery-heading">
-        <div><p class="eyebrow">Galería</p><h3>Imágenes del evento</h3><span>${images.length} archivo${images.length === 1 ? "" : "s"} asociado${images.length === 1 ? "" : "s"} a este evento</span></div>
-        <button class="ghost-btn compact-action" id="uploadVivenciaEventImages" type="button" ${editable && !vivenciaEventImagesUploading ? "" : "disabled"}>${vivenciaEventImagesUploading ? "Guardando..." : "Agregar imágenes"}</button>
-        <input id="vivenciaEventImagesFile" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden />
-      </div>
-      ${images.length ? `
-        <div class="vivencia-gallery">
-          ${images.map((image) => `
-            <figure>
-              <a href="${escapeHtml(image.public_url || "#")}" target="_blank" rel="noopener"><img src="${escapeHtml(image.public_url || "")}" alt="${escapeHtml(image.file_name || "Imagen del evento")}" /></a>
-              <figcaption><span>${escapeHtml(image.file_name || "Imagen")}</span>${editable ? `<button type="button" class="danger-btn compact-action" data-vivencia-image-delete="${escapeHtml(image.id)}">Eliminar</button>` : ""}</figcaption>
-            </figure>
-          `).join("")}
-        </div>
-      ` : `<div class="vivencia-empty-mini">Aún no hay imágenes asociadas a este evento.</div>`}
-    </section>
-  `;
-}
-
 function renderVivenciaEventsView() {
   const editable = currentUser?.auth === "supabase" && canEditArea("vivencia") && vivenciaEventsAvailable;
   const today = new Date().toISOString().slice(0, 10);
@@ -11768,7 +10905,6 @@ function renderVivenciaEventsView() {
             ${detailEvent ? `<button class="ghost-btn full" id="newVivenciaEvent" type="button">Capturar evento nuevo</button>` : ""}
             <button class="primary-btn full" id="saveVivenciaEvent" type="submit" ${editable ? "" : "disabled"}>${detailEvent ? "Guardar detalle" : "Guardar evento"}</button>
           </form>
-          ${renderVivenciaEventGallery(detailEvent, editable)}
           <div class="vivencia-bulk-upload">
             <div>
               <strong>Carga masiva de eventos</strong>
@@ -11988,13 +11124,10 @@ function renderMasterScheduleUploader(count, errors) {
         <h3>Subir archivo maestro de Indicadores</h3>
         <p>WellSync lee automaticamente las hojas "programacion clases" y "booking ofertados", consolida ambas y actualiza el Calendario Maestro.</p>
       </div>
-      <div class="upload-action-row">
-        <label class="file-button">
-          Subir archivo maestro
-          <input type="file" accept=".xlsx,.xls" data-schedule-upload="master" />
-        </label>
-        <button class="ghost-btn" type="button" data-download-class-template="master">Plantilla archivo maestro</button>
-      </div>
+      <label class="file-button">
+        Subir archivo maestro
+        <input type="file" accept=".xlsx,.xls" data-schedule-upload="master" />
+      </label>
       <strong>${count} eventos PMT1 consolidados</strong>
       ${errors?.length ? `
         <details class="schedule-errors" open>
@@ -12015,13 +11148,10 @@ function renderScheduleUploader(type, title, count, errors) {
         <h3>${title}</h3>
         <p>Usar solo si el archivo maestro no trae esta hoja o si se quiere actualizar esta fuente manualmente.</p>
       </div>
-      <div class="upload-action-row">
-        <label class="file-button">
-          ${title}
-          <input type="file" accept=".xlsx,.xls,.csv" data-schedule-upload="${type}" />
-        </label>
-        <button class="ghost-btn" type="button" data-download-class-template="${type}">Plantilla ${type === "official" ? "programación oficial" : "Booking"}</button>
-      </div>
+      <label class="file-button">
+        ${title}
+        <input type="file" accept=".xlsx,.xls,.csv" data-schedule-upload="${type}" />
+      </label>
       <strong>${count} registros validos</strong>
       ${errors?.length ? `
         <details class="schedule-errors" open>
@@ -12811,7 +11941,6 @@ function render() {
   const isIntramuros = activeArea === "intramuros";
   const isGeneral = activeArea === "general";
   const isCollaborators = activeArea === "colaboradores";
-  const isPresentation = activeArea === "presentacion";
   const isParticipationOnly = activeArea === "gamer" || activeArea === "representativos";
   $$(".segmented button").forEach((button) => { button.style.order = ""; });
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
@@ -12841,9 +11970,7 @@ function render() {
     if (reportsTab) reportsTab.style.order = "30";
   }
   const filtersBand = $(".filters-band");
-  if (filtersBand) filtersBand.hidden = isGym || isBudget || isPresentation || isCollaborators;
-  const segmentedNav = $(".segmented");
-  if (segmentedNav) segmentedNav.hidden = isPresentation;
+  if (filtersBand) filtersBand.hidden = isGym || isBudget;
   if (isParticipationOnly && !["dashboard", "reports"].includes(activeView)) activeView = "dashboard";
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
@@ -12878,7 +12005,6 @@ function render() {
     contentHtml = `<div class="permission-strip">No se pudo cargar esta vista: ${escapeHtml(error?.message || "error desconocido")}</div>`;
   }
   $("#contentArea").innerHTML = contentHtml;
-  if (isPresentation) bindExecutivePresentationControls();
   $$(".segmented button[data-view]").forEach((button) => {
     button.onclick = () => {
       if (button.hidden) return;
@@ -13155,19 +12281,11 @@ function render() {
     render();
   });
   $("#vivenciaEventForm")?.addEventListener("submit", saveVivenciaEvent);
-  $("#vivenciaImpactGoalForm")?.addEventListener("submit", saveVivenciaImpactGoal);
   $("#newVivenciaEvent")?.addEventListener("click", () => {
     selectedVivenciaEventForDetail = "";
     render();
   });
   $("#uploadVivenciaEvents")?.addEventListener("click", () => $("#vivenciaEventsFile")?.click());
-  $("#uploadVivenciaEventImages")?.addEventListener("click", () => $("#vivenciaEventImagesFile")?.click());
-  $("#vivenciaEventImagesFile")?.addEventListener("change", async (event) => {
-    const files = event.target.files;
-    if (!files?.length || !selectedVivenciaEventForDetail) return;
-    await uploadVivenciaEventImages(files, selectedVivenciaEventForDetail);
-    event.target.value = "";
-  });
   $("#vivenciaEventsFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -13202,9 +12320,6 @@ function render() {
   }));
   $$("[data-vivencia-delete]").forEach((button) => button.addEventListener("click", () => {
     deleteVivenciaEvent(button.dataset.vivenciaDelete);
-  }));
-  $$("[data-vivencia-image-delete]").forEach((button) => button.addEventListener("click", () => {
-    deleteVivenciaEventImage(button.dataset.vivenciaImageDelete);
   }));
   $("#classSimulatorForm")?.addEventListener("submit", registerClassSimulator);
   $$("[data-delete-class-simulator]").forEach((button) => button.addEventListener("click", () => deleteClassSimulatorRow(button.dataset.deleteClassSimulator)));
@@ -13444,9 +12559,6 @@ function render() {
   }));
   $("#exportClassGrades")?.addEventListener("click", downloadClassGradesCsv);
   $("#uploadClassGrades")?.addEventListener("click", () => $("#classGradesFile")?.click());
-  $$('[data-download-class-template]').forEach((button) => button.addEventListener("click", () => {
-    downloadClassTemplate(button.dataset.downloadClassTemplate);
-  }));
   $("#classGradesFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -13770,43 +12882,6 @@ function downloadClassGradesCsv() {
   toast("Calificaciones exportadas");
 }
 
-function downloadClassTemplate(type) {
-  const templates = {
-    grades: {
-      filename: "plantilla-calificaciones.csv",
-      rows: [{ matricula: "A01234567", materia: "ACONDICIONAMIENTO FISICO PMT1", calificacion: "95", periodo: "AD26", clave_materia: "DEP101", CRN: "12345", grupo: "1", profesor: "Nombre del profesor", carrera: "ITC", semestre: "3" }]
-    },
-    official: {
-      filename: "plantilla-programacion-oficial.csv",
-      rows: [{ profesor: "Nombre del profesor", disciplina: "Nombre de clase", dia: "Lunes", hora_inicio: "09:00", hora_fin: "10:00", instalacion: "Gimnasio", frecuencia: "Semanal", grupo: "1" }]
-    },
-    booking: {
-      filename: "plantilla-booking.csv",
-      rows: [{ profesor: "Nombre del profesor", actividad: "Nombre de actividad", dia: "Lunes", hora_inicio: "09:00", hora_fin: "10:00", instalacion: "Gimnasio", frecuencia: "Semanal" }]
-    }
-  };
-  if (type === "master") {
-    if (!window.XLSX) {
-      toast("La plantilla maestra requiere el lector de Excel. Intenta de nuevo cuando cargue la página.");
-      return;
-    }
-    const workbook = window.XLSX.utils.book_new();
-    const official = templates.official.rows;
-    const booking = templates.booking.rows;
-    window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(official), "programacion clases");
-    window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(booking), "booking ofertados");
-    window.XLSX.writeFile(workbook, "plantilla-archivo-maestro-indicadores.xlsx");
-    toast("Plantilla archivo maestro descargada");
-    return;
-  }
-  const template = templates[type];
-  if (!template) return;
-  const headers = Object.keys(template.rows[0]);
-  const csv = [headers.join(","), ...template.rows.map((row) => headers.map((key) => csvEscape(row[key])).join(","))].join("\n");
-  downloadBlob(csv, template.filename);
-  toast(`Plantilla ${type === "grades" ? "de calificaciones" : type === "official" ? "de programación oficial" : "de Booking"} descargada`);
-}
-
 function downloadBlob(text, filename) {
   const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -14067,24 +13142,7 @@ function renderBlueprint(area) {
 renderCareers();
 render();
 loadPlanningCalendarRows().then(() => render());
-loadSupabaseSession().then(async () => {
-  await loadExecutivePresentationNotes();
-  render();
-});
-
-document.addEventListener("keydown", (event) => {
-  if (!executivePresentationMode) return;
-  if (event.key === "ArrowRight") {
-    executivePresentationIndex = Math.min(EXECUTIVE_PRESENTATION_SLIDES.length - 1, executivePresentationIndex + 1);
-    render();
-  } else if (event.key === "ArrowLeft") {
-    executivePresentationIndex = Math.max(0, executivePresentationIndex - 1);
-    render();
-  } else if (event.key === "Escape") {
-    executivePresentationMode = false;
-    render();
-  }
-});
+loadSupabaseSession().then(() => render());
 
 document.addEventListener("click", (event) => {
   const viewButton = event.target.closest?.(".segmented button[data-view]");
@@ -14156,7 +13214,6 @@ $("#logoutButton").addEventListener("click", () => {
     selectedVivenciaEventForParticipants = "";
     selectedVivenciaEventForDetail = "";
     vivenciaParticipantsModalOpen = false;
-    vivenciaEventImagesUploading = false;
     physicalHallOfFameOpen = false;
     physicalHallOfFameTopTest = "";
     physicalHallOfFameGender = "todos";
@@ -14184,3 +13241,4 @@ document.addEventListener("mock-config-save", () => {
 
 loadUniformesData();
 loadClassGradeSeedData().then(() => render());
+
