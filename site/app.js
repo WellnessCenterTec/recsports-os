@@ -462,7 +462,7 @@ let activeView = "dashboard";
 const EXECUTIVE_PRESENTATION_STORAGE_KEY = "wellsync_executive_presentation_notes";
 const EXECUTIVE_PRESENTATION_SLIDES = [
   { key: "cover", title: "Portada", icon: "presentation" },
-  { key: "general-indicators", title: "Indicadores generales", icon: "chart-no-axes-combined" },
+  { key: "general-indicators", title: "Calendario escolar", icon: "calendar-days" },
   { key: "priorities", title: "Puntos prioritarios", icon: "list-checks" },
   { key: "performance", title: "Evaluación de desempeño", icon: "badge-check" },
   { key: "budget", title: "Presupuesto", icon: "wallet-cards" },
@@ -476,7 +476,7 @@ const EXECUTIVE_PRESENTATION_SLIDES = [
 ];
 const EXECUTIVE_PRESENTATION_EDIT_FIELDS = {
   cover: [],
-  "general-indicators": [["comment_general-indicators", "Comentario ejecutivo", "Lectura o mensaje clave para la junta"]],
+  "general-indicators": [],
   priorities: [["priorities", "Puntos prioritarios", "Un punto por línea"]],
   performance: [["highlight_nominas", "Destacados", ""], ["improving_nominas", "En mejora", ""]],
   budget: [["comment_budget", "Comentario de presupuesto", "Riesgos, decisiones o contexto financiero"]],
@@ -8228,6 +8228,83 @@ function presentationMetric(label, value, note = "") {
   return `<article class="executive-presentation-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(shown))}</strong>${note ? `<em>${escapeHtml(note)}</em>` : ""}</article>`;
 }
 
+function schoolCalendarProgressSegments(referenceDate = new Date()) {
+  const canvasWidth = 1078;
+  const canvasHeight = 732;
+  const rowHeight = 24.7;
+  const months = [
+    [2026, 5, 20, 197, 156], [2026, 6, 228, 206, 156], [2026, 7, 446, 217, 156],
+    [2026, 8, 674, 185, 156], [2026, 9, 871, 192, 156], [2026, 10, 20, 197, 341],
+    [2026, 11, 228, 206, 341], [2027, 0, 446, 217, 341], [2027, 1, 674, 185, 341],
+    [2027, 2, 871, 192, 341], [2027, 3, 20, 197, 527], [2027, 4, 228, 206, 527],
+    [2027, 5, 446, 217, 527], [2027, 6, 674, 185, 527]
+  ];
+  const today = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+  const segments = [];
+  months.forEach(([year, month, x, width, y]) => {
+    const monthStart = new Date(year, month, 1);
+    if (today <= monthStart) return;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const pastThrough = today.getFullYear() === year && today.getMonth() === month
+      ? Math.min(daysInMonth, today.getDate() - 1)
+      : daysInMonth;
+    if (pastThrough < 1) return;
+    const firstColumn = (monthStart.getDay() + 6) % 7;
+    const rows = new Map();
+    for (let day = 1; day <= pastThrough; day += 1) {
+      const cellIndex = firstColumn + day - 1;
+      const row = Math.floor(cellIndex / 7);
+      const column = cellIndex % 7;
+      if (!rows.has(row)) rows.set(row, { start: column, end: column });
+      else rows.get(row).end = column;
+    }
+    const columnWidth = width / 7;
+    rows.forEach(({ start, end }, row) => {
+      const left = x + start * columnWidth + 2;
+      const lineWidth = (end - start + 1) * columnWidth - 4;
+      const top = y + row * rowHeight + rowHeight * 0.62;
+      segments.push({
+        left: left / canvasWidth * 100,
+        top: top / canvasHeight * 100,
+        width: lineWidth / canvasWidth * 100
+      });
+    });
+  });
+  return segments;
+}
+
+function renderPresentationSchoolCalendar() {
+  const segments = schoolCalendarProgressSegments();
+  const ephemerides = [
+    { day: "01", title: "Día del Ingeniero", scope: "México", tone: "blue" },
+    { day: "11", title: "Día Mundial de la Población", scope: "ONU", tone: "teal" },
+    { day: "12", title: "Día del Abogado", scope: "México", tone: "gold" },
+    { day: "15", title: "Habilidades de la Juventud", scope: "ONU", tone: "purple" },
+    { day: "18", title: "Aniversario luctuoso de Benito Juárez", scope: "México", tone: "green" },
+    { day: "18", title: "Día Internacional de Nelson Mandela", scope: "ONU", tone: "navy" },
+    { day: "20", title: "Día Mundial del Ajedrez", scope: "ONU", tone: "blue" },
+    { day: "25", title: "Mujeres y Niñas Afrodescendientes", scope: "ONU", tone: "pink" },
+    { day: "26", title: "Conservación de los Manglares", scope: "UNESCO", tone: "teal" },
+    { day: "28", title: "Día Mundial contra la Hepatitis", scope: "OMS", tone: "gold" },
+    { day: "30", title: "Día Internacional de la Amistad", scope: "ONU", tone: "purple" },
+    { day: "30", title: "Día Mundial contra la Trata", scope: "ONU", tone: "green" }
+  ];
+  return `<div class="executive-presentation-school-calendar">
+    <div class="executive-presentation-school-calendar-sheet">
+      <img src="./assets/calendario-escolar-2026-2027.png" alt="Calendario escolar 2026-2027" />
+      <div class="executive-presentation-school-calendar-progress" aria-hidden="true">
+        ${segments.map((segment) => `<span style="left:${segment.left.toFixed(3)}%;top:${segment.top.toFixed(3)}%;width:${segment.width.toFixed(3)}%"></span>`).join("")}
+      </div>
+    </div>
+    <aside class="executive-presentation-ephemerides" aria-label="Efemérides de julio">
+      <header><span>Efemérides del mes</span><strong>Julio 2026</strong></header>
+      <div class="executive-presentation-ephemerides-list">
+        ${ephemerides.map((item) => `<article><time class="${item.tone}">${item.day}</time><div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.scope)}</span></div></article>`).join("")}
+      </div>
+    </aside>
+  </div>`;
+}
+
 function executivePresentationBudgetData() {
   const areasForPeriod = budgetAreaPlans.filter((row) => !row.period || row.period === budgetFilters.period);
   const summaries = areasForPeriod.map((row) => budgetAreaSummary(row.area));
@@ -8356,9 +8433,7 @@ function renderExecutivePresentationSlide(slide, index) {
   if (slide.key === "cover") {
     body = `<div class="executive-presentation-cover"><div><p>WellSync · Athletics & Wellness</p><h2>Presentación semanal</h2><strong>${escapeHtml(presentationWeekKey())}</strong><span>${new Date().toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })}</span></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div>`;
   } else if (slide.key === "general-indicators") {
-    const unique = new Set(operational.map((row) => row.matricula).filter(Boolean)).size;
-    const total = operational.reduce((sum, row) => sum + Number(row.registros || 0), 0);
-    body = `<div class="executive-presentation-metrics">${presentationMetric("Matrículas únicas", unique || null, "Registros consolidados")}${presentationMetric("Atenciones", total || null, "Acumulado actual")}${presentationMetric("Clases acreditadas", classes.finished || null, "Corte disponible")}${presentationMetric("Eventos de Vivencia", vivenciaEvents.length || null, "Historial cargado")}</div>${presentationManualNote(notes, "comment_general-indicators", "Lectura ejecutiva")}`;
+    body = renderPresentationSchoolCalendar();
   } else if (slide.key === "priorities") {
     body = renderPresentationPriorities(notes);
   } else if (slide.key === "performance") {

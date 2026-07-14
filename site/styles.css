@@ -10193,6 +10193,34 @@ tbody tr:hover td {
 .executive-presentation-empty svg { width: 42px; height: 42px; margin-bottom: 10px; color: #9eb1c1; }
 .executive-presentation-empty strong { color: #344d66; font-size: 18px; }
 .executive-presentation-empty span { margin-top: 6px; font-size: 13px; }
+.executive-presentation-school-calendar { display: flex; align-items: center; justify-content: center; gap: 16px; height: 100%; min-height: 0; }
+.executive-presentation-school-calendar-sheet { position: relative; flex: 0 1 auto; height: 100%; max-width: calc(100% - 310px); aspect-ratio: 1078 / 732; overflow: hidden; background: #fff; border: 1px solid #d2dee8; border-radius: 7px; box-shadow: 0 7px 22px rgba(8, 43, 85, .12); }
+.executive-presentation-school-calendar-sheet > img { display: block; width: 100%; height: 100%; object-fit: fill; }
+.executive-presentation-school-calendar-progress { position: absolute; inset: 0; pointer-events: none; }
+.executive-presentation-school-calendar-progress span { position: absolute; display: block; height: 3px; background: #ef2737; border-radius: 4px; box-shadow: 0 0 0 1px rgba(255,255,255,.42), 0 1px 2px rgba(120,0,0,.28); transform: translateY(-50%); }
+.executive-presentation-school-calendar-status { flex: 0 0 210px; align-self: stretch; display: grid; align-content: center; gap: 9px; padding: 18px; color: #314a62; background: #fff; border: 1px solid #d1dee8; border-top: 5px solid #0a66b7; border-radius: 7px; }
+.executive-presentation-school-calendar-status span { color: #0a66b7; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+.executive-presentation-school-calendar-status strong { color: #082b55; font-size: 22px; line-height: 1.15; }
+.executive-presentation-school-calendar-status em { color: #667b8f; font-size: 12px; font-style: normal; line-height: 1.4; }
+.executive-presentation-school-calendar-status::before { content: "✓"; display: grid; place-items: center; width: 52px; height: 52px; color: #fff; background: #ef2737; border-radius: 50%; font-size: 28px; font-weight: 900; box-shadow: 0 8px 20px rgba(239,39,55,.18); }
+.executive-presentation-ephemerides { flex: 0 0 290px; align-self: stretch; min-height: 0; overflow: hidden; color: #314a62; background: #fff; border: 1px solid #d1dee8; border-top: 5px solid #0a66b7; border-radius: 7px; }
+.executive-presentation-ephemerides header { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; padding: 12px 14px 10px; border-bottom: 1px solid #d9e4ed; }
+.executive-presentation-ephemerides header span { color: #0a66b7; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+.executive-presentation-ephemerides header strong { color: #082b55; font-size: 17px; line-height: 1; }
+.executive-presentation-ephemerides-list { display: grid; height: calc(100% - 48px); padding: 4px 10px 8px; }
+.executive-presentation-ephemerides-list article { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 9px; min-height: 0; padding: 3px 0; border-bottom: 1px solid #e3ebf1; }
+.executive-presentation-ephemerides-list article:last-child { border-bottom: 0; }
+.executive-presentation-ephemerides-list time { display: grid; place-items: center; width: 34px; height: 27px; color: #fff; border-radius: 5px; font-size: 12px; font-weight: 950; }
+.executive-presentation-ephemerides-list time.blue { background: #0869bd; }
+.executive-presentation-ephemerides-list time.teal { background: #008c89; }
+.executive-presentation-ephemerides-list time.gold { color: #453000; background: #f3b616; }
+.executive-presentation-ephemerides-list time.purple { background: #7b35a8; }
+.executive-presentation-ephemerides-list time.green { background: #08945f; }
+.executive-presentation-ephemerides-list time.navy { background: #082b55; }
+.executive-presentation-ephemerides-list time.pink { background: #df3c83; }
+.executive-presentation-ephemerides-list article div { min-width: 0; }
+.executive-presentation-ephemerides-list article strong { display: block; overflow: hidden; color: #17334f; font-size: 10px; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
+.executive-presentation-ephemerides-list article span { display: block; margin-top: 1px; color: #72869a; font-size: 8px; font-weight: 800; text-transform: uppercase; }
 .executive-presentation-checklist { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
 .executive-presentation-checklist li { padding: 12px 14px 12px 40px; background: #fff; border: 1px solid #d9e3ec; border-radius: 6px; position: relative; }
 .executive-presentation-checklist li::before { content: "✓"; position: absolute; left: 14px; color: #079365; font-weight: 900; }
