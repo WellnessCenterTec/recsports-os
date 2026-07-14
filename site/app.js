@@ -8073,6 +8073,54 @@ function presentationTextItems(value) {
   return String(value || "").split(/\n+/).map((item) => item.trim()).filter(Boolean);
 }
 
+function presentationPriorityItems(notes) {
+  const defaults = [
+    "Planeación: Confirmar calendario y responsables del siguiente bloque.",
+    "Boletos de concierto: Definir entrega, control y seguimiento operativo.",
+    "Desalojo de casillero: Comunicar fechas clave y validar espacios liberados.",
+    "Indicadores: Enviar archivos y lecturas de cierre por área.",
+    "Evaluaciones: Compartir retroalimentación constructiva y acuerdos."
+  ];
+  const icons = ["✓", "▦", "▤", "▥", "★"];
+  const tones = ["blue", "teal", "green", "purple", "navy"];
+  const lines = presentationTextItems(notes.priorities).length ? presentationTextItems(notes.priorities) : defaults;
+  return lines.slice(0, 5).map((line, index) => {
+    const [rawTitle, ...rest] = line.split(":");
+    const hasTitle = rest.length > 0;
+    const title = (hasTitle ? rawTitle : line).trim();
+    const text = (hasTitle ? rest.join(":") : "").trim();
+    return {
+      number: index + 1,
+      title: title || `Prioridad ${index + 1}`,
+      text: text || "Pendiente de definir detalle operativo.",
+      icon: icons[index % icons.length],
+      tone: tones[index % tones.length]
+    };
+  });
+}
+
+function renderPresentationPriorities(notes) {
+  const items = presentationPriorityItems(notes);
+  return `
+    <div class="executive-presentation-priority-board">
+      <div class="executive-presentation-priority-intro">
+        <span>Bloque operativo</span>
+        <strong>Enfocados en mejorar nuestra operación y experiencia</strong>
+      </div>
+      <div class="executive-presentation-priority-grid">
+        ${items.map((item) => `
+          <article class="executive-presentation-priority-card ${item.tone}">
+            <span class="executive-presentation-priority-number">${item.number}</span>
+            <span class="executive-presentation-priority-icon" aria-hidden="true">${escapeHtml(item.icon)}</span>
+            <h3>${escapeHtml(item.title)}</h3>
+            <p>${escapeHtml(item.text)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function presentationEmptyState(label = "Sin información disponible") {
   return `<div class="executive-presentation-empty"><i data-lucide="database-zap"></i><strong>${escapeHtml(label)}</strong><span>La diapositiva se actualizará cuando exista una fuente conectada.</span></div>`;
 }
@@ -8214,7 +8262,7 @@ function renderExecutivePresentationSlide(slide, index) {
     const total = operational.reduce((sum, row) => sum + Number(row.registros || 0), 0);
     body = `<div class="executive-presentation-metrics">${presentationMetric("Matrículas únicas", unique || null, "Registros consolidados")}${presentationMetric("Atenciones", total || null, "Acumulado actual")}${presentationMetric("Clases acreditadas", classes.finished || null, "Corte disponible")}${presentationMetric("Eventos de Vivencia", vivenciaEvents.length || null, "Historial cargado")}</div>${presentationManualNote(notes, "comment_general-indicators", "Lectura ejecutiva")}`;
   } else if (slide.key === "priorities") {
-    body = manualList("priorities");
+    body = renderPresentationPriorities(notes);
   } else if (slide.key === "performance") {
     body = `<div class="executive-presentation-performance selected">${renderPresentationPortraitGroup("Destacados", "highlight", presentationSelectedCollaborators(notes, "highlight_nominas"))}${renderPresentationPortraitGroup("En mejora", "improving", presentationSelectedCollaborators(notes, "improving_nominas"))}</div>`;
   } else if (slide.key === "budget") {

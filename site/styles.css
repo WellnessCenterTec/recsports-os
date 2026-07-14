@@ -10196,6 +10196,33 @@ tbody tr:hover td {
 .executive-presentation-checklist { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
 .executive-presentation-checklist li { padding: 12px 14px 12px 40px; background: #fff; border: 1px solid #d9e3ec; border-radius: 6px; position: relative; }
 .executive-presentation-checklist li::before { content: "✓"; position: absolute; left: 14px; color: #079365; font-weight: 900; }
+.executive-presentation-priority-board { display: grid; grid-template-rows: auto 1fr; height: 100%; min-height: 0; }
+.executive-presentation-priority-intro { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 3px solid #082b55; }
+.executive-presentation-priority-intro span { color: #0a66b7; font-size: 12px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+.executive-presentation-priority-intro strong { color: #52677c; font-size: 14px; }
+.executive-presentation-priority-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); min-height: 0; }
+.executive-presentation-priority-card { position: relative; display: grid; grid-template-rows: 52px 74px auto 1fr; justify-items: center; gap: 8px; min-width: 0; padding: 0 14px 12px; text-align: center; border-right: 1px solid #cfdce7; }
+.executive-presentation-priority-card:last-child { border-right: 0; }
+.executive-presentation-priority-number { display: grid; place-items: center; width: 48px; height: 48px; color: #fff; background: #082b55; border-radius: 50%; font-size: 25px; font-weight: 950; box-shadow: 0 9px 20px rgba(8, 43, 85, .16); }
+.executive-presentation-priority-icon { display: grid; place-items: center; width: 68px; height: 68px; color: #0a66b7; background: #eff6fb; border: 2px solid #d6e6f1; border-radius: 16px; font-size: 38px; font-weight: 950; line-height: 1; box-shadow: inset 0 0 0 4px rgba(255,255,255,.7); }
+.executive-presentation-priority-card h3 { align-self: start; margin: 0; color: #082b55; font-size: clamp(14px, 1.2vw, 23px); line-height: 1.08; text-transform: uppercase; }
+.executive-presentation-priority-card h3::after { content: ""; display: block; width: min(100%, 120px); height: 3px; margin: 10px auto 0; background: currentColor; border-radius: 10px; opacity: .9; }
+.executive-presentation-priority-card p { margin: 0; color: #33465a; font-size: clamp(10px, .85vw, 15px); font-weight: 800; line-height: 1.35; }
+.executive-presentation-priority-card p::before { content: "✓"; display: inline-grid; place-items: center; width: 17px; height: 17px; margin-right: 6px; color: #fff; background: currentColor; border-radius: 50%; font-size: 11px; vertical-align: text-top; }
+.executive-presentation-priority-card.teal .executive-presentation-priority-number,
+.executive-presentation-priority-card.teal p::before { background: #087c80; }
+.executive-presentation-priority-card.teal .executive-presentation-priority-icon,
+.executive-presentation-priority-card.teal h3 { color: #087c80; }
+.executive-presentation-priority-card.green .executive-presentation-priority-number,
+.executive-presentation-priority-card.green p::before { background: #087a26; }
+.executive-presentation-priority-card.green .executive-presentation-priority-icon,
+.executive-presentation-priority-card.green h3 { color: #087a26; }
+.executive-presentation-priority-card.purple .executive-presentation-priority-number,
+.executive-presentation-priority-card.purple p::before { background: #4f176f; }
+.executive-presentation-priority-card.purple .executive-presentation-priority-icon,
+.executive-presentation-priority-card.purple h3 { color: #4f176f; }
+.executive-presentation-priority-card.navy .executive-presentation-priority-number,
+.executive-presentation-priority-card.navy p::before { background: #082b55; }
 .executive-presentation-bars { display: grid; gap: 9px; margin-top: 15px; }
 .executive-presentation-bars > div { display: grid; grid-template-columns: 150px 1fr 48px; align-items: center; gap: 10px; }
 .executive-presentation-bars b { height: 12px; overflow: hidden; background: #e4ebf1; border-radius: 8px; }
