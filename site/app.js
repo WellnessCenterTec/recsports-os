@@ -468,7 +468,7 @@ const EXECUTIVE_PRESENTATION_SLIDES = [
   { key: "budget", title: "Presupuesto", icon: "wallet-cards" },
   { key: "block-activities", title: "Actividades del bloque", icon: "calendar-days" },
   { key: "inventory", title: "Bodegas / inventario", icon: "warehouse" },
-  { key: "schedules", title: "Horarios", icon: "clock-3" },
+  { key: "feedback", title: "Retroalimentación personal", icon: "messages-square" },
   { key: "weekly-topics", title: "Temas semanales", icon: "notebook-tabs" },
   { key: "team", title: "Equipo", icon: "users" },
   { key: "detailed-schedules", title: "Horarios detallados", icon: "calendar-clock" },
@@ -482,7 +482,7 @@ const EXECUTIVE_PRESENTATION_EDIT_FIELDS = {
   budget: [["comment_budget", "Comentario de presupuesto", "Riesgos, decisiones o contexto financiero"]],
   "block-activities": [["comment_block-activities", "Comentario del calendario", "Prioridades o cambios relevantes"]],
   inventory: [["inventory", "Bodegas e inventario", "Estado, alertas y pendientes; un punto por línea"]],
-  schedules: [["comment_schedules", "Comentario de horarios", "Cambios, cobertura o decisiones"]],
+  feedback: [["feedback_deadline", "Fecha límite de retroalimentación", ""], ["feedback_records", "Seguimiento de colaboradores", ""]],
   "weekly-topics": [
     ["area_topics", "Temas por área", "Área: tema, un punto por línea"],
     ["topics", "Temas semanales", "Un tema por línea"],
@@ -503,6 +503,7 @@ let executivePresentationCloudAvailable = true;
 let executivePresentationSaving = false;
 let executivePresentationNotes = loadExecutivePresentationLocalNotes();
 let presentationInventoryDraft = null;
+let presentationFeedbackDraft = null;
 let physicalHallOfFameOpen = false;
 let physicalHallOfFameGender = "todos";
 let physicalHallOfFameTopTest = "";
@@ -8067,7 +8068,7 @@ function saveExecutivePresentationLocalNotes(notes = executivePresentationNotes)
 
 function presentationNotesForCurrentWeek() {
   const key = presentationWeekKey();
-  return executivePresentationNotes[key] || {};
+  return { ...(executivePresentationNotes[key] || {}), ...(executivePresentationNotes.__feedback_tracking || {}) };
 }
 
 function presentationTextItems(value) {
@@ -8406,6 +8407,103 @@ function renderPresentationCollaboratorPicker(key, label, notes) {
   }).join("")}</div></fieldset>`;
 }
 
+function presentationFeedbackRecords(value) {
+  if (value && typeof value === "object" && !Array.isArray(value)) return { ...value };
+  try {
+    const parsed = JSON.parse(String(value || "{}"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function presentationFeedbackCollaborators(notes) {
+  const records = presentationFeedbackRecords(notes.feedback_records);
+  const profiles = new Map();
+  collaboratorRows().forEach((row) => {
+    const profile = presentationCollaboratorProfile(row);
+    if (!profile.nomina) return;
+    const key = collaboratorMatchKey(profile.nomina);
+    if (!profiles.has(key)) profiles.set(key, { ...profile, coordinator: String(row.Coordinador || "Sin coordinador").trim() });
+  });
+  return [...profiles.values()]
+    .sort((a, b) => a.name.localeCompare(b.name, "es"))
+    .map((profile) => {
+      const record = records[profile.nomina] || records[collaboratorMatchKey(profile.nomina)] || {};
+      return {
+        ...profile,
+        done: Boolean(record.done),
+        result: String(record.result || "").trim(),
+        note: String(record.note || "").trim(),
+        completedAt: String(record.completedAt || "").trim()
+      };
+    });
+}
+
+function presentationFeedbackResult(result) {
+  const normalized = String(result || "").toLowerCase();
+  if (normalized === "positiva") return { label: "Positiva", tone: "positive" };
+  if (normalized === "acuerdos") return { label: "Con acuerdos", tone: "agreements" };
+  if (normalized === "seguimiento") return { label: "Seguimiento", tone: "follow-up" };
+  return { label: "Realizada", tone: "completed" };
+}
+
+function presentationFeedbackDeadline(value) {
+  const raw = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return "Por definir";
+  return new Date(`${raw}T12:00:00`).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function renderPresentationFeedback(notes) {
+  const collaborators = presentationFeedbackCollaborators(notes);
+  if (!collaborators.length) return presentationEmptyState("Sin colaboradores registrados");
+  const completed = collaborators.filter((item) => item.done).length;
+  const pending = collaborators.length - completed;
+  const progress = Math.round(completed / collaborators.length * 100);
+  const columns = collaborators.length > 64 ? 5 : 4;
+  const rows = Math.ceil(collaborators.length / columns);
+  return `<div class="executive-presentation-feedback-board">
+    <div class="executive-presentation-feedback-summary">
+      <div><span>Avance general</span><strong>${progress}%</strong><b><i style="width:${progress}%"></i></b></div>
+      <div><span>Retroalimentaciones</span><strong>${completed} <em>de ${collaborators.length}</em></strong></div>
+      <div><span>Pendientes</span><strong>${pending}</strong></div>
+      <div class="deadline"><span>Fecha límite</span><strong>${escapeHtml(presentationFeedbackDeadline(notes.feedback_deadline))}</strong></div>
+    </div>
+    <div class="executive-presentation-feedback-grid ${collaborators.length > 64 ? "extra-dense" : collaborators.length > 44 ? "dense" : ""}" style="grid-template-rows:repeat(${rows},minmax(0,1fr))">
+      ${collaborators.map((item) => {
+        const result = presentationFeedbackResult(item.result);
+        return `<article class="${item.done ? `done ${result.tone}` : "pending"}"><span>${item.done ? "✓" : ""}</span><div><strong>${escapeHtml(item.name)}</strong><em>${item.done ? escapeHtml(result.label) : "Pendiente"}</em></div></article>`;
+      }).join("")}
+    </div>
+  </div>`;
+}
+
+function renderPresentationFeedbackEditor(notes) {
+  if (!presentationFeedbackDraft) presentationFeedbackDraft = presentationFeedbackRecords(notes.feedback_records);
+  const collaborators = presentationFeedbackCollaborators({ ...notes, feedback_records: presentationFeedbackDraft });
+  return `<div class="executive-presentation-feedback-editor">
+    <div class="executive-presentation-feedback-editor-tools">
+      <label>Fecha límite de retroalimentación<input type="date" name="feedback_deadline" value="${escapeHtml(notes.feedback_deadline || "")}" /></label>
+      <label>Buscar colaborador<input type="search" id="presentationFeedbackSearch" placeholder="Nombre, nómina o coordinador" /></label>
+      <div><span>Avance actual</span><strong>${collaborators.filter((item) => item.done).length} de ${collaborators.length}</strong></div>
+    </div>
+    <input type="hidden" id="presentationFeedbackRecords" name="feedback_records" value="${escapeHtml(JSON.stringify(presentationFeedbackDraft))}" />
+    <div class="executive-presentation-feedback-editor-list">
+      ${collaborators.map((item) => `<article class="${item.done ? "done" : ""}" data-feedback-row data-feedback-search="${escapeHtml(`${item.name} ${item.nomina} ${item.coordinator}`.toLowerCase())}">
+        <label class="check"><input type="checkbox" data-feedback-done="${escapeHtml(item.nomina)}" ${item.done ? "checked" : ""} /><span></span></label>
+        <div class="person"><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.nomina)} · ${escapeHtml(item.coordinator)}</span></div>
+        <label>Resultado<select data-feedback-result="${escapeHtml(item.nomina)}"><option value="">Seleccionar</option><option value="positiva" ${item.result === "positiva" ? "selected" : ""}>Positiva</option><option value="acuerdos" ${item.result === "acuerdos" ? "selected" : ""}>Con acuerdos</option><option value="seguimiento" ${item.result === "seguimiento" ? "selected" : ""}>Requiere seguimiento</option></select></label>
+        <label>Nota<input type="text" data-feedback-note="${escapeHtml(item.nomina)}" value="${escapeHtml(item.note)}" placeholder="Acuerdo o necesidad detectada" /></label>
+      </article>`).join("")}
+    </div>
+  </div>`;
+}
+
+function syncPresentationFeedbackValue() {
+  const input = $("#presentationFeedbackRecords");
+  if (input) input.value = JSON.stringify(presentationFeedbackDraft || {});
+}
+
 function presentationManualNote(notes, key, title = "Nota para la junta") {
   const content = String(notes[key] || "").trim();
   return content ? `<div class="executive-presentation-manual-note"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(content)}</span></div>` : "";
@@ -8444,8 +8542,8 @@ function renderExecutivePresentationSlide(slide, index) {
     body = `${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => `<div><time>${escapeHtml(row.date)}</time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em>${escapeHtml(row.status || "Sin estado")}</em></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_block-activities")}`;
   } else if (slide.key === "inventory") {
     body = renderPresentationInventory(notes);
-  } else if (slide.key === "schedules") {
-    body = `${schedule.rows.length ? `<div class="executive-presentation-metrics">${presentationMetric("Clases activas", schedule.rows.length)}${presentationMetric("Profesores", schedule.teachers)}${presentationMetric("Instalaciones", schedule.installations)}</div><div class="executive-presentation-columns">${schedule.byDay.map((row) => `<div><strong>${row.value}</strong><i style="height:${Math.max(8, Math.min(100, row.value * 3))}%"></i><span>${escapeHtml(row.day.slice(0, 3))}</span></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_schedules")}`;
+  } else if (slide.key === "feedback") {
+    body = renderPresentationFeedback(notes);
   } else if (slide.key === "weekly-topics") {
     body = `<div class="executive-presentation-split"><section><h3>Temas por área</h3>${manualList("area_topics")}<h3>Temas semanales</h3>${manualList("topics")}</section><section><h3>Acuerdos</h3>${manualList("agreements")}<h3>Pendientes</h3>${manualList("pending")}</section></div>${presentationManualNote(notes, "observations", "Observaciones")}`;
   } else if (slide.key === "team") {
@@ -8463,7 +8561,9 @@ function renderExecutivePresentationEditor() {
   const notes = presentationNotesForCurrentWeek();
   const selectedSlide = EXECUTIVE_PRESENTATION_SLIDES.find((slide) => slide.key === executivePresentationEditingSlide) || EXECUTIVE_PRESENTATION_SLIDES[2];
   const fields = EXECUTIVE_PRESENTATION_EDIT_FIELDS[selectedSlide.key] || [];
-  const editorFields = selectedSlide.key === "performance"
+  const editorFields = selectedSlide.key === "feedback"
+    ? renderPresentationFeedbackEditor(notes)
+    : selectedSlide.key === "performance"
     ? `${renderPresentationCollaboratorPicker("highlight_nominas", "Destacados", notes)}${renderPresentationCollaboratorPicker("improving_nominas", "En mejora", notes)}`
     : selectedSlide.key === "inventory"
       ? renderPresentationInventoryEditor(notes)
@@ -8502,7 +8602,14 @@ async function loadExecutivePresentationNotes() {
     return;
   }
   executivePresentationCloudAvailable = true;
-  executivePresentationNotes[weekKey] = { ...presentationNotesForCurrentWeek(), ...Object.fromEntries((result.data || []).map((row) => [row.section_key, row.content || ""])) };
+  executivePresentationNotes[weekKey] = { ...(executivePresentationNotes[weekKey] || {}), ...Object.fromEntries((result.data || []).map((row) => [row.section_key, row.content || ""])) };
+  const tracking = await supabaseClient.from("presentaciones").select("id").eq("week_key", "feedback-tracking").eq("presentation_type", "tracking").maybeSingle();
+  if (!tracking.error && tracking.data?.id) {
+    const trackingNotes = await supabaseClient.from("presentacion_notas").select("section_key, content").eq("presentacion_id", tracking.data.id);
+    if (!trackingNotes.error) {
+      executivePresentationNotes.__feedback_tracking = Object.fromEntries((trackingNotes.data || []).map((row) => [row.section_key, row.content || ""]));
+    }
+  }
   saveExecutivePresentationLocalNotes();
 }
 
@@ -8514,10 +8621,15 @@ async function saveExecutivePresentationNotes(form) {
     const entries = formData.getAll(key).map((value) => String(value || "").trim()).filter(Boolean);
     values[key] = entries.length > 1 || key.endsWith("_nominas") ? entries.slice(0, MAX_PRESENTATION_SELECTION).join(",") : (entries[0] || "");
   });
-  executivePresentationNotes[weekKey] = { ...presentationNotesForCurrentWeek(), ...values };
+  const isFeedbackTracking = Object.prototype.hasOwnProperty.call(values, "feedback_records");
+  if (isFeedbackTracking) executivePresentationNotes.__feedback_tracking = { ...(executivePresentationNotes.__feedback_tracking || {}), ...values };
+  else executivePresentationNotes[weekKey] = { ...(executivePresentationNotes[weekKey] || {}), ...values };
   saveExecutivePresentationLocalNotes();
   if (!supabaseClient || currentUser?.auth !== "supabase") return false;
-  const head = await supabaseClient.from("presentaciones").upsert({ week_key: weekKey, presentation_type: "weekly", title: `Junta semanal ${weekKey}`, status: "draft", updated_at: new Date().toISOString() }, { onConflict: "week_key,presentation_type" }).select("id").single();
+  const storageKey = isFeedbackTracking ? "feedback-tracking" : weekKey;
+  const storageType = isFeedbackTracking ? "tracking" : "weekly";
+  const storageTitle = isFeedbackTracking ? "Seguimiento de retroalimentación personal" : `Junta semanal ${weekKey}`;
+  const head = await supabaseClient.from("presentaciones").upsert({ week_key: storageKey, presentation_type: storageType, title: storageTitle, status: "draft", updated_at: new Date().toISOString() }, { onConflict: "week_key,presentation_type" }).select("id").single();
   if (head.error || !head.data?.id) {
     executivePresentationCloudAvailable = false;
     return false;
@@ -8552,8 +8664,8 @@ function bindExecutivePresentationControls() {
     if (action === "powerpoint") toast("Exportación PowerPoint preparada para una siguiente fase");
   }));
   $$('[data-presentation-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Number(button.dataset.presentationSlide) || 0; executivePresentationMode = true; render(); }));
-  $$('[data-presentation-edit-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditSlide || "priorities"; presentationInventoryDraft = null; executivePresentationEditorOpen = true; render(); }));
-  $$('[data-presentation-editor-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditorSlide || "priorities"; presentationInventoryDraft = null; render(); }));
+  $$('[data-presentation-edit-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditSlide || "priorities"; presentationInventoryDraft = null; presentationFeedbackDraft = null; executivePresentationEditorOpen = true; render(); }));
+  $$('[data-presentation-editor-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditorSlide || "priorities"; presentationInventoryDraft = null; presentationFeedbackDraft = null; render(); }));
   $$('[data-presentation-collaborator]').forEach((input) => input.addEventListener("change", () => {
     const group = input.dataset.presentationCollaborator;
     const checked = $$(`[data-presentation-collaborator="${group}"]:checked`);
@@ -8563,6 +8675,31 @@ function bindExecutivePresentationControls() {
     }
     input.closest("label")?.classList.toggle("selected", input.checked);
   }));
+  $$('[data-feedback-done]').forEach((input) => input.addEventListener("change", () => {
+    const nomina = input.dataset.feedbackDone;
+    const current = presentationFeedbackDraft?.[nomina] || {};
+    presentationFeedbackDraft[nomina] = {
+      ...current,
+      done: input.checked,
+      completedAt: input.checked ? (current.completedAt || new Date().toISOString().slice(0, 10)) : ""
+    };
+    input.closest("article")?.classList.toggle("done", input.checked);
+    syncPresentationFeedbackValue();
+  }));
+  $$('[data-feedback-result]').forEach((input) => input.addEventListener("change", () => {
+    const nomina = input.dataset.feedbackResult;
+    presentationFeedbackDraft[nomina] = { ...(presentationFeedbackDraft?.[nomina] || {}), result: input.value };
+    syncPresentationFeedbackValue();
+  }));
+  $$('[data-feedback-note]').forEach((input) => input.addEventListener("input", () => {
+    const nomina = input.dataset.feedbackNote;
+    presentationFeedbackDraft[nomina] = { ...(presentationFeedbackDraft?.[nomina] || {}), note: input.value };
+    syncPresentationFeedbackValue();
+  }));
+  $('#presentationFeedbackSearch')?.addEventListener("input", (event) => {
+    const query = normalizeText(event.currentTarget.value);
+    $$('[data-feedback-row]').forEach((row) => { row.hidden = query && !normalizeText(row.dataset.feedbackSearch).includes(query); });
+  });
   $$('[data-inventory-name]').forEach((input) => input.addEventListener("input", () => {
     const index = Number(input.dataset.inventoryName);
     if (!presentationInventoryDraft?.[index]) return;
@@ -8600,7 +8737,7 @@ function bindExecutivePresentationControls() {
   $$('[data-presentation-step]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Math.max(0, Math.min(EXECUTIVE_PRESENTATION_SLIDES.length - 1, executivePresentationIndex + Number(button.dataset.presentationStep))); render(); }));
   $('[data-presentation-close]')?.addEventListener("click", () => { executivePresentationMode = false; render(); });
   $$('[data-presentation-editor-close]').forEach((button) => button.addEventListener("click", (event) => { if (event.target === event.currentTarget || event.currentTarget.tagName === "BUTTON") { executivePresentationEditorOpen = false; render(); } }));
-  $('#executivePresentationForm')?.addEventListener("submit", async (event) => { event.preventDefault(); syncPresentationInventoryValue(); executivePresentationSaving = true; const form = event.currentTarget; const cloud = await saveExecutivePresentationNotes(form); executivePresentationSaving = false; executivePresentationEditorOpen = false; presentationInventoryDraft = null; render(); toast(cloud ? "Junta semanal guardada en Supabase" : "Junta semanal guardada en este navegador"); });
+  $('#executivePresentationForm')?.addEventListener("submit", async (event) => { event.preventDefault(); syncPresentationInventoryValue(); syncPresentationFeedbackValue(); executivePresentationSaving = true; const form = event.currentTarget; const cloud = await saveExecutivePresentationNotes(form); executivePresentationSaving = false; executivePresentationEditorOpen = false; presentationInventoryDraft = null; presentationFeedbackDraft = null; render(); toast(cloud ? "Junta semanal guardada en Supabase" : "Junta semanal guardada en este navegador"); });
 }
 
 function renderDashboard(area) {
