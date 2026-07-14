@@ -502,6 +502,7 @@ let executivePresentationEditingSlide = "priorities";
 let executivePresentationCloudAvailable = true;
 let executivePresentationSaving = false;
 let executivePresentationNotes = loadExecutivePresentationLocalNotes();
+let presentationInventoryDraft = null;
 let physicalHallOfFameOpen = false;
 let physicalHallOfFameGender = "todos";
 let physicalHallOfFameTopTest = "";
@@ -8121,6 +8122,103 @@ function renderPresentationPriorities(notes) {
   `;
 }
 
+function presentationInventoryDefaults() {
+  return [
+    "Bodega Tenis",
+    "Bodega de Intramuros",
+    "Bodega de Fitness",
+    "Bodega de Escalada",
+    "Bodega de Yoga",
+    "Bodega de CrossFit"
+  ].map((name) => ({ name, comment: "", images: ["", ""] }));
+}
+
+function presentationInventoryItems(value) {
+  let parsed = [];
+  try {
+    parsed = JSON.parse(String(value || "[]"));
+  } catch {
+    parsed = [];
+  }
+  const defaults = presentationInventoryDefaults();
+  return defaults.map((fallback, index) => {
+    const item = Array.isArray(parsed) ? parsed[index] || {} : {};
+    const images = Array.isArray(item.images) ? item.images.slice(0, 2) : [];
+    while (images.length < 2) images.push("");
+    return {
+      name: String(item.name || fallback.name).trim(),
+      comment: String(item.comment || "").trim(),
+      images: images.map((image) => String(image || ""))
+    };
+  });
+}
+
+function presentationInventoryForNotes(notes = presentationNotesForCurrentWeek()) {
+  return presentationInventoryItems(notes.inventory_gallery);
+}
+
+function renderPresentationInventory(notes) {
+  const items = presentationInventoryForNotes(notes);
+  return `<div class="executive-presentation-inventory-board">${items.map((item, index) => `
+    <article class="executive-presentation-inventory-card">
+      <header><span>${index + 1}</span><strong>${escapeHtml(item.name)}</strong></header>
+      <div class="executive-presentation-inventory-photos">
+        ${item.images.map((image, imageIndex) => image
+          ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(`${item.name}, foto ${imageIndex + 1}`)}" />`
+          : `<span><i data-lucide="image"></i><em>Foto ${imageIndex + 1}</em></span>`).join("")}
+      </div>
+      <p><strong>Comentarios:</strong> ${escapeHtml(item.comment || "Sin comentarios capturados.")}</p>
+    </article>
+  `).join("")}</div>`;
+}
+
+function renderPresentationInventoryEditor(notes) {
+  const items = presentationInventoryDraft || presentationInventoryForNotes(notes);
+  presentationInventoryDraft = items.map((item) => ({ ...item, images: [...item.images] }));
+  return `<div class="executive-presentation-inventory-editor">
+    <textarea name="inventory_gallery" id="presentationInventoryValue" hidden>${escapeHtml(JSON.stringify(presentationInventoryDraft))}</textarea>
+    ${presentationInventoryDraft.map((item, index) => `
+      <fieldset>
+        <legend><span>${index + 1}</span> Bodega</legend>
+        <label>Nombre<input type="text" value="${escapeHtml(item.name)}" data-inventory-name="${index}" maxlength="60" /></label>
+        <div class="executive-presentation-inventory-editor-photos">
+          ${item.images.map((image, imageIndex) => `
+            <div data-inventory-preview="${index}-${imageIndex}">
+              ${image ? `<img src="${escapeHtml(image)}" alt="Vista previa" />` : `<span><i data-lucide="image-plus"></i>Foto ${imageIndex + 1}</span>`}
+              <label class="ghost-btn">Seleccionar<input type="file" accept="image/jpeg,image/png,image/webp" data-inventory-image="${index}-${imageIndex}" /></label>
+              ${image ? `<button class="ghost-btn danger-text" type="button" data-inventory-remove="${index}-${imageIndex}">Quitar</button>` : ""}
+            </div>
+          `).join("")}
+        </div>
+        <label>Comentarios<textarea rows="2" data-inventory-comment="${index}" maxlength="180">${escapeHtml(item.comment)}</textarea></label>
+      </fieldset>
+    `).join("")}
+  </div>`;
+}
+
+function syncPresentationInventoryValue() {
+  const target = $("#presentationInventoryValue");
+  if (target && presentationInventoryDraft) target.value = JSON.stringify(presentationInventoryDraft);
+}
+
+async function preparePresentationInventoryImage(file) {
+  if (!file?.type?.startsWith("image/")) throw new Error("Selecciona una imagen JPG, PNG o WEBP");
+  if (file.size > 12 * 1024 * 1024) throw new Error("La imagen supera el límite de 12 MB");
+  const bitmap = await createImageBitmap(file);
+  const width = 720;
+  const height = 450;
+  const scale = Math.max(width / bitmap.width, height / bitmap.height);
+  const drawWidth = bitmap.width * scale;
+  const drawHeight = bitmap.height * scale;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  context.drawImage(bitmap, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", 0.72);
+}
+
 function presentationEmptyState(label = "Sin información disponible") {
   return `<div class="executive-presentation-empty"><i data-lucide="database-zap"></i><strong>${escapeHtml(label)}</strong><span>La diapositiva se actualizará cuando exista una fuente conectada.</span></div>`;
 }
@@ -8270,7 +8368,7 @@ function renderExecutivePresentationSlide(slide, index) {
   } else if (slide.key === "block-activities") {
     body = `${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => `<div><time>${escapeHtml(row.date)}</time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em>${escapeHtml(row.status || "Sin estado")}</em></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_block-activities")}`;
   } else if (slide.key === "inventory") {
-    body = presentationTextItems(notes.inventory).length ? manualList("inventory") : presentationEmptyState("Sin información de bodegas capturada");
+    body = renderPresentationInventory(notes);
   } else if (slide.key === "schedules") {
     body = `${schedule.rows.length ? `<div class="executive-presentation-metrics">${presentationMetric("Clases activas", schedule.rows.length)}${presentationMetric("Profesores", schedule.teachers)}${presentationMetric("Instalaciones", schedule.installations)}</div><div class="executive-presentation-columns">${schedule.byDay.map((row) => `<div><strong>${row.value}</strong><i style="height:${Math.max(8, Math.min(100, row.value * 3))}%"></i><span>${escapeHtml(row.day.slice(0, 3))}</span></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_schedules")}`;
   } else if (slide.key === "weekly-topics") {
@@ -8292,7 +8390,9 @@ function renderExecutivePresentationEditor() {
   const fields = EXECUTIVE_PRESENTATION_EDIT_FIELDS[selectedSlide.key] || [];
   const editorFields = selectedSlide.key === "performance"
     ? `${renderPresentationCollaboratorPicker("highlight_nominas", "Destacados", notes)}${renderPresentationCollaboratorPicker("improving_nominas", "En mejora", notes)}`
-    : fields.map(([key, label, placeholder]) => `<label>${escapeHtml(label)}<textarea name="${escapeHtml(key)}" rows="5" placeholder="${escapeHtml(placeholder)}">${escapeHtml(notes[key] || "")}</textarea></label>`).join("");
+    : selectedSlide.key === "inventory"
+      ? renderPresentationInventoryEditor(notes)
+      : fields.map(([key, label, placeholder]) => `<label>${escapeHtml(label)}<textarea name="${escapeHtml(key)}" rows="5" placeholder="${escapeHtml(placeholder)}">${escapeHtml(notes[key] || "")}</textarea></label>`).join("");
   return `<div class="executive-presentation-editor-backdrop" data-presentation-editor-close><aside class="executive-presentation-editor" role="dialog" aria-modal="true" aria-labelledby="presentationEditorTitle"><header><div><p class="eyebrow">${escapeHtml(presentationWeekKey())}</p><h2 id="presentationEditorTitle">Editor de la junta semanal</h2><span>Los datos automáticos permanecen conectados; aquí agregas contexto y decisiones.</span></div><button type="button" data-presentation-editor-close aria-label="Cerrar">&times;</button></header><div class="executive-presentation-editor-layout"><nav class="executive-presentation-editor-nav" aria-label="Diapositivas editables">${EXECUTIVE_PRESENTATION_SLIDES.map((slide, index) => `<button type="button" class="${slide.key === selectedSlide.key ? "active" : ""}" data-presentation-editor-slide="${escapeHtml(slide.key)}"><span>${index + 1}</span><div><strong>${escapeHtml(slide.title)}</strong><em>${(EXECUTIVE_PRESENTATION_EDIT_FIELDS[slide.key] || []).length ? "Editable" : "Automática"}</em></div></button>`).join("")}</nav><form id="executivePresentationForm"><div class="executive-presentation-editor-heading"><span>Diapositiva ${EXECUTIVE_PRESENTATION_SLIDES.indexOf(selectedSlide) + 1}</span><h3>${escapeHtml(selectedSlide.title)}</h3></div>${fields.length ? editorFields : `<div class="executive-presentation-editor-automatic"><i data-lucide="refresh-cw"></i><strong>Diapositiva automática</strong><p>Se alimenta directamente con la información disponible en WellSync.</p></div>`}<div class="executive-presentation-editor-actions"><button class="ghost-btn" type="button" data-presentation-editor-close>Cancelar</button>${fields.length ? `<button class="primary-btn" type="submit" ${executivePresentationSaving ? "disabled" : ""}>${executivePresentationSaving ? "Guardando..." : "Guardar diapositiva"}</button>` : ""}</div><p>${executivePresentationCloudAvailable ? "Guardado semanal en Supabase activo cuando las tablas están disponibles." : "Guardado local disponible; activa las tablas para compartir entre computadoras."}</p></form></div></aside></div>`;
 }
 
@@ -8377,8 +8477,8 @@ function bindExecutivePresentationControls() {
     if (action === "powerpoint") toast("Exportación PowerPoint preparada para una siguiente fase");
   }));
   $$('[data-presentation-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Number(button.dataset.presentationSlide) || 0; executivePresentationMode = true; render(); }));
-  $$('[data-presentation-edit-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditSlide || "priorities"; executivePresentationEditorOpen = true; render(); }));
-  $$('[data-presentation-editor-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditorSlide || "priorities"; render(); }));
+  $$('[data-presentation-edit-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditSlide || "priorities"; presentationInventoryDraft = null; executivePresentationEditorOpen = true; render(); }));
+  $$('[data-presentation-editor-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditorSlide || "priorities"; presentationInventoryDraft = null; render(); }));
   $$('[data-presentation-collaborator]').forEach((input) => input.addEventListener("change", () => {
     const group = input.dataset.presentationCollaborator;
     const checked = $$(`[data-presentation-collaborator="${group}"]:checked`);
@@ -8388,10 +8488,44 @@ function bindExecutivePresentationControls() {
     }
     input.closest("label")?.classList.toggle("selected", input.checked);
   }));
+  $$('[data-inventory-name]').forEach((input) => input.addEventListener("input", () => {
+    const index = Number(input.dataset.inventoryName);
+    if (!presentationInventoryDraft?.[index]) return;
+    presentationInventoryDraft[index].name = input.value;
+    syncPresentationInventoryValue();
+  }));
+  $$('[data-inventory-comment]').forEach((input) => input.addEventListener("input", () => {
+    const index = Number(input.dataset.inventoryComment);
+    if (!presentationInventoryDraft?.[index]) return;
+    presentationInventoryDraft[index].comment = input.value;
+    syncPresentationInventoryValue();
+  }));
+  $$('[data-inventory-image]').forEach((input) => input.addEventListener("change", async () => {
+    const [itemIndex, imageIndex] = String(input.dataset.inventoryImage || "").split("-").map(Number);
+    const file = input.files?.[0];
+    if (!file || !presentationInventoryDraft?.[itemIndex]) return;
+    try {
+      input.disabled = true;
+      presentationInventoryDraft[itemIndex].images[imageIndex] = await preparePresentationInventoryImage(file);
+      syncPresentationInventoryValue();
+      render();
+      toast("Fotografía preparada. Guarda la diapositiva para conservarla");
+    } catch (error) {
+      input.disabled = false;
+      toast(error.message || "No se pudo preparar la imagen");
+    }
+  }));
+  $$('[data-inventory-remove]').forEach((button) => button.addEventListener("click", () => {
+    const [itemIndex, imageIndex] = String(button.dataset.inventoryRemove || "").split("-").map(Number);
+    if (!presentationInventoryDraft?.[itemIndex]) return;
+    presentationInventoryDraft[itemIndex].images[imageIndex] = "";
+    syncPresentationInventoryValue();
+    render();
+  }));
   $$('[data-presentation-step]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Math.max(0, Math.min(EXECUTIVE_PRESENTATION_SLIDES.length - 1, executivePresentationIndex + Number(button.dataset.presentationStep))); render(); }));
   $('[data-presentation-close]')?.addEventListener("click", () => { executivePresentationMode = false; render(); });
   $$('[data-presentation-editor-close]').forEach((button) => button.addEventListener("click", (event) => { if (event.target === event.currentTarget || event.currentTarget.tagName === "BUTTON") { executivePresentationEditorOpen = false; render(); } }));
-  $('#executivePresentationForm')?.addEventListener("submit", async (event) => { event.preventDefault(); executivePresentationSaving = true; render(); const cloud = await saveExecutivePresentationNotes(event.currentTarget); executivePresentationSaving = false; executivePresentationEditorOpen = false; render(); toast(cloud ? "Junta semanal guardada en Supabase" : "Junta semanal guardada en este navegador"); });
+  $('#executivePresentationForm')?.addEventListener("submit", async (event) => { event.preventDefault(); syncPresentationInventoryValue(); executivePresentationSaving = true; const form = event.currentTarget; const cloud = await saveExecutivePresentationNotes(form); executivePresentationSaving = false; executivePresentationEditorOpen = false; presentationInventoryDraft = null; render(); toast(cloud ? "Junta semanal guardada en Supabase" : "Junta semanal guardada en este navegador"); });
 }
 
 function renderDashboard(area) {
