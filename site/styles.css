@@ -10250,12 +10250,12 @@ tbody tr:hover td {
 .executive-presentation-portrait-group h3 { margin: 0 0 22px; text-align: center; color: #082b55; font-size: 23px; }
 .executive-presentation-portrait-group.highlight { border-top: 5px solid #e4aa13; }
 .executive-presentation-portrait-group.improving { border-top: 5px solid #0a66b7; }
-.executive-presentation-portrait-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.executive-presentation-portrait-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 12px; }
 .executive-presentation-portrait-grid article { min-width: 0; text-align: center; }
-.executive-presentation-portrait-grid img, .executive-presentation-portrait-grid article > span { display: grid; place-items: center; width: 112px; height: 112px; margin: 0 auto 12px; object-fit: cover; color: #fff; background: #0a66b7; border: 5px solid #e6eff6; border-radius: 50%; box-shadow: 0 8px 22px rgba(8, 43, 85, .15); font-size: 27px; font-weight: 900; }
+.executive-presentation-portrait-grid img, .executive-presentation-portrait-grid article > span { display: grid; place-items: center; width: min(156px, 92%); aspect-ratio: 1; height: auto; margin: 0 auto 16px; object-fit: cover; color: #fff; background: #0a66b7; border: 6px solid #e6eff6; border-radius: 50%; box-shadow: 0 10px 26px rgba(8, 43, 85, .18); font-size: 34px; font-weight: 900; }
 .executive-presentation-portrait-group.highlight img, .executive-presentation-portrait-group.highlight article > span { border-color: #fff0b8; }
 .executive-presentation-portrait-grid strong, .executive-presentation-portrait-grid em { display: block; overflow: hidden; text-overflow: ellipsis; }
-.executive-presentation-portrait-grid strong { color: #132b45; font-size: 14px; }
+.executive-presentation-portrait-grid strong { color: #132b45; font-size: 15px; }
 .executive-presentation-portrait-grid em { margin-top: 4px; color: #6a7d8f; font-style: normal; font-size: 11px; }
 .executive-presentation-portrait-grid article.empty { opacity: .55; }
 .executive-presentation-portrait-grid article.empty > span { color: #71869a; background: #eef3f7; border-style: dashed; box-shadow: none; }
