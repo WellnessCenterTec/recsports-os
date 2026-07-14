@@ -11707,11 +11707,12 @@ function renderCollaboratorInfographicDetail(rows) {
         <div class="collaborator-profile-content">
           <section class="collaborator-profile-section profile-blue wide">
             <h4>Perfil confirmado</h4>
-            <div class="collaborator-profile-info-grid four">
+            <div class="collaborator-profile-info-grid five">
               ${collaboratorProfileInfo("▣", "Nómina", nomina)}
               ${collaboratorProfileInfo("✉", "Correo institucional", email)}
               ${collaboratorProfileInfo("▦", "Cumpleaños", birthday)}
               ${collaboratorProfileInfo("◎", "Género", gender)}
+              ${collaboratorProfileInfo("★", "Calificación", rating.score.toFixed(1))}
             </div>
           </section>
 
@@ -11723,21 +11724,6 @@ function renderCollaboratorInfographicDetail(rows) {
               ${collaboratorProfileInfo("✚", "Primeros auxilios", firstAid)}
               ${collaboratorProfileInfo("◉", "Equipo", team)}
               ${collaboratorProfileInfo("◷", "% de cursos", courses)}
-            </div>
-          </section>
-
-          <section class="collaborator-profile-section collaborator-profile-rating wide" data-tone="${rating.tone}">
-            <h4>Calificación de perfil</h4>
-            <div class="collaborator-rating-summary">
-              <div>
-                <strong>${rating.score.toFixed(1)}</strong>
-                <em>${escapeHtml(rating.label)}</em>
-              </div>
-              <p>${escapeHtml(rating.summary)}</p>
-            </div>
-            <div class="collaborator-rating-weeks">
-              <span><b>Destacado:</b> ${escapeHtml(rating.highlighted.join(", ") || "Sin semanas")}</span>
-              <span><b>Mejorable:</b> ${escapeHtml(rating.developing.join(", ") || "Sin semanas")}</span>
             </div>
           </section>
 
