@@ -580,6 +580,7 @@ let planningCalendarLoaded = false;
 let planningCalendarError = "";
 let planningCalendarRequestSequence = 0;
 let planningCalendarMonthByArea = { comunicacion: "", intramuros: "" };
+let vivenciaCalendarMonth = "";
 let planningEventOverrides = [];
 let planningEventOverridesLoaded = false;
 let planningEventOverridesAvailable = true;
@@ -10728,6 +10729,10 @@ function vivenciaDashboardEvents() {
 }
 
 function vivenciaCalendarBaseDate(events) {
+  if (/^\d{4}-\d{2}$/.test(vivenciaCalendarMonth)) {
+    const selected = new Date(`${vivenciaCalendarMonth}-01T00:00:00`);
+    if (!Number.isNaN(selected.getTime())) return selected;
+  }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const next = events
@@ -10762,7 +10767,11 @@ function renderVivenciaCalendar(events, baseDate) {
           <p class="eyebrow">Calendario mensual</p>
           <h3>${baseDate.toLocaleDateString("es-MX", { month: "long", year: "numeric" })}</h3>
         </div>
-        <span>Solo Vivencia</span>
+        <div class="planning-month-controls vivencia-calendar-controls" aria-label="Navegación del calendario">
+          <button type="button" data-vivencia-month="previous" aria-label="Mes anterior" title="Mes anterior">&#8249;</button>
+          <button type="button" data-vivencia-month="today" class="vivencia-calendar-today">Hoy</button>
+          <button type="button" data-vivencia-month="next" aria-label="Mes siguiente" title="Mes siguiente">&#8250;</button>
+        </div>
       </div>
       <div class="vivencia-calendar">
         ${["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((label) => `<strong>${label}</strong>`).join("")}
@@ -13375,6 +13384,19 @@ function render() {
     month.setMonth(month.getMonth() + (button.dataset.planningMonth === "next" ? 1 : -1));
     planningCalendarMonthByArea[areaId] = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
     selectedPlanningActivityId = "";
+    render();
+  }));
+  $$("[data-vivencia-month]").forEach((button) => button.addEventListener("click", () => {
+    const action = button.dataset.vivenciaMonth;
+    const today = new Date();
+    if (action === "today") {
+      vivenciaCalendarMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    } else {
+      const current = vivenciaCalendarBaseDate(vivenciaVisibleEvents());
+      const month = new Date(current.getFullYear(), current.getMonth(), 1);
+      month.setMonth(month.getMonth() + (action === "next" ? 1 : -1));
+      vivenciaCalendarMonth = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
+    }
     render();
   }));
   $$("[data-close-planning-detail]").forEach((button) => button.addEventListener("click", closePlanningActivityDetail));

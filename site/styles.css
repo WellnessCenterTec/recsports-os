@@ -7829,6 +7829,19 @@ tbody tr:hover td {
   line-height: 1;
 }
 
+.vivencia-calendar-controls {
+  flex: 0 0 auto;
+}
+
+.planning-month-controls .vivencia-calendar-today {
+  width: auto;
+  min-width: 52px;
+  flex-basis: auto;
+  padding-inline: 12px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
 .planning-calendar-day {
   display: grid;
   align-content: start;
