@@ -10855,11 +10855,11 @@ function renderVivenciaTopEvents(events, metricsByEvent) {
   const rows = events
     .map((event) => ({
       event,
-      participants: vivenciaEventUniqueParticipantCount(event.id),
+      participants: vivenciaEventParticipantsCount(event, metricsByEvent),
       goal: vivenciaEventGoal(event, metricsByEvent)
     }))
     .sort((a, b) => b.participants - a.participants || b.goal - a.goal || String(a.event.event_date).localeCompare(String(b.event.event_date)))
-    .slice(0, 10);
+    .slice(0, 15);
   if (!rows.length) return `<div class="vivencia-empty-mini">Sin eventos para ranking.</div>`;
   const max = Math.max(...rows.map((row) => row.participants || row.goal), 1);
   return `
@@ -10869,9 +10869,9 @@ function renderVivenciaTopEvents(events, metricsByEvent) {
           <span>${index + 1}</span>
           <div>
             <strong>${escapeHtml(row.event.event_name || "Evento sin nombre")}</strong>
-            <small>${row.participants ? `${row.participants} matrículas únicas` : `Meta ${row.goal || "sin meta"}`}</small>
+            <small><b>${row.participants.toLocaleString("es-MX")}</b> alumnos impactados · Meta ${row.goal ? row.goal.toLocaleString("es-MX") : "sin meta"}</small>
           </div>
-          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(5, Math.round(((row.participants || row.goal) / max) * 100))}%"></div></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${row.participants ? Math.max(5, Math.round((row.participants / max) * 100)) : 0}%"></div></div>
         </article>
       `).join("")}
     </div>
@@ -11018,7 +11018,7 @@ function renderVivenciaDashboard() {
         </div>
         <article class="chart-panel vivencia-top-panel">
           <div class="chart-title-row">
-            <div><p class="eyebrow">Top eventos</p><h3>Top 10 eventos del semestre</h3></div>
+            <div><p class="eyebrow">Top eventos</p><h3>Top 15 eventos por alumnos impactados</h3></div>
           </div>
           ${renderVivenciaTopEvents(events, metricsByEvent)}
         </article>
