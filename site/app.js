@@ -10812,19 +10812,19 @@ function renderVivenciaTopEvents(events, metricsByEvent) {
   `;
 }
 
-function renderVivenciaImpactGoal(uniqueCount, editable) {
+function renderVivenciaImpactGoal(impactCount, editable, impactBasis = "matrículas únicas") {
   const goal = Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1);
-  const progress = Math.round((uniqueCount / goal) * 100);
-  const remaining = goal - uniqueCount;
+  const progress = Math.round((impactCount / goal) * 100);
+  const remaining = goal - impactCount;
   return `
     <article class="chart-panel vivencia-impact-goal-card">
       <div class="chart-title-row">
-        <div><p class="eyebrow">Meta institucional</p><h3>Meta de alumnos únicos impactados</h3></div>
+        <div><p class="eyebrow">Meta institucional</p><h3>Meta de impacto acumulado</h3></div>
         <span>${progress}%</span>
       </div>
-      <div class="vivencia-impact-amount"><strong>${uniqueCount.toLocaleString("es-MX")}</strong><span>de ${goal.toLocaleString("es-MX")} matrículas únicas</span></div>
+      <div class="vivencia-impact-amount"><strong>${impactCount.toLocaleString("es-MX")}</strong><span>de ${goal.toLocaleString("es-MX")} · ${escapeHtml(impactBasis)}</span></div>
       <div class="vivencia-impact-track"><span style="width:${Math.min(100, progress)}%"></span></div>
-      <p>${remaining > 0 ? `Faltan ${remaining.toLocaleString("es-MX")} para alcanzar la meta.` : `Meta superada por ${Math.abs(remaining).toLocaleString("es-MX")} matrículas.`}</p>
+      <p>${remaining > 0 ? `Faltan ${remaining.toLocaleString("es-MX")} para alcanzar la meta.` : `Meta superada por ${Math.abs(remaining).toLocaleString("es-MX")} registros.`}</p>
       ${editable ? `
         <form id="vivenciaImpactGoalForm" class="vivencia-impact-goal-form">
           <label>Editar meta<input name="impact_goal" type="number" min="1" step="1" value="${goal}" required /></label>
@@ -10900,6 +10900,8 @@ function renderVivenciaDashboard() {
   const uniqueParticipantRows = vivenciaUniqueParticipantRows(events);
   const uniqueMatriculas = new Set(uniqueParticipantRows.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean));
   const participantTotal = metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
+  const impactCount = participantTotal;
+  const impactBasis = "participaciones reportadas";
   const monthRowsMap = new Map();
   events.forEach((event) => {
     const key = vivenciaMonthLabel(event.event_date);
@@ -10914,8 +10916,8 @@ function renderVivenciaDashboard() {
       <div class="kpi-grid vivencia-kpi-strip">
         <div class="kpi"><span>Eventos del semestre</span><strong>${events.length}</strong><em>desde Planeación/Vivencia</em></div>
         <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
-        <div class="kpi"><span>Alumnos únicos impactados</span><strong>${uniqueMatriculas.size}</strong><em>por matrícula</em></div>
-        <div class="kpi"><span>Avance de meta</span><strong>${Math.round((uniqueMatriculas.size / Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1)) * 100)}%</strong><em>sobre impacto único</em></div>
+        <div class="kpi"><span>Matrículas únicas identificadas</span><strong>${uniqueMatriculas.size}</strong><em>${uniqueMatriculas.size ? "por matrícula" : "pendiente de listas detalladas"}</em></div>
+        <div class="kpi"><span>Avance de meta</span><strong>${Math.round((impactCount / Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1)) * 100)}%</strong><em>sobre ${escapeHtml(impactBasis)}</em></div>
       </div>
 
       <div class="vivencia-dashboard-grid">
@@ -10927,7 +10929,7 @@ function renderVivenciaDashboard() {
           </div>
           ${renderVivenciaEventCards(upcoming, metricsByEvent)}
         </article>
-        ${renderVivenciaImpactGoal(uniqueMatriculas.size, editable)}
+        ${renderVivenciaImpactGoal(impactCount, editable, impactBasis)}
         ${renderVivenciaGenderBreakdown(events)}
         <article class="chart-panel vivencia-month-panel">
           <div class="chart-title-row">
