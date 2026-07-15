@@ -570,6 +570,7 @@ let gymHeatmapMode = "average";
 let vivenciaEvents = [];
 let vivenciaEventMetrics = [];
 let vivenciaParticipants = [];
+let vivenciaParticipantDetailsCount = 0;
 let vivenciaParticipantUploads = [];
 let vivenciaEventImages = [];
 let vivenciaDashboardSettings = { impact_goal: 3800 };
@@ -2223,17 +2224,19 @@ async function loadVivenciaParticipantDetails() {
   const rows = [];
   const pageSize = 1000;
   const maxRows = 12000;
+  let totalCount = 0;
   for (let offset = 0; offset < maxRows; offset += pageSize) {
     const response = await supabaseClient
       .from("vivencia_participant_details")
-      .select("*")
+      .select("*", offset === 0 ? { count: "exact" } : {})
       .order("created_at", { ascending: false })
       .range(offset, offset + pageSize - 1);
-    if (response.error) return { data: [], error: response.error };
+    if (response.error) return { data: [], error: response.error, count: 0 };
+    if (offset === 0) totalCount = Number(response.count || 0);
     rows.push(...(response.data || []));
     if (!response.data || response.data.length < pageSize) break;
   }
-  return { data: rows, error: null };
+  return { data: rows, error: null, count: totalCount || rows.length };
 }
 
 async function loadVivenciaEvents() {
@@ -2251,6 +2254,7 @@ async function loadVivenciaEvents() {
     vivenciaEvents = [];
     vivenciaEventMetrics = [];
     vivenciaParticipants = [];
+    vivenciaParticipantDetailsCount = 0;
     vivenciaParticipantUploads = [];
     vivenciaEventImages = [];
     vivenciaDashboardSettings = { impact_goal: 3800 };
@@ -2288,6 +2292,9 @@ async function loadVivenciaEvents() {
   vivenciaEvents = data || [];
   vivenciaEventMetrics = metricsResult.error ? [] : (metricsResult.data || []);
   vivenciaParticipantUploads = uploadsResult.error ? [] : (uploadsResult.data || []);
+  vivenciaParticipantDetailsCount = participantsResult.error
+    ? 0
+    : Number(participantsResult.count || participantsResult.data?.length || 0);
   vivenciaEventImages = (imagesResult.error ? [] : (imagesResult.data || [])).map((image) => ({
     ...image,
     public_url: supabaseClient.storage.from("vivencia-event-images").getPublicUrl(image.storage_path).data.publicUrl
@@ -10959,10 +10966,7 @@ function renderVivenciaDashboard() {
   const uniqueImportedReferences = new Set(
     vivenciaParticipants.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean)
   );
-  const invalidParticipantRows = vivenciaParticipants.filter((participant) => {
-    const value = normalizeMatricula(participant.matricula);
-    return value && !isValidVivenciaMatricula(value);
-  }).length;
+  const identifiedParticipantCount = Math.max(uniqueMatriculas.size, uniqueImportedReferences.size, vivenciaParticipantDetailsCount);
   const participantTotal = metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
   const impactCount = participantTotal;
   const impactBasis = "participaciones reportadas";
@@ -10980,7 +10984,7 @@ function renderVivenciaDashboard() {
       <div class="kpi-grid vivencia-kpi-strip">
         <div class="kpi"><span>Eventos del semestre</span><strong>${events.length}</strong><em>desde Planeación/Vivencia</em></div>
         <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
-        <div class="kpi"><span>${uniqueMatriculas.size ? "Matrículas únicas identificadas" : "Participantes únicos identificados"}</span><strong>${(uniqueMatriculas.size || uniqueImportedReferences.size).toLocaleString("es-MX")}</strong><em>${uniqueMatriculas.size ? "por matrícula" : (invalidParticipantRows ? "conteo provisional; la carga histórica no contiene matrículas Tec" : "pendiente de listas detalladas")}</em></div>
+        <div class="kpi"><span>${uniqueMatriculas.size ? "Matrículas únicas identificadas" : "Participantes únicos identificados"}</span><strong>${identifiedParticipantCount.toLocaleString("es-MX")}</strong><em>${uniqueMatriculas.size ? "por matrícula" : (identifiedParticipantCount ? "registros históricos consolidados" : "pendiente de listas detalladas")}</em></div>
         <div class="kpi"><span>Avance de meta</span><strong>${Math.round((impactCount / Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1)) * 100)}%</strong><em>sobre ${escapeHtml(impactBasis)}</em></div>
       </div>
 
@@ -14679,6 +14683,7 @@ $("#logoutButton").addEventListener("click", () => {
     vivenciaEvents = [];
     vivenciaEventMetrics = [];
     vivenciaParticipants = [];
+    vivenciaParticipantDetailsCount = 0;
     vivenciaParticipantUploads = [];
     vivenciaEventsLoaded = false;
     vivenciaEventsAvailable = true;
