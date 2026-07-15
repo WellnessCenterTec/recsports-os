@@ -2224,15 +2224,17 @@ async function loadVivenciaParticipantDetails() {
   const rows = [];
   const pageSize = 1000;
   const maxRows = 12000;
-  let totalCount = 0;
+  const countResponse = await supabaseClient
+    .from("vivencia_participant_details")
+    .select("id", { count: "exact", head: true });
+  const totalCount = countResponse.error ? 0 : Number(countResponse.count || 0);
   for (let offset = 0; offset < maxRows; offset += pageSize) {
     const response = await supabaseClient
       .from("vivencia_participant_details")
-      .select("*", offset === 0 ? { count: "exact" } : {})
+      .select("*")
       .order("created_at", { ascending: false })
       .range(offset, offset + pageSize - 1);
     if (response.error) return { data: [], error: response.error, count: 0 };
-    if (offset === 0) totalCount = Number(response.count || 0);
     rows.push(...(response.data || []));
     if (!response.data || response.data.length < pageSize) break;
   }
@@ -10984,7 +10986,7 @@ function renderVivenciaDashboard() {
       <div class="kpi-grid vivencia-kpi-strip">
         <div class="kpi"><span>Eventos del semestre</span><strong>${events.length}</strong><em>desde Planeación/Vivencia</em></div>
         <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
-        <div class="kpi"><span>${uniqueMatriculas.size ? "Matrículas únicas identificadas" : "Participantes únicos identificados"}</span><strong>${identifiedParticipantCount.toLocaleString("es-MX")}</strong><em>${uniqueMatriculas.size ? "por matrícula" : (identifiedParticipantCount ? "registros históricos consolidados" : "pendiente de listas detalladas")}</em></div>
+        <div class="kpi"><span>${uniqueMatriculas.size ? "Matrículas únicas identificadas" : "Participantes identificados"}</span><strong>${identifiedParticipantCount.toLocaleString("es-MX")}</strong></div>
         <div class="kpi"><span>Avance de meta</span><strong>${Math.round((impactCount / Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1)) * 100)}%</strong><em>sobre ${escapeHtml(impactBasis)}</em></div>
       </div>
 
