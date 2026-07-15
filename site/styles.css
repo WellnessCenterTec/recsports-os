@@ -7193,6 +7193,13 @@ tbody tr:hover td {
   min-width: 0;
 }
 
+.vivencia-dashboard-column {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
 .vivencia-bars {
   display: grid;
   gap: 11px;

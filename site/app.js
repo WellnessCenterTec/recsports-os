@@ -10979,24 +10979,26 @@ function renderVivenciaDashboard() {
         </article>
         ${renderVivenciaImpactGoal(impactCount, editable, impactBasis)}
         ${renderVivenciaGenderBreakdown(events, metricsByEvent)}
-        <article class="chart-panel vivencia-month-panel">
-          <div class="chart-title-row">
-            <div><p class="eyebrow">Impacto mensual</p><h3>${participantTotal ? "Participaciones por mes" : "Eventos por mes"}</h3></div>
-          </div>
-          ${renderVivenciaBars(monthRows, { compact: true })}
-        </article>
+        <div class="vivencia-dashboard-column">
+          <article class="chart-panel vivencia-month-panel">
+            <div class="chart-title-row">
+              <div><p class="eyebrow">Impacto mensual</p><h3>${participantTotal ? "Participaciones por mes" : "Eventos por mes"}</h3></div>
+            </div>
+            ${renderVivenciaBars(monthRows, { compact: true })}
+          </article>
+          <article class="chart-panel vivencia-recent-panel">
+            <div class="chart-title-row">
+              <div><p class="eyebrow">Registro</p><h3>Ultimos eventos registrados</h3></div>
+              <span>10 recientes</span>
+            </div>
+            ${renderVivenciaRecentEvents(events)}
+          </article>
+        </div>
         <article class="chart-panel vivencia-top-panel">
           <div class="chart-title-row">
             <div><p class="eyebrow">Top eventos</p><h3>Top 10 eventos del semestre</h3></div>
           </div>
           ${renderVivenciaTopEvents(events, metricsByEvent)}
-        </article>
-        <article class="chart-panel vivencia-recent-panel">
-          <div class="chart-title-row">
-            <div><p class="eyebrow">Registro</p><h3>Ultimos eventos registrados</h3></div>
-            <span>10 recientes</span>
-          </div>
-          ${renderVivenciaRecentEvents(events)}
         </article>
       </div>
     </section>
