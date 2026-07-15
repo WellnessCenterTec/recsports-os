@@ -11569,6 +11569,7 @@ function collaboratorPerformanceRating(row) {
   const developing = collaboratorWeekValues(row, ["Mejorable", "Mejorables", "En Desarrollo", "Mejoramiento", "En desarrollo"]);
   const score = Math.max(0, Math.min(10, 9 + highlighted.length * 0.2 - developing.length * 0.2));
   const label = score >= 9.4 ? "Perfil destacado" : score >= 9 ? "Perfil sólido" : score >= 8.4 ? "Aceptable" : score >= 7.9 ? "Moderablemente aceptable" : "Requiere seguimiento";
+  const range = score >= 9.4 ? "9.4 a 10" : score >= 9 ? "9.0 a 9.3" : score >= 8.4 ? "8.4 a 8.9" : score >= 7.9 ? "7.9 a 8.3" : "0.0 a 7.8";
   const tone = score >= 9.4 ? "excellent" : score >= 9 ? "good" : score >= 8.4 ? "watch" : "risk";
   const action = !highlighted.length && !developing.length
     ? "Calificación base inicial; sin semanas destacadas o mejorables registradas."
@@ -11578,6 +11579,7 @@ function collaboratorPerformanceRating(row) {
   return {
     score,
     label,
+    range,
     tone,
     summary: `${highlighted.length} semana(s) destacada(s) y ${developing.length} semana(s) en desarrollo. ${action}`,
     highlighted,
@@ -11707,12 +11709,21 @@ function renderCollaboratorInfographicDetail(rows) {
         <div class="collaborator-profile-content">
           <section class="collaborator-profile-section profile-blue wide">
             <h4>Perfil confirmado</h4>
-            <div class="collaborator-profile-info-grid five">
-              ${collaboratorProfileInfo("▣", "Nómina", nomina)}
-              ${collaboratorProfileInfo("✉", "Correo institucional", email)}
-              ${collaboratorProfileInfo("▦", "Cumpleaños", birthday)}
-              ${collaboratorProfileInfo("◎", "Género", gender)}
-              ${collaboratorProfileInfo("★", "Calificación", rating.score.toFixed(1))}
+            <div class="collaborator-profile-confirmed-layout">
+              <div class="collaborator-profile-info-grid four">
+                ${collaboratorProfileInfo("▣", "Nómina", nomina)}
+                ${collaboratorProfileInfo("✉", "Correo institucional", email)}
+                ${collaboratorProfileInfo("▦", "Cumpleaños", birthday)}
+                ${collaboratorProfileInfo("◎", "Género", gender)}
+              </div>
+              <aside class="collaborator-profile-global-rating" data-tone="${rating.tone}">
+                <span>Calificación global</span>
+                <strong>${rating.score.toFixed(1)}</strong>
+                <div class="collaborator-profile-rating-rubric">
+                  <em>Nivel: ${escapeHtml(rating.label)}</em>
+                  <small>Rango: ${escapeHtml(rating.range)}</small>
+                </div>
+              </aside>
             </div>
           </section>
 
