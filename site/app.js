@@ -10720,12 +10720,22 @@ function vivenciaPlanningEvents() {
 }
 
 function vivenciaDashboardEvents() {
-  const existingKeys = new Set(vivenciaEvents
+  const eventIds = new Set(vivenciaEvents.map((event) => event.id).filter(Boolean));
+  const metricFallback = vivenciaEventMetrics
+    .filter((metric) => metric.event_id && !eventIds.has(metric.event_id))
+    .map((metric) => ({
+      ...metric,
+      id: metric.event_id,
+      archived_at: null,
+      __metricsFallback: true
+    }));
+  const connectedEvents = [...vivenciaEvents, ...metricFallback];
+  const existingKeys = new Set(connectedEvents
     .map((event) => event.planning_activity_id || event.source_row_key || `${normalizeText(event.event_name)}|${event.event_date}`)
     .filter(Boolean));
   const fallback = vivenciaPlanningEvents()
     .filter((event) => !existingKeys.has(event.planning_activity_id || event.source_row_key || `${normalizeText(event.event_name)}|${event.event_date}`));
-  return [...vivenciaEvents, ...fallback];
+  return [...connectedEvents, ...fallback];
 }
 
 function vivenciaCalendarBaseDate(events) {
