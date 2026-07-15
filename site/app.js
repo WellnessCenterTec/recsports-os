@@ -10423,7 +10423,11 @@ function classScheduleComparisonSummary() {
 }
 
 function vivenciaMetricParticipants(row) {
-  return Number(row.unique_participants || row.participant_records || row.reported_total_participants || 0);
+  return Math.max(
+    Number(row?.unique_participants || 0) || 0,
+    Number(row?.participant_records || 0) || 0,
+    Number(row?.reported_total_participants || 0) || 0
+  );
 }
 
 function vivenciaCompletionState(row, metrics) {
@@ -10489,7 +10493,10 @@ function vivenciaGenderRows(events = vivenciaVisibleEvents(), metricsByEvent = v
     let women = 0;
     let men = 0;
     let unspecified = 0;
-    if (participantsByMatricula.size) {
+    const reportedWomen = Math.max(0, Number(metrics.reported_women ?? metrics.women ?? 0) || 0);
+    const reportedMen = Math.max(0, Number(metrics.reported_men ?? metrics.men ?? 0) || 0);
+    const hasReportedGender = reportedWomen + reportedMen > 0;
+    if (participantsByMatricula.size >= participationTotal || (participantsByMatricula.size && !hasReportedGender)) {
       participantsByMatricula.forEach((participant) => {
         const student = findStudentInDatabase(participant.matricula);
         const gender = vivenciaParticipantGender(student?.genero || participant.genero);
@@ -10498,8 +10505,8 @@ function vivenciaGenderRows(events = vivenciaVisibleEvents(), metricsByEvent = v
         else unspecified += 1;
       });
     } else {
-      women = Math.max(0, Number(metrics.reported_women || metrics.women || 0) || 0);
-      men = Math.max(0, Number(metrics.reported_men || metrics.men || 0) || 0);
+      women = reportedWomen;
+      men = reportedMen;
     }
 
     const categorized = women + men + unspecified;
@@ -10524,8 +10531,8 @@ function vivenciaImagesForEvent(eventId) {
   return vivenciaEventImages.filter((image) => image.event_id === eventId);
 }
 
-function renderVivenciaGenderBreakdown(events) {
-  const rows = vivenciaGenderRows(events);
+function renderVivenciaGenderBreakdown(events, metricsByEvent = vivenciaEventMetricMap()) {
+  const rows = vivenciaGenderRows(events, metricsByEvent);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
   const gradient = total
     ? rows.reduce((parts, row, index) => {
@@ -10682,8 +10689,17 @@ function vivenciaVisibleEvents() {
 }
 
 function vivenciaVisibleMetrics() {
-  const visibleIds = new Set(vivenciaVisibleEvents().map((event) => event.id));
-  return vivenciaEventMetrics.filter((row) => visibleIds.has(row.event_id));
+  const events = vivenciaVisibleEvents();
+  const metricsByEvent = vivenciaEventMetricMap();
+  return events.map((event) => {
+    const metric = metricsByEvent.get(event.id);
+    if (!metric) return { ...event, event_id: event.id };
+    const merged = { ...event, ...metric, event_id: event.id };
+    ["reported_total_participants", "reported_men", "reported_women"].forEach((field) => {
+      if (merged[field] == null) merged[field] = event[field] ?? null;
+    });
+    return merged;
+  });
 }
 
 function vivenciaPlanningEvents() {
@@ -10930,7 +10946,7 @@ function renderVivenciaDashboard() {
           ${renderVivenciaEventCards(upcoming, metricsByEvent)}
         </article>
         ${renderVivenciaImpactGoal(impactCount, editable, impactBasis)}
-        ${renderVivenciaGenderBreakdown(events)}
+        ${renderVivenciaGenderBreakdown(events, metricsByEvent)}
         <article class="chart-panel vivencia-month-panel">
           <div class="chart-title-row">
             <div><p class="eyebrow">Impacto mensual</p><h3>${participantTotal ? "Participaciones por mes" : "Eventos por mes"}</h3></div>
