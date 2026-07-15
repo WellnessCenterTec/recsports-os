@@ -10943,6 +10943,9 @@ function renderVivenciaDashboard() {
   });
   const uniqueParticipantRows = vivenciaUniqueParticipantRows();
   const uniqueMatriculas = new Set(uniqueParticipantRows.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean));
+  const uniqueImportedReferences = new Set(
+    vivenciaParticipants.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean)
+  );
   const invalidParticipantRows = vivenciaParticipants.filter((participant) => {
     const value = normalizeMatricula(participant.matricula);
     return value && !isValidVivenciaMatricula(value);
@@ -10964,7 +10967,7 @@ function renderVivenciaDashboard() {
       <div class="kpi-grid vivencia-kpi-strip">
         <div class="kpi"><span>Eventos del semestre</span><strong>${events.length}</strong><em>desde Planeación/Vivencia</em></div>
         <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
-        <div class="kpi"><span>Matrículas únicas identificadas</span><strong>${uniqueMatriculas.size}</strong><em>${invalidParticipantRows ? `${invalidParticipantRows.toLocaleString("es-MX")} registros requieren matrícula válida` : (uniqueMatriculas.size ? "por matrícula" : "pendiente de listas detalladas")}</em></div>
+        <div class="kpi"><span>${uniqueMatriculas.size ? "Matrículas únicas identificadas" : "Participantes únicos identificados"}</span><strong>${(uniqueMatriculas.size || uniqueImportedReferences.size).toLocaleString("es-MX")}</strong><em>${uniqueMatriculas.size ? "por matrícula" : (invalidParticipantRows ? "conteo provisional; la carga histórica no contiene matrículas Tec" : "pendiente de listas detalladas")}</em></div>
         <div class="kpi"><span>Avance de meta</span><strong>${Math.round((impactCount / Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1)) * 100)}%</strong><em>sobre ${escapeHtml(impactBasis)}</em></div>
       </div>
 
