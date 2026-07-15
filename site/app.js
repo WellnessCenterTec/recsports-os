@@ -1297,6 +1297,10 @@ function normalizeMatricula(value) {
   return String(value ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
+function isValidVivenciaMatricula(value) {
+  return /^A\d{7,9}$/.test(normalizeMatricula(value));
+}
+
 async function loadStudentDatabase() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const rows = [];
@@ -3080,6 +3084,11 @@ function parseVivenciaParticipantRows(grid, fileName) {
     if (!matricula) {
       omitted += 1;
       warnings.push({ row: rowNumber, message: "Matricula vacia; se omitio" });
+      return;
+    }
+    if (!isValidVivenciaMatricula(matricula)) {
+      omitted += 1;
+      warnings.push({ row: rowNumber, message: "El valor no tiene formato de matricula Tec; se omitio" });
       return;
     }
     if (seen.has(matricula)) {
@@ -10446,13 +10455,13 @@ function vivenciaEventParticipants(eventId) {
   return vivenciaParticipants.filter((participant) => participant.event_id === eventId);
 }
 
-function vivenciaUniqueParticipantRows(events = vivenciaVisibleEvents()) {
-  const eventIds = new Set(events.map((event) => event.id));
+function vivenciaUniqueParticipantRows(events = null) {
+  const eventIds = Array.isArray(events) ? new Set(events.map((event) => event.id)) : null;
   const seen = new Set();
   return vivenciaParticipants.filter((participant) => {
-    if (!eventIds.has(participant.event_id)) return false;
+    if (eventIds && !eventIds.has(participant.event_id)) return false;
     const matricula = normalizeMatricula(participant.matricula);
-    if (!matricula || seen.has(matricula)) return false;
+    if (!isValidVivenciaMatricula(matricula) || seen.has(matricula)) return false;
     seen.add(matricula);
     return true;
   });
@@ -10932,8 +10941,12 @@ function renderVivenciaDashboard() {
     const date = vivenciaEventDate(event);
     return date && date >= today;
   });
-  const uniqueParticipantRows = vivenciaUniqueParticipantRows(events);
+  const uniqueParticipantRows = vivenciaUniqueParticipantRows();
   const uniqueMatriculas = new Set(uniqueParticipantRows.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean));
+  const invalidParticipantRows = vivenciaParticipants.filter((participant) => {
+    const value = normalizeMatricula(participant.matricula);
+    return value && !isValidVivenciaMatricula(value);
+  }).length;
   const participantTotal = metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
   const impactCount = participantTotal;
   const impactBasis = "participaciones reportadas";
@@ -10951,7 +10964,7 @@ function renderVivenciaDashboard() {
       <div class="kpi-grid vivencia-kpi-strip">
         <div class="kpi"><span>Eventos del semestre</span><strong>${events.length}</strong><em>desde Planeación/Vivencia</em></div>
         <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
-        <div class="kpi"><span>Matrículas únicas identificadas</span><strong>${uniqueMatriculas.size}</strong><em>${uniqueMatriculas.size ? "por matrícula" : "pendiente de listas detalladas"}</em></div>
+        <div class="kpi"><span>Matrículas únicas identificadas</span><strong>${uniqueMatriculas.size}</strong><em>${invalidParticipantRows ? `${invalidParticipantRows.toLocaleString("es-MX")} registros requieren matrícula válida` : (uniqueMatriculas.size ? "por matrícula" : "pendiente de listas detalladas")}</em></div>
         <div class="kpi"><span>Avance de meta</span><strong>${Math.round((impactCount / Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1)) * 100)}%</strong><em>sobre ${escapeHtml(impactBasis)}</em></div>
       </div>
 
