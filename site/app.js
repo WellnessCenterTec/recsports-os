@@ -10468,14 +10468,56 @@ function vivenciaParticipantGender(value) {
   return "Sin dato";
 }
 
-function vivenciaGenderRows(events = vivenciaVisibleEvents()) {
+function vivenciaGenderRows(events = vivenciaVisibleEvents(), metricsByEvent = vivenciaEventMetricMap(), participantRows = vivenciaParticipants) {
   const totals = { Mujeres: 0, Hombres: 0, "Sin dato": 0 };
-  vivenciaUniqueParticipantRows(events).forEach((participant) => {
-    const student = findStudentInDatabase(participant.matricula);
-    const gender = vivenciaParticipantGender(student?.genero || participant.genero);
-    totals[gender] += 1;
+  const participantsByEvent = new Map();
+  participantRows.forEach((participant) => {
+    if (!participantsByEvent.has(participant.event_id)) participantsByEvent.set(participant.event_id, []);
+    participantsByEvent.get(participant.event_id).push(participant);
   });
-  return Object.entries(totals).map(([label, value]) => ({ label, value }));
+  events.forEach((event) => {
+    const metrics = metricsByEvent.get(event.id) || event;
+    const participationTotal = Math.max(0, Number(vivenciaMetricParticipants(metrics)) || 0);
+    if (!participationTotal) return;
+
+    const participantsByMatricula = new Map();
+    (participantsByEvent.get(event.id) || []).forEach((participant) => {
+      const matricula = normalizeMatricula(participant.matricula);
+      if (matricula && !participantsByMatricula.has(matricula)) participantsByMatricula.set(matricula, participant);
+    });
+
+    let women = 0;
+    let men = 0;
+    let unspecified = 0;
+    if (participantsByMatricula.size) {
+      participantsByMatricula.forEach((participant) => {
+        const student = findStudentInDatabase(participant.matricula);
+        const gender = vivenciaParticipantGender(student?.genero || participant.genero);
+        if (gender === "Mujeres") women += 1;
+        else if (gender === "Hombres") men += 1;
+        else unspecified += 1;
+      });
+    } else {
+      women = Math.max(0, Number(metrics.reported_women || metrics.women || 0) || 0);
+      men = Math.max(0, Number(metrics.reported_men || metrics.men || 0) || 0);
+    }
+
+    const categorized = women + men + unspecified;
+    if (categorized < participationTotal) unspecified += participationTotal - categorized;
+    if (categorized > participationTotal) {
+      const scale = participationTotal / categorized;
+      women = Math.min(participationTotal, Math.round(women * scale));
+      men = Math.min(participationTotal - women, Math.round(men * scale));
+      unspecified = Math.max(0, participationTotal - women - men);
+    }
+    totals.Mujeres += women;
+    totals.Hombres += men;
+    totals["Sin dato"] += unspecified;
+  });
+  return Object.entries(totals).map(([label, value]) => ({
+    label: label === "Sin dato" ? "Sin género registrado" : label,
+    value
+  }));
 }
 
 function vivenciaImagesForEvent(eventId) {
@@ -10497,12 +10539,12 @@ function renderVivenciaGenderBreakdown(events) {
     <article class="chart-panel vivencia-gender-card">
       <div class="chart-title-row">
         <div><p class="eyebrow">Composición</p><h3>Impacto por género</h3></div>
-        <span>Únicos</span>
+        <span>Participaciones</span>
       </div>
       <div class="vivencia-gender-content">
-        <div class="vivencia-gender-donut" style="background:conic-gradient(${gradient})"><div><strong>${total}</strong><span>únicos</span></div></div>
+        <div class="vivencia-gender-donut" style="background:conic-gradient(${gradient})"><div><strong>${total.toLocaleString("es-MX")}</strong><span>participaciones</span></div></div>
         <div class="vivencia-gender-legend">
-          ${rows.map((row, index) => `<div><span class="tone-${index + 1}"></span><strong>${escapeHtml(row.label)}</strong><em>${row.value}</em></div>`).join("")}
+          ${rows.map((row, index) => `<div><span class="tone-${index + 1}"></span><strong>${escapeHtml(row.label)}</strong><em>${row.value.toLocaleString("es-MX")}</em></div>`).join("")}
         </div>
       </div>
     </article>
