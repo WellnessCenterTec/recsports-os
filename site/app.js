@@ -2219,6 +2219,23 @@ async function loadSupabaseCaptures() {
   cloudStatus = "Supabase conectado";
 }
 
+async function loadVivenciaParticipantDetails() {
+  const rows = [];
+  const pageSize = 1000;
+  const maxRows = 12000;
+  for (let offset = 0; offset < maxRows; offset += pageSize) {
+    const response = await supabaseClient
+      .from("vivencia_participant_details")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    if (response.error) return { data: [], error: response.error };
+    rows.push(...(response.data || []));
+    if (!response.data || response.data.length < pageSize) break;
+  }
+  return { data: rows, error: null };
+}
+
 async function loadVivenciaEvents() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const { data, error } = await supabaseClient
@@ -2247,11 +2264,7 @@ async function loadVivenciaEvents() {
       .select("*")
       .order("event_date", { ascending: false })
       .limit(1500),
-    supabaseClient
-      .from("vivencia_participant_details")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(12000),
+    loadVivenciaParticipantDetails(),
     supabaseClient
       .from("vivencia_participant_uploads")
       .select("*")
