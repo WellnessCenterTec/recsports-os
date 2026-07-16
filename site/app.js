@@ -13367,7 +13367,7 @@ function render() {
     if (reportsTab) reportsTab.style.order = "30";
   }
   const filtersBand = $(".filters-band");
-  if (filtersBand) filtersBand.hidden = isGym || isBudget || isPresentation || isCollaborators;
+  if (filtersBand) filtersBand.hidden = !isGeneral;
   const segmentedNav = $(".segmented");
   if (segmentedNav) segmentedNav.hidden = isPresentation;
   if (isParticipationOnly && !["dashboard", "reports"].includes(activeView)) activeView = "dashboard";
