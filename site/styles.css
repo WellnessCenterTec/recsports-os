@@ -7206,6 +7206,17 @@ tbody tr:hover td {
   min-height: 0;
 }
 
+.vivencia-insights-column {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.vivencia-insights-column > .chart-panel {
+  min-height: 0;
+}
+
 .vivencia-bars {
   display: grid;
   gap: 11px;
