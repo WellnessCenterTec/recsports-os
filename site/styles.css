@@ -7193,14 +7193,16 @@ tbody tr:hover td {
   min-width: 0;
 }
 
-.vivencia-dashboard-column {
+.vivencia-insights-grid {
+  grid-column: 1 / -1;
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
   gap: 12px;
   min-width: 0;
 }
 
-.vivencia-dashboard-column > .chart-panel {
+.vivencia-insights-grid > .chart-panel {
   min-height: 0;
 }
 
@@ -8115,6 +8117,7 @@ body.planning-modal-open {
 }
 
 @media (max-width: 760px) {
+  .vivencia-insights-grid { grid-template-columns: 1fr; }
   .physical-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

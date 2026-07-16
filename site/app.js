@@ -11001,12 +11001,18 @@ function renderVivenciaDashboard() {
         </article>
         ${renderVivenciaImpactGoal(impactCount, editable, impactBasis)}
         ${renderVivenciaGenderBreakdown(events, metricsByEvent)}
-        <div class="vivencia-dashboard-column">
+        <div class="vivencia-insights-grid">
           <article class="chart-panel vivencia-month-panel">
             <div class="chart-title-row">
               <div><p class="eyebrow">Impacto mensual</p><h3>${participantTotal ? "Participaciones por mes" : "Eventos por mes"}</h3></div>
             </div>
             ${renderVivenciaBars(monthRows, { compact: true })}
+          </article>
+          <article class="chart-panel vivencia-top-panel">
+            <div class="chart-title-row">
+              <div><p class="eyebrow">Top eventos</p><h3>Top 15 eventos por alumnos impactados</h3></div>
+            </div>
+            ${renderVivenciaTopEvents(events, metricsByEvent)}
           </article>
           <article class="chart-panel vivencia-recent-panel">
             <div class="chart-title-row">
@@ -11016,12 +11022,6 @@ function renderVivenciaDashboard() {
             ${renderVivenciaRecentEvents(events)}
           </article>
         </div>
-        <article class="chart-panel vivencia-top-panel">
-          <div class="chart-title-row">
-            <div><p class="eyebrow">Top eventos</p><h3>Top 15 eventos por alumnos impactados</h3></div>
-          </div>
-          ${renderVivenciaTopEvents(events, metricsByEvent)}
-        </article>
       </div>
     </section>
   `;
