@@ -600,6 +600,14 @@ let selectedVivenciaEventForParticipants = "";
 let selectedVivenciaEventForDetail = "";
 let vivenciaParticipantsModalOpen = false;
 let vivenciaEventImagesUploading = false;
+let communicationEvents = [];
+let communicationEventsLoaded = false;
+let communicationEventsAvailable = true;
+let communicationDashboardSettings = { impact_goal: 3800 };
+let communicationEventImporting = false;
+let communicationEventImportResult = null;
+let communicationPlanningSyncing = false;
+let selectedCommunicationEventForDetail = "";
 let classGradePage = 1;
 let classGradeFilter = {
   search: "",
@@ -2318,6 +2326,42 @@ async function loadVivenciaEvents() {
   });
 }
 
+async function loadCommunicationEvents() {
+  communicationEventsLoaded = true;
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    communicationEvents = [];
+    communicationEventsAvailable = true;
+    communicationDashboardSettings = { impact_goal: 3800 };
+    return;
+  }
+  const [eventsResult, settingsResult] = await Promise.all([
+    supabaseClient
+      .from("communication_events")
+      .select("*")
+      .is("archived_at", null)
+      .order("event_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1500),
+    supabaseClient
+      .from("communication_dashboard_settings")
+      .select("impact_goal, updated_at")
+      .eq("id", 1)
+      .maybeSingle()
+  ]);
+  if (eventsResult.error) {
+    communicationEvents = [];
+    communicationEventsAvailable = false;
+    communicationDashboardSettings = { impact_goal: 3800 };
+    console.warn("No se pudo cargar el centro de eventos de Comunicación", eventsResult.error);
+    return;
+  }
+  communicationEventsAvailable = true;
+  communicationEvents = eventsResult.data || [];
+  communicationDashboardSettings = settingsResult.error || !settingsResult.data
+    ? { impact_goal: 3800 }
+    : { ...settingsResult.data, impact_goal: Number(settingsResult.data.impact_goal || 3800) };
+}
+
 function planningValue(row, aliases) {
   const keys = Object.keys(row || {});
   const wanted = aliases.map(headerKey);
@@ -3442,6 +3486,217 @@ async function saveVivenciaImpactGoal(event) {
   toast("Meta de alumnos únicos actualizada");
 }
 
+function buildCommunicationEventPayloadFromPlanningRow(row) {
+  if (normalizePlanningArea(planningValue(row, ["Área", "Area", "area"])) !== "comunicacion") return null;
+  const eventName = String(planningValue(row, ["Actividad", "activity"]) || "").trim();
+  const eventDate = parseGymDate(planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]));
+  if (!eventName || !eventDate) return null;
+  const planningActivityId = getPlanningActivityId(row);
+  return {
+    planning_activity_id: planningActivityId,
+    event_name: eventName,
+    event_date: eventDate,
+    campus: "Monterrey",
+    responsible_name: String(planningValue(row, ["Responsable", "responsible"]) || "").trim() || null,
+    status: vivenciaStatus(planningValue(row, ["Estatus", "Estado", "status"])),
+    source_name: "planeacion_semestral_comunicacion",
+    source_row_key: planningActivityId,
+    created_by: currentUser?.id || null
+  };
+}
+
+async function saveCommunicationEvent(event) {
+  event.preventDefault();
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("comunicacion") || !communicationEventsAvailable) {
+    toast("Necesitas acceso autorizado de Comunicación para guardar eventos");
+    return;
+  }
+  const form = new FormData(event.currentTarget);
+  const eventId = String(form.get("event_id") || "").trim();
+  const payload = {
+    campus: String(form.get("campus") || "").trim() || "Monterrey",
+    event_name: String(form.get("event_name") || "").trim(),
+    discipline: String(form.get("discipline") || "").trim() || null,
+    classification: String(form.get("classification") || "").trim() || null,
+    event_date: String(form.get("event_date") || ""),
+    end_date: String(form.get("end_date") || "") || null,
+    branch: String(form.get("branch") || "").trim() || null,
+    target_population: String(form.get("target_population") || "").trim() || null,
+    participation_goal: vivenciaOptionalNumber(form.get("participation_goal")),
+    responsible_name: String(form.get("responsible_name") || "").trim() || null,
+    description: String(form.get("description") || "").trim() || null,
+    status: vivenciaStatus(form.get("status")),
+    reported_total_participants: vivenciaOptionalNumber(form.get("reported_total_participants")),
+    reported_men: vivenciaOptionalNumber(form.get("reported_men")),
+    reported_women: vivenciaOptionalNumber(form.get("reported_women")),
+    source_name: "captura_manual_comunicacion",
+    source_row_key: crypto.randomUUID(),
+    created_by: currentUser.id
+  };
+  if (eventId) {
+    delete payload.source_name;
+    delete payload.source_row_key;
+    delete payload.created_by;
+  }
+  if (!payload.event_name || !payload.event_date) {
+    toast("Nombre y fecha del evento son obligatorios");
+    return;
+  }
+  if (payload.end_date && payload.end_date < payload.event_date) {
+    toast("La fecha final no puede ser anterior a la fecha del evento");
+    return;
+  }
+  const query = eventId
+    ? supabaseClient.from("communication_events").update(payload).eq("id", eventId)
+    : supabaseClient.from("communication_events").insert(payload);
+  const { error } = await query;
+  if (error) {
+    console.error(error);
+    toast(`No se pudo guardar el evento: ${supabaseErrorDetail(error) || error.message}`);
+    return;
+  }
+  communicationEventImportResult = { loaded: 1, omitted: 0, warnings: [], source: eventId ? "Detalle de evento" : "Captura manual" };
+  addAudit("comunicacion", `${eventId ? "Evento actualizado" : "Evento creado"}: ${payload.event_name}`);
+  await loadCommunicationEvents();
+  selectedCommunicationEventForDetail = eventId;
+  render();
+  toast(eventId ? "Evento de Comunicación actualizado" : "Evento de Comunicación guardado");
+}
+
+async function importCommunicationEvents(file) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("comunicacion") || !communicationEventsAvailable) {
+    toast("Necesitas acceso autorizado de Comunicación para cargar eventos");
+    return;
+  }
+  communicationEventImporting = true;
+  communicationEventImportResult = null;
+  render();
+  try {
+    const grid = await vivenciaGridFromFile(file);
+    const rows = vivenciaRowsFromGrid(grid);
+    if (!rows.length) throw new Error("El archivo no contiene eventos");
+    const parsed = parseVivenciaEventRows(rows, `comunicacion:${file.name}`);
+    if (!parsed.payload.length) throw new Error("No se encontraron eventos con nombre y fecha válida");
+    const payload = parsed.payload.map((row) => {
+      const { has_fee, fee_amount, is_signature_event, ...communicationRow } = row;
+      return communicationRow;
+    });
+    for (let index = 0; index < payload.length; index += 300) {
+      const { error } = await supabaseClient
+        .from("communication_events")
+        .upsert(payload.slice(index, index + 300), { onConflict: "source_name,source_row_key" });
+      if (error) throw error;
+    }
+    communicationEventImportResult = {
+      loaded: payload.length,
+      omitted: parsed.omitted,
+      warnings: [...parsed.errors, ...parsed.warnings],
+      source: file.name
+    };
+    addAudit("comunicacion", `${payload.length} eventos procesados desde ${file.name}`);
+    await loadCommunicationEvents();
+    toast(`Carga lista: ${payload.length} eventos de Comunicación`);
+  } catch (error) {
+    console.error(error);
+    communicationEventImportResult = {
+      loaded: 0,
+      omitted: 0,
+      warnings: [{ row: 0, message: supabaseErrorDetail(error) || error.message || "Error de carga" }],
+      source: file.name,
+      blocked: true
+    };
+    toast(`No se pudo cargar eventos: ${supabaseErrorDetail(error) || error.message}`);
+  } finally {
+    communicationEventImporting = false;
+    render();
+  }
+}
+
+async function syncCommunicationEventsFromPlanning() {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("comunicacion") || !communicationEventsAvailable) {
+    toast("Necesitas permisos de Comunicación para sincronizar");
+    return;
+  }
+  communicationPlanningSyncing = true;
+  communicationEventImportResult = null;
+  render();
+  try {
+    const rows = await fetchPlanningSemestralRows();
+    const payload = rows.map(buildCommunicationEventPayloadFromPlanningRow).filter(Boolean);
+    if (!payload.length) throw new Error("No hay eventos de Comunicación con fecha en Planeación");
+    const { error } = await supabaseClient
+      .from("communication_events")
+      .upsert(payload, { onConflict: "planning_activity_id" });
+    if (error) throw error;
+    communicationEventImportResult = {
+      source: "Sincronización desde Planeación",
+      loaded: payload.length,
+      omitted: 0,
+      warnings: []
+    };
+    addAudit("comunicacion", `${payload.length} eventos sincronizados desde Planeación`);
+    await loadCommunicationEvents();
+    toast(`Sincronización lista: ${payload.length} eventos`);
+  } catch (error) {
+    console.error(error);
+    communicationEventImportResult = {
+      source: "Sincronización desde Planeación",
+      loaded: 0,
+      omitted: 0,
+      warnings: [{ row: 0, message: supabaseErrorDetail(error) || error.message || "Error de sincronización" }],
+      blocked: true
+    };
+    toast(`No se pudo sincronizar: ${supabaseErrorDetail(error) || error.message}`);
+  } finally {
+    communicationPlanningSyncing = false;
+    render();
+  }
+}
+
+async function saveCommunicationImpactGoal(event) {
+  event.preventDefault();
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("comunicacion") || !communicationEventsAvailable) {
+    toast("Necesitas permiso de Comunicación para cambiar la meta");
+    return;
+  }
+  const impactGoal = Number(new FormData(event.currentTarget).get("impact_goal"));
+  if (!Number.isInteger(impactGoal) || impactGoal < 1) {
+    toast("Escribe una meta válida de al menos 1 participante");
+    return;
+  }
+  const { error } = await supabaseClient
+    .from("communication_dashboard_settings")
+    .upsert({ id: 1, impact_goal: impactGoal, updated_at: new Date().toISOString(), updated_by: currentUser.id });
+  if (error) {
+    console.error(error);
+    toast(`No se pudo guardar la meta: ${supabaseErrorDetail(error) || error.message}`);
+    return;
+  }
+  communicationDashboardSettings = { ...communicationDashboardSettings, impact_goal: impactGoal };
+  addAudit("comunicacion", `Meta institucional actualizada a ${impactGoal}`);
+  render();
+  toast("Meta de Comunicación actualizada");
+}
+
+async function deleteCommunicationEvent(eventId) {
+  if (!eventId || !supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("comunicacion")) return;
+  const eventRow = communicationEvents.find((row) => row.id === eventId);
+  if (!eventRow || !window.confirm(`Eliminar ${eventRow.event_name || "este evento"} del historial de Comunicación?`)) return;
+  const { error } = await supabaseClient
+    .from("communication_events")
+    .update({ archived_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", eventId);
+  if (error) {
+    console.error(error);
+    toast(`No se pudo eliminar el evento: ${supabaseErrorDetail(error) || error.message}`);
+    return;
+  }
+  communicationEvents = communicationEvents.filter((row) => row.id !== eventId);
+  if (selectedCommunicationEventForDetail === eventId) selectedCommunicationEventForDetail = "";
+  render();
+  toast("Evento eliminado del historial de Comunicación");
+}
+
 async function uploadVivenciaEventImages(files, eventId) {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("vivencia")) {
     toast("Necesitas permiso de Vivencia para cargar imágenes");
@@ -4323,6 +4578,7 @@ async function loadSupabaseDataBundle() {
     ["Gimnasio", loadGymData],
     ["Simulador de clases", loadClassScheduleSimulatorCloud],
     ["Vivencia", loadVivenciaEvents],
+    ["Eventos de Comunicación", loadCommunicationEvents],
     ["Calendario Comunicación", loadPlanningEventOverrides],
     ["Intramuros", loadIntramurosParticipants],
     ["Booking", loadClassBookingReservationsCloud],
@@ -10990,7 +11246,9 @@ function renderVivenciaCalendar(events, baseDate, options = {}) {
             <div class="vivencia-calendar-day">
               <time>${date.getDate()}</time>
               ${dayEvents.slice(0, 3).map((event, eventIndex) => planningArea
-                ? `<button type="button" data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-calendar:${escapeHtml(event.event_date || "")}:${escapeHtml(event.id)}:${eventIndex}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`
+                ? event.__communicationEvent
+                  ? `<button type="button" data-communication-detail="${escapeHtml(event.id)}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`
+                  : `<button type="button" data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-calendar:${escapeHtml(event.event_date || "")}:${escapeHtml(event.id)}:${eventIndex}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`
                 : `<button type="button" data-vivencia-detail="${escapeHtml(event.id)}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`).join("")}
               ${dayEvents.length > 3 ? `<em>+${dayEvents.length - 3}</em>` : ""}
             </div>
@@ -11104,7 +11362,11 @@ function renderVivenciaAlerts(alerts) {
 }
 
 function communicationDashboardActivities() {
-  return planningActivitiesForArea(planningCalendarRows, "comunicacion").map((activity, index) => ({
+  const storedEvents = communicationEvents
+    .filter(isVisibleVivenciaEvent)
+    .map((event) => ({ ...event, __communicationEvent: true }));
+  const storedKeys = new Set(storedEvents.map((event) => event.planning_activity_id || `${normalizeText(event.event_name)}|${event.event_date}`).filter(Boolean));
+  const planningEvents = planningActivitiesForArea(planningCalendarRows, "comunicacion").map((activity, index) => ({
     ...activity,
     event_name: activity.activity,
     event_date: activity.date,
@@ -11114,7 +11376,9 @@ function communicationDashboardActivities() {
     source_week: activity.week,
     source_timestamp: activity.timestamp,
     source_index: index
-  }));
+  })).filter((event) => !storedKeys.has(event.planningActivityId || `${normalizeText(event.event_name)}|${event.event_date}`));
+  return [...storedEvents, ...planningEvents]
+    .sort((a, b) => String(a.event_date || "9999-12-31").localeCompare(String(b.event_date || "9999-12-31")));
 }
 
 function communicationMonthLabel(event, fallbackYear = new Date().getFullYear()) {
@@ -11196,12 +11460,36 @@ function renderCommunicationCoverage(total, dated) {
   `;
 }
 
+function renderCommunicationImpactGoal(impactCount) {
+  const goal = Math.max(Number(communicationDashboardSettings.impact_goal || 3800), 1);
+  const progress = Math.round((impactCount / goal) * 100);
+  const remaining = goal - impactCount;
+  const editable = currentUser?.auth === "supabase" && canEditArea("comunicacion") && communicationEventsAvailable;
+  return `
+    <article class="chart-panel vivencia-impact-goal-card">
+      <div class="chart-title-row">
+        <div><p class="eyebrow">Meta institucional</p><h3>Meta de impacto acumulado</h3></div>
+        <span>${progress}%</span>
+      </div>
+      <div class="vivencia-impact-amount"><strong>${impactCount.toLocaleString("es-MX")}</strong><span>de ${goal.toLocaleString("es-MX")} · participaciones de Comunicación</span></div>
+      <div class="vivencia-impact-track"><span style="width:${Math.min(100, progress)}%"></span></div>
+      <p>${remaining > 0 ? `Faltan ${remaining.toLocaleString("es-MX")} para alcanzar la meta.` : `Meta superada por ${Math.abs(remaining).toLocaleString("es-MX")} registros.`}</p>
+      ${editable ? `
+        <form id="communicationImpactGoalForm" class="vivencia-impact-goal-form">
+          <label>Editar meta<input name="impact_goal" type="number" min="1" step="1" value="${goal}" required /></label>
+          <button class="ghost-btn compact-action" type="submit">Guardar meta</button>
+        </form>
+      ` : ""}
+    </article>
+  `;
+}
+
 function renderCommunicationEventCards(events) {
   if (!events.length) return `<div class="vivencia-empty-mini">No hay actividades próximas en los siguientes 15 días.</div>`;
   return `
     <div class="vivencia-event-card-list">
       ${events.slice(0, 6).map((event, index) => `
-        <article class="vivencia-event-card" data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-agenda:${escapeHtml(event.id)}:${index}">
+        <article class="vivencia-event-card" ${event.__communicationEvent ? `data-communication-detail="${escapeHtml(event.id)}"` : `data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-agenda:${escapeHtml(event.id)}:${index}"`}>
           <time>${escapeHtml(event.event_date || "Sin fecha")}</time>
           <div><strong>${escapeHtml(event.event_name || "Actividad sin nombre")}</strong><span>${escapeHtml(event.responsible_name || event.source_month || "Responsable pendiente")}</span></div>
           <em class="${escapeHtml(event.status || "planeado")}">${escapeHtml(vivenciaStateLabel(event.status))}</em>
@@ -11213,12 +11501,17 @@ function renderCommunicationEventCards(events) {
 }
 
 function renderCommunicationRecentActivities(events) {
-  const rows = [...events].sort((a, b) => b.source_index - a.source_index).slice(0, 10);
+  const rows = [...events].sort((a, b) => {
+    if (a.__communicationEvent || b.__communicationEvent) {
+      return String(b.created_at || b.event_date || "").localeCompare(String(a.created_at || a.event_date || ""));
+    }
+    return Number(b.source_index || 0) - Number(a.source_index || 0);
+  }).slice(0, 10);
   if (!rows.length) return `<div class="vivencia-empty-mini">Todavía no hay actividades registradas.</div>`;
   return `
     <div class="vivencia-recent-list">
       ${rows.map((event, index) => `
-        <button type="button" data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-recent:${escapeHtml(event.id)}:${index}">
+        <button type="button" ${event.__communicationEvent ? `data-communication-detail="${escapeHtml(event.id)}"` : `data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-recent:${escapeHtml(event.id)}:${index}"`}>
           <span>${index + 1}</span>
           <div><strong>${escapeHtml(event.event_name || "Actividad sin nombre")}</strong><small>${escapeHtml(event.event_date || communicationMonthLabel(event))} · ${escapeHtml(event.responsible_name || "Responsable pendiente")}</small></div>
           <em>${escapeHtml(vivenciaStateLabel(event.status))}</em>
@@ -11260,6 +11553,9 @@ function renderCommunicationDashboard() {
   const dated = activities.filter((event) => event.event_date);
   const undated = activities.filter((event) => !event.event_date);
   const responsibleCount = new Set(activities.map((event) => normalizeText(event.responsible_name)).filter(Boolean)).size;
+  const participantTotal = communicationEvents
+    .filter(isVisibleVivenciaEvent)
+    .reduce((sum, event) => sum + Math.max(0, Number(event.reported_total_participants || 0)), 0);
   const planningYear = dated.map((event) => vivenciaEventDate(event)?.getFullYear()).find(Boolean) || new Date().getFullYear();
   const activeMonths = new Set(activities.map((event) => communicationMonthLabel(event, planningYear)).filter((label) => label !== "Sin fecha")).size;
   const today = new Date();
@@ -11284,7 +11580,7 @@ function renderCommunicationDashboard() {
         <div class="kpi"><span>Actividades del semestre</span><strong>${activities.length.toLocaleString("es-MX")}</strong><em>solo Comunicación</em></div>
         <div class="kpi"><span>Actividades con fecha</span><strong>${dated.length.toLocaleString("es-MX")}</strong><em>visibles en calendario</em></div>
         <div class="kpi"><span>Actividades sin fecha</span><strong>${undated.length.toLocaleString("es-MX")}</strong><em>requieren programación</em></div>
-        <div class="kpi"><span>Meses con actividad</span><strong>${activeMonths.toLocaleString("es-MX")}</strong><em>${responsibleCount ? `${responsibleCount} responsables identificados` : "Planeación Semestral"}</em></div>
+        <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal.toLocaleString("es-MX")}</strong><em>${activeMonths} meses · ${responsibleCount || 0} responsables</em></div>
       </div>
       <div class="vivencia-dashboard-grid">
         ${renderVivenciaCalendar(activities, calendarDate, { planningArea: "comunicacion" })}
@@ -11292,7 +11588,7 @@ function renderCommunicationDashboard() {
           <div class="chart-title-row"><div><p class="eyebrow">Agenda</p><h3>Próximas actividades</h3></div><span>15 días</span></div>
           ${renderCommunicationEventCards(upcoming)}
         </article>
-        ${renderCommunicationCoverage(activities.length, dated.length)}
+        ${renderCommunicationImpactGoal(participantTotal)}
         ${renderCommunicationStatusBreakdown(activities)}
         <div class="vivencia-insights-grid">
           <div class="vivencia-insights-column">
@@ -12730,6 +13026,98 @@ function renderVivenciaEventsView() {
   `;
 }
 
+function renderCommunicationEventHistory() {
+  if (currentUser?.auth !== "supabase") return `<div class="vivencia-empty-state">Inicia sesión con Supabase para consultar y guardar el historial compartido.</div>`;
+  if (!communicationEventsLoaded) return `<div class="vivencia-empty-state">Cargando historial de eventos...</div>`;
+  if (!communicationEventsAvailable) {
+    return `<div class="vivencia-empty-state warning"><strong>Falta activar los eventos de Comunicación en Supabase.</strong><span>Ejecuta <code>supabase/communication-events.sql</code> una sola vez.</span></div>`;
+  }
+  if (!communicationEvents.length) return `<div class="vivencia-empty-state">Todavía no hay eventos de Comunicación guardados.</div>`;
+  const editable = currentUser?.auth === "supabase" && canEditArea("comunicacion");
+  return `
+    <div class="table-wrap vivencia-history-wrap">
+      <table class="vivencia-history-table">
+        <thead><tr><th>Fecha</th><th>Evento</th><th>Meta</th><th>Participantes</th><th>Responsable</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>
+          ${communicationEvents.map((row) => `
+            <tr>
+              <td data-label="Fecha">${escapeHtml(row.event_date || "")}</td>
+              <td data-label="Evento"><strong>${escapeHtml(row.event_name || "")}</strong>${row.classification ? `<span>${escapeHtml(row.classification)}</span>` : ""}</td>
+              <td data-label="Meta">${row.participation_goal ?? "Sin meta"}</td>
+              <td data-label="Participantes"><strong>${Number(row.reported_total_participants || 0).toLocaleString("es-MX")}</strong></td>
+              <td data-label="Responsable">${escapeHtml(row.responsible_name || "Sin asignar")}</td>
+              <td data-label="Estado"><span class="vivencia-status ${escapeHtml(row.status || "planeado")}">${escapeHtml(vivenciaStateLabel(row.status))}</span></td>
+              <td data-label="Acciones">
+                <button class="ghost-btn compact-action" data-communication-detail="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Detalle</button>
+                <button class="danger-btn compact-action" data-communication-delete="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Eliminar</button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderCommunicationEventsView() {
+  const editable = currentUser?.auth === "supabase" && canEditArea("comunicacion") && communicationEventsAvailable;
+  const today = new Date().toISOString().slice(0, 10);
+  const detailEvent = communicationEvents.find((row) => row.id === selectedCommunicationEventForDetail) || null;
+  const formValue = (key, fallback = "") => escapeHtml(detailEvent?.[key] ?? fallback ?? "");
+  const formNumber = (key) => detailEvent?.[key] ?? "";
+  const detailStatus = vivenciaStatus(detailEvent?.status || "planeado");
+  return `
+    <section class="vivencia-events-module communication-events-module">
+      <div class="permission-strip">
+        <span>Esta carga alimenta únicamente el dashboard y calendario de Comunicación.</span>
+        <span>${communicationEvents.length} eventos en historial</span>
+      </div>
+      ${renderVivenciaImportSummary(communicationEventImportResult)}
+      <div class="vivencia-event-layout">
+        <article class="form-panel vivencia-event-entry">
+          <div class="vivencia-panel-heading">
+            <div><p class="eyebrow">Comunicación</p><h3>${detailEvent ? "Detalle del evento" : "Captura manual de evento"}</h3></div>
+            <span class="editor-status">${editable ? "Guardado en línea activo" : "Modo consulta"}</span>
+          </div>
+          <form id="communicationEventForm" class="vivencia-event-form">
+            <input name="event_id" type="hidden" value="${formValue("id")}" />
+            <label>Campus<input name="campus" value="${formValue("campus", "Monterrey")}" ${editable ? "" : "disabled"} /></label>
+            <label>Nombre del evento<input name="event_name" required value="${formValue("event_name")}" placeholder="Nombre del evento" ${editable ? "" : "disabled"} /></label>
+            <label>Tipo de actividad<input name="discipline" value="${formValue("discipline")}" placeholder="Opcional" ${editable ? "" : "disabled"} /></label>
+            <label>Clasificación<input name="classification" value="${formValue("classification")}" placeholder="Ej. Campaña, cobertura" ${editable ? "" : "disabled"} /></label>
+            <label>Fecha del evento<input name="event_date" type="date" required value="${formValue("event_date", today)}" ${editable ? "" : "disabled"} /></label>
+            <label>Fecha final<input name="end_date" type="date" value="${formValue("end_date")}" ${editable ? "" : "disabled"} /></label>
+            <label>Rama<input name="branch" value="${formValue("branch")}" placeholder="Opcional" ${editable ? "" : "disabled"} /></label>
+            <label>Población objetivo<input name="target_population" value="${formValue("target_population")}" placeholder="Ej. Comunidad estudiantil" ${editable ? "" : "disabled"} /></label>
+            <label>Meta de impacto<input name="participation_goal" type="number" min="0" value="${formNumber("participation_goal")}" placeholder="0" ${editable ? "" : "disabled"} /></label>
+            <label>Participantes impactados<input name="reported_total_participants" type="number" min="0" value="${formNumber("reported_total_participants")}" placeholder="0" ${editable ? "" : "disabled"} /></label>
+            <label>Mujeres<input name="reported_women" type="number" min="0" value="${formNumber("reported_women")}" placeholder="0" ${editable ? "" : "disabled"} /></label>
+            <label>Hombres<input name="reported_men" type="number" min="0" value="${formNumber("reported_men")}" placeholder="0" ${editable ? "" : "disabled"} /></label>
+            <label>Responsable<input name="responsible_name" value="${formValue("responsible_name")}" placeholder="Nombre del responsable" ${editable ? "" : "disabled"} /></label>
+            <label>Estado<select name="status" ${editable ? "" : "disabled"}><option value="planeado" ${detailStatus === "planeado" ? "selected" : ""}>Planeado</option><option value="realizado" ${detailStatus === "realizado" ? "selected" : ""}>Realizado</option><option value="pospuesto" ${detailStatus === "pospuesto" ? "selected" : ""}>Pospuesto</option><option value="cancelado" ${detailStatus === "cancelado" ? "selected" : ""}>Cancelado</option></select></label>
+            <label class="full">Descripción<textarea name="description" rows="3" placeholder="Descripción breve del evento" ${editable ? "" : "disabled"}>${formValue("description")}</textarea></label>
+            ${detailEvent ? `<button class="ghost-btn full" id="newCommunicationEvent" type="button">Capturar evento nuevo</button>` : ""}
+            <button class="primary-btn full" type="submit" ${editable ? "" : "disabled"}>${detailEvent ? "Guardar detalle" : "Guardar evento"}</button>
+          </form>
+          <div class="vivencia-bulk-upload">
+            <div><strong>Carga masiva de eventos</strong><span>Acepta CSV, XLSX o XLS. Usa el mismo formato de eventos de Vivencia, pero guarda los registros solamente en Comunicación.</span></div>
+            <button class="ghost-btn" id="uploadCommunicationEvents" type="button" ${editable && !communicationEventImporting ? "" : "disabled"}>${communicationEventImporting ? "Procesando archivo..." : "Cargar CSV o Excel"}</button>
+            <input id="communicationEventsFile" type="file" accept=".csv,.xlsx,.xls" hidden />
+          </div>
+          <div class="vivencia-bulk-upload">
+            <div><strong>Sincronizar desde Planeación</strong><span>Guarda los eventos de Comunicación que ya tienen fecha y evita registros repetidos.</span></div>
+            <button class="ghost-btn" id="syncCommunicationPlanningEvents" type="button" ${editable && !communicationPlanningSyncing ? "" : "disabled"}>${communicationPlanningSyncing ? "Sincronizando..." : "Sincronizar eventos"}</button>
+          </div>
+        </article>
+        <article class="form-panel vivencia-event-history">
+          <div class="vivencia-panel-heading"><div><p class="eyebrow">Historial</p><h3>Eventos cargados</h3></div><span class="editor-status">Solo Comunicación</span></div>
+          ${renderCommunicationEventHistory()}
+        </article>
+      </div>
+    </section>
+  `;
+}
+
 function renderCapture(area) {
   const selected = area.id === "general" ? areas.find((item) => item.id === currentUser?.area) || areas[1] : area;
   if (selected.id === "colaboradores") return renderCollaboratorsCapture(selected);
@@ -13715,6 +14103,7 @@ function render() {
   const reportsTab = $(`.segmented button[data-view="reports"]`);
   const isGym = activeArea === "gimnasio";
   const isVivencia = activeArea === "vivencia";
+  const isCommunication = activeArea === "comunicacion";
   const isBudget = activeArea === "compras";
   const isIntramuros = activeArea === "intramuros";
   const isGeneral = activeArea === "general";
@@ -13729,7 +14118,7 @@ function render() {
   if (simulatorTab) simulatorTab.hidden = activeArea !== "clases";
   if (gymAttendanceTab) gymAttendanceTab.hidden = !isGym;
   if (gymRegistrationsTab) gymRegistrationsTab.hidden = !isGym;
-  if (vivenciaEventsTab) vivenciaEventsTab.hidden = !isVivencia;
+  if (vivenciaEventsTab) vivenciaEventsTab.hidden = !isVivencia && !isCommunication;
   if (budgetAllocationTab) budgetAllocationTab.hidden = !isBudget;
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
   if (schedulesTab) {
@@ -13755,7 +14144,7 @@ function render() {
   if (isParticipationOnly && !["dashboard", "reports"].includes(activeView)) activeView = "dashboard";
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
-  if (!isVivencia && activeView === "vivencia-events") activeView = "dashboard";
+  if (!isVivencia && !isCommunication && activeView === "vivencia-events") activeView = "dashboard";
   if (!isBudget && ["budget-allocation", "budget-request"].includes(activeView)) activeView = "dashboard";
   if (activeView === "collaborator-infographic" && !isCollaborators) activeView = "dashboard";
   if (activeView === "blueprint" && !isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases"))) activeView = "dashboard";
@@ -13770,7 +14159,7 @@ function render() {
     else if (activeView === "capture") contentHtml = renderCapture(area);
     else if (activeView === "gym-attendance") contentHtml = renderGymAttendanceRegistration();
     else if (activeView === "gym-registrations") contentHtml = renderGymStudentRegistration();
-    else if (activeView === "vivencia-events") contentHtml = renderVivenciaEventsView();
+    else if (activeView === "vivencia-events") contentHtml = isCommunication ? renderCommunicationEventsView() : renderVivenciaEventsView();
     else if (activeView === "budget-allocation") contentHtml = renderBudgetAllocationView();
     else if (activeView === "budget-request") contentHtml = renderBudgetRequestView();
     else if (activeView === "schedules") contentHtml = isGeneral ? renderExecutiveCalendarView() : isIntramuros ? renderIntramurosParticipantUploadView() : renderSchedules(area);
@@ -14082,6 +14471,20 @@ function render() {
   });
   $("#vivenciaEventForm")?.addEventListener("submit", saveVivenciaEvent);
   $("#vivenciaImpactGoalForm")?.addEventListener("submit", saveVivenciaImpactGoal);
+  $("#communicationEventForm")?.addEventListener("submit", saveCommunicationEvent);
+  $("#communicationImpactGoalForm")?.addEventListener("submit", saveCommunicationImpactGoal);
+  $("#newCommunicationEvent")?.addEventListener("click", () => {
+    selectedCommunicationEventForDetail = "";
+    render();
+  });
+  $("#uploadCommunicationEvents")?.addEventListener("click", () => $("#communicationEventsFile")?.click());
+  $("#communicationEventsFile")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await importCommunicationEvents(file);
+    event.target.value = "";
+  });
+  $("#syncCommunicationPlanningEvents")?.addEventListener("click", syncCommunicationEventsFromPlanning);
   $("#newVivenciaEvent")?.addEventListener("click", () => {
     selectedVivenciaEventForDetail = "";
     render();
@@ -14125,6 +14528,14 @@ function render() {
     selectedVivenciaEventForDetail = button.dataset.vivenciaDetail;
     activeView = "vivencia-events";
     render();
+  }));
+  $$("[data-communication-detail]").forEach((button) => button.addEventListener("click", () => {
+    selectedCommunicationEventForDetail = button.dataset.communicationDetail;
+    activeView = "vivencia-events";
+    render();
+  }));
+  $$("[data-communication-delete]").forEach((button) => button.addEventListener("click", () => {
+    deleteCommunicationEvent(button.dataset.communicationDelete);
   }));
   $$("[data-vivencia-delete]").forEach((button) => button.addEventListener("click", () => {
     deleteVivenciaEvent(button.dataset.vivenciaDelete);
@@ -15084,6 +15495,14 @@ $("#logoutButton").addEventListener("click", () => {
     selectedVivenciaEventForDetail = "";
     vivenciaParticipantsModalOpen = false;
     vivenciaEventImagesUploading = false;
+    communicationEvents = [];
+    communicationEventsLoaded = false;
+    communicationEventsAvailable = true;
+    communicationDashboardSettings = { impact_goal: 3800 };
+    communicationEventImporting = false;
+    communicationEventImportResult = null;
+    communicationPlanningSyncing = false;
+    selectedCommunicationEventForDetail = "";
     physicalHallOfFameOpen = false;
     physicalHallOfFameTopTest = "";
     physicalHallOfFameGender = "todos";
