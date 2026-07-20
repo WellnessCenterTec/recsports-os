@@ -1282,10 +1282,34 @@ function participationFromCloud(row) {
   };
 }
 
+function meaningfulAcademicValue(values, fallback = "") {
+  const genericValues = new Set([
+    "sin programa",
+    "sin carrera",
+    "sin identificar",
+    "no aplica",
+    "n/a",
+    "na",
+    "-"
+  ]);
+  return values
+    .map((value) => String(value ?? "").trim())
+    .find((value) => value && !genericValues.has(normalizeText(value))) || fallback;
+}
+
 function studentDatabaseFromCloud(row) {
   const matricula = row.Matricula || row.matricula || "";
   const nivelRaw = row["Desc Nivel Acad Alumno"] || row.nivel_escolar || row.grado_escolar || "";
-  const programa = row["Desc Programa Acad"] || row.Programa || row.programa || row.Carrera || row.carrera || "Sin programa";
+  const programa = meaningfulAcademicValue([
+    row.Carrera,
+    row.carrera,
+    row["v_Clave Major Agrupado"],
+    row["Clave Major Agrupado"],
+    row["Desc Programa Acad"],
+    row.Programa,
+    row.programa,
+    row["Desc Escuela Programa"]
+  ], "Sin carrera");
   return {
     matricula,
     genero: row.Genero || row.genero || "No especificado",
@@ -1966,6 +1990,7 @@ function parseStudentDatabaseCsv(text) {
     matricula: columnFor(["matricula", "matrícula"]),
     genero: columnFor(["genero", "género", "sexo"]),
     carrera: columnFor(["carrera", "programa", "programa academico", "programa académico"]),
+    major: columnFor(["v_Clave Major Agrupado", "clave major agrupado", "major"]),
     campus: columnFor(["nombre campus", "campus"]),
     periodoAcad: columnFor(["periodo acad", "periodo academico", "periodo académico"]),
     programaDesc: columnFor(["desc programa acad", "desc programa académico", "programa academico", "programa académico"]),
@@ -2000,7 +2025,11 @@ function parseStudentDatabaseCsv(text) {
   rows.slice(1).forEach((values, index) => {
     const rowNumber = index + 2;
     const matricula = String(values[columns.matricula] || "").trim().toUpperCase();
-    const carrera = String(values[columns.programaDesc] || values[columns.carrera] || "").trim();
+    const carrera = meaningfulAcademicValue([
+      columns.carrera === undefined ? "" : values[columns.carrera],
+      columns.major === undefined ? "" : values[columns.major],
+      columns.programaDesc === undefined ? "" : values[columns.programaDesc]
+    ]);
     const semesterResult = columns.semestre === undefined ? { value: null, warning: false } : parseOptionalSemester(values[columns.semestre]);
     const semestre = semesterResult.value;
     const genero = columns.genero === undefined ? "No especificado" : normalizeStudentGender(values[columns.genero]);
@@ -2042,7 +2071,7 @@ function parseStudentDatabaseCsv(text) {
       .map((row) => ({
         matricula: row.Matricula,
         genero: row.Genero || "No especificado",
-        carrera: row["Desc Programa Acad"] || row.Carrera || "Sin carrera",
+        carrera: meaningfulAcademicValue([row.Carrera, row["v_Clave Major Agrupado"], row["Desc Programa Acad"]], "Sin carrera"),
         semestre: row.Semestre || 1,
         nivel_escolar: normalizeStudentLevel(row["Desc Nivel Acad Alumno"])
       })),
@@ -6321,12 +6350,12 @@ function renderGymDashboard() {
   const dailyRows = gymDailyRows(gymDashboardFacility);
   const attendanceProfiles = gymAttendanceStudentProfiles(gymDashboardFacility);
   const unmatchedAttendance = attendanceProfiles.filter((row) => !row.matched).length;
-  const totalAttendanceVisits = attendanceProfiles.reduce((sum, row) => sum + Number(row.attendanceCount || 0), 0);
-  const unmatchedAttendanceVisits = attendanceProfiles
-    .filter((row) => !row.matched)
-    .reduce((sum, row) => sum + Number(row.attendanceCount || 0), 0);
+  const careerProfiles = attendanceProfiles.filter((row) => (
+    row.matched && meaningfulAcademicValue([row.carrera])
+  ));
+  const pendingCareerProfiles = attendanceProfiles.length - careerProfiles.length;
   const semesterRows = gymStudentDistributionRows(attendanceProfiles, "semestre", { semesterOrder: ["1", "2", "3", "4", "5", "6", "7", "8", "9"] });
-  const careerRows = gymStudentDistributionRows(attendanceProfiles, "carrera", { top: 10, weightField: "attendanceCount" });
+  const careerRows = gymStudentDistributionRows(careerProfiles, "carrera", { top: 10 });
   const emptyMessage = !gymDataLoaded
     ? `<p class="form-message">Activa las tablas de Gimnasio en Supabase para comenzar.</p>`
     : !gymAttendanceRecords.length
@@ -6353,12 +6382,12 @@ function renderGymDashboard() {
           <div class="gym-bars">${gymBarRows(dailyRows)}</div>
         </section>
         ${renderGymStudentDistribution("Por semestre", "% de alumnos asistentes", semesterRows, attendanceProfiles.length, unmatchedAttendance, "semester")}
-        ${renderGymStudentDistribution("Asistencia por carrera", "Top 10 + Otras", careerRows, totalAttendanceVisits, unmatchedAttendanceVisits, "", {
-          summaryLabel: "asistencias con matrícula",
-          itemLabel: "asistencias",
-          itemLabelSingular: "asistencia",
-          unmatchedLabel: "asistencias sin cruce en Base Maestra",
-          unmatchedLabelSingular: "asistencia sin cruce en Base Maestra"
+        ${renderGymStudentDistribution("Alumnos asistentes por carrera", "Top 10 + Otras", careerRows, careerProfiles.length, pendingCareerProfiles, "", {
+          summaryLabel: "alumnos únicos con carrera identificada",
+          itemLabel: "alumnos",
+          itemLabelSingular: "alumno",
+          unmatchedLabel: "alumnos pendientes de cruce académico",
+          unmatchedLabelSingular: "alumno pendiente de cruce académico"
         })}
       </div>
       <section class="chart-panel gym-week-chart">
