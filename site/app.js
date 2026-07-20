@@ -2326,7 +2326,7 @@ function planningValue(row, aliases) {
 function normalizePlanningArea(value) {
   const area = normalizeText(value);
   const compactArea = area.replace(/\s+/g, "");
-  if (compactArea === "comunicacion") return "comunicacion";
+  if (compactArea === "comunicacion" || compactArea.startsWith("comunicaci")) return "comunicacion";
   if (compactArea === "intramuros") return "intramuros";
   if (compactArea === "vivencia") return "vivencia";
   return area;
@@ -2360,12 +2360,16 @@ function getPlanningCalendarActivityId(row, rowIndex = "") {
 }
 
 function normalizePlanningCalendarRow(row, rowIndex = "") {
+  const cells = Array.isArray(row?.__cells) ? row.__cells : [];
   return {
     id: getPlanningCalendarActivityId(row, rowIndex),
     planningActivityId: getPlanningActivityId(row),
-    date: normalizePlanningCalendarDate(planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"])),
-    area: normalizePlanningArea(planningValue(row, ["Área", "Area", "area"])),
-    activity: String(planningValue(row, ["Actividad", "activity"]) || "").trim(),
+    date: normalizePlanningCalendarDate(planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]) || cells[5]),
+    area: normalizePlanningArea(planningValue(row, ["Área", "Area", "area"]) || cells[1]),
+    activity: String(planningValue(row, ["Actividad", "activity"]) || cells[3] || "").trim(),
+    month: String(planningValue(row, ["Mes", "month"]) || cells[2] || "").trim(),
+    week: String(planningValue(row, ["Semana", "week"]) || cells[4] || "").trim(),
+    timestamp: String(planningValue(row, ["Marca temporal", "Timestamp", "timestamp"]) || cells[0] || "").trim(),
     responsible: String(planningValue(row, ["Responsable", "responsible"]) || "").trim(),
     status: String(planningValue(row, ["Estatus", "Estado", "status"]) || "").trim(),
     place: String(planningValue(row, ["Lugar", "Ubicación", "Ubicacion", "Sede", "location", "place"]) || "").trim()
@@ -2679,9 +2683,10 @@ function renderPlanningAreaDashboard(area, rows = planningCalendarRows, loaded =
 }
 
 function getPlanningActivityId(row) {
-  const area = planningValue(row, ["Área", "Area", "area"]);
-  const specificDate = planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]);
-  const activity = planningValue(row, ["Actividad", "activity"]);
+  const cells = Array.isArray(row?.__cells) ? row.__cells : [];
+  const area = planningValue(row, ["Área", "Area", "area"]) || cells[1];
+  const specificDate = planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]) || cells[5];
+  const activity = planningValue(row, ["Actividad", "activity"]) || cells[3];
   const rawId = [
     "planeacion-semestral",
     normalizeText(area),
@@ -8797,7 +8802,7 @@ function renderDashboard(area) {
   if (area.id === "gimnasio") return renderGymDashboard();
   if (area.id === "clases") return renderClassesDashboard();
   if (area.id === "vivencia") return renderVivenciaDashboard();
-  if (area.id === "comunicacion") return renderPlanningAreaDashboard(area, planningCalendarRows, planningCalendarLoaded, planningCalendarError, undefined, null, { compactHeader: true });
+  if (area.id === "comunicacion") return renderCommunicationDashboard();
   if (area.id === "intramuros") return renderIntramurosDashboard();
   if (area.id === "compras") return renderBudgetDashboard();
   if (area.id === "gamer" || area.id === "representativos") return renderParticipationUploadDashboard(area.id);
@@ -10783,7 +10788,8 @@ function vivenciaCalendarBaseDate(events) {
   return next || today;
 }
 
-function renderVivenciaCalendar(events, baseDate) {
+function renderVivenciaCalendar(events, baseDate, options = {}) {
+  const planningArea = options.planningArea || "";
   const year = baseDate.getFullYear();
   const month = baseDate.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -10809,9 +10815,13 @@ function renderVivenciaCalendar(events, baseDate) {
           <h3>${baseDate.toLocaleDateString("es-MX", { month: "long", year: "numeric" })}</h3>
         </div>
         <div class="planning-month-controls vivencia-calendar-controls" aria-label="Navegación del calendario">
-          <button type="button" data-vivencia-month="previous" aria-label="Mes anterior" title="Mes anterior">&#8249;</button>
-          <button type="button" data-vivencia-month="today" class="vivencia-calendar-today">Hoy</button>
-          <button type="button" data-vivencia-month="next" aria-label="Mes siguiente" title="Mes siguiente">&#8250;</button>
+          ${planningArea
+            ? `<button type="button" data-planning-month="previous" data-planning-area="${escapeHtml(planningArea)}" aria-label="Mes anterior" title="Mes anterior">&#8249;</button>
+               <button type="button" data-planning-month="today" data-planning-area="${escapeHtml(planningArea)}" class="vivencia-calendar-today">Hoy</button>
+               <button type="button" data-planning-month="next" data-planning-area="${escapeHtml(planningArea)}" aria-label="Mes siguiente" title="Mes siguiente">&#8250;</button>`
+            : `<button type="button" data-vivencia-month="previous" aria-label="Mes anterior" title="Mes anterior">&#8249;</button>
+               <button type="button" data-vivencia-month="today" class="vivencia-calendar-today">Hoy</button>
+               <button type="button" data-vivencia-month="next" aria-label="Mes siguiente" title="Mes siguiente">&#8250;</button>`}
         </div>
       </div>
       <div class="vivencia-calendar">
@@ -10822,7 +10832,9 @@ function renderVivenciaCalendar(events, baseDate) {
           return `
             <div class="vivencia-calendar-day">
               <time>${date.getDate()}</time>
-              ${dayEvents.slice(0, 3).map((event) => `<button type="button" data-vivencia-detail="${escapeHtml(event.id)}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`).join("")}
+              ${dayEvents.slice(0, 3).map((event, eventIndex) => planningArea
+                ? `<button type="button" data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-calendar:${escapeHtml(event.event_date || "")}:${escapeHtml(event.id)}:${eventIndex}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`
+                : `<button type="button" data-vivencia-detail="${escapeHtml(event.id)}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`).join("")}
               ${dayEvents.length > 3 ? `<em>+${dayEvents.length - 3}</em>` : ""}
             </div>
           `;
@@ -10931,6 +10943,219 @@ function renderVivenciaAlerts(alerts) {
         </article>
       `).join("")}
     </div>
+  `;
+}
+
+function communicationDashboardActivities() {
+  return planningActivitiesForArea(planningCalendarRows, "comunicacion").map((activity, index) => ({
+    ...activity,
+    event_name: activity.activity,
+    event_date: activity.date,
+    responsible_name: activity.responsible,
+    status: normalizeText(activity.status) || "planeado",
+    source_month: activity.month,
+    source_week: activity.week,
+    source_timestamp: activity.timestamp,
+    source_index: index
+  }));
+}
+
+function communicationMonthLabel(event, fallbackYear = new Date().getFullYear()) {
+  const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+  if (event.event_date) {
+    const date = vivenciaEventDate(event);
+    if (date) return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+  }
+  const sourceMonth = String(event.source_month || "").trim();
+  if (!sourceMonth) return "Sin fecha";
+  const normalizedMonth = normalizeText(sourceMonth);
+  const monthIndex = monthNames.findIndex((name) => normalizeText(name).startsWith(normalizedMonth.slice(0, 3)));
+  return `${monthIndex >= 0 ? monthNames[monthIndex] : sourceMonth} ${fallbackYear}`;
+}
+
+function communicationCalendarBaseDate(events) {
+  const selectedMonth = planningCalendarMonthByArea.comunicacion;
+  if (/^\d{4}-\d{2}$/.test(selectedMonth)) {
+    const selected = new Date(`${selectedMonth}-01T00:00:00`);
+    if (!Number.isNaN(selected.getTime())) return selected;
+  }
+  const baseDate = planningCalendarBaseDate(events.map((event) => ({ date: event.event_date })));
+  planningCalendarMonthByArea.comunicacion = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, "0")}`;
+  return baseDate;
+}
+
+function communicationStatusRows(events) {
+  const totals = new Map();
+  events.forEach((event) => {
+    const status = vivenciaStateLabel(normalizeText(event.status) || "planeado");
+    totals.set(status, (totals.get(status) || 0) + 1);
+  });
+  return [...totals.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "es"));
+}
+
+function renderCommunicationStatusBreakdown(events) {
+  const rows = communicationStatusRows(events);
+  const total = rows.reduce((sum, row) => sum + row.value, 0);
+  const colors = ["#1672ae", "#178f72", "#e0a40b", "#bf3f45", "#7652aa", "#9ba9b5"];
+  const gradient = total
+    ? rows.reduce((parts, row, index) => {
+      const start = rows.slice(0, index).reduce((sum, current) => sum + current.value, 0) / total * 100;
+      const end = start + row.value / total * 100;
+      return `${parts}${colors[index % colors.length]} ${start}% ${end}%, `;
+    }, "").replace(/, $/, "")
+    : "#dfe7ed 0 100%";
+  return `
+    <article class="chart-panel vivencia-gender-card">
+      <div class="chart-title-row">
+        <div><p class="eyebrow">Composición</p><h3>Actividades por estatus</h3></div>
+        <span>Comunicación</span>
+      </div>
+      <div class="vivencia-gender-content">
+        <div class="vivencia-gender-donut" style="background:conic-gradient(${gradient})"><div><strong>${total.toLocaleString("es-MX")}</strong><span>actividades</span></div></div>
+        <div class="vivencia-gender-legend">
+          ${rows.length ? rows.map((row, index) => `<div><span style="background:${colors[index % colors.length]}"></span><strong>${escapeHtml(row.label)}</strong><em>${row.value.toLocaleString("es-MX")}</em></div>`).join("") : `<div><strong>Sin actividades</strong><em>0</em></div>`}
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderCommunicationCoverage(total, dated) {
+  const safeTotal = Math.max(total, 1);
+  const progress = total ? Math.round((dated / safeTotal) * 100) : 0;
+  const pending = Math.max(0, total - dated);
+  return `
+    <article class="chart-panel vivencia-impact-goal-card">
+      <div class="chart-title-row">
+        <div><p class="eyebrow">Planeación operativa</p><h3>Cobertura de fechas</h3></div>
+        <span>${progress}%</span>
+      </div>
+      <div class="vivencia-impact-amount"><strong>${dated.toLocaleString("es-MX")}</strong><span>de ${total.toLocaleString("es-MX")} actividades con fecha</span></div>
+      <div class="vivencia-impact-track"><span style="width:${Math.min(100, progress)}%"></span></div>
+      <p>${pending ? `${pending.toLocaleString("es-MX")} actividades todavía requieren una fecha específica.` : "Todas las actividades tienen fecha específica."}</p>
+    </article>
+  `;
+}
+
+function renderCommunicationEventCards(events) {
+  if (!events.length) return `<div class="vivencia-empty-mini">No hay actividades próximas en los siguientes 15 días.</div>`;
+  return `
+    <div class="vivencia-event-card-list">
+      ${events.slice(0, 6).map((event, index) => `
+        <article class="vivencia-event-card" data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-agenda:${escapeHtml(event.id)}:${index}">
+          <time>${escapeHtml(event.event_date || "Sin fecha")}</time>
+          <div><strong>${escapeHtml(event.event_name || "Actividad sin nombre")}</strong><span>${escapeHtml(event.responsible_name || event.source_month || "Responsable pendiente")}</span></div>
+          <em class="${escapeHtml(event.status || "planeado")}">${escapeHtml(vivenciaStateLabel(event.status))}</em>
+          <small>${escapeHtml(event.place || event.source_week || "Planeación Semestral")}</small>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderCommunicationRecentActivities(events) {
+  const rows = [...events].sort((a, b) => b.source_index - a.source_index).slice(0, 10);
+  if (!rows.length) return `<div class="vivencia-empty-mini">Todavía no hay actividades registradas.</div>`;
+  return `
+    <div class="vivencia-recent-list">
+      ${rows.map((event, index) => `
+        <button type="button" data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-recent:${escapeHtml(event.id)}:${index}">
+          <span>${index + 1}</span>
+          <div><strong>${escapeHtml(event.event_name || "Actividad sin nombre")}</strong><small>${escapeHtml(event.event_date || communicationMonthLabel(event))} · ${escapeHtml(event.responsible_name || "Responsable pendiente")}</small></div>
+          <em>${escapeHtml(vivenciaStateLabel(event.status))}</em>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderCommunicationTopActivities(events) {
+  const grouped = new Map();
+  events.forEach((event) => {
+    const label = String(event.event_name || "Actividad sin nombre").trim();
+    grouped.set(label, (grouped.get(label) || 0) + 1);
+  });
+  const rows = [...grouped.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "es"))
+    .slice(0, 15);
+  if (!rows.length) return `<div class="vivencia-empty-mini">Sin actividades para ranking.</div>`;
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  return `
+    <div class="vivencia-top-list">
+      ${rows.map((row, index) => `
+        <article>
+          <span>${index + 1}</span>
+          <div><strong>${escapeHtml(row.label)}</strong><small><b>${row.value}</b> registro${row.value === 1 ? "" : "s"} de planeación</small></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(5, Math.round((row.value / max) * 100))}%"></div></div>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderCommunicationDashboard() {
+  if (!planningCalendarLoaded) return `<section class="planning-calendar-state" aria-live="polite"><strong>Cargando Comunicación...</strong><span>Consultando Planeación Semestral.</span></section>`;
+  if (planningCalendarError) return `<section class="planning-calendar-state error" role="alert"><strong>No se pudo cargar Comunicación</strong><span>${escapeHtml(planningCalendarError)}</span></section>`;
+  const activities = communicationDashboardActivities();
+  const dated = activities.filter((event) => event.event_date);
+  const undated = activities.filter((event) => !event.event_date);
+  const responsibleCount = new Set(activities.map((event) => normalizeText(event.responsible_name)).filter(Boolean)).size;
+  const planningYear = dated.map((event) => vivenciaEventDate(event)?.getFullYear()).find(Boolean) || new Date().getFullYear();
+  const activeMonths = new Set(activities.map((event) => communicationMonthLabel(event, planningYear)).filter((label) => label !== "Sin fecha")).size;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const inFifteen = new Date(today);
+  inFifteen.setDate(today.getDate() + 15);
+  const upcoming = dated.filter((event) => {
+    const date = vivenciaEventDate(event);
+    return date && date >= today && date <= inFifteen;
+  }).sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)));
+  const monthRowsMap = new Map();
+  activities.forEach((event) => {
+    const label = communicationMonthLabel(event, planningYear);
+    monthRowsMap.set(label, (monthRowsMap.get(label) || 0) + 1);
+  });
+  const monthRows = [...monthRowsMap.entries()].map(([label, value]) => ({ label, value }));
+  const calendarDate = communicationCalendarBaseDate(activities);
+  const selected = activities.find((activity) => activity.id === selectedPlanningActivityId);
+  return `
+    <section class="vivencia-dashboard communication-dashboard">
+      <div class="kpi-grid vivencia-kpi-strip">
+        <div class="kpi"><span>Actividades del semestre</span><strong>${activities.length.toLocaleString("es-MX")}</strong><em>solo Comunicación</em></div>
+        <div class="kpi"><span>Actividades con fecha</span><strong>${dated.length.toLocaleString("es-MX")}</strong><em>visibles en calendario</em></div>
+        <div class="kpi"><span>Actividades sin fecha</span><strong>${undated.length.toLocaleString("es-MX")}</strong><em>requieren programación</em></div>
+        <div class="kpi"><span>Meses con actividad</span><strong>${activeMonths.toLocaleString("es-MX")}</strong><em>${responsibleCount ? `${responsibleCount} responsables identificados` : "Planeación Semestral"}</em></div>
+      </div>
+      <div class="vivencia-dashboard-grid">
+        ${renderVivenciaCalendar(activities, calendarDate, { planningArea: "comunicacion" })}
+        <article class="chart-panel vivencia-upcoming-panel">
+          <div class="chart-title-row"><div><p class="eyebrow">Agenda</p><h3>Próximas actividades</h3></div><span>15 días</span></div>
+          ${renderCommunicationEventCards(upcoming)}
+        </article>
+        ${renderCommunicationCoverage(activities.length, dated.length)}
+        ${renderCommunicationStatusBreakdown(activities)}
+        <div class="vivencia-insights-grid">
+          <div class="vivencia-insights-column">
+            <article class="chart-panel vivencia-month-panel">
+              <div class="chart-title-row"><div><p class="eyebrow">Impacto mensual</p><h3>Actividades por mes</h3></div></div>
+              ${renderVivenciaBars(monthRows, { compact: true })}
+            </article>
+            <article class="chart-panel vivencia-recent-panel">
+              <div class="chart-title-row"><div><p class="eyebrow">Registro</p><h3>Últimas actividades registradas</h3></div><span>10 recientes</span></div>
+              ${renderCommunicationRecentActivities(activities)}
+            </article>
+          </div>
+          <article class="chart-panel vivencia-top-panel">
+            <div class="chart-title-row"><div><p class="eyebrow">Top actividades</p><h3>Top 15 registros de Comunicación</h3></div></div>
+            ${renderCommunicationTopActivities(activities)}
+          </article>
+        </div>
+      </div>
+      ${renderPlanningActivityDetail(selected)}
+    </section>
   `;
 }
 
@@ -13428,9 +13653,9 @@ function render() {
   $$("[data-planning-month]").forEach((button) => button.addEventListener("click", () => {
     const areaId = button.dataset.planningArea;
     const monthKey = planningCalendarMonthByArea[areaId];
-    if (!monthKey) return;
-    const month = new Date(`${monthKey}-01T00:00:00`);
-    month.setMonth(month.getMonth() + (button.dataset.planningMonth === "next" ? 1 : -1));
+    const month = button.dataset.planningMonth === "today" ? new Date() : new Date(`${monthKey}-01T00:00:00`);
+    if (Number.isNaN(month.getTime())) return;
+    if (button.dataset.planningMonth !== "today") month.setMonth(month.getMonth() + (button.dataset.planningMonth === "next" ? 1 : -1));
     planningCalendarMonthByArea[areaId] = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
     selectedPlanningActivityId = "";
     render();
