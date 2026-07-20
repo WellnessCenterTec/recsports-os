@@ -7802,6 +7802,35 @@ tbody tr:hover td {
   color: var(--blue);
 }
 
+.intramuros-calendar-layers {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #edf2f4;
+}
+
+.intramuros-calendar-layers button {
+  min-height: 32px;
+  padding: 6px 11px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.intramuros-calendar-layers button.active {
+  background: #fff;
+  color: var(--blue);
+  box-shadow: 0 1px 4px rgb(16 35 42 / 12%);
+}
+
 .planning-kpi-strip {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -7915,6 +7944,33 @@ tbody tr:hover td {
   overflow-wrap: anywhere;
   white-space: normal;
 }
+
+.planning-calendar-day button.role-programmed,
+.planning-agenda-list button.role-programmed { border-left: 4px solid #0969b4; background: #e7f3ff; color: #07548f; }
+.planning-calendar-day button.role-pending,
+.planning-agenda-list button.role-pending { border-left: 4px solid #d79a00; background: #fff5d6; color: #6b4c00; }
+.planning-calendar-day button.role-result,
+.planning-agenda-list button.role-result { border-left: 4px solid #168568; background: #e2f5ee; color: #0b654e; }
+.planning-calendar-day button.role-reserved,
+.planning-agenda-list button.role-reserved { border-left: 4px solid #77858e; background: #edf1f3; color: #42515a; }
+.planning-calendar-day button.role-conflict,
+.planning-agenda-list button.role-conflict { border-left: 4px solid #ba3b3b; background: #ffebea; color: #8d2929; }
+
+.role-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #edf2f4;
+  color: #4e5e67;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.role-status.game { background: #e7f3ff; color: #07548f; }
+.role-status.reservation { background: #fff5d6; color: #6b4c00; }
+.intramuros-role-agenda table { min-width: 980px; }
 
 .planning-calendar-day em {
   color: var(--muted);

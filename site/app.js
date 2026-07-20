@@ -521,6 +521,7 @@ let intramurosRolesImporting = false;
 let intramurosUploadSummary = null;
 let intramurosRolesUploadSummary = null;
 let selectedIntramurosTournament = "";
+let intramurosCalendarLayer = "all";
 let intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", search: "" };
 let intramurosOperationRows = loadIntramurosOperationRows();
 let intramurosOperationCloudAvailable = true;
@@ -2503,7 +2504,7 @@ function renderPlanningMonthlyCalendar(activities, baseDate, areaId = "") {
           return `
             <div class="planning-calendar-day">
               <time datetime="${year}-${String(month + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}">${date.getDate()}</time>
-              ${dayActivities.slice(0, 3).map((activity, activityIndex) => `<button type="button" data-planning-detail="${escapeHtml(activity.id)}" data-planning-instance="calendar:${escapeHtml(activity.date)}:${escapeHtml(activity.id)}:${activityIndex}">${escapeHtml(activity.activity)}</button>`).join("")}
+              ${dayActivities.slice(0, 3).map((activity, activityIndex) => `<button type="button" class="${escapeHtml(activity.calendarClass || "")}" data-planning-detail="${escapeHtml(activity.id)}" data-planning-instance="calendar:${escapeHtml(activity.date)}:${escapeHtml(activity.id)}:${activityIndex}">${escapeHtml(activity.activity)}</button>`).join("")}
               ${dayActivities.length > 3 ? `<em>+${dayActivities.length - 3}</em>` : ""}
             </div>`;
         }).join("")}
@@ -2519,6 +2520,27 @@ function renderPlanningActivityDetail(activity) {
   const areaLabel = activity.area === "comunicacion"
     ? "Comunicación"
     : activity.area === "intramuros" ? "Intramuros" : activity.area;
+  if (activity.source === "intramuros-role") {
+    return `
+      <div class="planning-modal-backdrop" data-planning-overlay role="presentation">
+      <aside class="planning-detail-panel" role="dialog" aria-modal="true" aria-labelledby="planningDetailTitle" tabindex="-1">
+        <div class="planning-detail-heading">
+          <div><p class="eyebrow">Rol de juego · ${escapeHtml(activity.tournament || "Intramuros")}</p><h3 id="planningDetailTitle">${escapeHtml(activity.activity)}</h3></div>
+          <button type="button" class="planning-detail-close" data-close-planning-detail aria-label="Cerrar detalle" title="Cerrar detalle">&times;</button>
+        </div>
+        <dl>
+          <div><dt>Fecha</dt><dd>${escapeHtml(formattedDate)}</dd></div>
+          <div><dt>Hora</dt><dd>${escapeHtml(activity.time || "Sin hora")}</dd></div>
+          <div><dt>Cancha</dt><dd>${escapeHtml(activity.place || "Sin cancha")}</dd></div>
+          <div><dt>Semana</dt><dd>${escapeHtml(activity.week || "Sin semana")}</dd></div>
+          <div><dt>Grupo / rama</dt><dd>${escapeHtml([activity.group, activity.branch].filter(Boolean).join(" · ") || "Sin dato")}</dd></div>
+          <div><dt>Estado</dt><dd>${escapeHtml(activity.status || "Pendiente")}</dd></div>
+          <div><dt>Resultado</dt><dd>${escapeHtml(activity.result || "Pendiente")}</dd></div>
+          <div><dt>Tipo de uso</dt><dd>${escapeHtml(activity.usageType || "Intramuros")}</dd></div>
+        </dl>
+      </aside>
+      </div>`;
+  }
   const editable = activity.area === "comunicacion"
     && supabaseClient
     && currentUser?.auth === "supabase"
@@ -2680,10 +2702,18 @@ function openPlanningActivityDetail(trigger, activityId, triggerInstance) {
 
 function renderPlanningAreaDashboard(area, rows = planningCalendarRows, loaded = planningCalendarLoaded, error = planningCalendarError, preferredDate, selectedId = null, options = {}) {
   const refreshButton = `<button class="ghost-btn" id="refreshPlanningCalendar" type="button" ${loaded ? "" : "disabled"}>Actualizar calendario</button>`;
-  if (!loaded) return `<section class="planning-calendar-state" aria-live="polite"><strong>Cargando calendario...</strong><span>Consultando Planeación Semestral.</span>${refreshButton}</section>`;
-  if (error) return `<section class="planning-calendar-state error" role="alert"><strong>No se pudo cargar el calendario</strong><span>${escapeHtml(error)}</span>${refreshButton}</section>`;
-  const activities = planningActivitiesForArea(rows, area.id);
-  if (!activities.length) return `<section class="planning-calendar-state"><strong>No hay actividades para ${escapeHtml(area.name)}</strong><span>Planeación Semestral no contiene registros para esta área.</span>${refreshButton}</section>`;
+  const extraActivities = Array.isArray(options.extraActivities) ? options.extraActivities : [];
+  const planningActivities = loaded && !error ? planningActivitiesForArea(rows, area.id) : [];
+  if (!loaded && !extraActivities.length) return `<section class="planning-calendar-state" aria-live="polite"><strong>Cargando calendario...</strong><span>Consultando Planeación Semestral.</span>${refreshButton}</section>`;
+  if (error && !extraActivities.length) return `<section class="planning-calendar-state error" role="alert"><strong>No se pudo cargar el calendario</strong><span>${escapeHtml(error)}</span>${refreshButton}</section>`;
+  const layer = options.layer || "all";
+  const activities = (layer === "planning" ? planningActivities : layer === "roles" ? extraActivities : [...planningActivities, ...extraActivities])
+    .sort((a, b) => String(a.date || "9999-12-31").localeCompare(String(b.date || "9999-12-31")));
+  const layerControls = options.showLayerSelector ? `
+    <div class="intramuros-calendar-layers" role="group" aria-label="Contenido del calendario">
+      ${[["all", "Todo"], ["planning", "Actividades"], ["roles", "Juegos"]].map(([value, label]) => `<button type="button" data-intramuros-calendar-layer="${value}" class="${layer === value ? "active" : ""}">${label}</button>`).join("")}
+    </div>` : "";
+  if (!activities.length) return `<section class="planning-area-dashboard"><div class="planning-area-compact-head"><div><p class="eyebrow">Planeación + Roles de Juego</p><h3>Calendario operativo</h3></div><div class="planning-area-actions">${layerControls}${refreshButton}</div></div><section class="planning-calendar-state"><strong>No hay actividades para ${escapeHtml(area.name)}</strong><span>${layer === "roles" ? "Carga equipos o reservaciones desde Roles de Juego." : "Planeación Semestral no contiene registros para esta área."}</span></section></section>`;
   const dated = activities.filter((activity) => activity.date);
   const pending = activities.filter((activity) => !activity.date);
   const storedMonth = typeof planningCalendarMonthByArea !== "undefined" ? planningCalendarMonthByArea[area.id] : "";
@@ -2702,8 +2732,8 @@ function renderPlanningAreaDashboard(area, rows = planningCalendarRows, loaded =
     <section class="planning-area-dashboard">
       ${showHeader ? `<div class="vivencia-hero planning-area-hero">
         <div><p class="eyebrow">Planeación Semestral</p><h3>${escapeHtml(area.name)}</h3><p>Calendario operativo y seguimiento de actividades</p></div>
-        <div class="planning-area-actions"><span>${activities.length} actividades</span>${refreshButton}</div>
-      </div>` : `<div class="planning-area-compact-head"><div><p class="eyebrow">Planeación Semestral</p><h3>Calendario operativo</h3></div><div class="planning-area-actions"><span>${activities.length} actividades</span>${refreshButton}</div></div>`}
+        <div class="planning-area-actions">${layerControls}<span>${activities.length} actividades</span>${refreshButton}</div>
+      </div>` : `<div class="planning-area-compact-head"><div><p class="eyebrow">Planeación + Roles de Juego</p><h3>Calendario operativo</h3></div><div class="planning-area-actions">${layerControls}<span>${activities.length} registros visibles</span>${refreshButton}</div></div>`}
       <div class="kpi-grid planning-kpi-strip">
         <div class="kpi"><span>Actividades</span><strong>${activities.length}</strong><em>total del área</em></div>
         <div class="kpi"><span>Con fecha</span><strong>${dated.length}</strong><em>en calendario</em></div>
@@ -2714,7 +2744,7 @@ function renderPlanningAreaDashboard(area, rows = planningCalendarRows, loaded =
         <article class="chart-panel planning-agenda-panel">
           <div class="chart-title-row"><div><p class="eyebrow">Agenda</p><h3>Próximas actividades</h3></div><span>${agenda.length}</span></div>
           <div class="planning-agenda-list">
-            ${agenda.length ? agenda.map((activity) => `<button type="button" data-planning-detail="${escapeHtml(activity.id)}" data-planning-instance="agenda:${escapeHtml(activity.id)}"><time>${escapeHtml(new Date(`${activity.date}T00:00:00`).toLocaleDateString("es-MX", { day: "numeric", month: "short" }))}</time><span>${escapeHtml(activity.activity)}</span><em>${escapeHtml(activity.status || "Sin estado")}</em></button>`).join("") : `<p>No hay actividades fechadas.</p>`}
+            ${agenda.length ? agenda.map((activity) => `<button type="button" class="${escapeHtml(activity.calendarClass || "")}" data-planning-detail="${escapeHtml(activity.id)}" data-planning-instance="agenda:${escapeHtml(activity.id)}"><time>${escapeHtml(new Date(`${activity.date}T00:00:00`).toLocaleDateString("es-MX", { day: "numeric", month: "short" }))}</time><span>${escapeHtml(activity.activity)}</span><em>${escapeHtml(activity.status || "Sin estado")}</em></button>`).join("") : `<p>No hay actividades fechadas.</p>`}
           </div>
         </article>
         <article class="chart-panel planning-pending-panel">
@@ -6789,7 +6819,7 @@ async function loadIntramurosParticipants() {
 }
 
 function intramurosRoleCloudRow(row) {
-  return {
+  const normalized = {
     id: row.id || "",
     torneo: row.torneo || "Sin torneo",
     semana: row.semana || "",
@@ -6809,6 +6839,8 @@ function intramurosRoleCloudRow(row) {
     created_at: row.created_at || "",
     updated_at: row.updated_at || ""
   };
+  normalized.tipo_uso = intramurosRoleType(normalized);
+  return normalized;
 }
 
 const INTRAMUROS_PARTICIPANT_COLUMN_ALIASES = {
@@ -7057,6 +7089,221 @@ function intramurosRoleColumnIndex(headers, aliases) {
   return aliases.map(headerKey).map((alias) => normalized.indexOf(alias)).find((index) => index >= 0) ?? -1;
 }
 
+function intramurosRoleDateValue(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime()) && value.getFullYear() >= 2000) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+  }
+  if (typeof value === "number" && value > 20000 && window.XLSX?.SSF?.parse_date_code) {
+    const parsed = window.XLSX.SSF.parse_date_code(value);
+    if (parsed?.y) return `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
+  }
+  return normalizePlanningCalendarDate(value);
+}
+
+function intramurosRoleTimeValue(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`;
+  }
+  if (typeof value === "number" && value >= 0 && value < 1) {
+    const minutes = Math.round(value * 24 * 60) % (24 * 60);
+    return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+  }
+  const match = String(value ?? "").trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?$/i);
+  if (!match) return "";
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const suffix = normalizeText(match[3] || "").replace(/\s/g, "");
+  if (minute > 59 || hour > 23) return "";
+  if (suffix.startsWith("p") && hour < 12) hour += 12;
+  if (suffix.startsWith("a") && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function intramurosPeriodFromRoleDate(dateValue) {
+  const match = String(dateValue || "").match(/^(\d{4})-(\d{2})-/);
+  if (!match) return "Sin periodo";
+  const year = match[1].slice(-2);
+  const month = Number(match[2]);
+  if (month >= 8) return `AD${year}`;
+  if (month >= 2 && month <= 6) return `FJ${year}`;
+  if (month === 7) return `VER${year}`;
+  return `IN${year}`;
+}
+
+function intramurosRoleTournamentFromBlock(title, group, court) {
+  const block = normalizeText(title);
+  const detail = normalizeText(`${group || ""} ${court || ""}`);
+  if (block.includes("tochito")) return "Tochito";
+  if (block.includes("voleibol") && block.includes("basquet")) {
+    if (/(^|\s)(bb|basquet|basket)(\s|$)/.test(detail)) return "Básquetbol";
+    if (/(^|\s)(vb|voleibol|volei)(\s|$)/.test(detail)) return "Voleibol de sala";
+    return "Voleibol de sala / Básquetbol";
+  }
+  if (block.includes("futbol rapido")) return "Fútbol rápido";
+  if (block.includes("futbol")) return detail.includes("fut 7") ? "Fútbol 7" : "Fútbol";
+  if (block.includes("padel")) return "Pádel";
+  if (block.includes("tenis")) return "Tenis singles";
+  return String(title || "Sin torneo").trim() || "Sin torneo";
+}
+
+function intramurosRoleSlotKey(row) {
+  return [
+    headerKey(row.periodo || "Sin periodo"),
+    headerKey(row.torneo || "Sin torneo"),
+    String(row.fecha || "").slice(0, 10),
+    headerKey(row.hora || ""),
+    headerKey(row.cancha || "")
+  ].join("|");
+}
+
+function intramurosRolePhysicalKey(row) {
+  return [String(row.fecha || "").slice(0, 10), headerKey(row.hora || ""), headerKey(row.cancha || "")].join("|");
+}
+
+function intramurosRoleIsGame(row) {
+  return Boolean(String(row.equipo_local || "").trim() && String(row.equipo_visitante || "").trim());
+}
+
+function intramurosRoleType(row) {
+  if (row.tipo_uso) return String(row.tipo_uso).trim();
+  const match = String(row.observaciones || "").match(/tipo\s+de\s+uso\s*:\s*([^|;]+)/i);
+  return match?.[1]?.trim() || (intramurosRoleIsGame(row) ? "Intramuros" : "Sin tipo");
+}
+
+function intramurosTemplateRoleRowsFromGrid(grid, sheetName, fileName) {
+  const blockStarts = new Set();
+  (grid || []).forEach((cells) => {
+    (cells || []).forEach((value, columnIndex) => {
+      if (headerKey(value) !== headerKey("SEMANA")) return;
+      const hasTemplateShape = headerKey(cells[columnIndex + 1]) === headerKey("FECHA")
+        && headerKey(cells[columnIndex + 3]) === headerKey("HORA")
+        && headerKey(cells[columnIndex + 4]) === headerKey("CANCHA")
+        && headerKey(cells[columnIndex + 7]) === headerKey("EQUIPOS");
+      if (hasTemplateShape) blockStarts.add(columnIndex);
+    });
+  });
+  if (blockStarts.size < 2) return { detected: false, rows: [], duplicates: [], missingFields: [] };
+
+  const privateRowsIgnored = (grid || []).filter((cells) => /^A\d{7,9}$/.test(normalizeMatricula(cells?.[3]))).length;
+  const scanned = [];
+  [...blockStarts].sort((a, b) => a - b).forEach((start) => {
+    const title = (grid || []).slice(0, 6)
+      .map((cells) => String(cells?.[start] ?? "").trim())
+      .find((value) => value && !normalizeText(value).includes("programacion general") && !/^(feb|ago|ene|jun|ad|fj|ver|in)/i.test(value)) || `Bloque ${start + 1}`;
+    let active = false;
+    let currentWeek = "";
+    let currentDay = "";
+    let currentDate = "";
+    (grid || []).forEach((cells, rowIndex) => {
+      const first = cells?.[start];
+      if (headerKey(first) === headerKey("SEMANA")) {
+        active = true;
+        currentWeek = "";
+        currentDay = "";
+        currentDate = "";
+        return;
+      }
+      if (!active) return;
+      if (first !== "" && first != null) currentWeek = String(first).replace(/^#/, "").trim();
+      const dayValue = String(cells?.[start + 1] ?? "").trim();
+      if (dayValue) currentDay = dayValue;
+      const dateValue = intramurosRoleDateValue(cells?.[start + 2]);
+      if (dateValue) currentDate = dateValue;
+      const hour = intramurosRoleTimeValue(cells?.[start + 3]);
+      const court = String(cells?.[start + 4] ?? "").trim();
+      if (!currentDate || !hour || !court) return;
+
+      const group = String(cells?.[start + 5] ?? "").trim();
+      const branch = String(cells?.[start + 6] ?? "").trim();
+      const local = String(cells?.[start + 7] ?? "").trim();
+      const localScore = String(cells?.[start + 8] ?? "").trim();
+      const visitorScore = String(cells?.[start + 10] ?? "").trim();
+      const visitor = String(cells?.[start + 11] ?? "").trim();
+      const usageType = String(cells?.[start + 13] ?? "").trim() || "Sin tipo";
+      const tournament = intramurosRoleTournamentFromBlock(title, group, court);
+      const hasResult = Boolean(localScore || visitorScore);
+      const isGame = Boolean(local && visitor);
+      const isReservation = Boolean(!isGame && (local || visitor));
+      const result = hasResult
+        ? (localScore && visitorScore ? `${localScore} - ${visitorScore}` : localScore || visitorScore)
+        : "";
+      const status = hasResult
+        ? "Con resultado"
+        : isGame ? "Programado"
+          : isReservation && normalizeText(usageType).includes("intramuros") ? "Pendiente de rival"
+            : isReservation ? "Reservado" : "Disponible";
+      const role = {
+        torneo: tournament,
+        semana: currentWeek,
+        fecha: currentDate,
+        hora: hour,
+        cancha: court,
+        grupo: group,
+        rama: branch,
+        equipo_local: local,
+        equipo_visitante: visitor,
+        resultado: result,
+        observaciones: `Tipo de uso: ${usageType}`,
+        estatus_partido: status,
+        periodo: intramurosPeriodFromRoleDate(currentDate),
+        fecha_carga: new Date().toISOString(),
+        archivo_origen: fileName,
+        tipo_uso: usageType,
+        __sheetName: sheetName,
+        __sourceBlock: start,
+        __rowNumber: rowIndex + 1,
+        __day: currentDay,
+        __isGame: isGame,
+        __isReservation: isReservation
+      };
+      role.__slotKey = intramurosRoleSlotKey(role);
+      role.__physicalKey = intramurosRolePhysicalKey(role);
+      scanned.push(role);
+    });
+  });
+
+  const bySlot = new Map();
+  const duplicates = [];
+  scanned.forEach((row) => {
+    const existing = bySlot.get(row.__slotKey);
+    if (!existing) {
+      bySlot.set(row.__slotKey, row);
+      return;
+    }
+    duplicates.push(row);
+    const richness = (candidate) => [candidate.equipo_local, candidate.equipo_visitante, candidate.resultado, candidate.grupo, candidate.rama].filter(Boolean).length;
+    if (richness(row) > richness(existing)) bySlot.set(row.__slotKey, row);
+  });
+  const uniqueSlots = [...bySlot.values()];
+  const actionable = uniqueSlots.filter((row) => row.__isGame || row.__isReservation);
+  const physicalGroups = new Map();
+  actionable.forEach((row) => {
+    if (!physicalGroups.has(row.__physicalKey)) physicalGroups.set(row.__physicalKey, []);
+    physicalGroups.get(row.__physicalKey).push(row);
+  });
+  const conflicts = [...physicalGroups.values()].filter((rows) => new Set(rows.map((row) => headerKey(row.torneo))).size > 1);
+  const gameRows = actionable.filter((row) => row.__isGame);
+  const missingFields = new Set();
+  gameRows.forEach((row) => {
+    ["torneo", "fecha", "hora", "cancha", "equipo_local", "equipo_visitante"].forEach((field) => {
+      if (!row[field]) missingFields.add(field);
+    });
+  });
+  return {
+    detected: true,
+    rows: actionable,
+    duplicates,
+    missingFields: [...missingFields],
+    totalSlots: scanned.length,
+    uniqueSlots: uniqueSlots.length,
+    availableSlots: uniqueSlots.filter((row) => !row.__isGame && !row.__isReservation).length,
+    games: gameRows.length,
+    reservations: actionable.filter((row) => row.__isReservation).length,
+    conflicts: conflicts.length,
+    privateRowsIgnored
+  };
+}
+
 function intramurosGridRowsFromSheet(grid, sheetName, fileName) {
   const roleRows = [];
   const missingFields = new Set();
@@ -7080,6 +7327,7 @@ function intramurosGridRowsFromSheet(grid, sheetName, fileName) {
   };
   grid.forEach((cells, index) => {
     const values = cells.map((value) => String(value ?? "").trim());
+    if (/^A\d{7,9}$/.test(normalizeMatricula(values[3]))) return;
     const nonEmpty = values.filter(Boolean);
     if (!nonEmpty.length) return;
     const headerHits = values.map(headerKey).filter((value) => Object.values(aliases).flat().map(headerKey).includes(value)).length;
@@ -7124,12 +7372,15 @@ function intramurosGridRowsFromSheet(grid, sheetName, fileName) {
 async function parseIntramurosRolesFile(file) {
   const ext = file.name.split(".").pop().toLowerCase();
   const allRows = [];
+  const templateSummaries = [];
   const missingFields = new Set();
   if (["xlsx", "xls"].includes(ext) && window.XLSX) {
-    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
+    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
     workbook.SheetNames.forEach((sheetName) => {
-      const grid = window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
-      const result = intramurosGridRowsFromSheet(grid, sheetName, file.name);
+      const grid = window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "", raw: true });
+      const templateResult = intramurosTemplateRoleRowsFromGrid(grid, sheetName, file.name);
+      const result = templateResult.detected ? templateResult : intramurosGridRowsFromSheet(grid, sheetName, file.name);
+      if (templateResult.detected) templateSummaries.push(templateResult);
       result.rows.forEach((row) => allRows.push(row));
       result.missingFields.forEach((field) => missingFields.add(field));
     });
@@ -7143,7 +7394,7 @@ async function parseIntramurosRolesFile(file) {
   const duplicates = [];
   const validRows = [];
   allRows.forEach((row) => {
-    const key = intramurosRoleKey(row);
+    const key = row.__slotKey || intramurosRoleSlotKey(row);
     if (seen.has(key)) {
       duplicates.push(row);
     } else {
@@ -7151,7 +7402,24 @@ async function parseIntramurosRolesFile(file) {
       validRows.push(row);
     }
   });
-  return { rows: validRows, duplicates, missingFields: Array.from(missingFields), processed: allRows.length };
+  const templateTotals = templateSummaries.reduce((acc, summary) => ({
+    totalSlots: acc.totalSlots + Number(summary.totalSlots || 0),
+    uniqueSlots: acc.uniqueSlots + Number(summary.uniqueSlots || 0),
+    availableSlots: acc.availableSlots + Number(summary.availableSlots || 0),
+    games: acc.games + Number(summary.games || 0),
+    reservations: acc.reservations + Number(summary.reservations || 0),
+    conflicts: acc.conflicts + Number(summary.conflicts || 0),
+    privateRowsIgnored: acc.privateRowsIgnored + Number(summary.privateRowsIgnored || 0),
+    templateDuplicates: acc.templateDuplicates + Number(summary.duplicates?.length || 0)
+  }), { totalSlots: 0, uniqueSlots: 0, availableSlots: 0, games: 0, reservations: 0, conflicts: 0, privateRowsIgnored: 0, templateDuplicates: 0 });
+  return {
+    rows: validRows,
+    duplicates: [...duplicates, ...templateSummaries.flatMap((summary) => summary.duplicates || [])],
+    missingFields: Array.from(missingFields),
+    processed: templateTotals.totalSlots || allRows.length,
+    ...templateTotals,
+    templateDetected: templateSummaries.length > 0
+  };
 }
 
 async function importIntramurosRoles(file) {
@@ -7173,16 +7441,22 @@ async function importIntramurosRoles(file) {
         duplicates: parsed.duplicates.length,
         errors: 1,
         missingFields: parsed.missingFields,
+        totalSlots: parsed.totalSlots || 0,
+        availableSlots: parsed.availableSlots || 0,
+        games: parsed.games || 0,
+        reservations: parsed.reservations || 0,
+        conflicts: parsed.conflicts || 0,
+        privateRowsIgnored: parsed.privateRowsIgnored || 0,
         importedAt: new Date().toISOString(),
-        messages: ["No se detectaron juegos con encabezados confiables."]
+        messages: [parsed.templateDetected
+          ? "Se reconoció el calendario, pero todavía no contiene juegos con equipos ni reservas identificables."
+          : "No se detectaron juegos con encabezados confiables."]
       };
-      toast("No se detectaron juegos en el archivo");
+      toast(parsed.templateDetected ? "Calendario reconocido sin juegos asignados" : "No se detectaron juegos en el archivo");
       return;
     }
-    const existingKeys = new Set(intramurosGameRoles.map(intramurosRoleKey));
-    const inserted = parsed.rows.filter((row) => !existingKeys.has(intramurosRoleKey(row))).length;
-    const updated = parsed.rows.length - inserted;
-    const payload = parsed.rows.map((row) => ({
+    const existingBySlot = new Map(intramurosGameRoles.map((row) => [intramurosRoleSlotKey(row), row]));
+    const payloadFor = (row) => ({
       torneo: row.torneo || "Sin torneo",
       semana: row.semana || null,
       fecha: row.fecha || null,
@@ -7198,24 +7472,47 @@ async function importIntramurosRoles(file) {
       periodo: row.periodo || "Sin periodo",
       fecha_carga: row.fecha_carga,
       archivo_origen: row.archivo_origen
-    }));
-    for (let index = 0; index < payload.length; index += 500) {
+    });
+    const updates = [];
+    const inserts = [];
+    parsed.rows.forEach((row) => {
+      const existing = existingBySlot.get(intramurosRoleSlotKey(row));
+      if (existing?.id) updates.push({ id: existing.id, payload: payloadFor(row) });
+      else inserts.push(payloadFor(row));
+    });
+    for (let index = 0; index < updates.length; index += 20) {
+      const results = await Promise.all(updates.slice(index, index + 20).map(({ id, payload }) => (
+        supabaseClient.from("intramuros_roles_juego").update(payload).eq("id", id)
+      )));
+      const failed = results.find((result) => result.error);
+      if (failed?.error) throw failed.error;
+    }
+    for (let index = 0; index < inserts.length; index += 500) {
       const { error } = await supabaseClient
         .from("intramuros_roles_juego")
-        .upsert(payload.slice(index, index + 500), { onConflict: "torneo,fecha,hora,cancha,equipo_local,equipo_visitante" });
+        .upsert(inserts.slice(index, index + 500), { onConflict: "torneo,fecha,hora,cancha,equipo_local,equipo_visitante" });
       if (error) throw error;
     }
     await loadIntramurosParticipants();
     intramurosRolesUploadSummary = {
       fileName: file.name,
       processed: parsed.processed,
-      inserted,
-      updated,
+      inserted: inserts.length,
+      updated: updates.length,
       duplicates: parsed.duplicates.length,
       errors: 0,
       missingFields: parsed.missingFields,
+      totalSlots: parsed.totalSlots || 0,
+      availableSlots: parsed.availableSlots || 0,
+      games: parsed.games || 0,
+      reservations: parsed.reservations || 0,
+      conflicts: parsed.conflicts || 0,
+      privateRowsIgnored: parsed.privateRowsIgnored || 0,
       importedAt: new Date().toISOString(),
-      messages: []
+      messages: [
+        parsed.conflicts ? `${parsed.conflicts} horarios requieren revisión por posible cruce de cancha.` : "",
+        parsed.privateRowsIgnored ? "Se ignoró completamente la sección errónea de datos de alumnos." : ""
+      ].filter(Boolean)
     };
     addAudit("intramuros", `${parsed.rows.length} juegos cargados desde ${file.name}`);
     toast(`${parsed.rows.length.toLocaleString("es-MX")} roles de juego guardados`);
@@ -8117,7 +8414,7 @@ function renderIntramurosProgressCard(summaries) {
 }
 
 function renderIntramurosExecutiveCharts(rows) {
-  const roles = filteredIntramurosRoles();
+  const roles = filteredIntramurosRoles().filter(intramurosRoleIsGame);
   const summaries = intramurosTournamentSummaries()
     .filter((row) => intramurosFilters.tournament === "todos" || row.torneo === intramurosFilters.tournament)
     .sort((a, b) => b.totalParticipants - a.totalParticipants);
@@ -8228,6 +8525,9 @@ function renderIntramurosRolesUploadSummary() {
       <article><span>Duplicados ignorados</span><strong>${summary.duplicates.toLocaleString("es-MX")}</strong></article>
       <article><span>Con error</span><strong>${summary.errors.toLocaleString("es-MX")}</strong></article>
       <article><span>Última carga</span><strong>${new Date(summary.importedAt).toLocaleString("es-MX")}</strong><em>${escapeHtml(summary.fileName)}</em></article>
+      ${summary.totalSlots ? `<article><span>Franjas detectadas</span><strong>${summary.totalSlots.toLocaleString("es-MX")}</strong><em>${Number(summary.availableSlots || 0).toLocaleString("es-MX")} disponibles</em></article>` : ""}
+      ${summary.totalSlots ? `<article><span>Juegos con equipos</span><strong>${Number(summary.games || 0).toLocaleString("es-MX")}</strong><em>${Number(summary.reservations || 0).toLocaleString("es-MX")} reservas / eventos</em></article>` : ""}
+      ${summary.totalSlots ? `<article><span>Posibles conflictos</span><strong>${Number(summary.conflicts || 0).toLocaleString("es-MX")}</strong><em>requieren revisión</em></article>` : ""}
       ${summary.missingFields?.length ? `<p>Campos no detectados en algunas filas: ${summary.missingFields.map(escapeHtml).join(", ")}.</p>` : ""}
       ${summary.messages?.map((message) => `<p class="red">${escapeHtml(message)}</p>`).join("") || ""}
     </div>
@@ -8239,6 +8539,47 @@ function intramurosRoleHasResult(row) {
   return Boolean(String(row.resultado || "").trim())
     || ["resultado", "realizado", "completado", "finalizado", "terminado", "jugado"]
       .some((value) => status.includes(value));
+}
+
+function intramurosRoleCalendarActivities() {
+  const visibleRoles = intramurosGameRoles.filter((row) => {
+    const hasTeamOrLabel = Boolean(String(row.equipo_local || row.equipo_visitante || "").trim());
+    return Boolean(row.fecha && (intramurosRoleIsGame(row) || hasTeamOrLabel));
+  });
+  const physicalCounts = new Map();
+  visibleRoles.forEach((row) => {
+    const key = intramurosRolePhysicalKey(row);
+    if (!physicalCounts.has(key)) physicalCounts.set(key, new Set());
+    physicalCounts.get(key).add(headerKey(row.torneo || "Sin torneo"));
+  });
+  return visibleRoles.map((row, index) => {
+    const isGame = intramurosRoleIsGame(row);
+    const hasResult = intramurosRoleHasResult(row);
+    const isConflict = (physicalCounts.get(intramurosRolePhysicalKey(row))?.size || 0) > 1;
+    const local = String(row.equipo_local || "").trim();
+    const visitor = String(row.equipo_visitante || "").trim();
+    const label = isGame ? `${local} vs ${visitor}` : local || visitor || row.torneo || "Reservación";
+    const slotKey = intramurosRoleSlotKey(row) || `${row.fecha}|${row.hora}|${index}`;
+    const encodedId = btoa(unescape(encodeURIComponent(slotKey))).replace(/=+$/, "");
+    return {
+      id: `intramuros-role-${encodedId}`,
+      source: "intramuros-role",
+      area: "intramuros",
+      date: String(row.fecha || "").slice(0, 10),
+      activity: label,
+      tournament: row.torneo || "Sin torneo",
+      responsible: "Intramuros",
+      status: row.estatus_partido || (isGame ? "Programado" : "Reservado"),
+      place: row.cancha || "Cancha pendiente",
+      time: row.hora || "",
+      week: row.semana || "",
+      group: row.grupo || "",
+      branch: row.rama || "",
+      result: row.resultado || "",
+      usageType: intramurosRoleType(row),
+      calendarClass: isConflict ? "role-conflict" : hasResult ? "role-result" : isGame ? "role-programmed" : normalizeText(row.estatus_partido).includes("pendiente") ? "role-pending" : "role-reserved"
+    };
+  });
 }
 
 function intramurosRoleDay(row) {
@@ -8254,7 +8595,7 @@ function intramurosTournamentSummaries() {
   ].filter(Boolean))).sort((a, b) => a.localeCompare(b, "es-MX"));
   return tournamentNames.map((torneo) => {
     const participants = intramurosParticipants.filter((row) => row.torneo === torneo);
-    const games = intramurosGameRoles.filter((row) => row.torneo === torneo);
+    const games = intramurosGameRoles.filter((row) => row.torneo === torneo && intramurosRoleIsGame(row));
     const withResult = games.filter(intramurosRoleHasResult).length;
     const branches = Array.from(new Set([...participants.map((row) => row.rama), ...games.map((row) => row.rama)].filter(Boolean)));
     const teams = new Set([...participants.map((row) => row.equipo), ...games.flatMap((row) => [row.equipo_local, row.equipo_visitante])].filter(Boolean));
@@ -8277,14 +8618,16 @@ function intramurosTournamentSummaries() {
 
 function renderIntramurosRolesDashboard() {
   const roles = intramurosGameRoles;
-  const withResult = roles.filter(intramurosRoleHasResult).length;
-  const pending = Math.max(0, roles.length - withResult);
-  const activeTournaments = new Set(roles.map((row) => row.torneo).filter(Boolean)).size;
+  const games = roles.filter(intramurosRoleIsGame);
+  const reservations = roles.filter((row) => !intramurosRoleIsGame(row) && String(row.equipo_local || row.equipo_visitante || "").trim());
+  const withResult = games.filter(intramurosRoleHasResult).length;
+  const pending = Math.max(0, games.length - withResult);
+  const activeTournaments = new Set(games.map((row) => row.torneo).filter(Boolean)).size;
   return `
     <section class="intramuros-roles-section">
       <div class="budget-table-heading">
         <div><p class="eyebrow">Fase 3</p><h3>Roles de Juego</h3></div>
-        <span>${roles.length.toLocaleString("es-MX")} juegos cargados</span>
+        <span>${games.length.toLocaleString("es-MX")} juegos · ${reservations.length.toLocaleString("es-MX")} reservaciones</span>
       </div>
       <div class="upload-center-grid">
         <article class="upload-info-panel">
@@ -8306,20 +8649,26 @@ function renderIntramurosRolesDashboard() {
         </article>
       </div>
       <div class="upload-kpi-grid">
-        <article><span>Total juegos programados</span><strong>${roles.length.toLocaleString("es-MX")}</strong><em>roles cargados</em></article>
-        <article><span>Juegos por semana</span><strong>${intramurosGroupCounts(roles, "semana").length.toLocaleString("es-MX")}</strong><em>semanas</em></article>
-        <article><span>Juegos por día</span><strong>${intramurosGroupCounts(roles.map((row) => ({ day: intramurosRoleDay(row) })), "day").length.toLocaleString("es-MX")}</strong><em>días</em></article>
-        <article><span>Juegos por cancha</span><strong>${new Set(roles.map((row) => row.cancha).filter(Boolean)).size.toLocaleString("es-MX")}</strong><em>canchas</em></article>
+        <article><span>Total juegos programados</span><strong>${games.length.toLocaleString("es-MX")}</strong><em>con ambos equipos</em></article>
+        <article><span>Juegos por semana</span><strong>${intramurosGroupCounts(games, "semana").length.toLocaleString("es-MX")}</strong><em>semanas</em></article>
+        <article><span>Juegos por día</span><strong>${intramurosGroupCounts(games.map((row) => ({ day: intramurosRoleDay(row) })), "day").length.toLocaleString("es-MX")}</strong><em>días</em></article>
+        <article><span>Juegos por cancha</span><strong>${new Set(games.map((row) => row.cancha).filter(Boolean)).size.toLocaleString("es-MX")}</strong><em>canchas</em></article>
         <article><span>Torneos activos con rol</span><strong>${activeTournaments.toLocaleString("es-MX")}</strong><em>torneos</em></article>
         <article><span>Con resultado</span><strong>${withResult.toLocaleString("es-MX")}</strong><em>${pending.toLocaleString("es-MX")} pendientes</em></article>
+        <article><span>Reservaciones / eventos</span><strong>${reservations.length.toLocaleString("es-MX")}</strong><em>no cuentan como juego</em></article>
       </div>
       <div class="upload-chart-grid">
-        ${renderUploadBars("Juegos por torneo", intramurosGroupCounts(roles, "torneo"))}
-        ${renderUploadBars("Juegos por semana", intramurosGroupCounts(roles, "semana"))}
-        ${renderUploadBars("Juegos por día de la semana", intramurosGroupCounts(roles.map((row) => ({ day: intramurosRoleDay(row) })), "day"))}
-        ${renderUploadBars("Uso de canchas", intramurosGroupCounts(roles, "cancha"))}
+        ${renderUploadBars("Juegos por torneo", intramurosGroupCounts(games, "torneo"))}
+        ${renderUploadBars("Juegos por semana", intramurosGroupCounts(games, "semana"))}
+        ${renderUploadBars("Juegos por día de la semana", intramurosGroupCounts(games.map((row) => ({ day: intramurosRoleDay(row) })), "day"))}
+        ${renderUploadBars("Uso de canchas", intramurosGroupCounts(games, "cancha"))}
         ${renderUploadBars("Resultado vs pendientes", [{ label: "Con resultado", value: withResult }, { label: "Pendientes", value: pending }])}
-        ${renderUploadBars("Top torneos con más juegos", intramurosGroupCounts(roles, "torneo").slice(0, 10))}
+        ${renderUploadBars("Top torneos con más juegos", intramurosGroupCounts(games, "torneo").slice(0, 10))}
+      </div>
+      <div class="table-wrap intramuros-role-agenda">
+        <div class="budget-table-heading"><div><p class="eyebrow">Agenda operativa</p><h3>Juegos y reservaciones detectadas</h3></div><span>${roles.length.toLocaleString("es-MX")} registros</span></div>
+        <table><thead><tr><th>Fecha</th><th>Hora</th><th>Deporte</th><th>Cancha</th><th>Local / actividad</th><th>Visitante</th><th>Resultado</th><th>Estatus</th></tr></thead>
+        <tbody>${roles.slice().sort((a, b) => `${a.fecha}|${a.hora}`.localeCompare(`${b.fecha}|${b.hora}`)).slice(0, 160).map((row) => `<tr><td>${escapeHtml(row.fecha)}</td><td>${escapeHtml(row.hora)}</td><td>${escapeHtml(row.torneo)}</td><td>${escapeHtml(row.cancha)}</td><td>${escapeHtml(row.equipo_local)}</td><td>${escapeHtml(row.equipo_visitante)}</td><td>${escapeHtml(row.resultado || "-")}</td><td><span class="role-status ${intramurosRoleIsGame(row) ? "game" : "reservation"}">${escapeHtml(row.estatus_partido)}</span></td></tr>`).join("") || `<tr><td colspan="8">El formato está listo. Cuando Omar capture equipos o reservaciones, aparecerán aquí.</td></tr>`}</tbody></table>
       </div>
     </section>
   `;
@@ -8365,8 +8714,9 @@ function intramurosOperationSummary() {
     });
   });
 
-  const roleGames = intramurosGameRoles.length;
-  const roleGamesDone = intramurosGameRoles.filter(intramurosRoleHasResult).length;
+  const roleRows = intramurosGameRoles.filter(intramurosRoleIsGame);
+  const roleGames = roleRows.length;
+  const roleGamesDone = roleRows.filter(intramurosRoleHasResult).length;
   const totals = {
     teams: Math.max(manualTotals.teams, participantTeams.size),
     students: Math.max(manualTotals.students, participantStudents),
@@ -8585,7 +8935,20 @@ function renderIntramurosDashboard() {
 
       ${renderIntramurosOmarWorkspace()}
 
-      ${renderPlanningAreaDashboard(areas.find((item) => item.id === "intramuros") || { id: "intramuros", name: "Intramuros" }, planningCalendarRows, planningCalendarLoaded, planningCalendarError, undefined, null, { compactHeader: true })}
+      ${renderPlanningAreaDashboard(
+        areas.find((item) => item.id === "intramuros") || { id: "intramuros", name: "Intramuros" },
+        planningCalendarRows,
+        planningCalendarLoaded,
+        planningCalendarError,
+        undefined,
+        null,
+        {
+          compactHeader: true,
+          extraActivities: intramurosRoleCalendarActivities(),
+          layer: intramurosCalendarLayer,
+          showLayerSelector: true
+        }
+      )}
 
       <div class="intramuros-filter-grid">
         ${renderIntramurosFilter("period", "Periodo", intramurosFilterOptions("periodo"))}
@@ -14350,6 +14713,11 @@ function render() {
     if (Number.isNaN(month.getTime())) return;
     if (button.dataset.planningMonth !== "today") month.setMonth(month.getMonth() + (button.dataset.planningMonth === "next" ? 1 : -1));
     planningCalendarMonthByArea[areaId] = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
+    selectedPlanningActivityId = "";
+    render();
+  }));
+  $$("[data-intramuros-calendar-layer]").forEach((button) => button.addEventListener("click", () => {
+    intramurosCalendarLayer = button.dataset.intramurosCalendarLayer || "all";
     selectedPlanningActivityId = "";
     render();
   }));
