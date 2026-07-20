@@ -8122,7 +8122,10 @@ function renderIntramurosRolesUploadSummary() {
 }
 
 function intramurosRoleHasResult(row) {
-  return Boolean(String(row.resultado || "").trim()) || normalizeText(row.estatus_partido).includes("resultado");
+  const status = normalizeText(row.estatus_partido);
+  return Boolean(String(row.resultado || "").trim())
+    || ["resultado", "realizado", "completado", "finalizado", "terminado", "jugado"]
+      .some((value) => status.includes(value));
 }
 
 function intramurosRoleDay(row) {
@@ -8221,7 +8224,7 @@ function intramurosOperationMetrics(row) {
 }
 
 function intramurosOperationSummary() {
-  const totals = intramurosOperationRows.reduce((acc, row) => {
+  const manualTotals = intramurosOperationRows.reduce((acc, row) => {
     const metrics = intramurosOperationMetrics(row);
     acc.teams += metrics.teams;
     acc.students += metrics.students;
@@ -8231,6 +8234,37 @@ function intramurosOperationSummary() {
     if (normalizeText(row.estatus).includes("terminado")) acc.finished += 1;
     return acc;
   }, { teams: 0, students: 0, games: 0, done: 0, bajas: 0, finished: 0 });
+
+  const participantStudents = new Set(
+    intramurosParticipants.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)
+  ).size;
+  const participantTeams = new Set();
+  intramurosParticipants.forEach((row) => {
+    const team = String(row.equipo || "").trim();
+    if (team && normalizeText(team) !== "sin equipo") {
+      participantTeams.add(`${normalizeText(row.torneo || "Sin torneo")}|${normalizeText(team)}`);
+    }
+  });
+  intramurosGameRoles.forEach((row) => {
+    [row.equipo_local, row.equipo_visitante].forEach((team) => {
+      const cleanTeam = String(team || "").trim();
+      if (cleanTeam) participantTeams.add(`${normalizeText(row.torneo || "Sin torneo")}|${normalizeText(cleanTeam)}`);
+    });
+  });
+
+  const roleGames = intramurosGameRoles.length;
+  const roleGamesDone = intramurosGameRoles.filter(intramurosRoleHasResult).length;
+  const totals = {
+    teams: Math.max(manualTotals.teams, participantTeams.size),
+    students: Math.max(manualTotals.students, participantStudents),
+    games: Math.max(manualTotals.games, roleGames),
+    done: Math.max(manualTotals.done, roleGamesDone),
+    bajas: manualTotals.bajas,
+    finished: manualTotals.finished,
+    hasParticipantData: participantStudents > 0 || participantTeams.size > 0,
+    hasRoleData: roleGames > 0
+  };
+  totals.done = Math.min(totals.done, totals.games);
   totals.effectiveness = totals.games ? Math.round((totals.done / totals.games) * 1000) / 10 : 0;
   totals.retention = totals.students ? Math.round(((totals.students - totals.bajas) / totals.students) * 1000) / 10 : 0;
   return totals;
@@ -8261,12 +8295,12 @@ function renderIntramurosOmarWorkspace() {
         <span>${formatCount(intramurosOperationRows.length)} torneos capturados · ${intramurosOperationCloudAvailable ? "Supabase conectado" : "Modo local"}</span>
       </div>
       <div class="intramuros-op-kpis">
-        <article><span>Equipos</span><strong>${formatCount(summary.teams)}</strong><em>capturados</em></article>
-        <article><span>Alumnos</span><strong>${formatCount(summary.students)}</strong><em>sin nombres</em></article>
-        <article><span>Juegos prog.</span><strong>${formatCount(summary.games)}</strong><em>planeados</em></article>
-        <article><span>Juegos realizados</span><strong>${formatCount(summary.done)}</strong><em>avance</em></article>
+        <article><span>Equipos</span><strong>${formatCount(summary.teams)}</strong><em>${summary.hasParticipantData ? "participantes / roles" : "capturados"}</em></article>
+        <article><span>Alumnos</span><strong>${formatCount(summary.students)}</strong><em>${summary.hasParticipantData ? "matrículas únicas" : "sin nombres"}</em></article>
+        <article><span>Juegos prog.</span><strong>${formatCount(summary.games)}</strong><em>${summary.hasRoleData ? "roles cargados" : "planeados"}</em></article>
+        <article><span>Juegos realizados</span><strong>${formatCount(summary.done)}</strong><em>${summary.hasRoleData ? "con resultado" : "avance"}</em></article>
         <article><span>% efectividad</span><strong>${summary.effectiveness}%</strong><em>realizados / prog.</em></article>
-        <article><span>% retención</span><strong>${summary.retention}%</strong><em>alumnos - bajas</em></article>
+        <article><span>% retención</span><strong>${summary.retention}%</strong><em>alumnos - bajas registradas</em></article>
       </div>
       <div class="intramuros-op-form">
         <label>Tipo
