@@ -6049,27 +6049,39 @@ function gymDailyRows(facility = gymDashboardFacility) {
 
 function gymAttendanceStudentProfiles(facility = gymDashboardFacility) {
   const profilesByMatricula = new Map();
+  const studentsByMatricula = new Map(
+    cloudStudentDatabase
+      .map((student) => [normalizeMatricula(student.matricula), student])
+      .filter(([matricula]) => matricula)
+  );
   gymAsistencias
     .filter((row) => gymFacilityMatches(row.sitio, facility))
     .forEach((row) => {
       const matricula = normalizeMatricula(row.matricula);
-      if (!matricula || profilesByMatricula.has(matricula)) return;
-      const student = findStudentInDatabase(matricula);
+      if (!matricula) return;
+      const existing = profilesByMatricula.get(matricula);
+      if (existing) {
+        existing.attendanceCount += 1;
+        return;
+      }
+      const student = studentsByMatricula.get(matricula) || null;
       profilesByMatricula.set(matricula, {
         matricula,
         matched: Boolean(student),
         semestre: student?.semestre ? String(student.semestre) : "Sin identificar",
-        carrera: student?.carrera || "Sin identificar"
+        carrera: student?.carrera || "Sin identificar",
+        attendanceCount: 1
       });
     });
   return Array.from(profilesByMatricula.values());
 }
 
 function gymStudentDistributionRows(profiles, field, options = {}) {
-  const total = profiles.length;
+  const weightFor = (row) => options.weightField ? Math.max(0, Number(row[options.weightField]) || 0) : 1;
+  const total = profiles.reduce((sum, row) => sum + weightFor(row), 0);
   const counts = profiles.reduce((acc, row) => {
     const label = String(row[field] || "Sin identificar").trim() || "Sin identificar";
-    acc[label] = (acc[label] || 0) + 1;
+    acc[label] = (acc[label] || 0) + weightFor(row);
     return acc;
   }, {});
   let rows = Object.entries(counts)
@@ -6096,8 +6108,13 @@ function gymStudentDistributionRows(profiles, field, options = {}) {
   return rows;
 }
 
-function renderGymStudentDistribution(title, subtitle, rows, total, unmatchedCount, variant = "") {
+function renderGymStudentDistribution(title, subtitle, rows, total, unmatchedCount, variant = "", options = {}) {
   const max = Math.max(1, ...rows.map((row) => row.count));
+  const summaryLabel = options.summaryLabel || "alumnos únicos con asistencia";
+  const itemLabel = options.itemLabel || "alumnos";
+  const itemLabelSingular = options.itemLabelSingular || itemLabel;
+  const unmatchedLabel = options.unmatchedLabel || "sin cruce en Base Maestra";
+  const unmatchedLabelSingular = options.unmatchedLabelSingular || unmatchedLabel;
   return `
     <section class="chart-panel gym-distribution-chart ${variant ? `gym-distribution-${variant}` : ""}">
       <div class="gym-chart-heading">
@@ -6106,15 +6123,15 @@ function renderGymStudentDistribution(title, subtitle, rows, total, unmatchedCou
       </div>
       <div class="gym-distribution-summary">
         <strong>${total.toLocaleString("es-MX")}</strong>
-        <span>alumnos únicos con asistencia</span>
-        <em>${unmatchedCount.toLocaleString("es-MX")} sin cruce en Base Maestra</em>
+        <span>${escapeHtml(summaryLabel)}</span>
+        <em>${unmatchedCount.toLocaleString("es-MX")} ${escapeHtml(unmatchedCount === 1 ? unmatchedLabelSingular : unmatchedLabel)}</em>
       </div>
       <div class="gym-distribution-bars">
         ${rows.length ? rows.map((row) => `
           <div class="gym-distribution-row">
             <div>
               <strong>${escapeHtml(row.label)}</strong>
-              <span>${row.count.toLocaleString("es-MX")} alumnos</span>
+              <span>${row.count.toLocaleString("es-MX")} ${escapeHtml(row.count === 1 ? itemLabelSingular : itemLabel)}</span>
             </div>
             <div class="gym-bar-track"><i style="width:${Math.round((row.count / max) * 100)}%"></i></div>
             <em>${row.percent.toLocaleString("es-MX", { maximumFractionDigits: 1 })}%</em>
@@ -6304,8 +6321,12 @@ function renderGymDashboard() {
   const dailyRows = gymDailyRows(gymDashboardFacility);
   const attendanceProfiles = gymAttendanceStudentProfiles(gymDashboardFacility);
   const unmatchedAttendance = attendanceProfiles.filter((row) => !row.matched).length;
+  const totalAttendanceVisits = attendanceProfiles.reduce((sum, row) => sum + Number(row.attendanceCount || 0), 0);
+  const unmatchedAttendanceVisits = attendanceProfiles
+    .filter((row) => !row.matched)
+    .reduce((sum, row) => sum + Number(row.attendanceCount || 0), 0);
   const semesterRows = gymStudentDistributionRows(attendanceProfiles, "semestre", { semesterOrder: ["1", "2", "3", "4", "5", "6", "7", "8", "9"] });
-  const careerRows = gymStudentDistributionRows(attendanceProfiles, "carrera", { top: 10 });
+  const careerRows = gymStudentDistributionRows(attendanceProfiles, "carrera", { top: 10, weightField: "attendanceCount" });
   const emptyMessage = !gymDataLoaded
     ? `<p class="form-message">Activa las tablas de Gimnasio en Supabase para comenzar.</p>`
     : !gymAttendanceRecords.length
@@ -6332,7 +6353,13 @@ function renderGymDashboard() {
           <div class="gym-bars">${gymBarRows(dailyRows)}</div>
         </section>
         ${renderGymStudentDistribution("Por semestre", "% de alumnos asistentes", semesterRows, attendanceProfiles.length, unmatchedAttendance, "semester")}
-        ${renderGymStudentDistribution("Por carrera", "Top 10 + Otras", careerRows, attendanceProfiles.length, unmatchedAttendance)}
+        ${renderGymStudentDistribution("Asistencia por carrera", "Top 10 + Otras", careerRows, totalAttendanceVisits, unmatchedAttendanceVisits, "", {
+          summaryLabel: "asistencias con matrícula",
+          itemLabel: "asistencias",
+          itemLabelSingular: "asistencia",
+          unmatchedLabel: "asistencias sin cruce en Base Maestra",
+          unmatchedLabelSingular: "asistencia sin cruce en Base Maestra"
+        })}
       </div>
       <section class="chart-panel gym-week-chart">
         <div class="gym-chart-heading">
