@@ -524,11 +524,13 @@ let selectedIntramurosTournament = "";
 let intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", search: "" };
 let intramurosOperationRows = loadIntramurosOperationRows();
 let intramurosOperationCloudAvailable = true;
+const PARTICIPATION_UPLOAD_STORAGE_KEY = "wellsync_participation_uploads_v1";
 let participationUploadState = {
-  gamer: { fileName: "", draft: null, imported: null },
-  representativos: { fileName: "", draft: null, imported: null }
+  gamer: { fileName: "", draft: null, imported: null, source: "" },
+  representativos: { fileName: "", draft: null, imported: null, source: "" }
 };
 let participationUploadCloudAvailable = true;
+let participationUploadLoading = { gamer: false, representativos: false };
 let executiveReportState = { week: 15, period: "FJ26", title: "Reporte Ejecutivo Semana 15" };
 let executivePlanningFilters = { area: "todos", status: "todos", days: "30" };
 let simulatorState = loadSimulator();
@@ -5413,10 +5415,21 @@ function renderNav() {
     </button>
   `).join("");
   window.lucide?.createIcons();
-  $$(".nav-item").forEach((button) => button.addEventListener("click", () => {
-    activeArea = button.dataset.area;
+  $$(".nav-item").forEach((button) => button.addEventListener("click", async () => {
+    const targetArea = button.dataset.area;
+    activeArea = targetArea;
     activeView = "dashboard";
     render();
+    if (["gamer", "representativos"].includes(targetArea) && supabaseClient && currentUser?.auth === "supabase" && !participationUploadLoading[targetArea]) {
+      participationUploadLoading[targetArea] = true;
+      render();
+      try {
+        await loadParticipationUploadsCloud(targetArea);
+      } finally {
+        participationUploadLoading[targetArea] = false;
+        if (activeArea === targetArea) render();
+      }
+    }
   }));
 }
 
@@ -6195,6 +6208,98 @@ const participationUploadConfigs = {
   }
 };
 
+function participationUploadLocalRow(row) {
+  return {
+    rowNumber: Number(row.rowNumber || 0),
+    matricula: normalizeMatricula(row.matricula),
+    duplicate: Boolean(row.duplicate),
+    empty: Boolean(row.empty),
+    found: Boolean(row.found),
+    genero: row.genero || "No especificado",
+    carrera: row.carrera || "Sin carrera",
+    nivel: row.nivel || "Sin nivel",
+    programa: row.programa || row.carrera || "Sin programa",
+    clave_materia: row.clave_materia || "",
+    representativo: row.representativo || "",
+    coach: row.coach || ""
+  };
+}
+
+function participationUploadSummary(areaId, rows) {
+  const duplicateRows = rows.filter((row) => row.duplicate);
+  const notFoundRows = rows.filter((row) => row.matricula && !row.found);
+  const emptyRows = rows.filter((row) => row.empty).length;
+  return {
+    total: rows.length,
+    found: rows.filter((row) => row.matricula && row.found && !row.duplicate).length,
+    notFound: notFoundRows.length,
+    duplicates: duplicateRows.length,
+    empty: emptyRows,
+    representativos: areaId === "representativos" ? new Set(rows.map((row) => row.representativo).filter(Boolean)).size : 0,
+    coaches: areaId === "representativos" ? new Set(rows.map((row) => row.coach).filter(Boolean)).size : 0
+  };
+}
+
+function participationUploadWarnings(rows) {
+  const empty = rows.filter((row) => row.empty).length;
+  const duplicates = rows.filter((row) => row.duplicate).length;
+  const notFound = rows.filter((row) => row.matricula && !row.found).length;
+  return [
+    ...(empty ? [`${empty} filas sin matrícula.`] : []),
+    ...(duplicates ? [`${duplicates} matrículas duplicadas dentro del archivo.`] : []),
+    ...(notFound ? [`${notFound} matrículas no encontradas en Base de datos_alumnos.`] : [])
+  ];
+}
+
+function saveParticipationUploadsLocal() {
+  try {
+    const areasSnapshot = {};
+    ["gamer", "representativos"].forEach((areaId) => {
+      const state = participationUploadState[areaId];
+      if (!state?.imported?.rows?.length) return;
+      areasSnapshot[areaId] = {
+        fileName: state.fileName || state.imported.fileName || "Última carga",
+        importedAt: state.imported.importedAt || "",
+        rows: state.imported.rows.map(participationUploadLocalRow)
+      };
+    });
+    localStorage.setItem(PARTICIPATION_UPLOAD_STORAGE_KEY, JSON.stringify({ version: 1, areas: areasSnapshot }));
+  } catch (error) {
+    console.warn("No se pudo guardar el respaldo local de Gamer/Representativos", error);
+  }
+}
+
+function restoreParticipationUploadsLocal() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(PARTICIPATION_UPLOAD_STORAGE_KEY) || "{}");
+    ["gamer", "representativos"].forEach((areaId) => {
+      const snapshot = stored?.areas?.[areaId];
+      if (!Array.isArray(snapshot?.rows) || !snapshot.rows.length) return;
+      const rows = snapshot.rows.map(participationUploadLocalRow);
+      participationUploadState[areaId] = {
+        fileName: snapshot.fileName || "Última carga local",
+        draft: null,
+        imported: {
+          areaId,
+          fileName: snapshot.fileName || "Última carga local",
+          config: participationUploadConfigs[areaId],
+          rows,
+          preview: rows.slice(0, 8),
+          errors: [],
+          warnings: participationUploadWarnings(rows),
+          summary: participationUploadSummary(areaId, rows),
+          importedAt: snapshot.importedAt || ""
+        },
+        source: "local"
+      };
+    });
+  } catch (error) {
+    console.warn("No se pudo recuperar el respaldo local de Gamer/Representativos", error);
+  }
+}
+
+restoreParticipationUploadsLocal();
+
 function uploadHasColumn(rows, aliases) {
   const headers = Object.keys(rows[0] || {}).map(headerKey);
   return aliases.some((alias) => headers.includes(headerKey(alias)));
@@ -6334,8 +6439,10 @@ async function importParticipationUpload(areaId) {
     return;
   }
   participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
+  participationUploadState[areaId].source = "cloud";
   participationUploadState[areaId].draft = null;
-  await loadParticipationUploadsCloud();
+  saveParticipationUploadsLocal();
+  await loadParticipationUploadsCloud(areaId);
   addAudit(areaId, `${draft.summary.total} registros guardados en Supabase desde ${draft.fileName}`);
   render();
   toast("Información guardada en Supabase");
@@ -6838,28 +6945,46 @@ function buildParticipationImportResult(areaId, rows, fileName = "Supabase") {
   };
 }
 
-async function loadParticipationUploadsCloud() {
-  if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const { data, error } = await supabaseClient
-    .from("participation_upload_rows")
-    .select("*")
-    .order("area_key", { ascending: true })
-    .order("created_at", { ascending: false })
-    .limit(30000);
-  if (error) {
-    participationUploadCloudAvailable = false;
-    console.warn("Cargas de participación Supabase no disponibles", error);
-    return;
+async function loadParticipationUploadAreaCloud(areaId) {
+  const rows = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabaseClient
+      .from("participation_upload_rows")
+      .select("*")
+      .eq("area_key", areaId)
+      .order("updated_at", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+    if (error) return { areaId, rows: [], error };
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < pageSize) break;
   }
-  participationUploadCloudAvailable = true;
-  ["gamer", "representativos"].forEach((areaId) => {
-    const areaRows = (data || []).filter((row) => row.area_key === areaId);
-    if (!areaRows.length) return;
-    const latestSource = areaRows[0]?.source_name || "Supabase";
-    participationUploadState[areaId].fileName = latestSource;
-    participationUploadState[areaId].imported = buildParticipationImportResult(areaId, areaRows, latestSource);
-    participationUploadState[areaId].draft = null;
+  return { areaId, rows, error: null };
+}
+
+async function loadParticipationUploadsCloud(targetAreaId = "") {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const areaIds = targetAreaId ? [targetAreaId] : ["gamer", "representativos"];
+  const results = await Promise.all(areaIds.map(loadParticipationUploadAreaCloud));
+  participationUploadCloudAvailable = results.every((result) => !result.error);
+  results.forEach(({ areaId, rows, error }) => {
+    if (error) {
+      console.warn(`Carga de ${areaId} no disponible en Supabase`, error);
+      return;
+    }
+    if (!rows.length) return;
+    const latestSource = rows[0]?.source_name || "Supabase";
+    const imported = buildParticipationImportResult(areaId, rows, latestSource);
+    imported.importedAt = rows[0]?.updated_at || rows[0]?.created_at || "";
+    participationUploadState[areaId] = {
+      ...participationUploadState[areaId],
+      fileName: latestSource,
+      imported,
+      source: "cloud"
+    };
   });
+  saveParticipationUploadsLocal();
 }
 
 async function saveParticipationUploadCloud(areaId, draft) {
@@ -6943,8 +7068,9 @@ function renderUploadBars(title, rows) {
 function renderParticipationUploadDashboard(areaId) {
   const config = participationUploadConfigs[areaId];
   const state = participationUploadState[areaId];
-  const result = state.imported || state.draft;
-  const imported = state.imported;
+  const hasDraft = Boolean(state.draft);
+  const result = state.draft || state.imported;
+  const imported = hasDraft ? null : state.imported;
   const rows = result?.rows || [];
   const dashboardRows = areaId === "gamer" ? gamerAcademicRows(rows) : rows;
   const dashboardSummary = areaId === "gamer" ? {
@@ -6953,8 +7079,17 @@ function renderParticipationUploadDashboard(areaId) {
     notFound: dashboardRows.filter((row) => row.matricula && !row.found).length
   } : result?.summary;
   const notFound = dashboardRows.filter((row) => row.matricula && !row.found);
-  const canImport = result && !result.errors?.length && rows.length;
+  const canImport = Boolean(state.draft && !state.draft.errors?.length && state.draft.rows?.length);
   const title = areaId === "gamer" ? "Gamer" : "Representativos";
+  const importedAt = state.imported?.importedAt ? new Date(state.imported.importedAt) : null;
+  const importedAtLabel = importedAt && !Number.isNaN(importedAt.getTime())
+    ? importedAt.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })
+    : "fecha no disponible";
+  const persistenceLabel = participationUploadLoading[areaId]
+    ? "Actualizando última carga desde Supabase..."
+    : state.imported
+      ? `Última carga disponible: ${state.imported.summary.total.toLocaleString("es-MX")} registros · ${importedAtLabel} · ${state.source === "cloud" ? "Supabase" : "respaldo local"}`
+      : "Todavía no hay una carga guardada para este módulo.";
   const previewSection = areaId === "representativos" && result ? `
         <section class="upload-preview-panel">
           <div class="class-grade-table-header">
@@ -6976,6 +7111,10 @@ function renderParticipationUploadDashboard(areaId) {
       <div class="permission-strip">
         <span>${title}: centro visual de carga y validación contra Base de datos_alumnos.</span>
         <span>${studentDatabaseLoaded ? `${cloudStudentDatabase.length.toLocaleString("es-MX")} alumnos en base general` : "Base general pendiente de cargar"}</span>
+      </div>
+      <div class="permission-strip">
+        <span>${escapeHtml(persistenceLabel)}</span>
+        <span>${state.source === "local" ? "Se intentará sincronizar al entrar con conexión." : "La carga permanece disponible al volver a entrar."}</span>
       </div>
       <div class="upload-center-grid">
         <article class="upload-info-panel">
@@ -7019,7 +7158,7 @@ function renderParticipationUploadDashboard(areaId) {
               </div>
             ` : `<div class="upload-empty">Carga un archivo para ver la validación.</div>`}
           </div>
-          <button class="primary-btn" type="button" data-import-participation-upload="${areaId}" ${canImport ? "" : "disabled"}>Importar información</button>
+          <button class="primary-btn" type="button" data-import-participation-upload="${areaId}" ${canImport ? "" : "disabled"}>${hasDraft ? "Importar información" : state.imported ? "Carga guardada" : "Importar información"}</button>
         </article>
       </div>
       ${result ? `
