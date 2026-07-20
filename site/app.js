@@ -2733,15 +2733,22 @@ function renderPlanningAreaDashboard(area, rows = planningCalendarRows, loaded =
   const refreshButton = `<button class="ghost-btn" id="refreshPlanningCalendar" type="button" ${loaded ? "" : "disabled"}>Actualizar calendario</button>`;
   const extraActivities = Array.isArray(options.extraActivities) ? options.extraActivities : [];
   const planningActivities = loaded && !error ? planningActivitiesForArea(rows, area.id) : [];
-  if (!loaded && !extraActivities.length) return `<section class="planning-calendar-state" aria-live="polite"><strong>Cargando calendario...</strong><span>Consultando Planeación Semestral.</span>${refreshButton}</section>`;
-  if (error && !extraActivities.length) return `<section class="planning-calendar-state error" role="alert"><strong>No se pudo cargar el calendario</strong><span>${escapeHtml(error)}</span>${refreshButton}</section>`;
   const layer = options.layer || "all";
-  const activities = (layer === "planning" ? planningActivities : layer === "roles" ? extraActivities : [...planningActivities, ...extraActivities])
-    .sort((a, b) => String(a.date || "9999-12-31").localeCompare(String(b.date || "9999-12-31")));
   const layerControls = options.showLayerSelector ? `
     <div class="intramuros-calendar-layers" role="group" aria-label="Contenido del calendario">
       ${[["all", "Todo"], ["planning", "Actividades"], ["roles", "Juegos"]].map(([value, label]) => `<button type="button" data-intramuros-calendar-layer="${value}" class="${layer === value ? "active" : ""}">${label}</button>`).join("")}
     </div>` : "";
+  const transientState = !loaded && !extraActivities.length
+    ? `<section class="planning-calendar-state" aria-live="polite"><strong>Cargando calendario...</strong><span>Consultando Planeación Semestral y Roles de Juego.</span>${refreshButton}</section>`
+    : error && !extraActivities.length
+      ? `<section class="planning-calendar-state error" role="alert"><strong>No se pudo cargar el calendario</strong><span>${escapeHtml(error)}</span>${refreshButton}</section>`
+      : "";
+  if (transientState) {
+    if (!options.showLayerSelector) return transientState;
+    return `<section class="planning-area-dashboard"><div class="planning-area-compact-head"><div><p class="eyebrow">Planeación + Roles de Juego</p><h3>Calendario operativo</h3></div><div class="planning-area-actions">${layerControls}</div></div>${transientState}</section>`;
+  }
+  const activities = (layer === "planning" ? planningActivities : layer === "roles" ? extraActivities : [...planningActivities, ...extraActivities])
+    .sort((a, b) => String(a.date || "9999-12-31").localeCompare(String(b.date || "9999-12-31")));
   if (!activities.length) return `<section class="planning-area-dashboard"><div class="planning-area-compact-head"><div><p class="eyebrow">Planeación + Roles de Juego</p><h3>Calendario operativo</h3></div><div class="planning-area-actions">${layerControls}${refreshButton}</div></div><section class="planning-calendar-state"><strong>No hay actividades para ${escapeHtml(area.name)}</strong><span>${layer === "roles" ? "Carga equipos o reservaciones desde Roles de Juego." : "Planeación Semestral no contiene registros para esta área."}</span></section></section>`;
   const dated = activities.filter((activity) => activity.date);
   const pending = activities.filter((activity) => !activity.date);
