@@ -5424,6 +5424,7 @@ function renderNav() {
       participationUploadLoading[targetArea] = true;
       render();
       try {
+        if (!studentDatabaseLoaded) await loadStudentDatabase();
         await loadParticipationUploadsCloud(targetArea);
       } finally {
         participationUploadLoading[targetArea] = false;
@@ -7017,13 +7018,17 @@ function uploadGroupCounts(rows, field, options = {}) {
   return Array.from(counts.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
 }
 
-function gamerAcademicRows(rows) {
+function participationAcademicRows(rows) {
   const studentsByMatricula = new Map(
     cloudStudentDatabase.map((student) => [normalizeMatricula(student.matricula), student])
   );
+  const baseReady = studentDatabaseLoaded && studentsByMatricula.size > 0;
   return rows.map((row) => {
     const matricula = normalizeMatricula(row.matricula);
     const student = studentsByMatricula.get(matricula);
+    if (!student && !baseReady) {
+      return { ...row, matricula };
+    }
     if (!student) {
       return {
         ...row,
@@ -7072,12 +7077,12 @@ function renderParticipationUploadDashboard(areaId) {
   const result = state.draft || state.imported;
   const imported = hasDraft ? null : state.imported;
   const rows = result?.rows || [];
-  const dashboardRows = areaId === "gamer" ? gamerAcademicRows(rows) : rows;
-  const dashboardSummary = areaId === "gamer" ? {
+  const dashboardRows = participationAcademicRows(rows);
+  const dashboardSummary = {
     ...result?.summary,
     found: dashboardRows.filter((row) => row.matricula && row.found && !row.duplicate).length,
     notFound: dashboardRows.filter((row) => row.matricula && !row.found).length
-  } : result?.summary;
+  };
   const notFound = dashboardRows.filter((row) => row.matricula && !row.found);
   const canImport = Boolean(state.draft && !state.draft.errors?.length && state.draft.rows?.length);
   const title = areaId === "gamer" ? "Gamer" : "Representativos";
