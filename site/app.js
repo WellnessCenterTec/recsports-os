@@ -6811,35 +6811,145 @@ function intramurosRoleCloudRow(row) {
   };
 }
 
+const INTRAMUROS_PARTICIPANT_COLUMN_ALIASES = {
+  matricula: ["Matrícula", "Matricula"],
+  genero: ["Género", "Genero"],
+  programa: ["Programa"],
+  modalidad: ["Modalidad"],
+  escuela: ["Escuela"],
+  tipo_actividad: ["Tipo de actividad", "Tipo actividad"],
+  torneo: ["Torneo", "Comentario", "Nombre torneo", "Torneo/Evento"],
+  rama: ["Rama"],
+  equipo: ["Equipo"],
+  periodo: ["Periodo", "Período"]
+};
+
+function intramurosPeriodFromGrid(grid, headerIndex) {
+  const title = (grid || [])
+    .slice(0, Math.max(0, headerIndex))
+    .flat()
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(" ");
+  const normalized = normalizeText(title);
+  const yearMatch = title.match(/\b(?:20)?(\d{2})\b/);
+  const year = yearMatch?.[1] || "";
+  if (!year) return "";
+  if (normalized.includes("feb") && normalized.includes("jun")) return `FJ${year}`;
+  if (normalized.includes("ago") && normalized.includes("dic")) return `AD${year}`;
+  if ((normalized.includes("jun") && normalized.includes("jul")) || normalized.includes("verano")) return `VER${year}`;
+  if (normalized.includes("invierno") || (normalized.includes("ene") && normalized.includes("feb"))) return `IN${year}`;
+  return "";
+}
+
+function intramurosParticipantRowsFromGrid(grid) {
+  const aliases = Object.values(INTRAMUROS_PARTICIPANT_COLUMN_ALIASES).flat().map(headerKey);
+  const headerIndex = (grid || []).findIndex((cells) => {
+    const keys = (cells || []).map(headerKey);
+    const matches = keys.filter((key) => aliases.includes(key)).length;
+    return keys.includes(headerKey("Matrícula")) && matches >= 5;
+  });
+  if (headerIndex < 0) {
+    return { rows: [], ignoredColumns: [], errors: ["No se encontró una fila de encabezados con la columna Matrícula."] };
+  }
+
+  const headers = (grid[headerIndex] || []).map((value) => String(value || "").trim());
+  const headerKeys = headers.map(headerKey);
+  const columnIndexes = Object.fromEntries(Object.entries(INTRAMUROS_PARTICIPANT_COLUMN_ALIASES).map(([field, fieldAliases]) => [
+    field,
+    headerKeys.findIndex((key) => fieldAliases.map(headerKey).includes(key))
+  ]));
+  const privateHeaders = new Set(["nombre", "nombres", "nombre completo", "apellido", "apellidos", "apellido paterno", "apellido materno"].map(headerKey));
+  const ignoredColumns = headers.filter((header) => privateHeaders.has(headerKey(header)));
+  const periodFromTitle = intramurosPeriodFromGrid(grid, headerIndex);
+  const canonicalLabels = {
+    matricula: "Matrícula",
+    genero: "Género",
+    programa: "Programa",
+    modalidad: "Modalidad",
+    escuela: "Escuela",
+    tipo_actividad: "Tipo de actividad",
+    torneo: "Comentario",
+    rama: "Rama",
+    equipo: "Equipo",
+    periodo: "Periodo"
+  };
+  const rows = (grid || []).slice(headerIndex + 1).map((cells, index) => {
+    const record = { __sourceRowNumber: headerIndex + index + 2 };
+    Object.entries(columnIndexes).forEach(([field, columnIndex]) => {
+      record[canonicalLabels[field]] = columnIndex >= 0 ? cells?.[columnIndex] ?? "" : "";
+    });
+    if (!record.Periodo && periodFromTitle) record.Periodo = periodFromTitle;
+    return record;
+  }).filter((row) => Object.keys(canonicalLabels).some((field) => {
+    if (field === "periodo") return false;
+    const label = canonicalLabels[field];
+    return row[label] !== "" && row[label] != null;
+  }));
+  return { rows, ignoredColumns, errors: [] };
+}
+
+async function rowsFromIntramurosParticipantsFile(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  const grids = [];
+  if (["xlsx", "xls"].includes(ext) && window.XLSX) {
+    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array" });
+    workbook.SheetNames.forEach((sheetName) => {
+      grids.push(window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" }));
+    });
+  } else {
+    grids.push(parseCsv(await file.text()));
+  }
+  const parsedSheets = grids.map(intramurosParticipantRowsFromGrid);
+  const rows = parsedSheets.flatMap((result) => result.rows);
+  return {
+    rows,
+    ignoredColumns: [...new Set(parsedSheets.flatMap((result) => result.ignoredColumns))],
+    errors: rows.length ? [] : [...new Set(parsedSheets.flatMap((result) => result.errors))]
+  };
+}
+
+function intramurosUploadValue(value, fallback) {
+  const clean = String(value ?? "").trim();
+  return ["", "#n/a", "n/a", "na", "#na", "null", "undefined"].includes(normalizeText(clean)) ? fallback : clean;
+}
+
+function normalizeIntramurosGender(value) {
+  const normalized = normalizeText(intramurosUploadValue(value, ""));
+  if (normalized.includes("femenino") || normalized === "mujer") return "Femenino";
+  if (normalized.includes("masculino") || normalized === "hombre") return "Masculino";
+  return "No especificado";
+}
+
 function normalizeIntramurosUploadRow(row, index, fileName, seenKeys) {
   const matricula = normalizeMatricula(pickColumn(row, ["Matrícula", "Matricula", "matricula"]));
-  const torneo = String(pickColumn(row, ["Torneo", "Comentario", "comentario", "Nombre torneo", "Torneo/Evento"]) || "").trim() || "Sin torneo";
-  const equipo = String(pickColumn(row, ["Equipo", "equipo"]) || "").trim() || "Sin equipo";
-  const periodo = String(pickColumn(row, ["Periodo", "Período", "periodo"]) || "").trim().toUpperCase() || "Sin periodo";
+  const torneo = intramurosUploadValue(pickColumn(row, ["Torneo", "Comentario", "comentario", "Nombre torneo", "Torneo/Evento"]), "Sin torneo");
+  const equipo = intramurosUploadValue(pickColumn(row, ["Equipo", "equipo"]), "Sin equipo");
+  const periodo = intramurosUploadValue(pickColumn(row, ["Periodo", "Período", "periodo"]), "Sin periodo").toUpperCase();
   const payload = {
     matricula,
-    genero: String(pickColumn(row, ["Género", "Genero", "genero"]) || "").trim() || "No especificado",
-    programa: String(pickColumn(row, ["Programa", "programa"]) || "").trim() || "Sin programa",
-    modalidad: String(pickColumn(row, ["Modalidad", "modalidad"]) || "").trim() || "Sin modalidad",
-    escuela: String(pickColumn(row, ["Escuela", "escuela"]) || "").trim() || "Sin escuela",
-    tipo_actividad: String(pickColumn(row, ["Tipo de actividad", "Tipo actividad", "tipo_actividad"]) || "").trim() || "Sin tipo",
+    genero: normalizeIntramurosGender(pickColumn(row, ["Género", "Genero", "genero"])),
+    programa: intramurosUploadValue(pickColumn(row, ["Programa", "programa"]), "Sin programa"),
+    modalidad: intramurosUploadValue(pickColumn(row, ["Modalidad", "modalidad"]), "Sin modalidad"),
+    escuela: intramurosUploadValue(pickColumn(row, ["Escuela", "escuela"]), "Sin escuela"),
+    tipo_actividad: intramurosUploadValue(pickColumn(row, ["Tipo de actividad", "Tipo actividad", "tipo_actividad"]), "Sin tipo"),
     torneo,
-    rama: String(pickColumn(row, ["Rama", "rama"]) || "").trim() || "Sin rama",
+    rama: intramurosUploadValue(pickColumn(row, ["Rama", "rama"]), "Sin rama"),
     equipo,
     periodo,
     fecha_carga: new Date().toISOString(),
     archivo_origen: fileName || "Registro de participantes",
-    __rowNumber: index + 2
+    __rowNumber: Number(row.__sourceRowNumber || index + 2)
   };
   const key = intramurosLogicalKey(payload);
   const duplicateInFile = seenKeys.has(key);
   seenKeys.add(key);
-  return { ...payload, __key: key, __duplicateInFile: duplicateInFile, __error: matricula ? "" : "Falta matrícula" };
+  const matriculaError = !matricula ? "Falta matrícula" : !/^A\d{7,9}$/.test(matricula) ? "Matrícula inválida" : "";
+  return { ...payload, __key: key, __duplicateInFile: duplicateInFile, __error: matriculaError };
 }
 
-function parseIntramurosUploadRows(rows, fileName) {
+function parseIntramurosUploadRows(rows, fileName, source = {}) {
   const seenKeys = new Set();
-  const ignoredColumns = ["Nombre", "Apellido paterno", "Apellido materno"];
   const headers = Object.keys(rows[0] || {});
   const hasMatricula = headers.map(headerKey).includes(headerKey("Matrícula")) || headers.map(headerKey).includes(headerKey("Matricula"));
   const parsed = rows
@@ -6850,10 +6960,11 @@ function parseIntramurosUploadRows(rows, fileName) {
     duplicateRows: parsed.filter((row) => row.__duplicateInFile),
     errorRows: parsed.filter((row) => row.__error),
     errors: [
-      ...(!rows.length ? ["El archivo está vacío."] : []),
+      ...(source.errors || []),
+      ...(!rows.length && !(source.errors || []).length ? ["El archivo está vacío."] : []),
       ...(!hasMatricula ? ["Falta la columna obligatoria: Matrícula."] : [])
     ],
-    ignoredColumns: ignoredColumns.filter((column) => headers.map(headerKey).includes(headerKey(column))),
+    ignoredColumns: source.ignoredColumns || [],
     processed: parsed.length
   };
 }
@@ -6867,8 +6978,8 @@ async function importIntramurosParticipants(file) {
   intramurosImporting = true;
   render();
   try {
-    const rawRows = await rowsFromScheduleFile(file);
-    const parsed = parseIntramurosUploadRows(rawRows, file.name);
+    const source = await rowsFromIntramurosParticipantsFile(file);
+    const parsed = parseIntramurosUploadRows(source.rows, file.name, source);
     if (parsed.errors.length) {
       intramurosUploadSummary = {
         fileName: file.name,
@@ -6916,7 +7027,7 @@ async function importIntramurosParticipants(file) {
       duplicates: parsed.duplicateRows.length,
       errors: parsed.errorRows.length,
       ignoredColumns: parsed.ignoredColumns,
-      messages: [],
+      messages: parsed.errorRows.length ? [`${parsed.errorRows.length} filas se omitieron por matrícula inválida.`] : [],
       importedAt: new Date().toISOString()
     };
     addAudit("intramuros", `${parsed.rows.length} participantes procesados desde ${file.name}`);
@@ -8022,6 +8133,8 @@ function renderIntramurosExecutiveCharts(rows) {
       ${renderIntramurosExecutiveBars("Juegos programados", intramurosRoleCounts(roles, "torneo"), { accent: "red", limit: 7 })}
       ${renderIntramurosProgressCard(summaries)}
       ${renderIntramurosExecutiveBars("Participación por rama", intramurosGroupCounts(rows, "rama"), { accent: "teal", limit: 7 })}
+      ${renderIntramurosExecutiveBars("Participación por escuela", intramurosGroupCounts(rows, "escuela"), { accent: "gold", limit: 10 })}
+      ${renderIntramurosExecutiveBars("Top 10 programas", intramurosGroupCounts(rows, "programa"), { accent: "blue", limit: 10 })}
       ${renderIntramurosExecutiveBars("Top torneos", intramurosGroupCounts(rows, "torneo", true).slice(0, 10), { accent: "blue", limit: 10 })}
       ${renderIntramurosExecutiveBars("Juegos por cancha", intramurosRoleCounts(roles, "cancha"), { accent: "gold", limit: 8 })}
       ${renderIntramurosExecutiveBars("Resultados vs pendientes", roleResultRows.filter((row) => row.value), { accent: "red", limit: 2 })}
