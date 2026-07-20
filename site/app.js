@@ -6422,8 +6422,13 @@ async function loadParticipationUploadFile(areaId, file) {
 }
 
 async function importParticipationUpload(areaId) {
-  const draft = participationUploadState[areaId]?.draft;
+  const state = participationUploadState[areaId];
+  const draft = state?.draft || (state?.source === "local" ? state.imported : null);
   if (!draft) return;
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    toast("Conecta tu cuenta Supabase para guardar esta carga permanentemente.");
+    return;
+  }
   if (draft.errors.length) {
     toast("Corrige los errores antes de importar");
     return;
@@ -6436,7 +6441,7 @@ async function importParticipationUpload(areaId) {
     saveParticipationUploadsLocal();
     addAudit(areaId, `${draft.summary.total} registros guardados como respaldo local desde ${draft.fileName}`);
     render();
-    toast("Carga guardada en este equipo. Inicia con Supabase para compartirla entre computadoras.");
+    toast("Supabase rechazó la carga. Se conservó un respaldo local para volver a intentar.");
     return;
   }
   participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
@@ -7084,7 +7089,11 @@ function renderParticipationUploadDashboard(areaId) {
     notFound: dashboardRows.filter((row) => row.matricula && !row.found).length
   };
   const notFound = dashboardRows.filter((row) => row.matricula && !row.found);
-  const canImport = Boolean(state.draft && !state.draft.errors?.length && state.draft.rows?.length);
+  const pendingLocalSync = currentUser?.auth === "supabase" && state.source === "local" && Boolean(state.imported?.rows?.length);
+  const canImport = currentUser?.auth === "supabase" && Boolean(
+    (state.draft && !state.draft.errors?.length && state.draft.rows?.length)
+    || pendingLocalSync
+  );
   const title = areaId === "gamer" ? "Gamer" : "Representativos";
   const importedAt = state.imported?.importedAt ? new Date(state.imported.importedAt) : null;
   const importedAtLabel = importedAt && !Number.isNaN(importedAt.getTime())
@@ -7097,7 +7106,7 @@ function renderParticipationUploadDashboard(areaId) {
       : "Todavía no hay una carga guardada para este módulo.";
   const persistenceNote = currentUser?.auth === "supabase"
     ? (state.source === "local" ? "Se intentará sincronizar al entrar con conexión." : "La carga permanece disponible al volver a entrar y desde otras computadoras.")
-    : "Modo demo: las cargas se conservan solo en esta computadora. Para compartirlas entre equipos, entra con Acceso Supabase.";
+    : "Modo demo: conecta tu cuenta Supabase antes de importar para guardar permanentemente y compartir entre computadoras.";
   const previewSection = areaId === "representativos" && result ? `
         <section class="upload-preview-panel">
           <div class="class-grade-table-header">
@@ -7123,6 +7132,7 @@ function renderParticipationUploadDashboard(areaId) {
       <div class="permission-strip">
         <span>${escapeHtml(persistenceLabel)}</span>
         <span>${escapeHtml(persistenceNote)}</span>
+        ${currentUser?.auth !== "supabase" ? `<button class="ghost-btn" type="button" data-connect-participation-cloud>Conectar con Supabase</button>` : ""}
       </div>
       <div class="upload-center-grid">
         <article class="upload-info-panel">
@@ -7166,7 +7176,7 @@ function renderParticipationUploadDashboard(areaId) {
               </div>
             ` : `<div class="upload-empty">Carga un archivo para ver la validación.</div>`}
           </div>
-          <button class="primary-btn" type="button" data-import-participation-upload="${areaId}" ${canImport ? "" : "disabled"}>${hasDraft ? "Importar información" : state.imported ? "Carga guardada" : "Importar información"}</button>
+          <button class="primary-btn" type="button" data-import-participation-upload="${areaId}" ${canImport ? "" : "disabled"}>${pendingLocalSync ? "Guardar respaldo en Supabase" : hasDraft ? "Importar información" : state.imported ? "Carga guardada" : "Importar información"}</button>
         </article>
       </div>
       ${result ? `
@@ -13927,6 +13937,11 @@ function render() {
   });
   $$("[data-import-participation-upload]").forEach((button) => button.addEventListener("click", async () => {
     await importParticipationUpload(button.dataset.importParticipationUpload);
+  }));
+  $$("[data-connect-participation-cloud]").forEach((button) => button.addEventListener("click", () => {
+    clearSession();
+    render();
+    toast("Inicia sesión con Supabase para guardar Gamer y Representativos.");
   }));
   $("#intramurosParticipantsFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
