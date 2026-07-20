@@ -6429,13 +6429,13 @@ async function importParticipationUpload(areaId) {
   }
   const savedCloud = await saveParticipationUploadCloud(areaId, draft);
   if (!savedCloud) {
-    participationUploadState[areaId].draft = {
-      ...draft,
-      errors: [...draft.errors, "No se guardó la información en Supabase. Inicia sesión con permisos de Coordinador o Dirección e intenta nuevamente."],
-      warnings: draft.warnings.filter((message) => !message.includes("No se guardó la información en Supabase"))
-    };
+    participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
+    participationUploadState[areaId].source = "local";
+    participationUploadState[areaId].draft = null;
+    saveParticipationUploadsLocal();
+    addAudit(areaId, `${draft.summary.total} registros guardados como respaldo local desde ${draft.fileName}`);
     render();
-    toast("No se guardó la información en Supabase");
+    toast("Carga guardada en este equipo. Inicia con Supabase para compartirla entre computadoras.");
     return;
   }
   participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
@@ -7090,6 +7090,9 @@ function renderParticipationUploadDashboard(areaId) {
     : state.imported
       ? `Última carga disponible: ${state.imported.summary.total.toLocaleString("es-MX")} registros · ${importedAtLabel} · ${state.source === "cloud" ? "Supabase" : "respaldo local"}`
       : "Todavía no hay una carga guardada para este módulo.";
+  const persistenceNote = currentUser?.auth === "supabase"
+    ? (state.source === "local" ? "Se intentará sincronizar al entrar con conexión." : "La carga permanece disponible al volver a entrar y desde otras computadoras.")
+    : "Modo demo: las cargas se conservan solo en esta computadora. Para compartirlas entre equipos, entra con Acceso Supabase.";
   const previewSection = areaId === "representativos" && result ? `
         <section class="upload-preview-panel">
           <div class="class-grade-table-header">
@@ -7114,7 +7117,7 @@ function renderParticipationUploadDashboard(areaId) {
       </div>
       <div class="permission-strip">
         <span>${escapeHtml(persistenceLabel)}</span>
-        <span>${state.source === "local" ? "Se intentará sincronizar al entrar con conexión." : "La carga permanece disponible al volver a entrar."}</span>
+        <span>${escapeHtml(persistenceNote)}</span>
       </div>
       <div class="upload-center-grid">
         <article class="upload-info-panel">
