@@ -6998,7 +6998,7 @@ function intramurosCloudRow(row) {
     modalidad: row.modalidad || "Sin modalidad",
     escuela: row.escuela || "Sin escuela",
     tipo_actividad: row.tipo_actividad || "Sin tipo",
-    torneo: row.torneo || "Sin torneo",
+    torneo: canonicalIntramurosTournament(row.torneo),
     rama: row.rama || "Sin rama",
     equipo: row.equipo || "Sin equipo",
     periodo: row.periodo || "Sin periodo",
@@ -7029,24 +7029,90 @@ function intramurosRoleKey(row) {
   ].join("|");
 }
 
+function canonicalIntramurosTournament(value) {
+  const normalized = normalizeText(value).replace(/\s+/g, " ").trim();
+  if (!normalized || normalized === "sin torneo") return "Sin torneo";
+  const labels = {
+    futbol7: "Fútbol 7",
+    futbolsoccer: "Fútbol soccer",
+    futbolrapidoparticipante: "Fútbol rápido participante",
+    futbolrapido: "Fútbol rápido",
+    futbolrapidodelegado: "Fútbol rápido delegado",
+    tochito: "Tochito",
+    basquetbol: "Básquetbol",
+    padel: "Pádel",
+    voleiboldesala: "Voleibol de sala",
+    voleiboldeplaya: "Voleibol de playa",
+    tenissingles: "Tenis singles",
+    tenisdoblesmixto: "Tenis dobles mixto",
+    futtenis: "Fut tenis",
+    ajedrez: "Ajedrez",
+    selectivocopaborrego: "Selectivo Copa Borrego",
+    copaipmayorcup: "Copa IP Mayor CUP"
+  };
+  const knownLabel = labels[headerKey(normalized)];
+  if (knownLabel) return knownLabel;
+  const corrections = {
+    futbol: "fútbol",
+    basquetbol: "básquetbol",
+    padel: "pádel",
+    rapido: "rápido",
+    relampago: "relámpago"
+  };
+  const minorWords = new Set(["de", "del", "la", "las", "el", "los", "y", "e"]);
+  return normalized.split(" ").map((word, index) => {
+    const corrected = corrections[word] || word;
+    if (index > 0 && minorWords.has(corrected)) return corrected;
+    return `${corrected.charAt(0).toUpperCase()}${corrected.slice(1)}`;
+  }).join(" ");
+}
+
+async function loadIntramurosTablePages(table, columns, orderColumn) {
+  const rows = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const response = await supabaseClient
+      .from(table)
+      .select(columns)
+      .order(orderColumn, { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (response.error) return { data: [], error: response.error };
+    const page = response.data || [];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return { data: rows, error: null };
+}
+
+function uniqueIntramurosRows(rows, keyForRow) {
+  const seen = new Set();
+  return rows.filter((row) => {
+    const key = keyForRow(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 async function loadIntramurosParticipants() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const [participantsResult, rolesResult, operationResult] = await Promise.all([
-    supabaseClient
-    .from("intramuros_participantes")
-    .select("id, matricula, genero, programa, modalidad, escuela, tipo_actividad, torneo, rama, equipo, periodo, fecha_carga, archivo_origen, created_at, updated_at")
-    .order("fecha_carga", { ascending: false })
-      .limit(50000),
-    supabaseClient
-      .from("intramuros_roles_juego")
-      .select("id, torneo, semana, fecha, hora, cancha, grupo, rama, equipo_local, equipo_visitante, resultado, observaciones, estatus_partido, periodo, fecha_carga, archivo_origen, created_at, updated_at")
-      .order("fecha", { ascending: false })
-      .limit(50000),
-    supabaseClient
-      .from("intramuros_operacion_torneos")
-      .select("id, tipo, torneo, periodo, equipos_varoniles, equipos_femeniles, equipos_mixtos, alumnos_varonil, alumnos_femenil, juegos_programados, juegos_realizados, bajas, estatus, created_at, updated_at")
-      .order("updated_at", { ascending: false })
-      .limit(50000)
+    loadIntramurosTablePages(
+      "intramuros_participantes",
+      "id, matricula, genero, programa, modalidad, escuela, tipo_actividad, torneo, rama, equipo, periodo, fecha_carga, archivo_origen, created_at, updated_at",
+      "fecha_carga"
+    ),
+    loadIntramurosTablePages(
+      "intramuros_roles_juego",
+      "id, torneo, semana, fecha, hora, cancha, grupo, rama, equipo_local, equipo_visitante, resultado, observaciones, estatus_partido, periodo, fecha_carga, archivo_origen, created_at, updated_at",
+      "fecha"
+    ),
+    loadIntramurosTablePages(
+      "intramuros_operacion_torneos",
+      "id, tipo, torneo, periodo, equipos_varoniles, equipos_femeniles, equipos_mixtos, alumnos_varonil, alumnos_femenil, juegos_programados, juegos_realizados, bajas, estatus, created_at, updated_at",
+      "updated_at"
+    )
   ]);
   if (participantsResult.error) {
     intramurosCloudAvailable = false;
@@ -7063,14 +7129,20 @@ async function loadIntramurosParticipants() {
     saveIntramurosOperationRows();
   }
   intramurosCloudAvailable = true;
-  intramurosParticipants = (participantsResult.data || []).map(intramurosCloudRow).filter((row) => row.matricula);
-  intramurosGameRoles = (rolesResult.data || []).map(intramurosRoleCloudRow);
+  intramurosParticipants = uniqueIntramurosRows(
+    (participantsResult.data || []).map(intramurosCloudRow).filter((row) => row.matricula),
+    intramurosLogicalKey
+  );
+  intramurosGameRoles = uniqueIntramurosRows(
+    (rolesResult.data || []).map(intramurosRoleCloudRow),
+    intramurosRoleKey
+  );
 }
 
 function intramurosRoleCloudRow(row) {
   const normalized = {
     id: row.id || "",
-    torneo: row.torneo || "Sin torneo",
+    torneo: canonicalIntramurosTournament(row.torneo),
     semana: row.semana || "",
     fecha: row.fecha || "",
     hora: row.hora || "",
@@ -7204,7 +7276,7 @@ function normalizeIntramurosGender(value) {
 
 function normalizeIntramurosUploadRow(row, index, fileName, seenKeys) {
   const matricula = normalizeMatricula(pickColumn(row, ["Matrícula", "Matricula", "matricula"]));
-  const torneo = intramurosUploadValue(pickColumn(row, ["Torneo", "Comentario", "comentario", "Nombre torneo", "Torneo/Evento"]), "Sin torneo");
+  const torneo = canonicalIntramurosTournament(intramurosUploadValue(pickColumn(row, ["Torneo", "Comentario", "comentario", "Nombre torneo", "Torneo/Evento"]), "Sin torneo"));
   const equipo = intramurosUploadValue(pickColumn(row, ["Equipo", "equipo"]), "Sin equipo");
   const periodo = intramurosUploadValue(pickColumn(row, ["Periodo", "Período", "periodo"]), "Sin periodo").toUpperCase();
   const payload = {
@@ -7643,6 +7715,7 @@ async function parseIntramurosRolesFile(file) {
   const duplicates = [];
   const validRows = [];
   allRows.forEach((row) => {
+    row.torneo = canonicalIntramurosTournament(row.torneo);
     const key = row.__slotKey || intramurosRoleSlotKey(row);
     if (seen.has(key)) {
       duplicates.push(row);
@@ -7706,7 +7779,7 @@ async function importIntramurosRoles(file) {
     }
     const existingBySlot = new Map(intramurosGameRoles.map((row) => [intramurosRoleSlotKey(row), row]));
     const payloadFor = (row) => ({
-      torneo: row.torneo || "Sin torneo",
+      torneo: canonicalIntramurosTournament(row.torneo),
       semana: row.semana || null,
       fecha: row.fecha || null,
       hora: row.hora || null,
@@ -8722,7 +8795,6 @@ function renderIntramurosExecutiveCharts(rows) {
   ];
   return `
     <div class="intramuros-exec-grid">
-      ${renderIntramurosExecutiveBars("Participación por género", intramurosGroupCounts(rows, "genero"), { accent: "teal", limit: 5 })}
       ${renderIntramurosExecutiveBars("Juegos programados", intramurosRoleCounts(roles, "torneo"), { accent: "red", limit: 7 })}
       ${renderIntramurosProgressCard(summaries)}
       ${renderIntramurosExecutiveBars("Participación por rama", intramurosGroupCounts(rows, "rama"), { accent: "teal", limit: 7 })}
