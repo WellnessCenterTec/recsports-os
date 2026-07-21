@@ -10681,3 +10681,62 @@ tbody tr:hover td {
 .vivencia-upload-actions button {
   flex: 1 1 190px;
 }
+
+.intramuros-tournament-gender-card {
+  grid-column: 1 / -1;
+}
+
+.intramuros-tournament-gender-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 10px;
+}
+
+.intramuros-tournament-gender-heading h3,
+.intramuros-tournament-gender-heading p {
+  margin: 0;
+}
+
+.intramuros-tournament-gender-heading p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.intramuros-tournament-gender-card .gender-row {
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr) 64px;
+  align-items: start;
+}
+
+.intramuros-tournament-gender-card .gender-row > strong {
+  color: var(--ink);
+  font-size: 16px;
+  text-align: right;
+}
+
+.intramuros-palette .legend-dot.women,
+.intramuros-palette .segment.women {
+  background: #cf4f89;
+}
+
+.intramuros-palette .legend-dot.men,
+.intramuros-palette .segment.men {
+  background: #16866e;
+}
+
+.intramuros-palette .legend-dot.unknown,
+.intramuros-palette .segment.unknown {
+  background: #94a3b8;
+}
+
+@media (max-width: 760px) {
+  .intramuros-tournament-gender-heading {
+    display: block;
+  }
+
+  .intramuros-tournament-gender-card .gender-row {
+    grid-template-columns: minmax(95px, 120px) minmax(0, 1fr) 44px;
+  }
+}

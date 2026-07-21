@@ -7171,7 +7171,7 @@ const INTRAMUROS_PARTICIPANT_COLUMN_ALIASES = {
   modalidad: ["Modalidad"],
   escuela: ["Escuela"],
   tipo_actividad: ["Tipo de actividad", "Tipo actividad"],
-  torneo: ["Torneo", "Comentario", "Nombre torneo", "Torneo/Evento"],
+  torneo: ["Torneo"],
   rama: ["Rama"],
   equipo: ["Equipo"],
   periodo: ["Periodo", "Período"]
@@ -7222,7 +7222,7 @@ function intramurosParticipantRowsFromGrid(grid) {
     modalidad: "Modalidad",
     escuela: "Escuela",
     tipo_actividad: "Tipo de actividad",
-    torneo: "Comentario",
+    torneo: "Torneo",
     rama: "Rama",
     equipo: "Equipo",
     periodo: "Periodo"
@@ -7276,7 +7276,7 @@ function normalizeIntramurosGender(value) {
 
 function normalizeIntramurosUploadRow(row, index, fileName, seenKeys) {
   const matricula = normalizeMatricula(pickColumn(row, ["Matrícula", "Matricula", "matricula"]));
-  const torneo = canonicalIntramurosTournament(intramurosUploadValue(pickColumn(row, ["Torneo", "Comentario", "comentario", "Nombre torneo", "Torneo/Evento"]), "Sin torneo"));
+  const torneo = canonicalIntramurosTournament(intramurosUploadValue(pickColumn(row, ["Torneo", "torneo"]), "Sin torneo"));
   const equipo = intramurosUploadValue(pickColumn(row, ["Equipo", "equipo"]), "Sin equipo");
   const periodo = intramurosUploadValue(pickColumn(row, ["Periodo", "Período", "periodo"]), "Sin periodo").toUpperCase();
   const payload = {
@@ -7304,7 +7304,9 @@ function normalizeIntramurosUploadRow(row, index, fileName, seenKeys) {
 function parseIntramurosUploadRows(rows, fileName, source = {}) {
   const seenKeys = new Set();
   const headers = Object.keys(rows[0] || {});
-  const hasMatricula = headers.map(headerKey).includes(headerKey("Matrícula")) || headers.map(headerKey).includes(headerKey("Matricula"));
+  const normalizedHeaders = headers.map(headerKey);
+  const hasMatricula = normalizedHeaders.includes(headerKey("Matrícula")) || normalizedHeaders.includes(headerKey("Matricula"));
+  const hasTournament = normalizedHeaders.includes(headerKey("Torneo"));
   const parsed = rows
     .map((row, index) => normalizeIntramurosUploadRow(row, index, fileName, seenKeys))
     .filter((row) => row.matricula || row.torneo !== "Sin torneo" || row.equipo !== "Sin equipo");
@@ -7315,7 +7317,8 @@ function parseIntramurosUploadRows(rows, fileName, source = {}) {
     errors: [
       ...(source.errors || []),
       ...(!rows.length && !(source.errors || []).length ? ["El archivo está vacío."] : []),
-      ...(!hasMatricula ? ["Falta la columna obligatoria: Matrícula."] : [])
+      ...(!hasMatricula ? ["Falta la columna obligatoria: Matrícula."] : []),
+      ...(!hasTournament ? ["Falta la columna obligatoria: Torneo."] : [])
     ],
     ignoredColumns: source.ignoredColumns || [],
     processed: parsed.length
@@ -7877,7 +7880,7 @@ function downloadIntramurosTemplate(type) {
         "Modalidad": "Profesional",
         "Escuela": "Ingeniería",
         "Tipo de actividad": "Intramuros",
-        "Comentario": "Fútbol 7",
+        "Torneo": "Fútbol 7",
         "Rama": "Femenil",
         "Equipo": "Equipo Azul",
         "Periodo": "AD26"
@@ -8716,6 +8719,55 @@ function intramurosGroupCounts(rows, field, uniqueByMatricula = false) {
     .sort((a, b) => b.value - a.value || String(a.label).localeCompare(String(b.label), "es-MX"));
 }
 
+function intramurosGenderBucket(value) {
+  const normalized = normalizeText(value);
+  if (normalized.includes("femenino") || normalized.includes("mujer")) return "Mujer";
+  if (normalized.includes("masculino") || normalized.includes("hombre")) return "Hombre";
+  return "Sin dato";
+}
+
+function intramurosTournamentGenderRows(rows) {
+  const baseGenderByMatricula = new Map(
+    cloudStudentDatabase
+      .map((row) => [normalizeMatricula(row.matricula), row.genero])
+      .filter(([matricula]) => matricula)
+  );
+  const groups = new Map();
+  rows.forEach((row) => {
+    const matricula = normalizeMatricula(row.matricula);
+    if (!matricula) return;
+    const tournament = canonicalIntramurosTournament(row.torneo);
+    if (!groups.has(tournament)) groups.set(tournament, new Map());
+    const gender = intramurosGenderBucket(baseGenderByMatricula.get(matricula) || row.genero);
+    const tournamentParticipants = groups.get(tournament);
+    const currentGender = tournamentParticipants.get(matricula);
+    if (!currentGender || currentGender === "Sin dato") tournamentParticipants.set(matricula, gender);
+  });
+  return Array.from(groups.entries()).map(([label, participants]) => {
+    const values = Array.from(participants.values());
+    const Mujer = values.filter((gender) => gender === "Mujer").length;
+    const Hombre = values.filter((gender) => gender === "Hombre").length;
+    const withoutGender = values.filter((gender) => gender === "Sin dato").length;
+    return { label, Mujer, Hombre, "Sin dato": withoutGender, total: values.length };
+  }).sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, "es-MX"));
+}
+
+function renderIntramurosTournamentGenderCard(rows) {
+  const tournamentRows = intramurosTournamentGenderRows(rows);
+  return `
+    <article class="intramuros-exec-card intramuros-tournament-gender-card teal">
+      <div class="intramuros-tournament-gender-heading">
+        <div>
+          <h3>Participantes por torneo</h3>
+          <p>Matrículas únicas · género cruzado con Base de datos_alumnos</p>
+        </div>
+        ${genderLegend("intramuros")}
+      </div>
+      ${tournamentRows.length ? renderGenderBars(tournamentRows, "intramuros") : `<p class="upload-empty">Sin participantes cargados.</p>`}
+    </article>
+  `;
+}
+
 function intramurosTeamsByTournament(rows) {
   const groups = new Map();
   rows.forEach((row) => {
@@ -8797,7 +8849,7 @@ function renderIntramurosExecutiveCharts(rows) {
     <div class="intramuros-exec-grid">
       ${renderIntramurosExecutiveBars("Juegos programados", intramurosRoleCounts(roles, "torneo"), { accent: "red", limit: 7 })}
       ${renderIntramurosProgressCard(summaries)}
-      ${renderIntramurosExecutiveBars("Participación por rama", intramurosGroupCounts(rows, "rama"), { accent: "teal", limit: 7 })}
+      ${renderIntramurosTournamentGenderCard(rows)}
       ${renderIntramurosExecutiveBars("Participación por escuela", intramurosGroupCounts(rows, "escuela"), { accent: "gold", limit: 10 })}
       ${renderIntramurosExecutiveBars("Top 10 programas", intramurosGroupCounts(rows, "programa"), { accent: "blue", limit: 10 })}
       ${renderIntramurosExecutiveBars("Juegos por cancha", intramurosRoleCounts(roles, "cancha"), { accent: "gold", limit: 8 })}
@@ -8850,18 +8902,18 @@ function renderIntramurosParticipantUploadView() {
           <p>Sube el Excel/CSV de Omar. Si trae nombres o apellidos, WellSync los ignora completamente y solo usa la matrícula y campos operativos.</p>
           <div class="upload-required-list">
             <strong>Campos guardados</strong>
-            ${["Matrícula", "Género", "Programa", "Modalidad", "Escuela", "Tipo de actividad", "Comentario como torneo", "Rama", "Equipo", "Periodo"].map((column) => `<span>${column}</span>`).join("")}
+            ${["Matrícula", "Género", "Programa", "Modalidad", "Escuela", "Tipo de actividad", "Torneo", "Rama", "Equipo", "Periodo"].map((column) => `<span>${column}</span>`).join("")}
           </div>
           <div class="upload-template-preview">
             <strong>Vista esperada</strong>
             <table>
-              <thead><tr><th>Matrícula</th><th>Comentario</th><th>Rama</th><th>Equipo</th><th>Escuela</th></tr></thead>
+              <thead><tr><th>Matrícula</th><th>Torneo</th><th>Rama</th><th>Equipo</th><th>Escuela</th></tr></thead>
               <tbody><tr><td>A01234567</td><td>Torneo interno</td><td>Varonil</td><td>Equipo A</td><td>Negocios</td></tr></tbody>
             </table>
           </div>
           <ul class="upload-recommendations">
             <li>No se guardan nombres ni apellidos.</li>
-            <li>Comentario se usa como torneo cuando identifica la competencia.</li>
+            <li>La columna Torneo identifica siempre la disciplina o competencia.</li>
             <li>La llave evita duplicados por matrícula + torneo + equipo + periodo.</li>
           </ul>
           <button class="ghost-btn" type="button" data-download-intramuros-template="participants">Descargar plantilla de participantes</button>
