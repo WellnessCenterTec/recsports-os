@@ -4844,9 +4844,27 @@ async function fetchMyProfile() {
   return { profile: directResult.data, error: directResult.error || rpcResult.error };
 }
 
+let progressiveRenderTimer = null;
+
+function scheduleProgressiveRender() {
+  clearTimeout(progressiveRenderTimer);
+  progressiveRenderTimer = setTimeout(() => render(), 80);
+}
+
 async function loadSupabaseDataBundle() {
+  cloudStatus = "Cargando informacion actualizada...";
+  scheduleProgressiveRender();
+
+  // La Base Maestra debe estar lista antes de cruzar matriculas en los modulos.
+  // Si se carga en paralelo, el primer render puede quedar sin genero o carrera.
+  try {
+    await loadStudentDatabase();
+    scheduleProgressiveRender();
+  } catch (error) {
+    console.warn("No se pudo cargar Base de alumnos", error);
+  }
+
   const loaders = [
-    ["Base de alumnos", loadStudentDatabase],
     ["Capturas", loadSupabaseCaptures],
     ["Colaboradores", loadSupabaseCollaborators],
     ["Evaluaciones Físicas", loadPhysicalEvaluations],
@@ -4863,12 +4881,17 @@ async function loadSupabaseDataBundle() {
     ["Vinculos rapidos", loadConfigQuickLinks],
     ["Presupuesto", loadBudgetData]
   ];
-  const results = await Promise.allSettled(loaders.map(([, loader]) => loader()));
+  const results = await Promise.allSettled(loaders.map(async ([, loader]) => {
+    await loader();
+    scheduleProgressiveRender();
+  }));
   results.forEach((result, index) => {
     if (result.status === "rejected") {
       console.warn(`No se pudo cargar ${loaders[index][0]}`, result.reason);
     }
   });
+  cloudStatus = "Supabase conectado";
+  scheduleProgressiveRender();
 }
 
 async function loadSupabaseSession() {
