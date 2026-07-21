@@ -7298,7 +7298,8 @@ function normalizeIntramurosUploadRow(row, index, fileName, seenKeys) {
   const duplicateInFile = seenKeys.has(key);
   seenKeys.add(key);
   const matriculaError = !matricula ? "Falta matrícula" : !/^A\d{7,9}$/.test(matricula) ? "Matrícula inválida" : "";
-  return { ...payload, __key: key, __duplicateInFile: duplicateInFile, __error: matriculaError };
+  const tournamentError = torneo === "Sin torneo" ? "Falta torneo" : "";
+  return { ...payload, __key: key, __duplicateInFile: duplicateInFile, __error: matriculaError || tournamentError };
 }
 
 function parseIntramurosUploadRows(rows, fileName, source = {}) {
@@ -8684,13 +8685,21 @@ function renderExecutiveGeneralDashboard() {
 }
 
 function intramurosFilterOptions(field) {
-  return Array.from(new Set(intramurosParticipants.map((row) => row[field]).filter(Boolean)))
+  return Array.from(new Set(intramurosParticipantAnalyticsRows().map((row) => row[field]).filter(Boolean)))
     .sort((a, b) => String(a).localeCompare(String(b), "es-MX"));
+}
+
+function intramurosHasNamedTournament(row) {
+  return canonicalIntramurosTournament(row.torneo) !== "Sin torneo";
+}
+
+function intramurosParticipantAnalyticsRows() {
+  return intramurosParticipants.filter(intramurosHasNamedTournament);
 }
 
 function filteredIntramurosParticipants() {
   const search = normalizeText(intramurosFilters.search || "");
-  return intramurosParticipants.filter((row) => {
+  return intramurosParticipantAnalyticsRows().filter((row) => {
     const periodMatch = intramurosFilters.period === "todos" || row.periodo === intramurosFilters.period;
     const tournamentMatch = intramurosFilters.tournament === "todos" || row.torneo === intramurosFilters.tournament;
     const branchMatch = intramurosFilters.branch === "todos" || row.rama === intramurosFilters.branch;
@@ -8737,8 +8746,11 @@ function intramurosTournamentGenderRows(rows) {
     const matricula = normalizeMatricula(row.matricula);
     if (!matricula) return;
     const tournament = canonicalIntramurosTournament(row.torneo);
+    if (tournament === "Sin torneo") return;
     if (!groups.has(tournament)) groups.set(tournament, { participants: new Map(), teams: new Set() });
-    const gender = intramurosGenderBucket(baseGenderByMatricula.get(matricula) || row.genero);
+    const baseGender = intramurosGenderBucket(baseGenderByMatricula.get(matricula));
+    const uploadedGender = intramurosGenderBucket(row.genero);
+    const gender = baseGender === "Sin dato" ? uploadedGender : baseGender;
     const tournamentGroup = groups.get(tournament);
     const tournamentParticipants = tournamentGroup.participants;
     const currentGender = tournamentParticipants.get(matricula);
@@ -8851,7 +8863,7 @@ function renderIntramurosProgressCard(summaries) {
     <article class="intramuros-exec-card">
       <h3>Avance por torneo</h3>
       <div class="intramuros-progress-list">
-        ${summaries.length ? summaries.slice(0, 8).map((row) => `
+        ${summaries.length ? summaries.map((row) => `
           <div>
             <span>${escapeHtml(row.torneo)}</span>
             <i><b style="width:${Math.max(4, Number(row.progress || 0))}%"></b></i>
@@ -9037,12 +9049,13 @@ function intramurosRoleDay(row) {
 }
 
 function intramurosTournamentSummaries() {
+  const participantRows = intramurosParticipantAnalyticsRows().filter(intramurosHasNamedTournament);
   const tournamentNames = Array.from(new Set([
-    ...intramurosParticipants.map((row) => row.torneo),
-    ...intramurosGameRoles.map((row) => row.torneo)
+    ...participantRows.map((row) => row.torneo),
+    ...intramurosGameRoles.map((row) => row.torneo).filter((torneo) => canonicalIntramurosTournament(torneo) !== "Sin torneo")
   ].filter(Boolean))).sort((a, b) => a.localeCompare(b, "es-MX"));
   return tournamentNames.map((torneo) => {
-    const participants = intramurosParticipants.filter((row) => row.torneo === torneo);
+    const participants = participantRows.filter((row) => row.torneo === torneo);
     const games = intramurosGameRoles.filter((row) => row.torneo === torneo && intramurosRoleIsGame(row));
     const withResult = games.filter(intramurosRoleHasResult).length;
     const branches = Array.from(new Set([...participants.map((row) => row.rama), ...games.map((row) => row.rama)].filter(Boolean)));
@@ -9322,7 +9335,7 @@ function renderTournamentCards() {
 function renderTournamentExpediente() {
   if (!selectedIntramurosTournament) return "";
   const torneo = selectedIntramurosTournament;
-  const participants = intramurosParticipants.filter((row) => row.torneo === torneo);
+  const participants = intramurosParticipantAnalyticsRows().filter((row) => row.torneo === torneo);
   const games = intramurosGameRoles.filter((row) => row.torneo === torneo);
   const summary = intramurosTournamentSummaries().find((row) => row.torneo === torneo) || {};
   const withResult = games.filter(intramurosRoleHasResult);

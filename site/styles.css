@@ -5852,6 +5852,13 @@ tbody tr:hover td {
   gap: 10px;
 }
 
+.intramuros-progress-list {
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+}
+
 .intramuros-exec-bars > div,
 .intramuros-progress-list > div {
   align-items: center;
@@ -10712,7 +10719,7 @@ tbody tr:hover td {
   display: grid;
   gap: 0;
   max-height: 430px;
-  overflow-y: auto;
+  overflow-y: scroll;
   padding-right: 6px;
   scrollbar-gutter: stable;
 }
