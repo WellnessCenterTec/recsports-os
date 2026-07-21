@@ -8737,33 +8737,61 @@ function intramurosTournamentGenderRows(rows) {
     const matricula = normalizeMatricula(row.matricula);
     if (!matricula) return;
     const tournament = canonicalIntramurosTournament(row.torneo);
-    if (!groups.has(tournament)) groups.set(tournament, new Map());
+    if (!groups.has(tournament)) groups.set(tournament, { participants: new Map(), teams: new Set() });
     const gender = intramurosGenderBucket(baseGenderByMatricula.get(matricula) || row.genero);
-    const tournamentParticipants = groups.get(tournament);
+    const tournamentGroup = groups.get(tournament);
+    const tournamentParticipants = tournamentGroup.participants;
     const currentGender = tournamentParticipants.get(matricula);
     if (!currentGender || currentGender === "Sin dato") tournamentParticipants.set(matricula, gender);
+    const team = String(row.equipo || "").trim();
+    if (team && normalizeText(team) !== "sin equipo") tournamentGroup.teams.add(headerKey(team));
   });
-  return Array.from(groups.entries()).map(([label, participants]) => {
+  return Array.from(groups.entries()).map(([label, group]) => {
+    const participants = group.participants;
     const values = Array.from(participants.values());
     const Mujer = values.filter((gender) => gender === "Mujer").length;
     const Hombre = values.filter((gender) => gender === "Hombre").length;
     const withoutGender = values.filter((gender) => gender === "Sin dato").length;
-    return { label, Mujer, Hombre, "Sin dato": withoutGender, total: values.length };
+    return { label, Mujer, Hombre, "Sin dato": withoutGender, total: values.length, teams: group.teams.size };
   }).sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, "es-MX"));
 }
 
 function renderIntramurosTournamentGenderCard(rows) {
   const tournamentRows = intramurosTournamentGenderRows(rows);
+  const max = Math.max(...tournamentRows.map((row) => row.total), 1);
   return `
     <article class="intramuros-exec-card intramuros-tournament-gender-card teal">
       <div class="intramuros-tournament-gender-heading">
         <div>
-          <h3>Participantes por torneo</h3>
-          <p>Matrículas únicas · género cruzado con Base de datos_alumnos</p>
+          <h3>Torneos por género</h3>
+          <p>Participantes únicos y equipos</p>
         </div>
         ${genderLegend("intramuros")}
       </div>
-      ${tournamentRows.length ? renderGenderBars(tournamentRows, "intramuros") : `<p class="upload-empty">Sin participantes cargados.</p>`}
+      <div class="intramuros-tournament-gender-list">
+        ${tournamentRows.length ? tournamentRows.map((row) => `
+          <div class="intramuros-tournament-gender-row">
+            <div class="intramuros-tournament-gender-title">
+              <span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span>
+              <em>${row.teams.toLocaleString("es-MX")} equipos</em>
+              <strong>${row.total.toLocaleString("es-MX")}</strong>
+            </div>
+            <div class="gender-track intramuros-tournament-track">
+              <div class="segmented-fill" style="width:${Math.max(4, Math.round((row.total / max) * 100))}%">
+                ${row.Mujer ? `<span class="segment women" style="width:${Math.round((row.Mujer / row.total) * 100)}%" title="Mujeres: ${row.Mujer}"></span>` : ""}
+                ${row.Hombre ? `<span class="segment men" style="width:${Math.round((row.Hombre / row.total) * 100)}%" title="Hombres: ${row.Hombre}"></span>` : ""}
+                ${row["Sin dato"] ? `<span class="segment unknown" style="width:${Math.round((row["Sin dato"] / row.total) * 100)}%" title="Sin dato: ${row["Sin dato"]}"></span>` : ""}
+              </div>
+            </div>
+            <div class="intramuros-tournament-gender-counts">
+              <span class="women"><i></i>Mujeres <b>${row.Mujer.toLocaleString("es-MX")}</b></span>
+              <span class="men"><i></i>Hombres <b>${row.Hombre.toLocaleString("es-MX")}</b></span>
+              ${row["Sin dato"] ? `<span class="unknown"><i></i>Sin dato <b>${row["Sin dato"].toLocaleString("es-MX")}</b></span>` : ""}
+              <span class="total">Total <b>${row.total.toLocaleString("es-MX")}</b></span>
+            </div>
+          </div>
+        `).join("") : `<p class="upload-empty">Sin participantes cargados.</p>`}
+      </div>
     </article>
   `;
 }

@@ -10683,14 +10683,12 @@ tbody tr:hover td {
 }
 
 .intramuros-tournament-gender-card {
-  grid-column: 1 / -1;
+  align-content: start;
+  min-height: 0;
 }
 
 .intramuros-tournament-gender-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
+  display: block;
   margin-bottom: 10px;
 }
 
@@ -10705,15 +10703,98 @@ tbody tr:hover td {
   font-size: 12px;
 }
 
-.intramuros-tournament-gender-card .gender-row {
-  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr) 64px;
-  align-items: start;
+.intramuros-tournament-gender-heading .gender-legend {
+  gap: 10px;
+  margin: 10px 0 0;
 }
 
-.intramuros-tournament-gender-card .gender-row > strong {
+.intramuros-tournament-gender-list {
+  display: grid;
+  gap: 0;
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+}
+
+.intramuros-tournament-gender-row {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 7px;
+  padding: 10px 0;
+}
+
+.intramuros-tournament-gender-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.intramuros-tournament-gender-title {
+  align-items: baseline;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.intramuros-tournament-gender-title span {
+  font-size: 12px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intramuros-tournament-gender-title em {
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.intramuros-tournament-gender-title strong {
+  font-size: 14px;
+}
+
+.intramuros-tournament-track {
+  background: #e7edf1;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.intramuros-tournament-track .segmented-fill {
+  border-radius: inherit;
+  height: 100%;
+}
+
+.intramuros-tournament-gender-counts {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 10px;
+  font-weight: 800;
+  gap: 5px 10px;
+}
+
+.intramuros-tournament-gender-counts span {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.intramuros-tournament-gender-counts i {
+  border-radius: 50%;
+  display: inline-block;
+  height: 7px;
+  width: 7px;
+}
+
+.intramuros-tournament-gender-counts b {
   color: var(--ink);
-  font-size: 16px;
-  text-align: right;
+}
+
+.intramuros-tournament-gender-counts .total {
+  margin-left: auto;
 }
 
 .intramuros-palette .legend-dot.women,
@@ -10731,12 +10812,16 @@ tbody tr:hover td {
   background: #94a3b8;
 }
 
+.intramuros-tournament-gender-counts .women i { background: #cf4f89; }
+.intramuros-tournament-gender-counts .men i { background: #16866e; }
+.intramuros-tournament-gender-counts .unknown i { background: #94a3b8; }
+
 @media (max-width: 760px) {
-  .intramuros-tournament-gender-heading {
-    display: block;
+  .intramuros-tournament-gender-title {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .intramuros-tournament-gender-card .gender-row {
-    grid-template-columns: minmax(95px, 120px) minmax(0, 1fr) 44px;
+  .intramuros-tournament-gender-title em {
+    display: none;
   }
 }
