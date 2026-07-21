@@ -4921,9 +4921,11 @@ async function loginWithSupabase() {
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
   activeView = "dashboard";
-  await loadSupabaseDataBundle();
   render();
   toast(`Sesion Supabase: ${currentUser.name}`);
+  loadSupabaseDataBundle()
+    .then(() => render())
+    .catch((loadError) => console.warn("No se pudo completar la carga inicial de Supabase", loadError));
 }
 
 async function saveCaptureToSupabase(row) {
