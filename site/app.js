@@ -1195,7 +1195,7 @@ function loadSession() {
       localStorage.setItem(SESSION_KEY, JSON.stringify(directorSession));
       return directorSession;
     }
-    if (session?.role === "coordinador" || session?.role === "consulta") {
+    if (session?.auth !== "supabase" && (session?.role === "coordinador" || session?.role === "consulta")) {
       const directorSession = { ...demoUsers[0] };
       localStorage.setItem(SESSION_KEY, JSON.stringify(directorSession));
       return directorSession;
@@ -1243,7 +1243,11 @@ function addAudit(action, detail = "") {
 
 function profileToSession(profile, authUser) {
   const sourceRole = profile?.role || "consulta";
-  const role = ["admin", "direccion", "maestro"].includes(sourceRole) ? sourceRole : "direccion";
+  const profileEmail = String(authUser?.email || profile?.email || "").trim().toLowerCase();
+  const isSportsLeader = profileEmail === "recsports.mty@servicios.tec.mx";
+  const role = isSportsLeader
+    ? "coordinador"
+    : (["admin", "direccion", "coordinador", "compras", "consulta", "maestro"].includes(sourceRole) ? sourceRole : "consulta");
   const area = role === "direccion" || role === "admin" ? "general" : (profile?.area_key || "general");
   return {
     id: authUser?.id || profile?.id || "supabase-user",
@@ -1251,7 +1255,7 @@ function profileToSession(profile, authUser) {
     email: authUser?.email || profile?.email || "",
     role,
     area,
-    globalAccess: false,
+    globalAccess: isSportsLeader,
     label: profile?.display_name || authUser?.email || "Usuario Supabase",
     auth: "supabase"
   };
