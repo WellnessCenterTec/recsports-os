@@ -1,7 +1,7 @@
 ﻿const areas = [
   {
     id: "general",
-    name: "Ejecutivo general",
+    name: "Reporte General",
     tone: "blue",
     source: "Reporte final, Reporte Automatizado, Sofi 2",
     capture: ["Periodo", "Matrícula", "Género", "Carrera", "Semestre", "Nivel escolar", "Área de participación"],
@@ -48,6 +48,16 @@
     indicators: ["Eventos realizados", "Participantes", "Cumplimiento de meta", "Hombres/Mujeres", "Eventos insignia"],
     charts: ["Meta vs asistencia", "Eventos por clasificacion", "Participacion por semestre"],
     reports: ["Calendario de eventos", "Reporte de cumplimiento", "Lista agregada por evento"]
+  },
+  {
+    id: "semana-tec",
+    name: "Semana Tec",
+    tone: "blue",
+    source: "Lista de alumnos Semana Tec",
+    capture: ["Matrícula", "Clave de materia", "Materia", "CRN", "Grupo", "Profesor", "Calificación", "Programa", "Género", "Semestre"],
+    indicators: ["Alumnos únicos", "Grupos", "Profesores", "Carga por profesor", "Distribución por género", "Calificaciones capturadas"],
+    charts: ["Alumnos por profesor", "Alumnos por grupo", "Distribución por programa", "Distribución por semestre"],
+    reports: ["Resumen Semana 6", "Resumen Semana 12", "Calificaciones por grupo"]
   },
   {
     id: "comunicacion",
@@ -532,6 +542,14 @@ let participationUploadState = {
 };
 let participationUploadCloudAvailable = true;
 let participationUploadLoading = { gamer: false, representativos: false };
+const SEMANA_TEC_STORAGE_KEY = "wellsync_semana_tec_v1";
+let semanaTecRows = [];
+let semanaTecDraft = null;
+let semanaTecLoading = false;
+let semanaTecSaving = false;
+let semanaTecCloudAvailable = true;
+let semanaTecLastUpload = null;
+let semanaTecFilters = { week: "todas", professor: "todos", group: "todos", search: "" };
 let executiveReportState = { week: 15, period: "FJ26", title: "Reporte Ejecutivo Semana 15" };
 let executivePlanningFilters = { area: "todos", status: "todos", days: "30" };
 let simulatorState = loadSimulator();
@@ -1311,19 +1329,21 @@ function meaningfulAcademicValue(values, fallback = "") {
 function studentDatabaseFromCloud(row) {
   const matricula = row.Matricula || row.matricula || "";
   const nivelRaw = row["Desc Nivel Acad Alumno"] || row.nivel_escolar || row.grado_escolar || "";
+  const generoRaw = row["Desc Genero"] || row.Genero || row.genero || "";
   const programa = meaningfulAcademicValue([
     row.Carrera,
     row.carrera,
     row["v_Clave Major Agrupado"],
     row["Clave Major Agrupado"],
     row["Desc Programa Acad"],
+    row["Desc Programa Academico"],
     row.Programa,
     row.programa,
     row["Desc Escuela Programa"]
   ], "Sin carrera");
   return {
     matricula,
-    genero: row.Genero || row.genero || "No especificado",
+    genero: normalizeStudentGender(generoRaw),
     carrera: programa,
     programa,
     semestre: Number(row.Semestre || row.semestre || 1),
@@ -4834,6 +4854,7 @@ async function loadSupabaseDataBundle() {
     ["Gimnasio", loadGymData],
     ["Simulador de clases", loadClassScheduleSimulatorCloud],
     ["Vivencia", loadVivenciaEvents],
+    ["Semana Tec", loadSemanaTecCloud],
     ["Eventos de Comunicación", loadCommunicationEvents],
     ["Calendario Comunicación", loadPlanningEventOverrides],
     ["Intramuros", loadIntramurosParticipants],
@@ -5909,6 +5930,7 @@ function renderNav() {
     gimnasio: "dumbbell",
     intramuros: "trophy",
     vivencia: "calendar-days",
+    "semana-tec": "calendar-range",
     comunicacion: "megaphone",
     representativos: "medal",
     gamer: "gamepad-2",
@@ -5942,6 +5964,16 @@ function renderNav() {
         await loadParticipationUploadsCloud(targetArea);
       } finally {
         participationUploadLoading[targetArea] = false;
+        if (activeArea === targetArea) render();
+      }
+    }
+    if (targetArea === "semana-tec" && supabaseClient && currentUser?.auth === "supabase" && !semanaTecLoading) {
+      semanaTecLoading = true;
+      render();
+      try {
+        await loadSemanaTecCloud();
+      } finally {
+        semanaTecLoading = false;
         if (activeArea === targetArea) render();
       }
     }
@@ -6722,6 +6754,420 @@ function renderGymStudentRegistration() {
       </section>
     </div>
   `;
+}
+
+function semanaTecWeekFromGroup(value) {
+  const group = Number(String(value ?? "").trim());
+  if (!Number.isInteger(group)) return 0;
+  if (group >= 100 && group <= 199) return 6;
+  if (group >= 200 && group <= 299) return 12;
+  return 0;
+}
+
+function semanaTecLogicalKey(row) {
+  return [row.periodo || "Sin periodo", normalizeMatricula(row.matricula), Number(row.numero_grupo || 0)].join("|");
+}
+
+function normalizeSemanaTecGrade(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const numeric = Number(raw.replace(",", "."));
+  return Number.isFinite(numeric) ? String(Math.max(0, Math.min(100, numeric))) : raw.toUpperCase();
+}
+
+function normalizeSemanaTecRow(row, index, fileName = "", period = "") {
+  const numeroGrupo = Number(String(pickColumn(row, ["Numero Grupo", "Número Grupo", "Grupo", "numero_grupo"]) || "").trim());
+  const semana = semanaTecWeekFromGroup(numeroGrupo);
+  const matricula = normalizeMatricula(pickColumn(row, ["Matriculas", "Matrículas", "Matricula", "Matrícula", "matricula"]));
+  if (!semana || !matricula) return null;
+  return {
+    rowNumber: index + 2,
+    matricula,
+    clave_materia: String(pickColumn(row, ["Clave Materia", "Clave de materia", "clave_materia"]) || "").trim(),
+    nombre_materia: String(pickColumn(row, ["Nombre Materia", "Materia", "nombre_materia"]) || "").trim(),
+    crn: String(pickColumn(row, ["CRN", "crn"]) || "").trim(),
+    numero_grupo: numeroGrupo,
+    profesor: String(pickColumn(row, ["Nombre Prof Titular", "Profesor", "Nombre profesor", "profesor"]) || "Sin profesor").trim(),
+    horario: String(pickColumn(row, ["Horario", "Hora", "horario"]) || "").trim(),
+    frecuencia: String(pickColumn(row, ["Frecuencia", "Días", "Dias", "frecuencia"]) || "").trim(),
+    calificacion: normalizeSemanaTecGrade(pickColumn(row, ["Calificación", "Calificacion", "calificacion"])),
+    programa: String(pickColumn(row, ["Siglas de programa", "Programa", "programa"]) || "Sin programa").trim(),
+    genero: normalizeStudentGender(pickColumn(row, ["Genero", "Género", "Sexo", "genero"])),
+    semestre: String(pickColumn(row, ["Semestre acreditado", "Semestre", "semestre"]) || "Sin semestre").trim(),
+    semana,
+    periodo: period || $("#periodFilter")?.value || "AD26",
+    archivo_origen: fileName || "Carga Semana Tec",
+    fecha_carga: new Date().toISOString(),
+    duplicate: false
+  };
+}
+
+function semanaTecRowFromCloud(row) {
+  return {
+    matricula: normalizeMatricula(row.matricula),
+    clave_materia: row.clave_materia || "",
+    nombre_materia: row.nombre_materia || "",
+    crn: row.crn || "",
+    numero_grupo: Number(row.numero_grupo || 0),
+    profesor: row.profesor || "Sin profesor",
+    horario: row.horario || "",
+    frecuencia: row.frecuencia || "",
+    calificacion: normalizeSemanaTecGrade(row.calificacion),
+    programa: row.programa || "Sin programa",
+    genero: normalizeStudentGender(row.genero),
+    semestre: row.semestre || "Sin semestre",
+    semana: Number(row.semana || semanaTecWeekFromGroup(row.numero_grupo)),
+    periodo: row.periodo || "Sin periodo",
+    archivo_origen: row.archivo_origen || "Supabase",
+    fecha_carga: row.fecha_carga || row.updated_at || row.created_at || "",
+    duplicate: false
+  };
+}
+
+function saveSemanaTecLocal() {
+  try {
+    localStorage.setItem(SEMANA_TEC_STORAGE_KEY, JSON.stringify({ version: 1, rows: semanaTecRows, lastUpload: semanaTecLastUpload }));
+  } catch (error) {
+    console.warn("No se pudo guardar el respaldo local de Semana Tec", error);
+  }
+}
+
+function restoreSemanaTecLocal() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SEMANA_TEC_STORAGE_KEY) || "{}");
+    if (Array.isArray(stored.rows)) semanaTecRows = stored.rows.map(semanaTecRowFromCloud);
+    semanaTecLastUpload = stored.lastUpload || null;
+  } catch (error) {
+    console.warn("No se pudo recuperar Semana Tec local", error);
+  }
+}
+
+restoreSemanaTecLocal();
+
+function semanaTecDraftSummary(rows, ignoredRows = 0, duplicates = 0) {
+  return {
+    total: rows.length,
+    uniqueStudents: new Set(rows.map((row) => row.matricula)).size,
+    groups: new Set(rows.map((row) => row.numero_grupo)).size,
+    professors: new Set(rows.map((row) => row.profesor).filter(Boolean)).size,
+    week6: rows.filter((row) => row.semana === 6).length,
+    week12: rows.filter((row) => row.semana === 12).length,
+    grades: rows.filter((row) => row.calificacion !== "").length,
+    ignoredRows,
+    duplicates
+  };
+}
+
+function validateSemanaTecRows(sourceRows, fileName = "") {
+  const errors = [];
+  const warnings = [];
+  if (!sourceRows.length) errors.push("El archivo está vacío.");
+  const required = [
+    ["Matrícula", ["Matriculas", "Matrículas", "Matricula", "Matrícula", "matricula"]],
+    ["Número Grupo", ["Numero Grupo", "Número Grupo", "Grupo", "numero_grupo"]],
+    ["Profesor", ["Nombre Prof Titular", "Profesor", "Nombre profesor", "profesor"]]
+  ];
+  required.forEach(([label, aliases]) => {
+    if (sourceRows.length && !uploadHasColumn(sourceRows, aliases)) errors.push(`Falta la columna obligatoria: ${label}.`);
+  });
+  if (errors.length) return { fileName, rows: [], errors, warnings, summary: semanaTecDraftSummary([]) };
+  const period = $("#periodFilter")?.value || "AD26";
+  const seen = new Set();
+  let ignoredRows = 0;
+  let duplicates = 0;
+  const rows = [];
+  sourceRows.forEach((row, index) => {
+    const parsed = normalizeSemanaTecRow(row, index, fileName, period);
+    if (!parsed) {
+      ignoredRows += 1;
+      return;
+    }
+    const key = semanaTecLogicalKey(parsed);
+    if (seen.has(key)) {
+      duplicates += 1;
+      return;
+    }
+    seen.add(key);
+    rows.push(parsed);
+  });
+  if (!rows.length) errors.push("No encontré alumnos en grupos 100–299. Los grupos 100 corresponden a Semana 6 y los 200 a Semana 12.");
+  if (ignoredRows) warnings.push(`${ignoredRows.toLocaleString("es-MX")} filas ajenas a Semana Tec fueron ignoradas.`);
+  if (duplicates) warnings.push(`${duplicates.toLocaleString("es-MX")} registros duplicados fueron omitidos.`);
+  warnings.push("Nombres y apellidos fueron descartados y no forman parte de la carga.");
+  return { fileName, rows, errors, warnings, summary: semanaTecDraftSummary(rows, ignoredRows, duplicates) };
+}
+
+async function loadSemanaTecFile(file) {
+  if (!file) return;
+  try {
+    semanaTecLoading = true;
+    render();
+    const rows = await rowsFromScheduleFile(file);
+    semanaTecDraft = validateSemanaTecRows(rows, file.name);
+    semanaTecLoading = false;
+    render();
+    toast(semanaTecDraft.errors.length ? "Revisa los errores del archivo" : `${semanaTecDraft.summary.total.toLocaleString("es-MX")} registros listos para importar`);
+  } catch (error) {
+    semanaTecLoading = false;
+    semanaTecDraft = { fileName: file.name, rows: [], errors: ["No pude leer el archivo. Usa .xlsx o .csv con encabezados."], warnings: [], summary: semanaTecDraftSummary([]) };
+    console.error(error);
+    render();
+  }
+}
+
+async function loadSemanaTecCloud() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const rows = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabaseClient.from("semana_tec_participantes").select("*").order("updated_at", { ascending: false }).range(offset, offset + pageSize - 1);
+    if (error) {
+      semanaTecCloudAvailable = false;
+      console.warn("Semana Tec no está disponible en Supabase", error);
+      return;
+    }
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  semanaTecCloudAvailable = true;
+  if (!rows.length) return;
+  semanaTecRows = rows.map(semanaTecRowFromCloud);
+  semanaTecLastUpload = {
+    fileName: rows[0]?.archivo_origen || "Supabase",
+    importedAt: rows[0]?.fecha_carga || rows[0]?.updated_at || "",
+    total: semanaTecRows.length,
+    source: "cloud"
+  };
+  saveSemanaTecLocal();
+}
+
+function semanaTecRowToCloud(row) {
+  return {
+    matricula: row.matricula,
+    clave_materia: row.clave_materia || null,
+    nombre_materia: row.nombre_materia || null,
+    crn: row.crn || null,
+    numero_grupo: Number(row.numero_grupo),
+    profesor: row.profesor || "Sin profesor",
+    horario: row.horario || null,
+    frecuencia: row.frecuencia || null,
+    calificacion: row.calificacion || null,
+    programa: row.programa || null,
+    genero: row.genero || "No especificado",
+    semestre: row.semestre || null,
+    semana: Number(row.semana),
+    periodo: row.periodo || "Sin periodo",
+    archivo_origen: row.archivo_origen || null,
+    fecha_carga: row.fecha_carga || new Date().toISOString(),
+    updated_by: currentUser?.id || null
+  };
+}
+
+async function saveSemanaTecRowsCloud(rows) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("semana-tec")) return false;
+  for (let index = 0; index < rows.length; index += 500) {
+    const payload = rows.slice(index, index + 500).map(semanaTecRowToCloud);
+    const { error } = await supabaseClient.from("semana_tec_participantes").upsert(payload, { onConflict: "periodo,matricula,numero_grupo" });
+    if (error) {
+      semanaTecCloudAvailable = false;
+      console.warn("No se pudo guardar Semana Tec", error);
+      return false;
+    }
+  }
+  semanaTecCloudAvailable = true;
+  return true;
+}
+
+async function importSemanaTecDraft() {
+  if (!semanaTecDraft || semanaTecDraft.errors.length || !semanaTecDraft.rows.length) return;
+  semanaTecSaving = true;
+  render();
+  const cloudSaved = await saveSemanaTecRowsCloud(semanaTecDraft.rows);
+  const byKey = new Map(semanaTecRows.map((row) => [semanaTecLogicalKey(row), row]));
+  semanaTecDraft.rows.forEach((row) => byKey.set(semanaTecLogicalKey(row), row));
+  semanaTecRows = Array.from(byKey.values());
+  semanaTecLastUpload = { fileName: semanaTecDraft.fileName, importedAt: new Date().toISOString(), total: semanaTecDraft.rows.length, source: cloudSaved ? "cloud" : "local" };
+  semanaTecDraft = null;
+  semanaTecSaving = false;
+  saveSemanaTecLocal();
+  addAudit("semana-tec", `${semanaTecLastUpload.total} registros importados desde ${semanaTecLastUpload.fileName}`);
+  render();
+  toast(cloudSaved ? "Semana Tec guardada en Supabase" : "Carga guardada localmente; falta activar la tabla de Supabase");
+}
+
+function downloadSemanaTecTemplate() {
+  const sample = [{
+    Matriculas: "A01234567",
+    "Clave Materia": "WKLI1008S",
+    "Nombre Materia": "CC&M",
+    CRN: "3117",
+    "Numero Grupo": 101,
+    "Nombre Prof Titular": "Profesor responsable",
+    Horario: "09:00-13:00",
+    Frecuencia: "Lunes a viernes",
+    "Calificación": "",
+    "Siglas de programa": "IIS",
+    Genero: "Masculino",
+    "Semestre acreditado": "Cuarto Semestre"
+  }];
+  const workbook = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(sample), "Semana Tec");
+  window.XLSX.writeFile(workbook, "plantilla-semana-tec.xlsx");
+  toast("Plantilla de Semana Tec descargada");
+}
+
+function semanaTecFilteredRows() {
+  const term = normalizeText(semanaTecFilters.search);
+  return semanaTecRows.filter((row) => {
+    const weekMatch = semanaTecFilters.week === "todas" || String(row.semana) === semanaTecFilters.week;
+    const professorMatch = semanaTecFilters.professor === "todos" || row.profesor === semanaTecFilters.professor;
+    const groupMatch = semanaTecFilters.group === "todos" || String(row.numero_grupo) === semanaTecFilters.group;
+    const text = normalizeText(`${row.matricula} ${row.profesor} ${row.numero_grupo} ${row.programa} ${row.semestre}`);
+    return weekMatch && professorMatch && groupMatch && (!term || text.includes(term));
+  });
+}
+
+function semanaTecCountRows(rows, field) {
+  const counts = new Map();
+  rows.forEach((row) => {
+    const label = row[field] || "Sin dato";
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+  return Array.from(counts.entries()).map(([label, value]) => ({ label: String(label), value })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
+}
+
+function semanaTecGroupSummaries(rows) {
+  const groups = new Map();
+  rows.forEach((row) => {
+    const key = String(row.numero_grupo);
+    const current = groups.get(key) || { group: row.numero_grupo, week: row.semana, professor: row.profesor, horario: row.horario || "", frecuencia: row.frecuencia || "", students: new Set(), female: 0, male: 0, grades: [] };
+    current.students.add(row.matricula);
+    if (row.genero === "Femenino") current.female += 1;
+    if (row.genero === "Masculino") current.male += 1;
+    const grade = Number(row.calificacion);
+    if (row.calificacion !== "" && Number.isFinite(grade)) current.grades.push(grade);
+    groups.set(key, current);
+  });
+  return Array.from(groups.values()).map((group) => ({ ...group, total: group.students.size, average: group.grades.length ? group.grades.reduce((sum, value) => sum + value, 0) / group.grades.length : null })).sort((a, b) => a.group - b.group);
+}
+
+function semanaTecFilterControls(rows = semanaTecRows) {
+  const professors = Array.from(new Set(rows.map((row) => row.profesor).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const groups = Array.from(new Set(rows.map((row) => Number(row.numero_grupo)).filter(Boolean))).sort((a, b) => a - b);
+  return `
+    <section class="semana-tec-filters" aria-label="Filtros de Semana Tec">
+      <div class="semana-tec-week-switch" role="group" aria-label="Semana Tec">
+        <button type="button" data-semana-tec-week="todas" class="${semanaTecFilters.week === "todas" ? "active" : ""}">Todas</button>
+        <button type="button" data-semana-tec-week="6" class="${semanaTecFilters.week === "6" ? "active" : ""}">Semana 6</button>
+        <button type="button" data-semana-tec-week="12" class="${semanaTecFilters.week === "12" ? "active" : ""}">Semana 12</button>
+      </div>
+      <select class="semana-tec-filter" data-filter="professor" aria-label="Profesor"><option value="todos">Todos los profesores</option>${professors.map((value) => `<option value="${escapeHtml(value)}" ${semanaTecFilters.professor === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select>
+      <select class="semana-tec-filter" data-filter="group" aria-label="Grupo"><option value="todos">Todos los grupos</option>${groups.map((value) => `<option value="${value}" ${semanaTecFilters.group === String(value) ? "selected" : ""}>Grupo ${value}</option>`).join("")}</select>
+      <input id="semanaTecSearch" type="search" value="${escapeHtml(semanaTecFilters.search)}" placeholder="Buscar matrícula, profesor o programa" />
+    </section>`;
+}
+
+function renderSemanaTecDashboard() {
+  if (semanaTecLoading) return `<div class="permission-strip">Leyendo información de Semana Tec...</div>`;
+  const rows = semanaTecFilteredRows();
+  const uniqueStudents = new Set(rows.map((row) => row.matricula)).size;
+  const groups = semanaTecGroupSummaries(rows);
+  const professors = new Set(rows.map((row) => row.profesor)).size;
+  const women = rows.filter((row) => row.genero === "Femenino").length;
+  const men = rows.filter((row) => row.genero === "Masculino").length;
+  const grades = rows.map((row) => Number(row.calificacion)).filter((value, index) => rows[index].calificacion !== "" && Number.isFinite(value));
+  const lastUpload = semanaTecLastUpload?.importedAt ? new Date(semanaTecLastUpload.importedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "Sin carga registrada";
+  return `
+    <section class="semana-tec-dashboard">
+      <header class="semana-tec-heading"><div><p class="eyebrow">Operación académica</p><h3>Semana Tec</h3><span>Grupos 100 = Semana 6 · Grupos 200 = Semana 12</span></div><div><strong>${escapeHtml(lastUpload)}</strong><span>${semanaTecCloudAvailable ? "Fuente compartida disponible" : "Respaldo local"}</span></div></header>
+      ${semanaTecFilterControls()}
+      ${semanaTecRows.length ? `
+        <div class="semana-tec-kpis">
+          <article><span>Alumnos únicos</span><strong>${uniqueStudents.toLocaleString("es-MX")}</strong><em>por matrícula</em></article>
+          <article><span>Grupos</span><strong>${groups.length.toLocaleString("es-MX")}</strong><em>en el filtro</em></article>
+          <article><span>Profesores</span><strong>${professors.toLocaleString("es-MX")}</strong><em>responsables</em></article>
+          <article><span>Promedio por grupo</span><strong>${groups.length ? Math.round(uniqueStudents / groups.length) : 0}</strong><em>alumnos</em></article>
+          <article><span>Mujeres</span><strong>${women.toLocaleString("es-MX")}</strong><em>${uniqueStudents ? Math.round(women / uniqueStudents * 100) : 0}%</em></article>
+          <article><span>Hombres</span><strong>${men.toLocaleString("es-MX")}</strong><em>${uniqueStudents ? Math.round(men / uniqueStudents * 100) : 0}%</em></article>
+          <article><span>Calificaciones</span><strong>${grades.length.toLocaleString("es-MX")}</strong><em>capturadas</em></article>
+        </div>
+        <div class="semana-tec-charts">
+          ${renderUploadBars("Alumnos por profesor", semanaTecCountRows(rows, "profesor"))}
+          ${renderUploadBars("Participación por género", semanaTecCountRows(rows, "genero"))}
+          ${renderUploadBars("Top programas", semanaTecCountRows(rows, "programa").slice(0, 12))}
+          ${renderUploadBars("Participación por semestre", semanaTecCountRows(rows, "semestre"))}
+        </div>
+        <section class="semana-tec-groups-panel">
+          <div class="class-grade-table-header"><div><p class="eyebrow">Detalle operativo</p><h3>Grupos y profesores</h3></div><span>${groups.length} grupos visibles</span></div>
+          <div class="semana-tec-group-grid">${groups.map((group) => `
+            <article><div><span>Semana ${group.week}</span><strong>Grupo ${group.group}</strong></div><p>${escapeHtml(group.professor)}</p>${group.horario || group.frecuencia ? `<small>${escapeHtml([group.frecuencia, group.horario].filter(Boolean).join(" · "))}</small>` : ""}<div class="semana-tec-group-stats"><b>${group.total} alumnos</b><span>${group.female} mujeres</span><span>${group.male} hombres</span><span>${group.average === null ? "Sin calificaciones" : `Promedio ${group.average.toFixed(1)}`}</span></div></article>
+          `).join("")}</div>
+        </section>` : `
+        <section class="vivencia-empty-state"><strong>Semana Tec está lista para recibir información.</strong><span>Carga el archivo de alumnos para generar automáticamente grupos, profesores y perfil académico.</span><button class="primary-btn" type="button" data-view-jump="semana-tec-upload">Ir a Carga de alumnos</button></section>`}
+    </section>`;
+}
+
+function renderSemanaTecGrades() {
+  const rows = semanaTecFilteredRows();
+  const numeric = rows.map((row) => Number(row.calificacion)).filter((value, index) => rows[index].calificacion !== "" && Number.isFinite(value));
+  const captured = rows.filter((row) => row.calificacion !== "").length;
+  const approved = numeric.filter((value) => value >= 70).length;
+  return `
+    <section class="semana-tec-dashboard">
+      <header class="semana-tec-heading"><div><p class="eyebrow">Seguimiento académico</p><h3>Calificaciones Semana Tec</h3><span>La matrícula es la única referencia del alumno.</span></div></header>
+      ${semanaTecFilterControls()}
+      <div class="semana-tec-kpis compact">
+        <article><span>Registros</span><strong>${rows.length.toLocaleString("es-MX")}</strong><em>visibles</em></article>
+        <article><span>Capturadas</span><strong>${captured.toLocaleString("es-MX")}</strong><em>${rows.length ? Math.round(captured / rows.length * 100) : 0}%</em></article>
+        <article><span>Pendientes</span><strong>${Math.max(0, rows.length - captured).toLocaleString("es-MX")}</strong><em>sin calificación</em></article>
+        <article><span>Promedio</span><strong>${numeric.length ? (numeric.reduce((sum, value) => sum + value, 0) / numeric.length).toFixed(1) : "—"}</strong><em>solo numéricas</em></article>
+        <article><span>Acreditadas</span><strong>${approved.toLocaleString("es-MX")}</strong><em>70 o más</em></article>
+      </div>
+      <section class="upload-preview-panel semana-tec-grade-panel">
+        <div class="class-grade-table-header"><div><p class="eyebrow">Captura</p><h3>Calificación por matrícula y grupo</h3></div><span>Se guarda al salir del campo</span></div>
+        <div class="class-grade-table-wrap"><table class="class-grade-table"><thead><tr><th>Matrícula</th><th>Semana</th><th>Grupo</th><th>Profesor</th><th>Programa</th><th>Calificación</th></tr></thead><tbody>
+          ${rows.slice(0, 500).map((row) => `<tr><td><strong>${escapeHtml(row.matricula)}</strong></td><td>Semana ${row.semana}</td><td>${row.numero_grupo}</td><td>${escapeHtml(row.profesor)}</td><td>${escapeHtml(row.programa)}</td><td><input class="semana-tec-grade-input" data-semana-tec-key="${escapeHtml(semanaTecLogicalKey(row))}" value="${escapeHtml(row.calificacion)}" placeholder="Pendiente" aria-label="Calificación de ${escapeHtml(row.matricula)}" /></td></tr>`).join("") || `<tr><td colspan="6">No hay alumnos cargados.</td></tr>`}
+        </tbody></table></div>
+      </section>
+    </section>`;
+}
+
+function renderSemanaTecUploadView() {
+  const draft = semanaTecDraft;
+  const summary = draft?.summary || semanaTecDraftSummary([]);
+  const validation = !draft ? `<div class="upload-status yellow"><span>Selecciona un archivo para comenzar</span></div>` : draft.errors.length ? `<div class="upload-status red"><span>${draft.errors.length} errores</span></div>` : `<div class="upload-status green"><span>Archivo listo para importar</span><strong>${summary.total.toLocaleString("es-MX")} registros</strong></div>`;
+  return `
+    <section class="upload-center">
+      <div class="upload-center-grid">
+        <article class="upload-info-panel">
+          <div><p class="eyebrow">Semana Tec</p><h3>Plantilla de alumnos</h3><p>Los grupos 100 se clasifican como Semana 6 y los grupos 200 como Semana 12.</p></div>
+          <div class="upload-required-list"><strong>Columnas necesarias</strong><span>Matriculas</span><span>Numero Grupo</span><span>Nombre Prof Titular</span></div>
+          <div class="upload-template-preview"><strong>Columnas analíticas aceptadas</strong><table><thead><tr><th>Matrícula</th><th>Grupo</th><th>Profesor</th><th>Calificación</th></tr></thead><tbody><tr><td>A01234567</td><td>101</td><td>Profesor responsable</td><td>95</td></tr></tbody></table></div>
+          <ul class="upload-recommendations"><li>Se aceptan archivos .xlsx y .csv.</li><li>Nombre y apellidos se ignoran por completo.</li><li>Horario y frecuencia no se inventan si el archivo no los contiene.</li><li>Una nueva carga actualiza matrícula + grupo + periodo.</li></ul>
+          <button class="ghost-btn" id="downloadSemanaTecTemplate" type="button">Descargar plantilla</button>
+        </article>
+        <article class="upload-drop-panel">
+          <label class="upload-drop-zone" id="semanaTecUploadDrop" for="semanaTecFile"><strong>Arrastra tu archivo aquí</strong><span>o selecciona un archivo Excel / CSV</span><em>${escapeHtml(draft?.fileName || semanaTecLastUpload?.fileName || "Sin archivo seleccionado")}</em></label>
+          <input id="semanaTecFile" type="file" accept=".xlsx,.csv" hidden />
+          ${validation}
+          <div class="upload-message-list">${(draft?.errors || []).map((message) => `<p class="red">${escapeHtml(message)}</p>`).join("")}${(draft?.warnings || []).map((message) => `<p class="yellow">${escapeHtml(message)}</p>`).join("")}</div>
+          ${draft && !draft.errors.length ? `<div class="semana-tec-load-summary"><span><b>${summary.uniqueStudents}</b> alumnos</span><span><b>${summary.groups}</b> grupos</span><span><b>${summary.professors}</b> profesores</span><span><b>${summary.week6}</b> Semana 6</span><span><b>${summary.week12}</b> Semana 12</span></div>` : ""}
+          <button class="primary-btn" id="importSemanaTec" type="button" ${draft && !draft.errors.length && !semanaTecSaving ? "" : "disabled"}>${semanaTecSaving ? "Guardando..." : "Importar información"}</button>
+        </article>
+      </div>
+      ${draft?.rows?.length ? `<section class="upload-preview-panel"><div class="class-grade-table-header"><div><p class="eyebrow">Vista previa</p><h3>Información que sí se guardará</h3></div><span>Sin nombres ni apellidos</span></div><div class="class-grade-table-wrap"><table class="class-grade-table"><thead><tr><th>Matrícula</th><th>Semana</th><th>Grupo</th><th>Profesor</th><th>Programa</th><th>Género</th><th>Semestre</th></tr></thead><tbody>${draft.rows.slice(0, 12).map((row) => `<tr><td>${escapeHtml(row.matricula)}</td><td>${row.semana}</td><td>${row.numero_grupo}</td><td>${escapeHtml(row.profesor)}</td><td>${escapeHtml(row.programa)}</td><td>${escapeHtml(row.genero)}</td><td>${escapeHtml(row.semestre)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
+    </section>`;
+}
+
+async function saveSemanaTecGrade(key, value) {
+  const row = semanaTecRows.find((item) => semanaTecLogicalKey(item) === key);
+  if (!row) return;
+  row.calificacion = normalizeSemanaTecGrade(value);
+  row.fecha_carga = new Date().toISOString();
+  saveSemanaTecLocal();
+  const cloudSaved = await saveSemanaTecRowsCloud([row]);
+  toast(cloudSaved ? "Calificación guardada" : "Calificación guardada en este equipo");
 }
 
 const participationUploadConfigs = {
@@ -8238,7 +8684,7 @@ function renderParticipationUploadDashboard(areaId) {
           ${renderUploadBars("Por género", uploadGroupCounts(dashboardRows, "genero", { foundOnly: true }))}
           ${renderUploadBars("Por carrera", uploadGroupCounts(dashboardRows, "carrera", { foundOnly: true }))}
           ${renderUploadBars("Por nivel", uploadGroupCounts(dashboardRows, "nivel", { foundOnly: true }))}
-          ${renderUploadBars("Por programa", uploadGroupCounts(dashboardRows, "programa", { foundOnly: true }))}
+          ${areaId === "representativos" ? renderUploadBars("Por programa", uploadGroupCounts(dashboardRows, "programa", { foundOnly: true })) : ""}
         </div>
         <section class="upload-preview-panel">
           <div class="class-grade-table-header">
@@ -10183,6 +10629,7 @@ function renderDashboard(area) {
   if (area.id === "gimnasio") return renderGymDashboard();
   if (area.id === "clases") return renderClassesDashboard();
   if (area.id === "vivencia") return renderVivenciaDashboard();
+  if (area.id === "semana-tec") return renderSemanaTecDashboard();
   if (area.id === "comunicacion") return renderCommunicationDashboard();
   if (area.id === "intramuros") return renderIntramurosDashboard();
   if (area.id === "compras") return renderBudgetDashboard();
@@ -15125,6 +15572,8 @@ function render() {
   const gymAttendanceTab = $("#gymAttendanceViewButton");
   const gymRegistrationsTab = $("#gymRegistrationsViewButton");
   const vivenciaEventsTab = $("#vivenciaEventsViewButton");
+  const semanaTecGradesTab = $("#semanaTecGradesViewButton");
+  const semanaTecUploadTab = $("#semanaTecUploadViewButton");
   const budgetAllocationTab = $("#budgetAllocationViewButton");
   const budgetRequestTab = $("#budgetRequestViewButton");
   const collaboratorInfographicTab = $("#collaboratorInfographicViewButton");
@@ -15133,6 +15582,7 @@ function render() {
   const reportsTab = $(`.segmented button[data-view="reports"]`);
   const isGym = activeArea === "gimnasio";
   const isVivencia = activeArea === "vivencia";
+  const isSemanaTec = activeArea === "semana-tec";
   const isCommunication = activeArea === "comunicacion";
   const isBudget = activeArea === "compras";
   const isIntramuros = activeArea === "intramuros";
@@ -15149,16 +15599,18 @@ function render() {
   if (gymAttendanceTab) gymAttendanceTab.hidden = !isGym;
   if (gymRegistrationsTab) gymRegistrationsTab.hidden = !isGym;
   if (vivenciaEventsTab) vivenciaEventsTab.hidden = !isVivencia && !isCommunication;
+  if (semanaTecGradesTab) semanaTecGradesTab.hidden = !isSemanaTec;
+  if (semanaTecUploadTab) semanaTecUploadTab.hidden = !isSemanaTec;
   if (budgetAllocationTab) budgetAllocationTab.hidden = !isBudget;
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
   if (schedulesTab) {
-    schedulesTab.hidden = isGym || isBudget || isCollaborators || isParticipationOnly;
+    schedulesTab.hidden = isGym || isBudget || isCollaborators || isParticipationOnly || isSemanaTec;
     schedulesTab.textContent = isGeneral ? "Calendario" : isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
     if (isGeneral) schedulesTab.style.order = "2";
   }
-  if (reportsTab) reportsTab.hidden = isGym;
+  if (reportsTab) reportsTab.hidden = isGym || isSemanaTec;
   if (systemTab) {
-    systemTab.hidden = isGym || isParticipationOnly || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
+    systemTab.hidden = isGym || isParticipationOnly || isSemanaTec || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
     systemTab.textContent = isIntramuros ? "Cargar Roles de Juego" : "Sistema";
   }
   if (isCollaborators) {
@@ -15172,6 +15624,8 @@ function render() {
   const segmentedNav = $(".segmented");
   if (segmentedNav) segmentedNav.hidden = isPresentation;
   if (isParticipationOnly && !["dashboard", "reports"].includes(activeView)) activeView = "dashboard";
+  if (isSemanaTec && !["dashboard", "semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
+  if (!isSemanaTec && ["semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isVivencia && !isCommunication && activeView === "vivencia-events") activeView = "dashboard";
@@ -15197,6 +15651,8 @@ function render() {
     else if (activeView === "simulator") contentHtml = renderScheduleSimulatorView();
     else if (activeView === "reports") contentHtml = renderReports(area);
     else if (activeView === "grades") contentHtml = renderClassGrades();
+    else if (activeView === "semana-tec-grades") contentHtml = renderSemanaTecGrades();
+    else if (activeView === "semana-tec-upload") contentHtml = renderSemanaTecUploadView();
     else if (activeView === "evaluations") contentHtml = renderPhysicalEvaluationsDashboard();
     else if (activeView === "collaborator-infographic") contentHtml = renderCollaboratorInfographicView();
     else contentHtml = isIntramuros ? renderIntramurosRolesDashboard() : renderBlueprint(area);
@@ -15222,6 +15678,45 @@ function render() {
     activeArea = button.dataset.jump;
     activeView = button.dataset.targetView || "dashboard";
     render();
+  }));
+  $$("[data-view-jump]").forEach((button) => button.addEventListener("click", () => {
+    activeView = button.dataset.viewJump || "dashboard";
+    render();
+  }));
+  $$("[data-semana-tec-week]").forEach((button) => button.addEventListener("click", () => {
+    semanaTecFilters.week = button.dataset.semanaTecWeek || "todas";
+    semanaTecFilters.group = "todos";
+    render();
+  }));
+  $$(".semana-tec-filter").forEach((input) => input.addEventListener("input", (event) => {
+    semanaTecFilters[event.target.dataset.filter] = event.target.value;
+    render();
+  }));
+  $("#semanaTecSearch")?.addEventListener("input", (event) => {
+    semanaTecFilters.search = event.target.value;
+    render();
+  });
+  $("#downloadSemanaTecTemplate")?.addEventListener("click", downloadSemanaTecTemplate);
+  $("#semanaTecFile")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (file) await loadSemanaTecFile(file);
+    event.target.value = "";
+  });
+  $("#semanaTecUploadDrop")?.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    event.currentTarget.classList.add("dragging");
+  });
+  $("#semanaTecUploadDrop")?.addEventListener("dragleave", (event) => event.currentTarget.classList.remove("dragging"));
+  $("#semanaTecUploadDrop")?.addEventListener("drop", async (event) => {
+    event.preventDefault();
+    event.currentTarget.classList.remove("dragging");
+    const file = event.dataTransfer?.files?.[0];
+    if (file) await loadSemanaTecFile(file);
+  });
+  $("#importSemanaTec")?.addEventListener("click", importSemanaTecDraft);
+  $$(".semana-tec-grade-input").forEach((input) => input.addEventListener("change", async (event) => {
+    await saveSemanaTecGrade(event.target.dataset.semanaTecKey, event.target.value);
+    event.target.value = normalizeSemanaTecGrade(event.target.value);
   }));
   $$("[data-planning-detail]").forEach((button) => button.addEventListener("click", () => {
     openPlanningActivityDetail(button, button.dataset.planningDetail, button.dataset.planningInstance);
