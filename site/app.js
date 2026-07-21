@@ -8843,7 +8843,7 @@ function intramurosRoleCounts(rows, field) {
 function renderIntramurosExecutiveBars(title, rows, options = {}) {
   const max = Math.max(...rows.map((row) => Number(row.value || 0)), 1);
   return `
-    <article class="intramuros-exec-card ${options.accent || ""}">
+    <article class="intramuros-exec-card ${options.accent || ""} ${options.className || ""}">
       <h3>${escapeHtml(title)}</h3>
       <div class="intramuros-exec-bars">
         ${rows.length ? rows.slice(0, options.limit || 8).map((row) => `
@@ -8860,7 +8860,7 @@ function renderIntramurosExecutiveBars(title, rows, options = {}) {
 
 function renderIntramurosProgressCard(summaries) {
   return `
-    <article class="intramuros-exec-card">
+    <article class="intramuros-exec-card intramuros-chart-progress">
       <h3>Avance por torneo</h3>
       <div class="intramuros-progress-list">
         ${summaries.length ? summaries.map((row) => `
@@ -8887,13 +8887,13 @@ function renderIntramurosExecutiveCharts(rows) {
   ];
   return `
     <div class="intramuros-exec-grid">
-      ${renderIntramurosExecutiveBars("Juegos programados", intramurosRoleCounts(roles, "torneo"), { accent: "red", limit: 7 })}
+      ${renderIntramurosExecutiveBars("Participación por escuela", intramurosGroupCounts(rows, "escuela"), { accent: "gold", limit: 10, className: "intramuros-chart-school" })}
       ${renderIntramurosProgressCard(summaries)}
       ${renderIntramurosTournamentGenderCard(rows)}
-      ${renderIntramurosExecutiveBars("Participación por escuela", intramurosGroupCounts(rows, "escuela"), { accent: "gold", limit: 10 })}
-      ${renderIntramurosExecutiveBars("Top 10 programas", intramurosGroupCounts(rows, "programa"), { accent: "blue", limit: 10 })}
-      ${renderIntramurosExecutiveBars("Juegos por cancha", intramurosRoleCounts(roles, "cancha"), { accent: "gold", limit: 8 })}
-      ${renderIntramurosExecutiveBars("Resultados vs pendientes", roleResultRows.filter((row) => row.value), { accent: "red", limit: 2 })}
+      ${renderIntramurosExecutiveBars("Juegos programados", intramurosRoleCounts(roles, "torneo"), { accent: "red", limit: 7, className: "intramuros-chart-games" })}
+      ${renderIntramurosExecutiveBars("Top 10 programas académicos", intramurosGroupCounts(rows, "programa"), { accent: "blue", limit: 10, className: "intramuros-chart-programs" })}
+      ${renderIntramurosExecutiveBars("Resultados vs pendientes", roleResultRows.filter((row) => row.value), { accent: "red", limit: 2, className: "intramuros-chart-results" })}
+      ${renderIntramurosExecutiveBars("Juegos por cancha", intramurosRoleCounts(roles, "cancha"), { accent: "gold", limit: 8, className: "intramuros-chart-courts" })}
     </div>
   `;
 }

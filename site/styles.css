@@ -5823,8 +5823,20 @@ tbody tr:hover td {
 .intramuros-exec-grid {
   display: grid;
   gap: 12px;
+  grid-template-areas:
+    "school progress gender"
+    "games programs gender"
+    "results courts gender";
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
 }
+
+.intramuros-chart-school { grid-area: school; }
+.intramuros-chart-progress { grid-area: progress; }
+.intramuros-chart-games { grid-area: games; }
+.intramuros-chart-programs { grid-area: programs; }
+.intramuros-chart-results { grid-area: results; }
+.intramuros-chart-courts { grid-area: courts; }
 
 .intramuros-exec-card {
   background: #fff;
@@ -6153,8 +6165,8 @@ tbody tr:hover td {
 
 .intramuros-tournament-grid {
   display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .intramuros-tournament-card {
@@ -6164,8 +6176,8 @@ tbody tr:hover td {
   border-radius: 8px;
   box-shadow: 0 7px 20px rgba(13, 42, 62, .04);
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: 8px;
+  padding: 12px;
 }
 
 .intramuros-tournament-card > div:first-child {
@@ -6176,6 +6188,7 @@ tbody tr:hover td {
 }
 
 .intramuros-tournament-card h3 {
+  font-size: 14px;
   margin: 0;
 }
 
@@ -6190,13 +6203,19 @@ tbody tr:hover td {
 
 .intramuros-tournament-card p {
   color: var(--muted);
+  display: -webkit-box;
+  font-size: 11px;
   font-weight: 800;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   margin: 0;
+  overflow: hidden;
 }
 
 .intramuros-tournament-card dl {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 0;
 }
@@ -6204,7 +6223,7 @@ tbody tr:hover td {
 .intramuros-tournament-card dl div {
   background: #f7fafc;
   border-radius: 8px;
-  padding: 8px;
+  padding: 6px;
 }
 
 .intramuros-tournament-card dt {
@@ -6214,7 +6233,7 @@ tbody tr:hover td {
 }
 
 .intramuros-tournament-card dd {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 900;
   margin: 0;
 }
@@ -7971,7 +7990,7 @@ tbody tr:hover td {
   border-radius: 999px;
   background: #edf2f4;
   color: #4e5e67;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -8182,7 +8201,15 @@ body.planning-modal-open {
 @media (max-width: 1120px) {
   .planning-dashboard-grid { grid-template-columns: 1fr; }
   .planning-calendar-panel { grid-row: auto; }
-  .intramuros-exec-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .intramuros-exec-grid {
+    grid-template-areas:
+      "school progress"
+      "games programs"
+      "results courts"
+      "gender gender";
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .intramuros-tournament-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .exec-planning-item { grid-template-columns: 72px minmax(160px, 1fr) minmax(90px, .8fr); }
   .exec-planning-item em,
   .exec-planning-item small { display: none; }
@@ -8844,7 +8871,7 @@ body.planning-modal-open {
   min-width: 76px;
   justify-content: center;
   border-radius: 99px;
-  padding: 5px 9px;
+  padding: 4px 7px;
   background: #e6edf2;
   color: var(--ink);
   font-size: 12px;
@@ -10691,6 +10718,7 @@ tbody tr:hover td {
 
 .intramuros-tournament-gender-card {
   align-content: start;
+  grid-area: gender;
   min-height: 0;
 }
 
@@ -10718,10 +10746,9 @@ tbody tr:hover td {
 .intramuros-tournament-gender-list {
   display: grid;
   gap: 0;
-  max-height: 430px;
-  overflow-y: scroll;
-  padding-right: 6px;
-  scrollbar-gutter: stable;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .intramuros-tournament-gender-row {
@@ -10824,6 +10851,17 @@ tbody tr:hover td {
 .intramuros-tournament-gender-counts .unknown i { background: #94a3b8; }
 
 @media (max-width: 760px) {
+  .intramuros-exec-grid {
+    grid-template-areas:
+      "school"
+      "progress"
+      "games"
+      "programs"
+      "results"
+      "courts"
+      "gender";
+  }
+
   .intramuros-tournament-gender-title {
     grid-template-columns: minmax(0, 1fr) auto;
   }
