@@ -7792,6 +7792,55 @@ function downloadParticipationTemplate(areaId) {
   downloadBlob(csv, config.templateName);
 }
 
+function downloadIntramurosTemplate(type) {
+  const templates = {
+    participants: {
+      filename: "plantilla-registro-participantes-intramuros.csv",
+      label: "de participantes de Intramuros",
+      rows: [{
+        "Matrícula": "A01234567",
+        "Género": "Femenino",
+        "Programa": "ITC",
+        "Modalidad": "Profesional",
+        "Escuela": "Ingeniería",
+        "Tipo de actividad": "Intramuros",
+        "Comentario": "Fútbol 7",
+        "Rama": "Femenil",
+        "Equipo": "Equipo Azul",
+        "Periodo": "AD26"
+      }]
+    },
+    roles: {
+      filename: "plantilla-roles-juego-intramuros.csv",
+      label: "de roles de juego de Intramuros",
+      rows: [{
+        "Torneo": "Fútbol 7",
+        "Semana": "1",
+        "Fecha": "2026-08-17",
+        "Hora": "18:00",
+        "Cancha": "Cancha 1",
+        "Grupo": "A",
+        "Rama": "Varonil",
+        "Equipo local": "Equipo Azul",
+        "Equipo visitante": "Equipo Blanco",
+        "Resultado": "",
+        "Observaciones": "",
+        "Estatus": "Programado",
+        "Periodo": "AD26"
+      }]
+    }
+  };
+  const template = templates[type];
+  if (!template) return;
+  const headers = Object.keys(template.rows[0]);
+  const csv = [
+    headers.map(csvEscape).join(","),
+    ...template.rows.map((row) => headers.map((header) => csvEscape(row[header])).join(","))
+  ].join("\n");
+  downloadBlob(`\uFEFF${csv}`, template.filename);
+  toast(`Plantilla ${template.label} descargada`);
+}
+
 function participationUploadRowToCloud(areaId, row, fileName = "") {
   const matricula = normalizeMatricula(row.matricula);
   const importKey = areaId === "representativos"
@@ -8673,15 +8722,12 @@ function renderIntramurosExecutiveCharts(rows) {
   ];
   return `
     <div class="intramuros-exec-grid">
-      ${renderIntramurosExecutiveBars("Participantes por torneo", intramurosGroupCounts(rows, "torneo", true), { accent: "blue", limit: 7 })}
       ${renderIntramurosExecutiveBars("Participación por género", intramurosGroupCounts(rows, "genero"), { accent: "teal", limit: 5 })}
-      ${renderIntramurosExecutiveBars("Equipos por torneo", intramurosTeamsByTournament(rows), { accent: "gold", limit: 7 })}
       ${renderIntramurosExecutiveBars("Juegos programados", intramurosRoleCounts(roles, "torneo"), { accent: "red", limit: 7 })}
       ${renderIntramurosProgressCard(summaries)}
       ${renderIntramurosExecutiveBars("Participación por rama", intramurosGroupCounts(rows, "rama"), { accent: "teal", limit: 7 })}
       ${renderIntramurosExecutiveBars("Participación por escuela", intramurosGroupCounts(rows, "escuela"), { accent: "gold", limit: 10 })}
       ${renderIntramurosExecutiveBars("Top 10 programas", intramurosGroupCounts(rows, "programa"), { accent: "blue", limit: 10 })}
-      ${renderIntramurosExecutiveBars("Top torneos", intramurosGroupCounts(rows, "torneo", true).slice(0, 10), { accent: "blue", limit: 10 })}
       ${renderIntramurosExecutiveBars("Juegos por cancha", intramurosRoleCounts(roles, "cancha"), { accent: "gold", limit: 8 })}
       ${renderIntramurosExecutiveBars("Resultados vs pendientes", roleResultRows.filter((row) => row.value), { accent: "red", limit: 2 })}
     </div>
@@ -8746,6 +8792,7 @@ function renderIntramurosParticipantUploadView() {
             <li>Comentario se usa como torneo cuando identifica la competencia.</li>
             <li>La llave evita duplicados por matrícula + torneo + equipo + periodo.</li>
           </ul>
+          <button class="ghost-btn" type="button" data-download-intramuros-template="participants">Descargar plantilla de participantes</button>
         </article>
         <article class="upload-drop-panel">
           <p class="eyebrow">Carga segura</p>
@@ -8886,6 +8933,14 @@ function renderIntramurosRolesDashboard() {
             <strong>Campos que intenta extraer</strong>
             ${["torneo", "semana", "fecha", "hora", "cancha", "grupo", "rama", "equipo_local", "equipo_visitante", "resultado", "observaciones", "estatus_partido"].map((field) => `<span>${field}</span>`).join("")}
           </div>
+          <div class="upload-template-preview">
+            <strong>Vista esperada</strong>
+            <table>
+              <thead><tr><th>Torneo</th><th>Fecha</th><th>Hora</th><th>Cancha</th><th>Local</th><th>Visitante</th></tr></thead>
+              <tbody><tr><td>Fútbol 7</td><td>2026-08-17</td><td>18:00</td><td>Cancha 1</td><td>Equipo Azul</td><td>Equipo Blanco</td></tr></tbody>
+            </table>
+          </div>
+          <button class="ghost-btn" type="button" data-download-intramuros-template="roles">Descargar plantilla de roles</button>
         </article>
         <article class="upload-drop-panel">
           <label class="upload-drop-zone" id="intramurosRolesUploadDrop">
@@ -9161,23 +9216,13 @@ function renderTournamentExpediente() {
 
 function renderIntramurosDashboard() {
   const rows = filteredIntramurosParticipants();
-  const uniqueParticipants = new Set(rows.map((row) => row.matricula).filter(Boolean)).size;
   const tournaments = new Set(rows.map((row) => row.torneo).filter(Boolean)).size;
-  const teams = new Set(rows.map((row) => `${row.torneo}|${row.equipo}`).filter(Boolean)).size;
   const men = rows.filter((row) => normalizeText(row.genero).includes("masculino") || normalizeText(row.genero) === "hombre").length;
   const women = rows.filter((row) => normalizeText(row.genero).includes("femenino") || normalizeText(row.genero) === "mujer").length;
   const schools = new Set(rows.map((row) => row.escuela).filter(Boolean)).size;
   const tableRows = rows.slice(0, 250);
   return `
     <section class="upload-center intramuros-dashboard">
-      <div class="intramuros-omar-workspace">
-        <div>
-          <p class="eyebrow">Espacio de Omar</p>
-          <h3>Mesa operativa dentro de WellSync</h3>
-          <p>Omar puede capturar sus torneos directo aquí. Las cargas de participantes y roles permanecen disponibles en sus pestañas superiores. WellSync no muestra ni guarda nombres de alumnos en este espacio.</p>
-        </div>
-      </div>
-
       ${renderIntramurosOmarWorkspace()}
 
       ${renderPlanningAreaDashboard(
@@ -9208,10 +9253,7 @@ function renderIntramurosDashboard() {
       </div>
 
       <div class="upload-kpi-grid">
-        <article><span>Total participantes únicos</span><strong>${uniqueParticipants.toLocaleString("es-MX")}</strong><em>por matrícula</em></article>
-        <article><span>Total registros de participación</span><strong>${rows.length.toLocaleString("es-MX")}</strong><em>filtrados</em></article>
         <article><span>Total torneos</span><strong>${tournaments.toLocaleString("es-MX")}</strong><em>activos</em></article>
-        <article><span>Total equipos</span><strong>${teams.toLocaleString("es-MX")}</strong><em>por torneo</em></article>
         <article><span>Total hombres</span><strong>${men.toLocaleString("es-MX")}</strong><em>registros</em></article>
         <article><span>Total mujeres</span><strong>${women.toLocaleString("es-MX")}</strong><em>registros</em></article>
         <article><span>Escuelas representadas</span><strong>${schools.toLocaleString("es-MX")}</strong><em>filtradas</em></article>
@@ -15153,6 +15195,9 @@ function render() {
     clearSession();
     render();
     toast("Inicia sesión con Supabase para guardar Gamer y Representativos.");
+  }));
+  $$('[data-download-intramuros-template]').forEach((button) => button.addEventListener("click", () => {
+    downloadIntramurosTemplate(button.dataset.downloadIntramurosTemplate);
   }));
   $("#intramurosParticipantsFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
