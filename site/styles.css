@@ -10671,3 +10671,13 @@ tbody tr:hover td {
   body.executive-presentation-print .executive-presentation-slide { display: grid !important; width: 13.333in; height: 7.5in; margin: 0; page-break-after: always; border: 0; box-shadow: none; }
   @page { size: 13.333in 7.5in; margin: 0; }
 }
+.vivencia-upload-actions {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px !important;
+}
+
+.vivencia-upload-actions button {
+  flex: 1 1 190px;
+}

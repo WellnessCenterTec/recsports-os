@@ -609,6 +609,13 @@ let communicationEventImporting = false;
 let communicationEventImportResult = null;
 let communicationPlanningSyncing = false;
 let selectedCommunicationEventForDetail = "";
+let communicationParticipants = [];
+let communicationParticipantUploads = [];
+let communicationParticipantsAvailable = true;
+let communicationParticipantImporting = false;
+let communicationParticipantImportResult = null;
+let selectedCommunicationEventForParticipants = "";
+let communicationParticipantsModalOpen = false;
 let classGradePage = 1;
 let classGradeFilter = {
   search: "",
@@ -2360,11 +2367,14 @@ async function loadCommunicationEvents() {
   communicationEventsLoaded = true;
   if (!supabaseClient || currentUser?.auth !== "supabase") {
     communicationEvents = [];
+    communicationParticipants = [];
+    communicationParticipantUploads = [];
     communicationEventsAvailable = true;
+    communicationParticipantsAvailable = true;
     communicationDashboardSettings = { impact_goal: 3800 };
     return;
   }
-  const [eventsResult, settingsResult] = await Promise.all([
+  const [eventsResult, settingsResult, participantsResult, uploadsResult] = await Promise.all([
     supabaseClient
       .from("communication_events")
       .select("*")
@@ -2376,17 +2386,45 @@ async function loadCommunicationEvents() {
       .from("communication_dashboard_settings")
       .select("impact_goal, updated_at")
       .eq("id", 1)
-      .maybeSingle()
+      .maybeSingle(),
+    supabaseClient
+      .from("communication_participants")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(12000),
+    supabaseClient
+      .from("communication_participant_uploads")
+      .select("*")
+      .order("upload_date", { ascending: false })
+      .limit(200)
   ]);
   if (eventsResult.error) {
     communicationEvents = [];
+    communicationParticipants = [];
+    communicationParticipantUploads = [];
     communicationEventsAvailable = false;
+    communicationParticipantsAvailable = !participantsResult.error;
     communicationDashboardSettings = { impact_goal: 3800 };
     console.warn("No se pudo cargar el centro de eventos de Comunicación", eventsResult.error);
     return;
   }
   communicationEventsAvailable = true;
   communicationEvents = eventsResult.data || [];
+  communicationParticipantsAvailable = !participantsResult.error && !uploadsResult.error;
+  communicationParticipantUploads = uploadsResult.error ? [] : (uploadsResult.data || []);
+  communicationParticipants = (participantsResult.error ? [] : (participantsResult.data || [])).map((participant) => {
+    const student = findStudentInDatabase(participant.matricula) || {};
+    return {
+      ...participant,
+      genero: participant.genero || student.genero || "No especificado",
+      carrera: participant.carrera || student.carrera || "Sin carrera",
+      semestre: participant.semestre || student.semestre || "",
+      nivel_escolar: participant.nivel_escolar || student.nivel || "Sin nivel"
+    };
+  });
+  if (!communicationParticipantsAvailable) {
+    console.warn("Falta activar las tablas de participantes de Comunicación", participantsResult.error || uploadsResult.error);
+  }
   communicationDashboardSettings = settingsResult.error || !settingsResult.data
     ? { impact_goal: 3800 }
     : { ...settingsResult.data, impact_goal: Number(settingsResult.data.impact_goal || 3800) };
@@ -3678,6 +3716,107 @@ async function importCommunicationEvents(file) {
   }
 }
 
+function communicationEventParticipants(eventId) {
+  return communicationParticipants.filter((participant) => participant.event_id === eventId);
+}
+
+async function importCommunicationParticipants(file, eventId) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("comunicacion")) {
+    toast("Necesitas acceso autorizado de Comunicación para cargar participantes");
+    return;
+  }
+  if (!communicationParticipantsAvailable) {
+    toast("Primero activa las tablas de participantes de Comunicación en Supabase");
+    return;
+  }
+  const eventRow = communicationEvents.find((row) => row.id === eventId);
+  if (!eventRow) {
+    toast("Selecciona un evento válido para cargar participantes");
+    return;
+  }
+  communicationParticipantImporting = true;
+  communicationParticipantImportResult = null;
+  selectedCommunicationEventForParticipants = eventId;
+  render();
+  try {
+    const grid = await vivenciaGridFromFile(file);
+    const parsed = parseVivenciaParticipantRows(grid, file.name);
+    if (!parsed.payload.length) {
+      communicationParticipantImportResult = {
+        loaded: 0,
+        omitted: parsed.omitted,
+        warnings: parsed.warnings,
+        source: file.name,
+        blocked: true
+      };
+      toast("No se encontraron matrículas válidas en el archivo");
+      return;
+    }
+    const payload = parsed.payload.map((row) => ({ ...row, event_id: eventId }));
+    const { data, error } = await supabaseClient
+      .from("communication_participants")
+      .upsert(payload, { onConflict: "event_id,matricula", ignoreDuplicates: true })
+      .select("id, matricula");
+    if (error) throw error;
+    const loaded = data?.length || 0;
+    const duplicates = payload.length - loaded;
+    const totalParticipants = communicationEventParticipants(eventId).length + loaded;
+    const { error: uploadError } = await supabaseClient
+      .from("communication_participant_uploads")
+      .insert({
+        event_id: eventId,
+        upload_date: new Date().toISOString(),
+        total_processed: parsed.payload.length,
+        total_inserted: loaded,
+        duplicates_ignored: duplicates,
+        errors_detected: parsed.warnings.length,
+        source_name: file.name,
+        created_by: currentUser?.id || null
+      });
+    if (uploadError) console.warn(uploadError);
+    const { error: eventUpdateError } = await supabaseClient
+      .from("communication_events")
+      .update({ reported_total_participants: totalParticipants, updated_at: new Date().toISOString() })
+      .eq("id", eventId);
+    if (eventUpdateError) console.warn(eventUpdateError);
+    communicationParticipantImportResult = {
+      loaded,
+      omitted: parsed.omitted + duplicates,
+      warnings: [
+        ...parsed.warnings,
+        ...(duplicates ? [{ row: 0, message: `${duplicates} matrículas ya estaban cargadas en este evento; se omitieron duplicados` }] : [])
+      ],
+      source: `${file.name} -> ${eventRow.event_name}`,
+      processed: parsed.payload.length,
+      duplicates,
+      totalParticipants
+    };
+    addAudit("comunicacion", `${loaded} participantes importados para ${eventRow.event_name}`);
+    await loadCommunicationEvents();
+    toast(`Participantes cargados: ${loaded}. Duplicados ignorados: ${duplicates}`);
+  } catch (error) {
+    console.error(error);
+    communicationParticipantImportResult = {
+      loaded: 0,
+      omitted: 0,
+      warnings: [{ row: 0, message: supabaseErrorDetail(error) || error.message || "Error de carga" }],
+      source: file.name,
+      blocked: true
+    };
+    toast(`No se pudo cargar participantes: ${supabaseErrorDetail(error) || error.message}`);
+  } finally {
+    communicationParticipantImporting = false;
+    render();
+  }
+}
+
+function downloadEventParticipantsTemplate(areaId) {
+  const label = areaId === "comunicacion" ? "comunicacion" : "vivencia";
+  const csv = ["Matrícula", "A01234567", "A07654321"].join("\n");
+  downloadBlob(`\uFEFF${csv}`, `plantilla-participantes-${label}.csv`);
+  toast(`Plantilla de participantes de ${areaId === "comunicacion" ? "Comunicación" : "Vivencia"} descargada`);
+}
+
 async function syncCommunicationEventsFromPlanning() {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("comunicacion") || !communicationEventsAvailable) {
     toast("Necesitas permisos de Comunicación para sincronizar");
@@ -4297,8 +4436,51 @@ async function saveCollaboratorColumnOrder(columns) {
   return true;
 }
 
+function collaboratorEditorElement(rowId, column) {
+  return [...document.querySelectorAll(".collab-cell, .collab-week-picker")]
+    .find((element) => element.dataset.rowId === rowId && element.dataset.column === column) || null;
+}
+
+function captureCollaboratorEditorViewport(rowId, column) {
+  const wrap = $(".collaborator-editor-wrap");
+  const row = [...document.querySelectorAll(".collaborator-editor tbody tr")]
+    .find((element) => element.dataset.rowId === rowId);
+  return {
+    rowId,
+    column,
+    windowX: window.scrollX,
+    windowY: window.scrollY,
+    rowViewportTop: row?.getBoundingClientRect().top ?? null,
+    tableScrollTop: wrap?.scrollTop || 0,
+    tableScrollLeft: wrap?.scrollLeft || 0
+  };
+}
+
+function restoreCollaboratorEditorViewport(state) {
+  if (!state) return;
+  requestAnimationFrame(() => {
+    const wrap = $(".collaborator-editor-wrap");
+    if (wrap) {
+      wrap.scrollTop = state.tableScrollTop;
+      wrap.scrollLeft = state.tableScrollLeft;
+    }
+    window.scrollTo(state.windowX, state.windowY);
+    requestAnimationFrame(() => {
+      const row = [...document.querySelectorAll(".collaborator-editor tbody tr")]
+        .find((element) => element.dataset.rowId === state.rowId);
+      if (row && state.rowViewportTop !== null) {
+        window.scrollBy(0, row.getBoundingClientRect().top - state.rowViewportTop);
+      }
+      const editor = collaboratorEditorElement(state.rowId, state.column);
+      const focusTarget = editor?.matches("details") ? editor.querySelector("summary") : editor;
+      focusTarget?.focus({ preventScroll: true });
+    });
+  });
+}
+
 async function updateCollaboratorCell(rowId, column, value) {
   if (!supabaseClient || !canManageStructure()) return;
+  const editorViewport = captureCollaboratorEditorViewport(rowId, column);
   const row = cloudCollaborators.find((item) => item.__id === rowId);
   if (!row) {
     toast("No encontré el registro para actualizar");
@@ -4308,11 +4490,13 @@ async function updateCollaboratorCell(rowId, column, value) {
   if (column === "Nomina" && !nextValue) {
     toast("La nómina no puede quedar vacía");
     render();
+    restoreCollaboratorEditorViewport(editorViewport);
     return;
   }
   if (column === "Colaboradores" && !nextValue) {
     toast("El nombre no puede quedar vacío");
     render();
+    restoreCollaboratorEditorViewport(editorViewport);
     return;
   }
   const previousValue = row[column];
@@ -4327,11 +4511,13 @@ async function updateCollaboratorCell(rowId, column, value) {
     console.error(error);
     toast(error.code === "23505" ? "Esa nómina ya existe" : "No se pudo guardar el cambio");
     render();
+    restoreCollaboratorEditorViewport(editorViewport);
     return;
   }
   addAudit("colaboradores", `${column} actualizado para ${payload.nomina}`);
   await loadSupabaseCollaborators();
   render();
+  restoreCollaboratorEditorViewport({ ...editorViewport, rowId: payload.nomina || rowId });
   toast("Cambio guardado en línea");
 }
 
@@ -8988,11 +9174,7 @@ function renderIntramurosDashboard() {
         <div>
           <p class="eyebrow">Espacio de Omar</p>
           <h3>Mesa operativa dentro de WellSync</h3>
-          <p>Omar puede capturar sus torneos directo aquí, y también cargar participantes o roles cuando quiera alimentar las gráficas. WellSync no muestra ni guarda nombres de alumnos en este espacio.</p>
-        </div>
-        <div class="intramuros-omar-actions">
-          <button class="primary-btn" type="button" data-jump="intramuros" data-target-view="schedules">Cargar Registro de Participantes</button>
-          <button class="secondary-btn" type="button" data-jump="intramuros" data-target-view="blueprint">Cargar Roles de Juego</button>
+          <p>Omar puede capturar sus torneos directo aquí. Las cargas de participantes y roles permanecen disponibles en sus pestañas superiores. WellSync no muestra ni guarda nombres de alumnos en este espacio.</p>
         </div>
       </div>
 
@@ -13548,16 +13730,6 @@ function renderVivenciaEventsView() {
           ${renderVivenciaEventGallery(detailEvent, editable)}
           <div class="vivencia-bulk-upload">
             <div>
-              <strong>Carga masiva de eventos</strong>
-              <span>Acepta CSV, XLSX o XLS. Requiere Nombre del evento y Fecha del evento. Si no trae campus, se guarda como Monterrey.</span>
-            </div>
-            <button class="ghost-btn" id="uploadVivenciaEvents" type="button" ${editable && !vivenciaEventImporting ? "" : "disabled"}>
-              ${vivenciaEventImporting ? "Procesando archivo..." : "Cargar CSV o Excel"}
-            </button>
-            <input id="vivenciaEventsFile" type="file" accept=".csv,.xlsx,.xls" hidden />
-          </div>
-          <div class="vivencia-bulk-upload">
-            <div>
               <strong>Sincronizar eventos desde Planeacion</strong>
               <span>Trae los registros historicos de Planeacion donde el area es Vivencia y evita duplicados.</span>
             </div>
@@ -13570,9 +13742,10 @@ function renderVivenciaEventsView() {
               <strong>Carga de participantes</strong>
               <span>Selecciona un evento y sube matriculas. Se ignoran duplicados dentro del mismo evento.</span>
             </div>
-            <button class="primary-btn" id="openVivenciaParticipantsModal" type="button" ${editable && vivenciaEvents.length ? "" : "disabled"}>
-              Cargar participantes
-            </button>
+            <div class="vivencia-upload-actions">
+              <button class="primary-btn" id="openVivenciaParticipantsModal" type="button" ${editable && vivenciaEvents.length ? "" : "disabled"}>Cargar participantes</button>
+              <button class="ghost-btn" type="button" data-download-event-participants-template="vivencia">Descargar plantilla</button>
+            </div>
           </div>
           <div class="vivencia-upload-history">
             <div class="vivencia-panel-heading compact">
@@ -13596,6 +13769,69 @@ function renderVivenciaEventsView() {
         </article>
       </div>
     </section>
+  `;
+}
+
+function renderCommunicationParticipantUploadHistory() {
+  if (!communicationParticipantsAvailable) {
+    return `<div class="vivencia-empty-state warning compact">Activa <code>supabase/communication-events.sql</code> para guardar el historial de participantes.</div>`;
+  }
+  if (!communicationParticipantUploads.length) {
+    return `<div class="vivencia-empty-state compact">Todavía no hay cargas de participantes registradas.</div>`;
+  }
+  const eventsById = new Map(communicationEvents.map((row) => [row.id, row]));
+  return `
+    <div class="table-wrap vivencia-participants-history-wrap">
+      <table class="vivencia-participants-history-table">
+        <thead><tr><th>Evento</th><th>Fecha de carga</th><th>Total cargado</th><th>Duplicados ignorados</th></tr></thead>
+        <tbody>
+          ${communicationParticipantUploads.slice(0, 12).map((row) => {
+            const eventRow = eventsById.get(row.event_id);
+            return `<tr><td><strong>${escapeHtml(eventRow?.event_name || "Evento no encontrado")}</strong>${row.source_name ? `<span>${escapeHtml(row.source_name)}</span>` : ""}</td><td>${escapeHtml(formatVivenciaUploadDate(row.upload_date || row.created_at))}</td><td>${Number(row.total_inserted || 0)}</td><td>${Number(row.duplicates_ignored || 0)}</td></tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderCommunicationParticipantsModal(editable) {
+  if (!communicationParticipantsModalOpen) return "";
+  const eventOptions = communicationEvents
+    .slice()
+    .sort((a, b) => String(b.event_date || "").localeCompare(String(a.event_date || "")) || String(a.event_name || "").localeCompare(String(b.event_name || "")))
+    .map((row) => `<option value="${escapeHtml(row.id)}" ${selectedCommunicationEventForParticipants === row.id ? "selected" : ""}>${escapeHtml(vivenciaEventOptionLabel(row))}</option>`)
+    .join("");
+  return `
+    <div class="modal-backdrop" role="presentation">
+      <section class="vivencia-participants-modal" role="dialog" aria-modal="true" aria-labelledby="communicationParticipantsTitle">
+        <div class="vivencia-modal-heading">
+          <div>
+            <p class="eyebrow">Comunicación</p>
+            <h3 id="communicationParticipantsTitle">Cargar participantes</h3>
+          </div>
+          <button class="ghost-btn compact-action" id="closeCommunicationParticipantsModal" type="button">Cerrar</button>
+        </div>
+        ${!communicationParticipantsAvailable ? `<div class="vivencia-empty-state warning"><strong>Falta activar participantes de Comunicación.</strong><span>Ejecuta <code>supabase/communication-events.sql</code> antes de la primera carga.</span></div>` : ""}
+        <form id="communicationParticipantsForm" class="vivencia-participants-form">
+          <label class="full">Evento
+            <select name="event_id" required ${editable ? "" : "disabled"}>
+              <option value="">Selecciona un evento</option>
+              ${eventOptions}
+            </select>
+          </label>
+          <label class="full">Archivo CSV o Excel
+            <input name="participants_file" type="file" accept=".csv,.xlsx,.xls" required ${editable ? "" : "disabled"} />
+          </label>
+          <div class="vivencia-modal-help full">
+            <strong>Formato mínimo:</strong> una columna llamada <code>Matrícula</code>. No se requieren ni se guardan nombres.
+          </div>
+          <button class="primary-btn full" type="submit" ${editable && communicationParticipantsAvailable && !communicationParticipantImporting ? "" : "disabled"}>
+            ${communicationParticipantImporting ? "Cargando participantes..." : "Cargar participantes"}
+          </button>
+        </form>
+      </section>
+    </div>
   `;
 }
 
@@ -13646,6 +13882,8 @@ function renderCommunicationEventsView() {
         <span>${communicationEvents.length} eventos en historial</span>
       </div>
       ${renderVivenciaImportSummary(communicationEventImportResult)}
+      ${renderVivenciaImportSummary(communicationParticipantImportResult)}
+      ${renderCommunicationParticipantsModal(editable)}
       <div class="vivencia-event-layout">
         <article class="form-panel vivencia-event-entry">
           <div class="vivencia-panel-heading">
@@ -13673,13 +13911,19 @@ function renderCommunicationEventsView() {
             <button class="primary-btn full" type="submit" ${editable ? "" : "disabled"}>${detailEvent ? "Guardar detalle" : "Guardar evento"}</button>
           </form>
           <div class="vivencia-bulk-upload">
-            <div><strong>Carga masiva de eventos</strong><span>Acepta CSV, XLSX o XLS. Usa el mismo formato de eventos de Vivencia, pero guarda los registros solamente en Comunicación.</span></div>
-            <button class="ghost-btn" id="uploadCommunicationEvents" type="button" ${editable && !communicationEventImporting ? "" : "disabled"}>${communicationEventImporting ? "Procesando archivo..." : "Cargar CSV o Excel"}</button>
-            <input id="communicationEventsFile" type="file" accept=".csv,.xlsx,.xls" hidden />
-          </div>
-          <div class="vivencia-bulk-upload">
             <div><strong>Sincronizar desde Planeación</strong><span>Guarda los eventos de Comunicación que ya tienen fecha y evita registros repetidos.</span></div>
             <button class="ghost-btn" id="syncCommunicationPlanningEvents" type="button" ${editable && !communicationPlanningSyncing ? "" : "disabled"}>${communicationPlanningSyncing ? "Sincronizando..." : "Sincronizar eventos"}</button>
+          </div>
+          <div class="vivencia-bulk-upload">
+            <div><strong>Carga de participantes</strong><span>Selecciona un evento de Comunicación y sube matrículas. Los registros se guardan separados de Vivencia.</span></div>
+            <div class="vivencia-upload-actions">
+              <button class="primary-btn" id="openCommunicationParticipantsModal" type="button" ${editable && communicationEvents.length ? "" : "disabled"}>Cargar participantes</button>
+              <button class="ghost-btn" type="button" data-download-event-participants-template="comunicacion">Descargar plantilla</button>
+            </div>
+          </div>
+          <div class="vivencia-upload-history">
+            <div class="vivencia-panel-heading compact"><div><p class="eyebrow">Historial</p><h3>Cargas de participantes</h3></div></div>
+            ${renderCommunicationParticipantUploadHistory()}
           </div>
         </article>
         <article class="form-panel vivencia-event-history">
@@ -15063,6 +15307,29 @@ function render() {
     event.target.value = "";
   });
   $("#syncCommunicationPlanningEvents")?.addEventListener("click", syncCommunicationEventsFromPlanning);
+  $("#openCommunicationParticipantsModal")?.addEventListener("click", () => {
+    communicationParticipantsModalOpen = true;
+    if (!selectedCommunicationEventForParticipants && communicationEvents[0]) selectedCommunicationEventForParticipants = communicationEvents[0].id;
+    render();
+  });
+  $("#closeCommunicationParticipantsModal")?.addEventListener("click", () => {
+    communicationParticipantsModalOpen = false;
+    render();
+  });
+  $("#communicationParticipantsForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const eventId = String(form.get("event_id") || "").trim();
+    const file = form.get("participants_file");
+    if (!eventId || !(file instanceof File) || !file.name) {
+      toast("Selecciona un evento y un archivo de participantes");
+      return;
+    }
+    await importCommunicationParticipants(file, eventId);
+  });
+  $$('[data-download-event-participants-template]').forEach((button) => button.addEventListener("click", () => {
+    downloadEventParticipantsTemplate(button.dataset.downloadEventParticipantsTemplate);
+  }));
   $("#newVivenciaEvent")?.addEventListener("click", () => {
     selectedVivenciaEventForDetail = "";
     render();
@@ -16081,6 +16348,13 @@ $("#logoutButton").addEventListener("click", () => {
     communicationEventImportResult = null;
     communicationPlanningSyncing = false;
     selectedCommunicationEventForDetail = "";
+    communicationParticipants = [];
+    communicationParticipantUploads = [];
+    communicationParticipantsAvailable = true;
+    communicationParticipantImporting = false;
+    communicationParticipantImportResult = null;
+    selectedCommunicationEventForParticipants = "";
+    communicationParticipantsModalOpen = false;
     physicalHallOfFameOpen = false;
     physicalHallOfFameTopTest = "";
     physicalHallOfFameGender = "todos";

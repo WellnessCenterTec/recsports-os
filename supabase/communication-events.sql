@@ -41,6 +41,38 @@ create trigger communication_events_updated_at
 before update on public.communication_events
 for each row execute function public.set_updated_at();
 
+create table if not exists public.communication_participants (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references public.communication_events(id) on delete restrict,
+  matricula text not null,
+  source_name text,
+  source_row_number integer check (source_row_number is null or source_row_number > 0),
+  created_by uuid references public.app_profiles(id),
+  created_at timestamptz not null default now(),
+  unique (event_id, matricula)
+);
+
+create index if not exists communication_participants_event_idx
+  on public.communication_participants(event_id);
+create index if not exists communication_participants_matricula_idx
+  on public.communication_participants(matricula);
+
+create table if not exists public.communication_participant_uploads (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references public.communication_events(id) on delete restrict,
+  upload_date timestamptz not null default now(),
+  total_processed integer not null default 0 check (total_processed >= 0),
+  total_inserted integer not null default 0 check (total_inserted >= 0),
+  duplicates_ignored integer not null default 0 check (duplicates_ignored >= 0),
+  errors_detected integer not null default 0 check (errors_detected >= 0),
+  source_name text,
+  created_by uuid references public.app_profiles(id),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists communication_participant_uploads_event_idx
+  on public.communication_participant_uploads(event_id);
+
 create table if not exists public.communication_dashboard_settings (
   id smallint primary key default 1 check (id = 1),
   impact_goal integer not null default 3800 check (impact_goal > 0),
@@ -53,6 +85,8 @@ values (1, 3800)
 on conflict (id) do nothing;
 
 alter table public.communication_events enable row level security;
+alter table public.communication_participants enable row level security;
+alter table public.communication_participant_uploads enable row level security;
 alter table public.communication_dashboard_settings enable row level security;
 
 drop policy if exists "communication events read" on public.communication_events;
@@ -75,6 +109,39 @@ using (
   public.current_app_role() in ('admin', 'direccion')
   or (public.current_app_role() = 'coordinador' and public.current_area_key() = 'comunicacion')
 )
+with check (
+  public.current_app_role() in ('admin', 'direccion')
+  or (public.current_app_role() = 'coordinador' and public.current_area_key() = 'comunicacion')
+);
+
+drop policy if exists "communication participants read" on public.communication_participants;
+create policy "communication participants read"
+on public.communication_participants for select to authenticated
+using (public.can_read_area('comunicacion'));
+
+drop policy if exists "communication participants insert" on public.communication_participants;
+create policy "communication participants insert"
+on public.communication_participants for insert to authenticated
+with check (
+  (
+    public.current_app_role() in ('admin', 'direccion')
+    or (public.current_app_role() = 'coordinador' and public.current_area_key() = 'comunicacion')
+  )
+  and exists (
+    select 1 from public.communication_events event
+    where event.id = public.communication_participants.event_id
+      and event.archived_at is null
+  )
+);
+
+drop policy if exists "communication uploads read" on public.communication_participant_uploads;
+create policy "communication uploads read"
+on public.communication_participant_uploads for select to authenticated
+using (public.can_read_area('comunicacion'));
+
+drop policy if exists "communication uploads insert" on public.communication_participant_uploads;
+create policy "communication uploads insert"
+on public.communication_participant_uploads for insert to authenticated
 with check (
   public.current_app_role() in ('admin', 'direccion')
   or (public.current_app_role() = 'coordinador' and public.current_area_key() = 'comunicacion')
@@ -106,7 +173,11 @@ with check (
 );
 
 grant select, insert, update on public.communication_events to authenticated;
+grant select, insert on public.communication_participants to authenticated;
+grant select, insert on public.communication_participant_uploads to authenticated;
 grant select, insert, update on public.communication_dashboard_settings to authenticated;
 
 comment on table public.communication_events is
   'Eventos exclusivos de Comunicacion cargados desde WellSync o sincronizados desde Planeacion.';
+comment on table public.communication_participants is
+  'Matriculas participantes en eventos exclusivos de Comunicacion; no almacena nombres.';
