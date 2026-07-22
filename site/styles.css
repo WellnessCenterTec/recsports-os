@@ -1730,14 +1730,8 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 }
 
 .gym-attendance-combined-table th {
-  background: #e9eff4;
-  color: #1b2d3d;
+  background: #eef3f6;
   text-transform: none;
-}
-
-.gym-attendance-combined-table thead th:nth-child(n+12) {
-  background: #d6e6f3;
-  color: #123b5b;
 }
 
 .gym-attendance-combined-table th,
@@ -1773,44 +1767,33 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 .gym-attendance-combined-table .gym-table-gap {
   width: 28px;
   min-width: 28px;
-  background: #2f6f9f;
-  border-left: 1px solid #245a83;
-  border-right: 1px solid #245a83;
+  background: #f1dce7;
+  border-left: 1px solid #d8c3ce;
+  border-right: 1px solid #d8c3ce;
 }
 
-.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(-n+10) {
-  background: #f1f4f6;
+.gym-attendance-combined-table tbody td:nth-child(2),
+.gym-attendance-combined-table tbody td:nth-child(3),
+.gym-attendance-combined-table tbody td:nth-child(12),
+.gym-attendance-combined-table tbody td:nth-child(13) {
+  background: #f3dce7;
 }
 
-.gym-attendance-combined-table tbody tr:nth-child(even) td:nth-child(-n+10) {
-  background: #e5f0f8;
-}
-
-.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(n+12) {
-  background: #e9eef2;
-}
-
-.gym-attendance-combined-table tbody tr:nth-child(even) td:nth-child(n+12) {
-  background: #cfe3f3;
+.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(2),
+.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(3),
+.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(12),
+.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(13) {
+  background: #f6e7ee;
 }
 
 .gym-attendance-combined-table strong {
-  color: #075b9c;
+  color: var(--blue);
 }
 
 .gym-attendance-combined-table tfoot td {
-  background: #e4ebf0;
+  background: #eef3f6;
   border-top: 2px solid #c7d3dc;
   font-weight: 900;
-}
-
-.gym-attendance-combined-table tfoot td:nth-child(n+12) {
-  background: #d3e3ef;
-}
-
-.gym-attendance-combined-table tfoot .gym-table-gap {
-  background: #2f6f9f;
-  border-top-color: #245a83;
 }
 
 .gym-form-layout .form-panel,
@@ -10764,9 +10747,10 @@ tbody tr:hover td {
 .executive-presentation-hero h2 { margin: 6px 0; color: #fff; font-size: 34px; }
 .executive-presentation-hero p { margin: 0; color: #d9e9f7; }
 .executive-presentation-hero img { width: 92px; height: 72px; object-fit: contain; background: #fff; border-radius: 8px; padding: 8px; }
-.executive-presentation-template-grid { display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 14px; }
+.executive-presentation-template-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .executive-presentation-template { padding: 18px; border: 1px solid #d5e0ea; border-radius: 8px; background: #fff; box-shadow: 0 8px 22px rgba(20, 48, 78, .07); }
 .executive-presentation-template.active { display: grid; grid-template-columns: minmax(260px, 1.05fr) minmax(260px, .95fr); gap: 20px; grid-column: 1 / -1; border-top: 4px solid #0a66b7; }
+.executive-presentation-template.active.executive-presentation-template-summary { grid-template-columns: 1fr; }
 .executive-presentation-template.coming { min-height: 138px; border-top: 3px solid #d9e2ea; }
 .executive-presentation-template > span { color: #0a66b7; font-size: 12px; font-weight: 800; text-transform: uppercase; }
 .executive-presentation-template h3 { margin: 8px 0 4px; font-size: 22px; }
@@ -10774,6 +10758,24 @@ tbody tr:hover td {
 .executive-presentation-template-preview { overflow: hidden; aspect-ratio: 16 / 9; border: 1px solid #c8d6e4; border-radius: 6px; background: #eef4f8; }
 .executive-presentation-template-preview .executive-presentation-slide { transform: scale(.31); transform-origin: top left; width: 322.6%; }
 .executive-presentation-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.executive-presentation-preview-browser { display: grid; gap: 14px; padding: 18px; overflow: hidden; border: 1px solid #d5e0ea; border-radius: 10px; background: #fff; box-shadow: 0 8px 22px rgba(20, 48, 78, .07); }
+.executive-presentation-preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.executive-presentation-preview-heading h3 { margin: 3px 0; color: #082b55; font-size: 24px; }
+.executive-presentation-preview-heading span { color: #627386; font-size: 13px; }
+.executive-presentation-preview-heading > div:last-child { display: flex; align-items: center; gap: 12px; }
+.executive-presentation-preview-heading > div:last-child > strong { color: #0a66b7; font-size: 15px; white-space: nowrap; }
+.executive-presentation-preview-stage { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 10px; min-width: 0; }
+.executive-presentation-preview-canvas { width: 100%; max-width: 1400px; margin: 0 auto; aspect-ratio: 16 / 9; min-height: 0; }
+.executive-presentation-preview-stage > button { display: grid; place-items: center; width: 100%; height: 70px; padding: 0; border: 1px solid #c8d6e4; border-radius: 8px; color: #0a66b7; background: #f3f8fc; font-size: 38px; cursor: pointer; }
+.executive-presentation-preview-stage > button:hover:not(:disabled) { border-color: #0a66b7; background: #e5f2fb; }
+.executive-presentation-preview-stage > button:disabled { opacity: .3; cursor: default; }
+.executive-presentation-preview-filmstrip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 270px); gap: 12px; overflow-x: auto; padding: 4px 2px 10px; scroll-snap-type: x proximity; scrollbar-color: #9eb8cd #eef4f8; }
+.executive-presentation-preview-filmstrip > button { display: grid; gap: 7px; min-width: 0; padding: 7px; scroll-snap-align: start; text-align: left; color: #19324f; border: 2px solid transparent; border-radius: 8px; background: #eef4f8; cursor: pointer; }
+.executive-presentation-preview-filmstrip > button:hover { border-color: #78abd4; }
+.executive-presentation-preview-filmstrip > button.selected { border-color: #0a66b7; background: #e3f2fd; box-shadow: 0 5px 14px rgba(10, 102, 183, .14); }
+.executive-presentation-preview-filmstrip > button > strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.executive-presentation-thumbnail-canvas { display: block; overflow: hidden; width: 100%; aspect-ratio: 16 / 9; border: 1px solid #cbd9e5; border-radius: 5px; background: #fff; pointer-events: none; }
+.executive-presentation-thumbnail-canvas .executive-presentation-slide { width: 400%; height: 400%; transform: scale(.25); transform-origin: top left; border-radius: 0; box-shadow: none; }
 .executive-presentation-slide-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .executive-presentation-slide-grid > article { position: relative; min-width: 0; }
 .executive-presentation-slide-grid button[data-presentation-slide] { display: grid; grid-template-columns: 28px 26px minmax(0, 1fr); align-items: center; gap: 8px; width: 100%; min-height: 62px; padding: 10px 42px 10px 10px; text-align: left; color: #19324f; background: #fff; border: 1px solid #d5e0ea; border-radius: 7px; cursor: pointer; }
@@ -11071,6 +11073,13 @@ tbody tr:hover td {
   .executive-presentation-hero img { width: 68px; height: 58px; }
   .executive-presentation-template.active { grid-template-columns: 1fr; }
   .executive-presentation-template-grid, .executive-presentation-slide-grid { grid-template-columns: 1fr; }
+  .executive-presentation-preview-browser { padding: 12px; }
+  .executive-presentation-preview-heading { align-items: stretch; flex-direction: column; }
+  .executive-presentation-preview-heading > div:last-child { align-items: stretch; justify-content: space-between; }
+  .executive-presentation-preview-heading > div:last-child .primary-btn { flex: 1; }
+  .executive-presentation-preview-stage { grid-template-columns: 34px minmax(0, 1fr) 34px; gap: 5px; }
+  .executive-presentation-preview-stage > button { height: 58px; font-size: 30px; }
+  .executive-presentation-preview-filmstrip { grid-auto-columns: 200px; }
   .executive-presentation-stage { padding: 54px 8px 44px; }
   .executive-presentation-canvas { width: 100%; }
   .executive-presentation-nav { top: auto; bottom: 5px; width: 46%; height: 36px; transform: none; }
