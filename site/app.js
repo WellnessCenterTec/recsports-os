@@ -10869,8 +10869,41 @@ function updateExecutivePresentationStage() {
   window.lucide?.createIcons();
 }
 
+function renderExecutivePresentationPreview() {
+  executivePresentationIndex = Math.max(0, Math.min(EXECUTIVE_PRESENTATION_SLIDES.length - 1, executivePresentationIndex));
+  const selectedSlide = EXECUTIVE_PRESENTATION_SLIDES[executivePresentationIndex];
+  return `
+    <section class="executive-presentation-preview-browser" aria-label="Navegador preliminar de diapositivas">
+      <header class="executive-presentation-preview-heading">
+        <div>
+          <p class="eyebrow">Vista preliminar</p>
+          <h3>${executivePresentationIndex + 1}. ${escapeHtml(selectedSlide.title)}</h3>
+          <span>Revisa el contenido antes de abrir la presentación.</span>
+        </div>
+        <div>
+          <strong>${executivePresentationIndex + 1} / ${EXECUTIVE_PRESENTATION_SLIDES.length}</strong>
+          <button class="primary-btn" type="button" data-presentation-preview-fullscreen>Abrir en pantalla completa</button>
+        </div>
+      </header>
+      <div class="executive-presentation-preview-stage">
+        <button type="button" data-presentation-preview-step="-1" aria-label="Diapositiva anterior" ${executivePresentationIndex === 0 ? "disabled" : ""}>&#8249;</button>
+        <div class="executive-presentation-preview-canvas">${renderExecutivePresentationSlide(selectedSlide, executivePresentationIndex)}</div>
+        <button type="button" data-presentation-preview-step="1" aria-label="Siguiente diapositiva" ${executivePresentationIndex === EXECUTIVE_PRESENTATION_SLIDES.length - 1 ? "disabled" : ""}>&#8250;</button>
+      </div>
+      <div class="executive-presentation-preview-filmstrip" role="tablist" aria-label="Vista preliminar de diapositivas">
+        ${EXECUTIVE_PRESENTATION_SLIDES.map((slide, index) => `
+          <button type="button" role="tab" aria-selected="${index === executivePresentationIndex}" class="${index === executivePresentationIndex ? "selected" : ""}" data-presentation-preview-select="${index}">
+            <span class="executive-presentation-thumbnail-canvas">${renderExecutivePresentationSlide(slide, index)}</span>
+            <strong>${index + 1}. ${escapeHtml(slide.title)}</strong>
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderExecutivePresentationHub() {
-  return `<section class="executive-presentation-hub"><div class="executive-presentation-hero"><div><p class="eyebrow">WellSync · Dirección Deportiva</p><h2>Presentación Ejecutiva</h2><p>Datos automáticos del sistema y contenido editable por semana, en una sola junta.</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div><div class="executive-presentation-template-grid"><article class="executive-presentation-template active"><div class="executive-presentation-template-preview">${renderExecutivePresentationSlide(EXECUTIVE_PRESENTATION_SLIDES[0], 0)}</div><div><span>Formato activo · ${escapeHtml(presentationWeekKey())}</span><h3>Junta semanal híbrida</h3><p>12 diapositivas: indicadores, presupuesto, calendario, desempeño y equipo se actualizan desde WellSync; acuerdos y notas se editan por semana.</p><div class="executive-presentation-actions"><button class="primary-btn" type="button" data-presentation-action="present">Presentar</button><button class="ghost-btn" type="button" data-presentation-action="edit">Editar contenido</button><button class="ghost-btn" type="button" data-presentation-action="refresh">Actualizar datos</button><button class="ghost-btn" type="button" data-presentation-action="pdf">Exportar PDF</button><button class="ghost-btn" type="button" data-presentation-action="powerpoint">PowerPoint</button></div></div></article>${["Informe mensual", "Rectoría", "Coordinadores"].map((title) => `<article class="executive-presentation-template coming"><span>Próximamente</span><h3>${title}</h3><p>Formato preparado para una siguiente fase.</p></article>`).join("")}</div><div class="executive-presentation-slide-grid">${EXECUTIVE_PRESENTATION_SLIDES.map((slide, index) => `<article><button type="button" data-presentation-slide="${index}"><span>${index + 1}</span><i data-lucide="${slide.icon}"></i><strong>${escapeHtml(slide.title)}</strong></button><button class="executive-presentation-slide-edit" type="button" data-presentation-edit-slide="${escapeHtml(slide.key)}" aria-label="Editar ${escapeHtml(slide.title)}"><i data-lucide="pencil"></i></button></article>`).join("")}</div></section>${renderExecutivePresentationStage()}${renderExecutivePresentationEditor()}`;
+  return `<section class="executive-presentation-hub"><div class="executive-presentation-hero"><div><p class="eyebrow">WellSync · Dirección Deportiva</p><h2>Presentación Ejecutiva</h2><p>Datos automáticos del sistema y contenido editable por semana, en una sola junta.</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div><div class="executive-presentation-template-grid"><article class="executive-presentation-template active executive-presentation-template-summary"><div><span>Formato activo · ${escapeHtml(presentationWeekKey())}</span><h3>Junta semanal híbrida</h3><p>12 diapositivas: indicadores, presupuesto, calendario, desempeño y equipo se actualizan desde WellSync; acuerdos y notas se editan por semana.</p><div class="executive-presentation-actions"><button class="primary-btn" type="button" data-presentation-action="present">Abrir presentación</button><button class="ghost-btn" type="button" data-presentation-action="edit">Editar contenido</button><button class="ghost-btn" type="button" data-presentation-action="refresh">Actualizar datos</button><button class="ghost-btn" type="button" data-presentation-action="pdf">Exportar PDF</button><button class="ghost-btn" type="button" data-presentation-action="powerpoint">PowerPoint</button></div></div></article></div>${renderExecutivePresentationPreview()}<div class="executive-presentation-template-grid executive-presentation-template-grid-upcoming">${["Informe mensual", "Rectoría", "Coordinadores"].map((title) => `<article class="executive-presentation-template coming"><span>Próximamente</span><h3>${title}</h3><p>Formato preparado para una siguiente fase.</p></article>`).join("")}</div></section>${renderExecutivePresentationStage()}${renderExecutivePresentationEditor()}`;
 }
 
 async function refreshExecutivePresentationData() {
@@ -10935,7 +10968,7 @@ async function saveExecutivePresentationNotes(form) {
 function bindExecutivePresentationControls() {
   $$('[data-presentation-action]').forEach((button) => button.addEventListener("click", async () => {
     const action = button.dataset.presentationAction;
-    if (action === "present") { executivePresentationIndex = 0; executivePresentationMode = true; render(); }
+    if (action === "present") { executivePresentationMode = true; render(); }
     if (action === "edit") { executivePresentationEditingSlide = "priorities"; executivePresentationEditorOpen = true; render(); }
     if (action === "refresh") {
       button.disabled = true;
@@ -10955,6 +10988,18 @@ function bindExecutivePresentationControls() {
     }
     if (action === "powerpoint") toast("Exportación PowerPoint preparada para una siguiente fase");
   }));
+  $$('[data-presentation-preview-select]').forEach((button) => button.addEventListener("click", () => {
+    executivePresentationIndex = Number(button.dataset.presentationPreviewSelect) || 0;
+    render();
+  }));
+  $$('[data-presentation-preview-step]').forEach((button) => button.addEventListener("click", () => {
+    executivePresentationIndex = Math.max(0, Math.min(EXECUTIVE_PRESENTATION_SLIDES.length - 1, executivePresentationIndex + Number(button.dataset.presentationPreviewStep)));
+    render();
+  }));
+  $("[data-presentation-preview-fullscreen]")?.addEventListener("click", () => {
+    executivePresentationMode = true;
+    render();
+  });
   $$('[data-presentation-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Number(button.dataset.presentationSlide) || 0; executivePresentationMode = true; render(); }));
   $$('[data-presentation-edit-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditSlide || "priorities"; presentationInventoryDraft = null; presentationFeedbackDraft = null; executivePresentationEditorOpen = true; render(); }));
   $$('[data-presentation-editor-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditorSlide || "priorities"; presentationInventoryDraft = null; presentationFeedbackDraft = null; render(); }));
