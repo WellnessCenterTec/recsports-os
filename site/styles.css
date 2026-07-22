@@ -11241,6 +11241,16 @@ tbody tr:hover td {
 .intramuros-tournament-gender-counts .men i { background: #16866e; }
 .intramuros-tournament-gender-counts .unknown i { background: #94a3b8; }
 
+.upload-last-success {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  color: var(--muted, #64748b);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
 @media (max-width: 760px) {
   .intramuros-exec-grid {
     grid-template-areas:
