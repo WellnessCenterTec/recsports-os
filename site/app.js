@@ -512,6 +512,17 @@ let executivePresentationEditingSlide = "priorities";
 let executivePresentationCloudAvailable = true;
 let executivePresentationSaving = false;
 let executivePresentationNotes = loadExecutivePresentationLocalNotes();
+const presentationHistoryApi = window.WellSyncPresentationHistory;
+const presentationHistoryPendingStore = presentationHistoryApi.createPendingStore(localStorage);
+let executivePresentationHistory = [];
+let executivePresentationHistoryLoading = false;
+let executivePresentationHistorySaving = false;
+let executivePresentationHistoryCloudAvailable = true;
+let executivePresentationHistorySaveOpen = false;
+let executivePresentationHistoryViewer = null;
+let executivePresentationHistoryViewerIndex = 0;
+let executivePresentationHistoryReuseTarget = null;
+let executivePresentationHistoryReturnFocus = null;
 let presentationInventoryDraft = null;
 let presentationFeedbackDraft = null;
 let presentationInventoryPendingUploadKeys = new Set();
@@ -10902,14 +10913,67 @@ function renderExecutivePresentationPreview() {
   `;
 }
 
+function sanitizePresentationSnapshotHtml(html) {
+  const template = document.createElement("template");
+  template.innerHTML = String(html || "");
+  template.content.querySelectorAll("script,style,iframe,object,embed,link,meta").forEach((node) => node.remove());
+  template.content.querySelectorAll("*").forEach((node) => {
+    [...node.attributes].forEach((attribute) => {
+      const name = attribute.name.toLowerCase();
+      const value = String(attribute.value || "").trim().toLowerCase();
+      if (name.startsWith("on") || ((name === "href" || name === "src") && value.startsWith("javascript:"))) {
+        node.removeAttribute(attribute.name);
+      }
+    });
+  });
+  return template.innerHTML;
+}
+
+function renderExecutivePresentationHistory() {
+  const rows = executivePresentationHistory;
+  return `<section class="executive-presentation-history" aria-labelledby="presentationHistoryTitle">
+    <header>
+      <div><p class="eyebrow">Versiones guardadas</p><h3 id="presentationHistoryTitle">Historial de presentaciones</h3><span>Consulta o reutiliza las juntas anteriores sin cambiar la versión original.</span></div>
+      <strong>${rows.length} ${rows.length === 1 ? "versión" : "versiones"}</strong>
+    </header>
+    ${executivePresentationHistoryLoading
+      ? `<div class="executive-presentation-history-empty">Cargando historial...</div>`
+      : rows.length
+        ? `<div class="executive-presentation-history-list">${rows.map((row) => `<article class="executive-presentation-history-card${row.pending ? " pending" : ""}"><div><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(presentationHistoryApi.formatSavedAt(row.savedAt))}</span><em>${escapeHtml(row.weekKey || "Semana no disponible")} · 12 diapositivas${row.pending ? " · Pendiente de sincronizar" : ""}</em></div><div><button class="ghost-btn" type="button" data-presentation-history-view="${escapeHtml(row.id)}">Ver</button><button class="ghost-btn" type="button" data-presentation-history-reuse="${escapeHtml(row.id)}">Editar / Reutilizar</button></div></article>`).join("")}</div>`
+        : `<div class="executive-presentation-history-empty"><strong>Aún no hay versiones guardadas</strong><span>Usa Guardar presentación para crear la primera.</span></div>`}
+  </section>`;
+}
+
+function renderPresentationHistorySaveDialog() {
+  if (!executivePresentationHistorySaveOpen) return "";
+  const now = new Date().toISOString();
+  return `<div class="executive-presentation-history-modal-backdrop" data-presentation-history-close="save"><section class="executive-presentation-history-dialog" role="dialog" aria-modal="true" aria-labelledby="presentationHistorySaveTitle"><header><div><p class="eyebrow">Nueva versión</p><h2 id="presentationHistorySaveTitle">Guardar presentación</h2></div><button type="button" data-presentation-history-close="save" aria-label="Cerrar">&times;</button></header><label>Nombre de la presentación (opcional)<input id="presentationHistoryName" type="text" maxlength="120" placeholder="Ejemplo: Junta de cierre" autofocus /></label><p>Se guardarán las 12 diapositivas como se ven ahora.</p><div class="executive-presentation-history-date"><span>Fecha y hora</span><strong>${escapeHtml(presentationHistoryApi.formatSavedAt(now))}</strong></div><footer><button class="ghost-btn" type="button" data-presentation-history-close="save">Cancelar</button><button class="primary-btn" type="button" data-presentation-history-save-confirm ${executivePresentationHistorySaving ? "disabled" : ""}>${executivePresentationHistorySaving ? "Guardando..." : "Guardar en historial"}</button></footer></section></div>`;
+}
+
+function renderPresentationHistoryViewer() {
+  if (!executivePresentationHistoryViewer) return "";
+  const slides = executivePresentationHistoryViewer.slides || [];
+  executivePresentationHistoryViewerIndex = Math.max(0, Math.min(slides.length - 1, executivePresentationHistoryViewerIndex));
+  const selected = slides[executivePresentationHistoryViewerIndex];
+  if (!selected) return "";
+  return `<div class="executive-presentation-history-modal-backdrop executive-presentation-history-viewer-backdrop"><section class="executive-presentation-history-viewer" role="dialog" aria-modal="true" aria-labelledby="presentationHistoryViewerTitle"><header><div><p class="eyebrow">Versión guardada · Solo lectura</p><h2 id="presentationHistoryViewerTitle">${escapeHtml(executivePresentationHistoryViewer.title)}</h2><span>${escapeHtml(presentationHistoryApi.formatSavedAt(executivePresentationHistoryViewer.savedAt))}</span></div><button type="button" data-presentation-history-close="viewer" aria-label="Cerrar">&times;</button></header><div class="executive-presentation-history-viewer-counter"><strong>${executivePresentationHistoryViewerIndex + 1} / ${slides.length}</strong><span>${escapeHtml(selected.title || "Diapositiva")}</span></div><div class="executive-presentation-preview-stage"><button type="button" data-presentation-history-viewer-step="-1" aria-label="Diapositiva anterior" ${executivePresentationHistoryViewerIndex === 0 ? "disabled" : ""}>&#8249;</button><div class="executive-presentation-preview-canvas">${sanitizePresentationSnapshotHtml(selected.html)}</div><button type="button" data-presentation-history-viewer-step="1" aria-label="Siguiente diapositiva" ${executivePresentationHistoryViewerIndex === slides.length - 1 ? "disabled" : ""}>&#8250;</button></div><div class="executive-presentation-preview-filmstrip" role="tablist" aria-label="Diapositivas guardadas">${slides.map((slide, index) => `<button type="button" role="tab" aria-selected="${index === executivePresentationHistoryViewerIndex}" class="${index === executivePresentationHistoryViewerIndex ? "selected" : ""}" data-presentation-history-viewer-select="${index}"><span class="executive-presentation-thumbnail-canvas">${sanitizePresentationSnapshotHtml(slide.html)}</span><strong>${index + 1}. ${escapeHtml(slide.title || "Diapositiva")}</strong></button>`).join("")}</div></section></div>`;
+}
+
+function renderPresentationHistoryReuseDialog() {
+  if (!executivePresentationHistoryReuseTarget) return "";
+  return `<div class="executive-presentation-history-modal-backdrop" data-presentation-history-close="reuse"><section class="executive-presentation-history-dialog" role="dialog" aria-modal="true" aria-labelledby="presentationHistoryReuseTitle"><header><div><p class="eyebrow">Reutilizar versión</p><h2 id="presentationHistoryReuseTitle">${escapeHtml(executivePresentationHistoryReuseTarget.title)}</h2></div><button type="button" data-presentation-history-close="reuse" aria-label="Cerrar">&times;</button></header><div class="executive-presentation-history-warning"><strong>¿Cargar esta versión para editarla?</strong><p>Se reemplazará el contenido editable de la presentación principal. La versión histórica permanecerá intacta y los datos automáticos se actualizarán con la información actual de WellSync.</p></div><footer><button class="ghost-btn" type="button" data-presentation-history-close="reuse">Cancelar</button><button class="primary-btn" type="button" data-presentation-history-reuse-confirm>Cargar y editar</button></footer></section></div>`;
+}
+
 function renderExecutivePresentationHub() {
-  return `<section class="executive-presentation-hub"><div class="executive-presentation-hero"><div><p class="eyebrow">WellSync · Dirección Deportiva</p><h2>Presentación Ejecutiva</h2><p>Datos automáticos del sistema y contenido editable por semana, en una sola junta.</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div><div class="executive-presentation-template-grid"><article class="executive-presentation-template active executive-presentation-template-summary"><div><span>Formato activo · ${escapeHtml(presentationWeekKey())}</span><h3>Junta semanal híbrida</h3><p>12 diapositivas: indicadores, presupuesto, calendario, desempeño y equipo se actualizan desde WellSync; acuerdos y notas se editan por semana.</p><div class="executive-presentation-actions"><button class="primary-btn" type="button" data-presentation-action="present">Abrir presentación</button><button class="ghost-btn" type="button" data-presentation-action="edit">Editar contenido</button><button class="ghost-btn" type="button" data-presentation-action="refresh">Actualizar datos</button><button class="ghost-btn" type="button" data-presentation-action="pdf">Exportar PDF</button><button class="ghost-btn" type="button" data-presentation-action="powerpoint">PowerPoint</button></div></div></article></div>${renderExecutivePresentationPreview()}<div class="executive-presentation-template-grid executive-presentation-template-grid-upcoming">${["Informe mensual", "Rectoría", "Coordinadores"].map((title) => `<article class="executive-presentation-template coming"><span>Próximamente</span><h3>${title}</h3><p>Formato preparado para una siguiente fase.</p></article>`).join("")}</div></section>${renderExecutivePresentationStage()}${renderExecutivePresentationEditor()}`;
+  return `<section class="executive-presentation-hub"><div class="executive-presentation-hero"><div><p class="eyebrow">WellSync · Dirección Deportiva</p><h2>Presentación Ejecutiva</h2><p>Datos automáticos del sistema y contenido editable por semana, en una sola junta.</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div><div class="executive-presentation-template-grid"><article class="executive-presentation-template active executive-presentation-template-summary"><div><span>Formato activo · ${escapeHtml(presentationWeekKey())}</span><h3>Junta semanal híbrida</h3><p>12 diapositivas: indicadores, presupuesto, calendario, desempeño y equipo se actualizan desde WellSync; acuerdos y notas se editan por semana.</p><div class="executive-presentation-actions"><button class="primary-btn" type="button" data-presentation-action="present">Abrir presentación</button><button class="primary-btn" type="button" data-presentation-history-save>Guardar presentación</button><button class="ghost-btn" type="button" data-presentation-action="edit">Editar contenido</button><button class="ghost-btn" type="button" data-presentation-action="refresh">Actualizar datos</button><button class="ghost-btn" type="button" data-presentation-action="pdf">Exportar PDF</button><button class="ghost-btn" type="button" data-presentation-action="powerpoint">PowerPoint</button></div></div></article></div>${renderExecutivePresentationPreview()}${renderExecutivePresentationHistory()}<div class="executive-presentation-template-grid executive-presentation-template-grid-upcoming">${["Informe mensual", "Rectoría", "Coordinadores"].map((title) => `<article class="executive-presentation-template coming"><span>Próximamente</span><h3>${title}</h3><p>Formato preparado para una siguiente fase.</p></article>`).join("")}</div></section>${renderExecutivePresentationStage()}${renderExecutivePresentationEditor()}${renderPresentationHistorySaveDialog()}${renderPresentationHistoryViewer()}${renderPresentationHistoryReuseDialog()}`;
 }
 
 async function refreshExecutivePresentationData() {
   if (supabaseClient && currentUser?.auth === "supabase") await loadSupabaseDataBundle();
   await loadPlanningCalendarRows();
   await loadExecutivePresentationNotes();
+  await syncPendingPresentationHistory();
+  await loadPresentationHistory();
 }
 
 async function loadExecutivePresentationNotes() {
@@ -10965,6 +11029,220 @@ async function saveExecutivePresentationNotes(form) {
   return !notes.error;
 }
 
+function captureExecutivePresentationSnapshot(title = "") {
+  const savedAt = new Date().toISOString();
+  return presentationHistoryApi.createSnapshot({
+    title,
+    weekKey: presentationWeekKey(),
+    savedAt,
+    editableContent: presentationNotesForCurrentWeek(),
+    slides: EXECUTIVE_PRESENTATION_SLIDES.map((slide, index) => ({
+      key: slide.key,
+      title: slide.title,
+      html: renderExecutivePresentationSlide(slide, index)
+    }))
+  });
+}
+
+function presentationHistoryStorageKey(snapshot) {
+  return `history-${String(snapshot.savedAt || "").replace(/[^0-9]/g, "")}-${snapshot.id}`;
+}
+
+function presentationHistorySnapshotId(weekKey) {
+  return String(weekKey || "").replace(/^history-\d+-/, "");
+}
+
+async function savePresentationHistorySnapshot(snapshot) {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return false;
+  const weekKey = presentationHistoryStorageKey(snapshot);
+  const head = await supabaseClient.from("presentaciones").upsert({
+    week_key: weekKey,
+    presentation_type: "history",
+    title: snapshot.title,
+    status: "draft",
+    updated_at: snapshot.savedAt
+  }, { onConflict: "week_key,presentation_type" }).select("id").single();
+  if (head.error || !head.data?.id) {
+    executivePresentationHistoryCloudAvailable = false;
+    return false;
+  }
+  const rows = [
+    {
+      section_key: "__snapshot_meta",
+      content: JSON.stringify({
+        schemaVersion: snapshot.schemaVersion,
+        id: snapshot.id,
+        savedAt: snapshot.savedAt,
+        weekKey: snapshot.weekKey
+      })
+    },
+    { section_key: "__editable_content", content: JSON.stringify(snapshot.editableContent) },
+    ...snapshot.slides.map((slide) => ({ section_key: `snapshot:${slide.key}`, content: JSON.stringify(slide) }))
+  ].map((row) => ({ ...row, presentacion_id: head.data.id, updated_at: snapshot.savedAt }));
+  const details = await supabaseClient.from("presentacion_notas").upsert(rows, { onConflict: "presentacion_id,section_key" });
+  if (details.error) {
+    executivePresentationHistoryCloudAvailable = false;
+    return false;
+  }
+  const completed = await supabaseClient.from("presentaciones").update({ status: "saved", updated_at: snapshot.savedAt }).eq("id", head.data.id);
+  executivePresentationHistoryCloudAvailable = !completed.error;
+  return !completed.error;
+}
+
+async function persistPresentationHistorySnapshot(snapshot) {
+  presentationHistoryPendingStore.upsert(snapshot);
+  const saved = await savePresentationHistorySnapshot(snapshot);
+  if (saved) presentationHistoryPendingStore.remove(snapshot.id);
+  await loadPresentationHistory();
+  return saved;
+}
+
+async function loadPresentationHistory() {
+  executivePresentationHistoryLoading = true;
+  const pending = presentationHistoryPendingStore.list().map((snapshot) => ({ ...snapshot, pending: true }));
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    executivePresentationHistory = pending.sort((a, b) => String(b.savedAt || "").localeCompare(String(a.savedAt || "")));
+    executivePresentationHistoryLoading = false;
+    return;
+  }
+  try {
+    const result = await supabaseClient
+      .from("presentaciones")
+      .select("id,title,week_key,updated_at,status")
+      .eq("presentation_type", "history")
+      .eq("status", "saved")
+      .order("updated_at", { ascending: false });
+    if (result.error) {
+      executivePresentationHistoryCloudAvailable = false;
+      executivePresentationHistory = pending;
+      return;
+    }
+    const headers = result.data || [];
+    const headerIds = headers.map((row) => row.id).filter(Boolean);
+    let metadataByPresentation = new Map();
+    if (headerIds.length) {
+      const metadata = await supabaseClient
+        .from("presentacion_notas")
+        .select("presentacion_id,content")
+        .in("presentacion_id", headerIds)
+        .eq("section_key", "__snapshot_meta");
+      if (!metadata.error) {
+        metadataByPresentation = new Map((metadata.data || []).map((row) => {
+          try {
+            return [row.presentacion_id, JSON.parse(row.content || "{}")];
+          } catch {
+            return [row.presentacion_id, {}];
+          }
+        }));
+      }
+    }
+    const cloud = headers.map((row) => {
+      const meta = metadataByPresentation.get(row.id) || {};
+      return {
+        id: meta.id || presentationHistorySnapshotId(row.week_key),
+        cloudId: row.id,
+        title: row.title || presentationHistoryApi.defaultTitle(row.updated_at),
+        savedAt: meta.savedAt || row.updated_at,
+        weekKey: meta.weekKey || "",
+        pending: false
+      };
+    });
+    const cloudIds = new Set(cloud.map((row) => row.id));
+    executivePresentationHistory = [...pending.filter((row) => !cloudIds.has(row.id)), ...cloud]
+      .sort((a, b) => String(b.savedAt || "").localeCompare(String(a.savedAt || "")));
+    executivePresentationHistoryCloudAvailable = true;
+  } finally {
+    executivePresentationHistoryLoading = false;
+  }
+}
+
+async function syncPendingPresentationHistory() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  for (const snapshot of presentationHistoryPendingStore.list()) {
+    const saved = await savePresentationHistorySnapshot(snapshot);
+    if (saved) presentationHistoryPendingStore.remove(snapshot.id);
+  }
+}
+
+async function loadPresentationHistorySnapshot(record) {
+  if (record?.pending && Array.isArray(record.slides)) return presentationHistoryApi.cloneEditableContent(record);
+  if (!record?.cloudId || !supabaseClient || currentUser?.auth !== "supabase") {
+    throw new Error("No se pudo recuperar la presentación completa");
+  }
+  const result = await supabaseClient
+    .from("presentacion_notas")
+    .select("section_key,content")
+    .eq("presentacion_id", record.cloudId);
+  if (result.error) throw new Error("No se pudo recuperar la presentación completa");
+  let meta = {};
+  let editableContent = {};
+  const slidesByKey = new Map();
+  (result.data || []).forEach((row) => {
+    try {
+      if (row.section_key === "__snapshot_meta") meta = JSON.parse(row.content || "{}");
+      else if (row.section_key === "__editable_content") editableContent = JSON.parse(row.content || "{}");
+      else if (String(row.section_key || "").startsWith("snapshot:")) {
+        const slide = JSON.parse(row.content || "{}");
+        if (slide?.key) slidesByKey.set(slide.key, slide);
+      }
+    } catch {
+      // A malformed row is rejected by the completeness check below.
+    }
+  });
+  const snapshot = {
+    schemaVersion: meta.schemaVersion || 1,
+    id: meta.id || record.id,
+    title: record.title,
+    savedAt: meta.savedAt || record.savedAt,
+    weekKey: meta.weekKey || record.weekKey,
+    editableContent,
+    slides: EXECUTIVE_PRESENTATION_SLIDES.map((slide) => slidesByKey.get(slide.key)).filter(Boolean)
+  };
+  if (!presentationHistoryApi.isComplete(snapshot)) throw new Error("No se pudo recuperar la presentación completa");
+  return snapshot;
+}
+
+async function saveExecutivePresentationEditableContent(values) {
+  const weekKey = presentationWeekKey();
+  const reusableValues = presentationHistoryApi.cloneEditableContent(values);
+  executivePresentationNotes[weekKey] = reusableValues;
+  saveExecutivePresentationLocalNotes();
+  if (!supabaseClient || currentUser?.auth !== "supabase") return false;
+  const savedAt = new Date().toISOString();
+  const head = await supabaseClient.from("presentaciones").upsert({
+    week_key: weekKey,
+    presentation_type: "weekly",
+    title: `Junta semanal ${weekKey}`,
+    status: "draft",
+    updated_at: savedAt
+  }, { onConflict: "week_key,presentation_type" }).select("id").single();
+  if (head.error || !head.data?.id) return false;
+  const cleared = await supabaseClient.from("presentacion_notas").delete().eq("presentacion_id", head.data.id);
+  if (cleared.error) return false;
+  const rows = Object.entries(reusableValues).map(([section_key, content]) => ({
+    presentacion_id: head.data.id,
+    section_key,
+    content: String(content ?? ""),
+    updated_at: savedAt
+  }));
+  if (!rows.length) return true;
+  const notes = await supabaseClient.from("presentacion_notas").upsert(rows, { onConflict: "presentacion_id,section_key" });
+  return !notes.error;
+}
+
+function closePresentationHistoryLayer(layer) {
+  if (layer === "save") executivePresentationHistorySaveOpen = false;
+  if (layer === "viewer") executivePresentationHistoryViewer = null;
+  if (layer === "reuse") executivePresentationHistoryReuseTarget = null;
+  render();
+  const returnTarget = executivePresentationHistoryReturnFocus;
+  executivePresentationHistoryReturnFocus = null;
+  requestAnimationFrame(() => {
+    if (returnTarget?.isConnected) returnTarget.focus();
+    else $("[data-presentation-history-save]")?.focus();
+  });
+}
+
 function bindExecutivePresentationControls() {
   $$('[data-presentation-action]').forEach((button) => button.addEventListener("click", async () => {
     const action = button.dataset.presentationAction;
@@ -10988,6 +11266,91 @@ function bindExecutivePresentationControls() {
     }
     if (action === "powerpoint") toast("Exportación PowerPoint preparada para una siguiente fase");
   }));
+  $("[data-presentation-history-save]")?.addEventListener("click", (event) => {
+    executivePresentationHistoryReturnFocus = event.currentTarget;
+    executivePresentationHistorySaveOpen = true;
+    render();
+    requestAnimationFrame(() => $("#presentationHistoryName")?.focus());
+  });
+  $("[data-presentation-history-save-confirm]")?.addEventListener("click", async (event) => {
+    if (executivePresentationHistorySaving) return;
+    const button = event.currentTarget;
+    try {
+      executivePresentationHistorySaving = true;
+      button.disabled = true;
+      button.textContent = "Guardando...";
+      const snapshot = captureExecutivePresentationSnapshot($("#presentationHistoryName")?.value || "");
+      const cloudSaved = await persistPresentationHistorySnapshot(snapshot);
+      executivePresentationHistorySaveOpen = false;
+      executivePresentationHistorySaving = false;
+      render();
+      toast(cloudSaved ? "Presentación guardada en el historial" : "Presentación pendiente de sincronizar");
+    } catch (error) {
+      executivePresentationHistorySaving = false;
+      button.disabled = false;
+      button.textContent = "Guardar en historial";
+      toast(error.message || "No se pudo guardar la presentación");
+    }
+  });
+  $$('[data-presentation-history-view]').forEach((button) => button.addEventListener("click", async (event) => {
+    const record = executivePresentationHistory.find((row) => row.id === button.dataset.presentationHistoryView);
+    if (!record) return;
+    executivePresentationHistoryReturnFocus = event.currentTarget;
+    button.disabled = true;
+    button.textContent = "Abriendo...";
+    try {
+      executivePresentationHistoryViewer = await loadPresentationHistorySnapshot(record);
+      executivePresentationHistoryViewerIndex = 0;
+      render();
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = "Ver";
+      toast(error.message || "No se pudo abrir la presentación");
+    }
+  }));
+  $$('[data-presentation-history-reuse]').forEach((button) => button.addEventListener("click", async (event) => {
+    const record = executivePresentationHistory.find((row) => row.id === button.dataset.presentationHistoryReuse);
+    if (!record) return;
+    executivePresentationHistoryReturnFocus = event.currentTarget;
+    button.disabled = true;
+    button.textContent = "Cargando...";
+    try {
+      executivePresentationHistoryReuseTarget = await loadPresentationHistorySnapshot(record);
+      render();
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = "Editar / Reutilizar";
+      toast(error.message || "No se pudo recuperar la presentación");
+    }
+  }));
+  $$('[data-presentation-history-close]').forEach((button) => button.addEventListener("click", (event) => {
+    if (event.target !== event.currentTarget && event.currentTarget.tagName !== "BUTTON") return;
+    closePresentationHistoryLayer(button.dataset.presentationHistoryClose);
+  }));
+  $$('[data-presentation-history-viewer-step]').forEach((button) => button.addEventListener("click", () => {
+    executivePresentationHistoryViewerIndex = Math.max(0, Math.min((executivePresentationHistoryViewer?.slides.length || 1) - 1, executivePresentationHistoryViewerIndex + Number(button.dataset.presentationHistoryViewerStep)));
+    render();
+  }));
+  $$('[data-presentation-history-viewer-select]').forEach((button) => button.addEventListener("click", () => {
+    executivePresentationHistoryViewerIndex = Number(button.dataset.presentationHistoryViewerSelect) || 0;
+    render();
+  }));
+  $("[data-presentation-history-reuse-confirm]")?.addEventListener("click", async (event) => {
+    if (!executivePresentationHistoryReuseTarget) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.textContent = "Cargando...";
+    const values = presentationHistoryApi.cloneEditableContent(executivePresentationHistoryReuseTarget.editableContent);
+    const cloudSaved = await saveExecutivePresentationEditableContent(values);
+    executivePresentationHistoryReuseTarget = null;
+    executivePresentationEditingSlide = "priorities";
+    executivePresentationEditorOpen = true;
+    presentationInventoryDraft = null;
+    presentationFeedbackDraft = null;
+    await refreshExecutivePresentationData();
+    render();
+    toast(cloudSaved ? "Presentación cargada para editar" : "Presentación cargada en este navegador");
+  });
   $$('[data-presentation-preview-select]').forEach((button) => button.addEventListener("click", () => {
     executivePresentationIndex = Number(button.dataset.presentationPreviewSelect) || 0;
     render();
@@ -17593,10 +17956,28 @@ render();
 loadPlanningCalendarRows().then(() => render());
 loadSupabaseSession().then(async () => {
   await loadExecutivePresentationNotes();
+  await syncPendingPresentationHistory();
+  await loadPresentationHistory();
   render();
 });
 
 document.addEventListener("keydown", (event) => {
+  if (executivePresentationHistoryViewer) {
+    if (event.key === "ArrowRight") {
+      executivePresentationHistoryViewerIndex = Math.min(executivePresentationHistoryViewer.slides.length - 1, executivePresentationHistoryViewerIndex + 1);
+      render();
+    } else if (event.key === "ArrowLeft") {
+      executivePresentationHistoryViewerIndex = Math.max(0, executivePresentationHistoryViewerIndex - 1);
+      render();
+    } else if (event.key === "Escape") {
+      closePresentationHistoryLayer("viewer");
+    }
+    return;
+  }
+  if (executivePresentationHistoryReuseTarget || executivePresentationHistorySaveOpen) {
+    if (event.key === "Escape") closePresentationHistoryLayer(executivePresentationHistoryReuseTarget ? "reuse" : "save");
+    return;
+  }
   if (!executivePresentationMode) return;
   if (event.key === "ArrowRight") {
     executivePresentationIndex = Math.min(EXECUTIVE_PRESENTATION_SLIDES.length - 1, executivePresentationIndex + 1);
