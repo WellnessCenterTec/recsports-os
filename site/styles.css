@@ -10776,6 +10776,38 @@ tbody tr:hover td {
 .executive-presentation-preview-filmstrip > button > strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .executive-presentation-thumbnail-canvas { display: block; overflow: hidden; width: 100%; aspect-ratio: 16 / 9; border: 1px solid #cbd9e5; border-radius: 5px; background: #fff; pointer-events: none; }
 .executive-presentation-thumbnail-canvas .executive-presentation-slide { width: 400%; height: 400%; transform: scale(.25); transform-origin: top left; border-radius: 0; box-shadow: none; }
+.executive-presentation-history { display: grid; gap: 14px; padding: 18px; border: 1px solid #d5e0ea; border-radius: 10px; background: #fff; box-shadow: 0 8px 22px rgba(20, 48, 78, .07); }
+.executive-presentation-history > header { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+.executive-presentation-history > header h3 { margin: 3px 0; color: #082b55; font-size: 24px; }
+.executive-presentation-history > header span { color: #627386; font-size: 13px; }
+.executive-presentation-history > header > strong { color: #0a66b7; white-space: nowrap; }
+.executive-presentation-history-list { display: grid; gap: 10px; }
+.executive-presentation-history-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 14px; border: 1px solid #d8e3ed; border-radius: 9px; background: #f8fbfd; }
+.executive-presentation-history-card.pending { border-color: #d9a514; background: #fffaf0; }
+.executive-presentation-history-card > div:first-child { display: grid; gap: 3px; min-width: 0; }
+.executive-presentation-history-card > div:first-child > strong { overflow: hidden; color: #173a5c; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.executive-presentation-history-card span { color: #546b80; font-size: 13px; }
+.executive-presentation-history-card em { color: #718397; font-size: 12px; font-style: normal; }
+.executive-presentation-history-card > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; }
+.executive-presentation-history-empty { display: grid; place-items: center; min-height: 110px; gap: 5px; padding: 20px; border: 1px dashed #c7d7e5; border-radius: 9px; color: #5d7183; text-align: center; }
+.executive-presentation-history-modal-backdrop { position: fixed; inset: 0; z-index: 2200; display: grid; place-items: center; overflow: auto; padding: 24px; background: rgba(4, 22, 39, .76); }
+.executive-presentation-history-dialog { display: grid; gap: 18px; width: min(560px, 96vw); padding: 22px; border-radius: 10px; background: #fff; box-shadow: 0 28px 80px rgba(0, 17, 32, .34); }
+.executive-presentation-history-dialog > header, .executive-presentation-history-viewer > header { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.executive-presentation-history-dialog > header h2, .executive-presentation-history-viewer > header h2 { margin: 3px 0; color: #082b55; }
+.executive-presentation-history-dialog > header button, .executive-presentation-history-viewer > header button { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; color: #29455f; background: #edf3f7; border-radius: 50%; font-size: 25px; }
+.executive-presentation-history-dialog label { display: grid; gap: 6px; color: #334d66; font-weight: 800; }
+.executive-presentation-history-dialog > p { margin: 0; color: #61758a; }
+.executive-presentation-history-date { display: grid; gap: 4px; padding: 12px; border-radius: 8px; color: #536a80; background: #eef5fa; }
+.executive-presentation-history-date strong { color: #173a5c; }
+.executive-presentation-history-dialog > footer { display: flex; justify-content: flex-end; gap: 8px; }
+.executive-presentation-history-warning { padding: 15px; border: 1px solid #d4e0e9; border-left: 4px solid #0a66b7; border-radius: 8px; background: #f5f9fc; }
+.executive-presentation-history-warning p { margin: 6px 0 0; color: #536a80; line-height: 1.45; }
+.executive-presentation-history-viewer-backdrop { place-items: start center; }
+.executive-presentation-history-viewer { display: grid; gap: 14px; width: min(1500px, 98vw); min-width: 0; margin: auto; padding: 18px; border-radius: 10px; background: #fff; box-shadow: 0 28px 80px rgba(0, 17, 32, .38); }
+.executive-presentation-history-viewer > header span { color: #627386; font-size: 13px; }
+.executive-presentation-history-viewer-counter { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #536a80; }
+.executive-presentation-history-viewer-counter strong { color: #0a66b7; }
+.executive-presentation-history-viewer .executive-presentation-preview-canvas { aspect-ratio: 16 / 9; }
 .executive-presentation-slide-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .executive-presentation-slide-grid > article { position: relative; min-width: 0; }
 .executive-presentation-slide-grid button[data-presentation-slide] { display: grid; grid-template-columns: 28px 26px minmax(0, 1fr); align-items: center; gap: 8px; width: 100%; min-height: 62px; padding: 10px 42px 10px 10px; text-align: left; color: #19324f; background: #fff; border: 1px solid #d5e0ea; border-radius: 7px; cursor: pointer; }
@@ -11080,6 +11112,14 @@ tbody tr:hover td {
   .executive-presentation-preview-stage { grid-template-columns: 34px minmax(0, 1fr) 34px; gap: 5px; }
   .executive-presentation-preview-stage > button { height: 58px; font-size: 30px; }
   .executive-presentation-preview-filmstrip { grid-auto-columns: 200px; }
+  .executive-presentation-history { padding: 12px; }
+  .executive-presentation-history > header, .executive-presentation-history-card { align-items: stretch; flex-direction: column; }
+  .executive-presentation-history-card > div:last-child { display: grid; grid-template-columns: 1fr; }
+  .executive-presentation-history-modal-backdrop { padding: 8px; }
+  .executive-presentation-history-dialog { width: 100%; padding: 18px; }
+  .executive-presentation-history-dialog > footer { display: grid; grid-template-columns: 1fr; }
+  .executive-presentation-history-viewer { width: 100%; padding: 10px; }
+  .executive-presentation-history-viewer > header h2 { font-size: 20px; }
   .executive-presentation-stage { padding: 54px 8px 44px; }
   .executive-presentation-canvas { width: 100%; }
   .executive-presentation-nav { top: auto; bottom: 5px; width: 46%; height: 36px; transform: none; }
