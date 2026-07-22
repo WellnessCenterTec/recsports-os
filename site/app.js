@@ -4851,6 +4851,36 @@ function scheduleProgressiveRender() {
   progressiveRenderTimer = setTimeout(() => render(), 80);
 }
 
+async function syncPendingLocalUploadBackups() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  let migrated = 0;
+
+  if (semanaTecLastUpload?.source === "local" && semanaTecRows.length && canEditArea("semana-tec")) {
+    const saved = await saveSemanaTecRowsCloud(semanaTecRows);
+    if (saved) {
+      semanaTecLastUpload = { ...semanaTecLastUpload, source: "cloud" };
+      await loadSemanaTecCloud();
+      migrated += 1;
+    }
+  }
+
+  for (const areaId of ["gamer", "representativos"]) {
+    const state = participationUploadState[areaId];
+    if (state?.source !== "local" || !state.imported?.rows?.length || !canEditArea(areaId)) continue;
+    const saved = await saveParticipationUploadCloud(areaId, state.imported);
+    if (!saved) continue;
+    participationUploadState[areaId].source = "cloud";
+    await loadParticipationUploadsCloud(areaId);
+    migrated += 1;
+  }
+
+  if (migrated) {
+    saveSemanaTecLocal();
+    saveParticipationUploadsLocal();
+    toast(`${migrated} carga(s) local(es) respaldadas permanentemente en Supabase`);
+  }
+}
+
 async function loadSupabaseDataBundle() {
   cloudStatus = "Cargando informacion actualizada...";
   scheduleProgressiveRender();
@@ -4890,6 +4920,7 @@ async function loadSupabaseDataBundle() {
       console.warn(`No se pudo cargar ${loaders[index][0]}`, result.reason);
     }
   });
+  await syncPendingLocalUploadBackups();
   cloudStatus = "Supabase conectado";
   scheduleProgressiveRender();
 }
@@ -6954,18 +6985,27 @@ async function loadSemanaTecCloud() {
     if (page.length < pageSize) break;
   }
   semanaTecCloudAvailable = true;
-  if (!rows.length) return;
-  semanaTecRows = rows.map(semanaTecRowFromCloud);
+  if (!rows.length) {
+    const hasPendingLocalUpload = semanaTecLastUpload?.source === "local" && semanaTecRows.length > 0;
+    if (hasPendingLocalUpload) return;
+    semanaTecRows = [];
+    semanaTecLastUpload = null;
+    saveSemanaTecLocal();
+    return;
+  }
+  const latestUploadId = rows.find((row) => row.upload_id)?.upload_id || "";
+  const currentRows = latestUploadId ? rows.filter((row) => row.upload_id === latestUploadId) : rows;
+  semanaTecRows = currentRows.map(semanaTecRowFromCloud);
   semanaTecLastUpload = {
-    fileName: rows[0]?.archivo_origen || "Supabase",
-    importedAt: rows[0]?.fecha_carga || rows[0]?.updated_at || "",
+    fileName: currentRows[0]?.archivo_origen || "Supabase",
+    importedAt: currentRows[0]?.fecha_carga || currentRows[0]?.updated_at || "",
     total: semanaTecRows.length,
     source: "cloud"
   };
   saveSemanaTecLocal();
 }
 
-function semanaTecRowToCloud(row) {
+function semanaTecRowToCloud(row, uploadId) {
   return {
     matricula: row.matricula,
     clave_materia: row.clave_materia || null,
@@ -6983,14 +7023,17 @@ function semanaTecRowToCloud(row) {
     periodo: row.periodo || "Sin periodo",
     archivo_origen: row.archivo_origen || null,
     fecha_carga: row.fecha_carga || new Date().toISOString(),
-    updated_by: currentUser?.id || null
+    updated_by: currentUser?.id || null,
+    upload_id: uploadId
   };
 }
 
 async function saveSemanaTecRowsCloud(rows) {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("semana-tec")) return false;
+  const uploadId = crypto.randomUUID();
+  const uploadedAt = new Date().toISOString();
   for (let index = 0; index < rows.length; index += 500) {
-    const payload = rows.slice(index, index + 500).map(semanaTecRowToCloud);
+    const payload = rows.slice(index, index + 500).map((row) => semanaTecRowToCloud({ ...row, fecha_carga: uploadedAt }, uploadId));
     const { error } = await supabaseClient.from("semana_tec_participantes").upsert(payload, { onConflict: "periodo,matricula,numero_grupo" });
     if (error) {
       semanaTecCloudAvailable = false;
@@ -6998,25 +7041,48 @@ async function saveSemanaTecRowsCloud(rows) {
       return false;
     }
   }
+  const deleteOldResult = await supabaseClient
+    .from("semana_tec_participantes")
+    .delete()
+    .neq("upload_id", uploadId);
+  const deleteLegacyResult = await supabaseClient
+    .from("semana_tec_participantes")
+    .delete()
+    .is("upload_id", null);
+  if (deleteOldResult.error || deleteLegacyResult.error) {
+    console.warn("La carga nueva de Semana Tec quedó guardada, pero no se pudo retirar la anterior", deleteOldResult.error || deleteLegacyResult.error);
+  }
   semanaTecCloudAvailable = true;
   return true;
 }
 
 async function importSemanaTecDraft() {
-  if (!semanaTecDraft || semanaTecDraft.errors.length || !semanaTecDraft.rows.length) return;
+  const draft = semanaTecDraft || (semanaTecLastUpload?.source === "local" && semanaTecRows.length ? {
+    fileName: semanaTecLastUpload.fileName || "Última carga local",
+    rows: semanaTecRows,
+    errors: [],
+    warnings: ["Esta carga estaba guardada solo en este navegador y se respaldará en Supabase."],
+    summary: semanaTecDraftSummary(semanaTecRows)
+  } : null);
+  if (!draft || draft.errors.length || !draft.rows.length) return;
   semanaTecSaving = true;
   render();
-  const cloudSaved = await saveSemanaTecRowsCloud(semanaTecDraft.rows);
-  const byKey = new Map(semanaTecRows.map((row) => [semanaTecLogicalKey(row), row]));
-  semanaTecDraft.rows.forEach((row) => byKey.set(semanaTecLogicalKey(row), row));
-  semanaTecRows = Array.from(byKey.values());
-  semanaTecLastUpload = { fileName: semanaTecDraft.fileName, importedAt: new Date().toISOString(), total: semanaTecDraft.rows.length, source: cloudSaved ? "cloud" : "local" };
+  const cloudSaved = await saveSemanaTecRowsCloud(draft.rows);
+  if (!cloudSaved) {
+    semanaTecSaving = false;
+    render();
+    toast("No se guardó en Supabase. La carga sigue lista para reintentar.");
+    return;
+  }
+  semanaTecRows = [...draft.rows];
+  semanaTecLastUpload = { fileName: draft.fileName, importedAt: new Date().toISOString(), total: draft.rows.length, source: "cloud" };
   semanaTecDraft = null;
   semanaTecSaving = false;
   saveSemanaTecLocal();
   addAudit("semana-tec", `${semanaTecLastUpload.total} registros importados desde ${semanaTecLastUpload.fileName}`);
   render();
-  toast(cloudSaved ? "Semana Tec guardada en Supabase" : "Carga guardada localmente; falta activar la tabla de Supabase");
+  await loadSemanaTecCloud();
+  toast("Semana Tec guardada permanentemente en Supabase");
 }
 
 function downloadSemanaTecTemplate() {
@@ -7158,6 +7224,7 @@ function renderSemanaTecGrades() {
 
 function renderSemanaTecUploadView() {
   const draft = semanaTecDraft;
+  const pendingLocalSync = semanaTecLastUpload?.source === "local" && semanaTecRows.length > 0;
   const summary = draft?.summary || semanaTecDraftSummary([]);
   const validation = !draft ? `<div class="upload-status yellow"><span>Selecciona un archivo para comenzar</span></div>` : draft.errors.length ? `<div class="upload-status red"><span>${draft.errors.length} errores</span></div>` : `<div class="upload-status green"><span>Archivo listo para importar</span><strong>${summary.total.toLocaleString("es-MX")} registros</strong></div>`;
   return `
@@ -7176,7 +7243,7 @@ function renderSemanaTecUploadView() {
           ${validation}
           <div class="upload-message-list">${(draft?.errors || []).map((message) => `<p class="red">${escapeHtml(message)}</p>`).join("")}${(draft?.warnings || []).map((message) => `<p class="yellow">${escapeHtml(message)}</p>`).join("")}</div>
           ${draft && !draft.errors.length ? `<div class="semana-tec-load-summary"><span><b>${summary.uniqueStudents}</b> alumnos</span><span><b>${summary.groups}</b> grupos</span><span><b>${summary.professors}</b> profesores</span><span><b>${summary.week6}</b> Semana 6</span><span><b>${summary.week12}</b> Semana 12</span></div>` : ""}
-          <button class="primary-btn" id="importSemanaTec" type="button" ${draft && !draft.errors.length && !semanaTecSaving ? "" : "disabled"}>${semanaTecSaving ? "Guardando..." : "Importar información"}</button>
+          <button class="primary-btn" id="importSemanaTec" type="button" ${(draft && !draft.errors.length || pendingLocalSync) && !semanaTecSaving ? "" : "disabled"}>${semanaTecSaving ? "Guardando..." : pendingLocalSync && !draft ? "Guardar respaldo en Supabase" : "Importar información"}</button>
         </article>
       </div>
       ${draft?.rows?.length ? `<section class="upload-preview-panel"><div class="class-grade-table-header"><div><p class="eyebrow">Vista previa</p><h3>Información que sí se guardará</h3></div><span>Sin nombres ni apellidos</span></div><div class="class-grade-table-wrap"><table class="class-grade-table"><thead><tr><th>Matrícula</th><th>Semana</th><th>Grupo</th><th>Profesor</th><th>Programa</th><th>Género</th><th>Semestre</th></tr></thead><tbody>${draft.rows.slice(0, 12).map((row) => `<tr><td>${escapeHtml(row.matricula)}</td><td>${row.semana}</td><td>${row.numero_grupo}</td><td>${escapeHtml(row.profesor)}</td><td>${escapeHtml(row.programa)}</td><td>${escapeHtml(row.genero)}</td><td>${escapeHtml(row.semestre)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
@@ -7445,13 +7512,8 @@ async function importParticipationUpload(areaId) {
   }
   const savedCloud = await saveParticipationUploadCloud(areaId, draft);
   if (!savedCloud) {
-    participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
-    participationUploadState[areaId].source = "local";
-    participationUploadState[areaId].draft = null;
-    saveParticipationUploadsLocal();
-    addAudit(areaId, `${draft.summary.total} registros guardados como respaldo local desde ${draft.fileName}`);
     render();
-    toast("Supabase rechazó la carga. Se conservó un respaldo local para volver a intentar.");
+    toast("No se guardó en Supabase. La carga sigue lista para reintentar.");
     return;
   }
   participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
@@ -8393,7 +8455,7 @@ function downloadIntramurosTemplate(type) {
   toast(`Plantilla ${template.label} descargada`);
 }
 
-function participationUploadRowToCloud(areaId, row, fileName = "") {
+function participationUploadRowToCloud(areaId, row, fileName = "", uploadId = "") {
   const matricula = normalizeMatricula(row.matricula);
   const importKey = areaId === "representativos"
     ? [matricula, row.clave_materia || "", row.representativo || "", row.coach || ""].map((value) => normalizeText(value)).join("|")
@@ -8414,7 +8476,8 @@ function participationUploadRowToCloud(areaId, row, fileName = "") {
     source_name: fileName || participationUploadConfigs[areaId]?.title || areaId,
     source_row_number: row.rowNumber || null,
     created_by: currentUser?.auth === "supabase" ? currentUser.id : null,
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
+    upload_id: uploadId
   };
 }
 
@@ -8493,10 +8556,17 @@ async function loadParticipationUploadsCloud(targetAreaId = "") {
       console.warn(`Carga de ${areaId} no disponible en Supabase`, error);
       return;
     }
-    if (!rows.length) return;
-    const latestSource = rows[0]?.source_name || "Supabase";
-    const imported = buildParticipationImportResult(areaId, rows, latestSource);
-    imported.importedAt = rows[0]?.updated_at || rows[0]?.created_at || "";
+    if (!rows.length) {
+      const pendingLocal = participationUploadState[areaId]?.source === "local" && participationUploadState[areaId]?.imported?.rows?.length;
+      if (pendingLocal) return;
+      participationUploadState[areaId] = { fileName: "", draft: null, imported: null, source: "cloud" };
+      return;
+    }
+    const latestUploadId = rows.find((row) => row.upload_id)?.upload_id || "";
+    const currentRows = latestUploadId ? rows.filter((row) => row.upload_id === latestUploadId) : rows;
+    const latestSource = currentRows[0]?.source_name || "Supabase";
+    const imported = buildParticipationImportResult(areaId, currentRows, latestSource);
+    imported.importedAt = currentRows[0]?.updated_at || currentRows[0]?.created_at || "";
     participationUploadState[areaId] = {
       ...participationUploadState[areaId],
       fileName: latestSource,
@@ -8509,9 +8579,10 @@ async function loadParticipationUploadsCloud(targetAreaId = "") {
 
 async function saveParticipationUploadCloud(areaId, draft) {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea(areaId)) return false;
+  const uploadId = crypto.randomUUID();
   const payload = draft.rows
     .filter((row) => row.matricula && !row.duplicate)
-    .map((row) => participationUploadRowToCloud(areaId, row, draft.fileName));
+    .map((row) => participationUploadRowToCloud(areaId, row, draft.fileName, uploadId));
   for (let index = 0; index < payload.length; index += 500) {
     const chunk = payload.slice(index, index + 500);
     const { error } = await supabaseClient
@@ -8522,6 +8593,19 @@ async function saveParticipationUploadCloud(areaId, draft) {
       toast(`La carga quedó local; no pude guardar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
       return false;
     }
+  }
+  const deleteOldResult = await supabaseClient
+    .from("participation_upload_rows")
+    .delete()
+    .eq("area_key", areaId)
+    .neq("upload_id", uploadId);
+  const deleteLegacyResult = await supabaseClient
+    .from("participation_upload_rows")
+    .delete()
+    .eq("area_key", areaId)
+    .is("upload_id", null);
+  if (deleteOldResult.error || deleteLegacyResult.error) {
+    console.warn(`La carga nueva de ${areaId} quedó guardada, pero no se pudo retirar la anterior`, deleteOldResult.error || deleteLegacyResult.error);
   }
   participationUploadCloudAvailable = true;
   return true;
