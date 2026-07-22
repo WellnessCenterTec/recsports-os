@@ -550,6 +550,10 @@ let semanaTecSaving = false;
 let semanaTecCloudAvailable = true;
 let semanaTecLastUpload = null;
 let semanaTecFilters = { week: "todas", professor: "todos", group: "todos", search: "" };
+let semanaTecGroupGradeFiles = [];
+let semanaTecGroupFilesAvailable = true;
+let semanaTecGroupFilesLoading = false;
+let semanaTecGroupFileUploading = "";
 let executiveReportState = { week: 15, period: "FJ26", title: "Reporte Ejecutivo Semana 15" };
 let executivePlanningFilters = { area: "todos", status: "todos", days: "30" };
 let simulatorState = loadSimulator();
@@ -634,6 +638,22 @@ let communicationParticipantImporting = false;
 let communicationParticipantImportResult = null;
 let selectedCommunicationEventForParticipants = "";
 let communicationParticipantsModalOpen = false;
+const COMMUNICATION_DIFFUSION_SLOTS = [
+  { key: "gym-wellness", title: "Horario de Gimnasio Wellness" },
+  { key: "gym-emis", title: "Horario de Gimnasio EMIS" },
+  { key: "natacion", title: "Horario de Natación" },
+  { key: "booking", title: "Horario de Booking" },
+  { key: "clases", title: "Clases" },
+  { key: "torneos-intramuros", title: "Torneos Intramuros" },
+  { key: "renta-locker", title: "Renta de Locker" },
+  { key: "sitio-wellness", title: "Sitio Wellness" },
+  { key: "torneo-relampago", title: "Torneo Relámpago" },
+  { key: "extra", title: "Extra" }
+];
+let communicationDiffusionImages = [];
+let communicationDiffusionAvailable = true;
+let communicationDiffusionLoading = false;
+let communicationDiffusionUploadingSlot = "";
 let classGradePage = 1;
 let classGradeFilter = {
   search: "",
@@ -2452,6 +2472,32 @@ async function loadCommunicationEvents() {
   communicationDashboardSettings = settingsResult.error || !settingsResult.data
     ? { impact_goal: 3800 }
     : { ...settingsResult.data, impact_goal: Number(settingsResult.data.impact_goal || 3800) };
+}
+
+async function loadCommunicationDiffusionImages() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    communicationDiffusionImages = [];
+    communicationDiffusionAvailable = true;
+    communicationDiffusionLoading = false;
+    return;
+  }
+  communicationDiffusionLoading = true;
+  const { data, error } = await supabaseClient
+    .from("communication_diffusion_images")
+    .select("slot_key, title, storage_path, file_name, mime_type, file_size, updated_at")
+    .order("updated_at", { ascending: false });
+  communicationDiffusionLoading = false;
+  if (error) {
+    communicationDiffusionImages = [];
+    communicationDiffusionAvailable = false;
+    console.warn("No se pudo cargar Imágenes de difusión", error);
+    return;
+  }
+  communicationDiffusionAvailable = true;
+  communicationDiffusionImages = (data || []).map((row) => ({
+    ...row,
+    public_url: supabaseClient.storage.from("communication-diffusion").getPublicUrl(row.storage_path).data.publicUrl
+  }));
 }
 
 function planningValue(row, aliases) {
@@ -4902,8 +4948,9 @@ async function loadSupabaseDataBundle() {
     ["Gimnasio", loadGymData],
     ["Simulador de clases", loadClassScheduleSimulatorCloud],
     ["Vivencia", loadVivenciaEvents],
-    ["Semana Tec", loadSemanaTecCloud],
+    ["Semana Tec", async () => Promise.all([loadSemanaTecCloud(), loadSemanaTecGroupGradeFiles()])],
     ["Eventos de Comunicación", loadCommunicationEvents],
+    ["Imágenes de difusión", loadCommunicationDiffusionImages],
     ["Calendario Comunicación", loadPlanningEventOverrides],
     ["Intramuros", loadIntramurosParticipants],
     ["Booking", loadClassBookingReservationsCloud],
@@ -6025,7 +6072,7 @@ function renderNav() {
       semanaTecLoading = true;
       render();
       try {
-        await loadSemanaTecCloud();
+        await Promise.all([loadSemanaTecCloud(), loadSemanaTecGroupGradeFiles()]);
       } finally {
         semanaTecLoading = false;
         if (activeArea === targetArea) render();
@@ -7005,6 +7052,29 @@ async function loadSemanaTecCloud() {
   saveSemanaTecLocal();
 }
 
+async function loadSemanaTecGroupGradeFiles() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    semanaTecGroupGradeFiles = [];
+    semanaTecGroupFilesAvailable = true;
+    semanaTecGroupFilesLoading = false;
+    return;
+  }
+  semanaTecGroupFilesLoading = true;
+  const { data, error } = await supabaseClient
+    .from("semana_tec_group_grade_files")
+    .select("group_key, periodo, semana, numero_grupo, profesor, storage_path, file_name, mime_type, file_size, updated_at")
+    .order("numero_grupo", { ascending: true });
+  semanaTecGroupFilesLoading = false;
+  if (error) {
+    semanaTecGroupGradeFiles = [];
+    semanaTecGroupFilesAvailable = false;
+    console.warn("No se pudieron cargar los PDF de Semana Tec", error);
+    return;
+  }
+  semanaTecGroupFilesAvailable = true;
+  semanaTecGroupGradeFiles = data || [];
+}
+
 function semanaTecRowToCloud(row, uploadId) {
   return {
     matricula: row.matricula,
@@ -7126,19 +7196,83 @@ function semanaTecCountRows(rows, field) {
   return Array.from(counts.entries()).map(([label, value]) => ({ label: String(label), value })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
 }
 
+function semanaTecSemesterOrder(value) {
+  const normalized = normalizeText(value);
+  const numeric = Number(normalized.match(/\d+/)?.[0]);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  const words = ["primer", "segund", "tercer", "cuart", "quint", "sext", "septim", "octav", "noven", "decim", "undecim", "duodecim"];
+  const index = words.findIndex((word) => normalized.includes(word));
+  return index >= 0 ? index + 1 : 999;
+}
+
+function semanaTecSemesterCounts(rows) {
+  return semanaTecCountRows(rows, "semestre").sort((a, b) => {
+    const order = semanaTecSemesterOrder(a.label) - semanaTecSemesterOrder(b.label);
+    return order || a.label.localeCompare(b.label, "es");
+  });
+}
+
+function semanaTecGradeOutcome(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "pending";
+  const numeric = Number(raw.replace(",", "."));
+  if (Number.isFinite(numeric)) return numeric >= 70 ? "approved" : "failed";
+  const normalized = normalizeText(raw);
+  if (normalized.includes("acredit") || normalized.includes("aprob")) return "approved";
+  return "failed";
+}
+
 function semanaTecGroupSummaries(rows) {
   const groups = new Map();
   rows.forEach((row) => {
-    const key = String(row.numero_grupo);
-    const current = groups.get(key) || { group: row.numero_grupo, week: row.semana, professor: row.profesor, horario: row.horario || "", frecuencia: row.frecuencia || "", students: new Set(), female: 0, male: 0, grades: [] };
+    const key = `${row.periodo || "Sin periodo"}|${row.numero_grupo}`;
+    const current = groups.get(key) || { group: row.numero_grupo, week: row.semana, periodo: row.periodo || "Sin periodo", professor: row.profesor, horario: row.horario || "", frecuencia: row.frecuencia || "", students: new Set(), female: 0, male: 0, grades: [], approved: 0, failed: 0, pending: 0 };
     current.students.add(row.matricula);
     if (row.genero === "Femenino") current.female += 1;
     if (row.genero === "Masculino") current.male += 1;
-    const grade = Number(row.calificacion);
+    const grade = Number(String(row.calificacion ?? "").replace(",", "."));
     if (row.calificacion !== "" && Number.isFinite(grade)) current.grades.push(grade);
+    const outcome = semanaTecGradeOutcome(row.calificacion);
+    current[outcome] += 1;
     groups.set(key, current);
   });
   return Array.from(groups.values()).map((group) => ({ ...group, total: group.students.size, average: group.grades.length ? group.grades.reduce((sum, value) => sum + value, 0) / group.grades.length : null })).sort((a, b) => a.group - b.group);
+}
+
+function semanaTecGroupKey(group) {
+  return `${group.periodo || "Sin periodo"}|${Number(group.group || 0)}`;
+}
+
+function semanaTecGroupFile(group) {
+  const key = semanaTecGroupKey(group);
+  return semanaTecGroupGradeFiles.find((row) => row.group_key === key) || null;
+}
+
+function semanaTecGroupCards(groups, { gradeActions = false } = {}) {
+  const editable = currentUser?.auth === "supabase" && canEditArea("semana-tec") && semanaTecGroupFilesAvailable;
+  return `<div class="semana-tec-group-grid ${gradeActions ? "with-grade-actions" : ""}">${groups.map((group) => {
+    const file = semanaTecGroupFile(group);
+    const uploading = semanaTecGroupFileUploading === semanaTecGroupKey(group);
+    const updated = file?.updated_at ? new Date(file.updated_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" }) : "";
+    return `
+      <article class="semana-tec-group-card week-${group.week}">
+        <div><span>Semana ${group.week}</span><strong>Grupo ${group.group}</strong></div>
+        <p>${escapeHtml(group.professor)}</p>
+        ${group.horario || group.frecuencia ? `<small>${escapeHtml([group.frecuencia, group.horario].filter(Boolean).join(" · "))}</small>` : ""}
+        <div class="semana-tec-group-stats">
+          <b>${group.total} alumnos</b><span>${group.female} mujeres</span><span>${group.male} hombres</span><span>${group.average === null ? "Sin promedio" : `Promedio ${group.average.toFixed(1)}`}</span>
+          <span class="approved">${group.approved} aprobados</span><span class="failed">${group.failed} reprobados</span><span class="pending">${group.pending} pendientes</span>
+        </div>
+        ${gradeActions ? `
+          <div class="semana-tec-group-file ${file ? "has-file" : ""}">
+            <div><strong>${file ? "PDF guardado" : "Sin PDF de calificaciones"}</strong><small>${file ? `${escapeHtml(file.file_name || "Calificaciones.pdf")} · ${escapeHtml(updated)}` : "El archivo se guarda por grupo en Supabase."}</small></div>
+            <div class="semana-tec-group-file-actions">
+              <button class="primary-btn" type="button" data-semana-tec-group-select="${escapeHtml(semanaTecGroupKey(group))}" ${editable && !uploading ? "" : "disabled"}><i data-lucide="upload"></i><span>${uploading ? "Guardando..." : file ? "Reemplazar PDF" : "Subir calificaciones"}</span></button><input type="file" accept="application/pdf,.pdf" data-semana-tec-group-upload="${escapeHtml(semanaTecGroupKey(group))}" ${editable && !uploading ? "" : "disabled"} hidden>
+              ${file ? `<button class="ghost-btn" type="button" data-semana-tec-group-download="${escapeHtml(semanaTecGroupKey(group))}" title="Descargar PDF"><i data-lucide="download"></i></button>` : ""}
+            </div>
+          </div>` : ""}
+      </article>`;
+  }).join("")}</div>`;
 }
 
 function semanaTecFilterControls(rows = semanaTecRows) {
@@ -7183,15 +7317,12 @@ function renderSemanaTecDashboard() {
         </div>
         <div class="semana-tec-charts">
           ${renderUploadBars("Alumnos por profesor", semanaTecCountRows(rows, "profesor"))}
-          ${renderUploadBars("Participación por género", semanaTecCountRows(rows, "genero"))}
-          ${renderUploadBars("Top programas", semanaTecCountRows(rows, "programa").slice(0, 12))}
-          ${renderUploadBars("Participación por semestre", semanaTecCountRows(rows, "semestre"))}
+          ${renderUploadBars("Top programas", semanaTecCountRows(rows, "programa").slice(0, 12), 12)}
+          ${renderUploadBars("Participación por semestre", semanaTecSemesterCounts(rows), 12)}
         </div>
         <section class="semana-tec-groups-panel">
           <div class="class-grade-table-header"><div><p class="eyebrow">Detalle operativo</p><h3>Grupos y profesores</h3></div><span>${groups.length} grupos visibles</span></div>
-          <div class="semana-tec-group-grid">${groups.map((group) => `
-            <article><div><span>Semana ${group.week}</span><strong>Grupo ${group.group}</strong></div><p>${escapeHtml(group.professor)}</p>${group.horario || group.frecuencia ? `<small>${escapeHtml([group.frecuencia, group.horario].filter(Boolean).join(" · "))}</small>` : ""}<div class="semana-tec-group-stats"><b>${group.total} alumnos</b><span>${group.female} mujeres</span><span>${group.male} hombres</span><span>${group.average === null ? "Sin calificaciones" : `Promedio ${group.average.toFixed(1)}`}</span></div></article>
-          `).join("")}</div>
+          ${semanaTecGroupCards(groups)}
         </section>` : `
         <section class="vivencia-empty-state"><strong>Semana Tec está lista para recibir información.</strong><span>Carga el archivo de alumnos para generar automáticamente grupos, profesores y perfil académico.</span><button class="primary-btn" type="button" data-view-jump="semana-tec-upload">Ir a Carga de alumnos</button></section>`}
     </section>`;
@@ -7199,6 +7330,7 @@ function renderSemanaTecDashboard() {
 
 function renderSemanaTecGrades() {
   const rows = semanaTecFilteredRows();
+  const groups = semanaTecGroupSummaries(rows);
   const numeric = rows.map((row) => Number(row.calificacion)).filter((value, index) => rows[index].calificacion !== "" && Number.isFinite(value));
   const captured = rows.filter((row) => row.calificacion !== "").length;
   const approved = numeric.filter((value) => value >= 70).length;
@@ -7213,6 +7345,11 @@ function renderSemanaTecGrades() {
         <article><span>Promedio</span><strong>${numeric.length ? (numeric.reduce((sum, value) => sum + value, 0) / numeric.length).toFixed(1) : "—"}</strong><em>solo numéricas</em></article>
         <article><span>Acreditadas</span><strong>${approved.toLocaleString("es-MX")}</strong><em>70 o más</em></article>
       </div>
+      <section class="semana-tec-groups-panel semana-tec-grade-groups">
+        <div class="class-grade-table-header"><div><p class="eyebrow">Calificaciones por grupo</p><h3>Grupos y profesores</h3></div><span>${semanaTecGroupFilesLoading ? "Cargando PDF..." : `${groups.length} grupos visibles`}</span></div>
+        ${!semanaTecGroupFilesAvailable ? `<div class="permission-strip">Activa la tabla y el almacenamiento de PDF de Semana Tec en Supabase.</div>` : ""}
+        ${semanaTecGroupCards(groups, { gradeActions: true })}
+      </section>
       <section class="upload-preview-panel semana-tec-grade-panel">
         <div class="class-grade-table-header"><div><p class="eyebrow">Captura</p><h3>Calificación por matrícula y grupo</h3></div><span>Se guarda al salir del campo</span></div>
         <div class="class-grade-table-wrap"><table class="class-grade-table"><thead><tr><th>Matrícula</th><th>Semana</th><th>Grupo</th><th>Profesor</th><th>Programa</th><th>Calificación</th></tr></thead><tbody>
@@ -7253,11 +7390,101 @@ function renderSemanaTecUploadView() {
 async function saveSemanaTecGrade(key, value) {
   const row = semanaTecRows.find((item) => semanaTecLogicalKey(item) === key);
   if (!row) return;
+  const previous = row.calificacion;
   row.calificacion = normalizeSemanaTecGrade(value);
   row.fecha_carga = new Date().toISOString();
   saveSemanaTecLocal();
-  const cloudSaved = await saveSemanaTecRowsCloud([row]);
-  toast(cloudSaved ? "Calificación guardada" : "Calificación guardada en este equipo");
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("semana-tec")) {
+    toast("Calificación guardada en este equipo");
+    return;
+  }
+  const { error } = await supabaseClient
+    .from("semana_tec_participantes")
+    .update({ calificacion: row.calificacion || null, fecha_carga: row.fecha_carga, updated_by: currentUser.id })
+    .eq("periodo", row.periodo)
+    .eq("matricula", row.matricula)
+    .eq("numero_grupo", row.numero_grupo);
+  if (error) {
+    row.calificacion = previous;
+    saveSemanaTecLocal();
+    console.warn("No se pudo guardar la calificación de Semana Tec", error);
+    toast("No se pudo guardar la calificación");
+    render();
+    return;
+  }
+  toast("Calificación guardada");
+}
+
+async function uploadSemanaTecGroupGradeFile(groupKey, file) {
+  const group = semanaTecGroupSummaries(semanaTecRows).find((item) => semanaTecGroupKey(item) === groupKey);
+  if (!group || !file) return;
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("semana-tec")) {
+    toast("Necesitas permiso de Semana Tec para cargar calificaciones");
+    return;
+  }
+  if (file.type !== "application/pdf" || file.size > 15 * 1024 * 1024) {
+    toast("Selecciona un PDF de máximo 15 MB");
+    return;
+  }
+  const previous = semanaTecGroupFile(group);
+  const safePeriod = String(group.periodo || "sin-periodo").replace(/[^a-zA-Z0-9_-]/g, "-");
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-") || "calificaciones.pdf";
+  const storagePath = `${safePeriod}/grupo-${group.group}/${crypto.randomUUID()}-${safeName}`;
+  semanaTecGroupFileUploading = groupKey;
+  render();
+  try {
+    const { error: uploadError } = await supabaseClient.storage.from("semana-tec-calificaciones").upload(storagePath, file, { contentType: "application/pdf", upsert: false });
+    if (uploadError) throw uploadError;
+    const { error: metadataError } = await supabaseClient.from("semana_tec_group_grade_files").upsert({
+      group_key: groupKey,
+      periodo: group.periodo,
+      semana: group.week,
+      numero_grupo: group.group,
+      profesor: group.professor,
+      storage_path: storagePath,
+      file_name: file.name,
+      mime_type: "application/pdf",
+      file_size: file.size,
+      updated_by: currentUser.id,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "group_key" });
+    if (metadataError) {
+      await supabaseClient.storage.from("semana-tec-calificaciones").remove([storagePath]);
+      throw metadataError;
+    }
+    if (previous?.storage_path && previous.storage_path !== storagePath) {
+      const { error: removeError } = await supabaseClient.storage.from("semana-tec-calificaciones").remove([previous.storage_path]);
+      if (removeError) console.warn("No se pudo retirar el PDF anterior", removeError);
+    }
+    await loadSemanaTecGroupGradeFiles();
+    addAudit("semana-tec", `PDF de calificaciones guardado para grupo ${group.group}`);
+    toast(`Grupo ${group.group}: PDF guardado`);
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo guardar el PDF: ${supabaseErrorDetail(error) || error.message}`);
+  } finally {
+    semanaTecGroupFileUploading = "";
+    render();
+  }
+}
+
+async function downloadSemanaTecGroupGradeFile(groupKey) {
+  const file = semanaTecGroupGradeFiles.find((row) => row.group_key === groupKey);
+  if (!file || !supabaseClient) return;
+  const { data, error } = await supabaseClient.storage.from("semana-tec-calificaciones").download(file.storage_path);
+  if (error || !data) {
+    console.error(error);
+    toast("No se pudo descargar el PDF");
+    return;
+  }
+  const url = URL.createObjectURL(data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.file_name || `grupo-${file.numero_grupo}-calificaciones.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 const participationUploadConfigs = {
@@ -8655,13 +8882,13 @@ function participationAcademicRows(rows) {
   });
 }
 
-function renderUploadBars(title, rows) {
+function renderUploadBars(title, rows, limit = 8) {
   const max = Math.max(...rows.map((row) => row.value), 1);
   return `
     <article class="upload-chart-card">
       <h3>${title}</h3>
       <div class="upload-bars">
-        ${rows.length ? rows.slice(0, 8).map((row) => `
+        ${rows.length ? rows.slice(0, limit).map((row) => `
           <div class="upload-bar-row">
             <span>${escapeHtml(row.label)}</span>
             <div class="bar-track"><div class="bar-fill" style="width:${Math.max(4, Math.round((row.value / max) * 100))}%"></div></div>
@@ -14818,6 +15045,147 @@ function renderCollaboratorsCapture(area) {
   `;
 }
 
+function communicationDiffusionImage(slotKey) {
+  return communicationDiffusionImages.find((row) => row.slot_key === slotKey) || null;
+}
+
+function communicationDiffusionUpdatedLabel(value) {
+  if (!value) return "Sin imagen cargada";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Imagen vigente";
+  return `Actualizada ${date.toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}`;
+}
+
+function renderCommunicationDiffusionView() {
+  const editable = canEditArea("comunicacion") && currentUser?.auth === "supabase";
+  if (!communicationDiffusionAvailable) {
+    return `<div class="permission-strip">Imágenes de difusión necesita activar su tabla y almacenamiento en Supabase.</div>`;
+  }
+  return `
+    <section class="communication-diffusion-header">
+      <div>
+        <p class="eyebrow">Comunicación</p>
+        <h3>Imágenes de difusión actuales</h3>
+        <p>Consulta, reemplaza y descarga la pieza vigente de cada servicio.</p>
+      </div>
+      <span class="communication-diffusion-count">${communicationDiffusionImages.length} de ${COMMUNICATION_DIFFUSION_SLOTS.length} disponibles</span>
+    </section>
+    ${communicationDiffusionLoading ? `<div class="permission-strip">Cargando imágenes guardadas...</div>` : ""}
+    <section class="communication-diffusion-grid" aria-label="Imágenes de difusión actuales">
+      ${COMMUNICATION_DIFFUSION_SLOTS.map((slot, index) => {
+        const image = communicationDiffusionImage(slot.key);
+        const uploading = communicationDiffusionUploadingSlot === slot.key;
+        return `
+          <article class="communication-diffusion-card">
+            <div class="communication-diffusion-title">
+              <span>${String(index + 1).padStart(2, "0")}</span>
+              <div>
+                <h4>${escapeHtml(slot.title)}</h4>
+                <small>${escapeHtml(communicationDiffusionUpdatedLabel(image?.updated_at))}</small>
+              </div>
+            </div>
+            <div class="communication-diffusion-preview ${image ? "has-image" : "is-empty"}">
+              ${image
+                ? `<img src="${escapeHtml(image.public_url)}" alt="Vista previa de ${escapeHtml(slot.title)}" loading="lazy">`
+                : `<div><i data-lucide="image"></i><strong>Sin imagen</strong><span>La vista previa aparecerá aquí.</span></div>`}
+            </div>
+            <div class="communication-diffusion-actions">
+              <label class="primary-btn communication-diffusion-upload ${editable && !uploading ? "" : "disabled"}">
+                <i data-lucide="upload"></i>
+                <span>${uploading ? "Guardando..." : image ? "Reemplazar imagen" : "Cargar imagen"}</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" data-communication-diffusion-upload="${slot.key}" ${editable && !uploading ? "" : "disabled"} hidden>
+              </label>
+              <button class="ghost-btn" type="button" data-communication-diffusion-download="${slot.key}" ${image ? "" : "disabled"}>
+                <i data-lucide="download"></i>
+                <span>Descargar imagen</span>
+              </button>
+            </div>
+          </article>
+        `;
+      }).join("")}
+    </section>
+  `;
+}
+
+async function uploadCommunicationDiffusionImage(slotKey, file) {
+  const slot = COMMUNICATION_DIFFUSION_SLOTS.find((item) => item.key === slotKey);
+  if (!slot || !file) return;
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("comunicacion")) {
+    toast("Necesitas permiso de Comunicación para cargar imágenes");
+    return;
+  }
+  const supportedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+  if (!supportedTypes.has(file.type) || file.size > 10 * 1024 * 1024) {
+    toast("La imagen debe ser JPG, PNG o WEBP y pesar máximo 10 MB");
+    return;
+  }
+  const previous = communicationDiffusionImage(slotKey);
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-") || "imagen";
+  const storagePath = `${slotKey}/${crypto.randomUUID()}-${safeName}`;
+  communicationDiffusionUploadingSlot = slotKey;
+  render();
+  try {
+    const { error: uploadError } = await supabaseClient.storage
+      .from("communication-diffusion")
+      .upload(storagePath, file, { contentType: file.type, upsert: false });
+    if (uploadError) throw uploadError;
+    const { error: metadataError } = await supabaseClient
+      .from("communication_diffusion_images")
+      .upsert({
+        slot_key: slotKey,
+        title: slot.title,
+        storage_path: storagePath,
+        file_name: file.name,
+        mime_type: file.type,
+        file_size: file.size,
+        updated_by: currentUser.id,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "slot_key" });
+    if (metadataError) {
+      await supabaseClient.storage.from("communication-diffusion").remove([storagePath]);
+      throw metadataError;
+    }
+    if (previous?.storage_path && previous.storage_path !== storagePath) {
+      const { error: removeError } = await supabaseClient.storage
+        .from("communication-diffusion")
+        .remove([previous.storage_path]);
+      if (removeError) console.warn("No se pudo retirar la imagen anterior", removeError);
+    }
+    await loadCommunicationDiffusionImages();
+    addAudit("comunicacion", `Imagen de difusión actualizada: ${slot.title}`);
+    toast(`${slot.title}: imagen guardada`);
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo guardar la imagen: ${supabaseErrorDetail(error) || error.message}`);
+  } finally {
+    communicationDiffusionUploadingSlot = "";
+    render();
+  }
+}
+
+async function downloadCommunicationDiffusionImage(slotKey) {
+  const slot = COMMUNICATION_DIFFUSION_SLOTS.find((item) => item.key === slotKey);
+  const image = communicationDiffusionImage(slotKey);
+  if (!slot || !image || !supabaseClient) return;
+  const { data, error } = await supabaseClient.storage
+    .from("communication-diffusion")
+    .download(image.storage_path);
+  if (error || !data) {
+    console.error(error);
+    toast("No se pudo descargar la imagen");
+    return;
+  }
+  const url = URL.createObjectURL(data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = image.file_name || `${slot.key}.jpg`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  addAudit("comunicacion", `Imagen de difusión descargada: ${slot.title}`);
+}
+
 function renderSchedules(area) {
   if (area.id !== "clases") {
     return `
@@ -15681,6 +16049,7 @@ function render() {
   const vivenciaEventsTab = $("#vivenciaEventsViewButton");
   const semanaTecGradesTab = $("#semanaTecGradesViewButton");
   const semanaTecUploadTab = $("#semanaTecUploadViewButton");
+  const communicationDiffusionTab = $("#communicationDiffusionViewButton");
   const budgetAllocationTab = $("#budgetAllocationViewButton");
   const budgetRequestTab = $("#budgetRequestViewButton");
   const collaboratorInfographicTab = $("#collaboratorInfographicViewButton");
@@ -15708,10 +16077,11 @@ function render() {
   if (vivenciaEventsTab) vivenciaEventsTab.hidden = !isVivencia && !isCommunication;
   if (semanaTecGradesTab) semanaTecGradesTab.hidden = !isSemanaTec;
   if (semanaTecUploadTab) semanaTecUploadTab.hidden = !isSemanaTec;
+  if (communicationDiffusionTab) communicationDiffusionTab.hidden = !isCommunication;
   if (budgetAllocationTab) budgetAllocationTab.hidden = !isBudget;
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
   if (schedulesTab) {
-    schedulesTab.hidden = isGym || isBudget || isCollaborators || isParticipationOnly || isSemanaTec;
+    schedulesTab.hidden = isGym || isBudget || isCollaborators || isParticipationOnly || isSemanaTec || isCommunication;
     schedulesTab.textContent = isGeneral ? "Calendario" : isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
     if (isGeneral) schedulesTab.style.order = "2";
   }
@@ -15736,6 +16106,7 @@ function render() {
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isVivencia && !isCommunication && activeView === "vivencia-events") activeView = "dashboard";
+  if (activeView === "communication-diffusion" && !isCommunication) activeView = "dashboard";
   if (!isBudget && ["budget-allocation", "budget-request"].includes(activeView)) activeView = "dashboard";
   if (activeView === "collaborator-infographic" && !isCollaborators) activeView = "dashboard";
   if (activeView === "blueprint" && !isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases"))) activeView = "dashboard";
@@ -15751,6 +16122,7 @@ function render() {
     else if (activeView === "gym-attendance") contentHtml = renderGymAttendanceRegistration();
     else if (activeView === "gym-registrations") contentHtml = renderGymStudentRegistration();
     else if (activeView === "vivencia-events") contentHtml = isCommunication ? renderCommunicationEventsView() : renderVivenciaEventsView();
+    else if (activeView === "communication-diffusion") contentHtml = renderCommunicationDiffusionView();
     else if (activeView === "budget-allocation") contentHtml = renderBudgetAllocationView();
     else if (activeView === "budget-request") contentHtml = renderBudgetRequestView();
     else if (activeView === "schedules") contentHtml = isGeneral ? renderExecutiveCalendarView() : isIntramuros ? renderIntramurosParticipantUploadView() : renderSchedules(area);
@@ -15824,6 +16196,19 @@ function render() {
   $$(".semana-tec-grade-input").forEach((input) => input.addEventListener("change", async (event) => {
     await saveSemanaTecGrade(event.target.dataset.semanaTecKey, event.target.value);
     event.target.value = normalizeSemanaTecGrade(event.target.value);
+  }));
+  $$('[data-semana-tec-group-upload]').forEach((input) => input.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (file) await uploadSemanaTecGroupGradeFile(event.target.dataset.semanaTecGroupUpload, file);
+    event.target.value = "";
+  }));
+  $$('[data-semana-tec-group-select]').forEach((button) => button.addEventListener("click", () => {
+    const groupKey = button.dataset.semanaTecGroupSelect;
+    const input = $$('[data-semana-tec-group-upload]').find((control) => control.dataset.semanaTecGroupUpload === groupKey);
+    input?.click();
+  }));
+  $$('[data-semana-tec-group-download]').forEach((button) => button.addEventListener("click", () => {
+    downloadSemanaTecGroupGradeFile(button.dataset.semanaTecGroupDownload);
   }));
   $$("[data-planning-detail]").forEach((button) => button.addEventListener("click", () => {
     openPlanningActivityDetail(button, button.dataset.planningDetail, button.dataset.planningInstance);
@@ -16124,6 +16509,15 @@ function render() {
     await importCommunicationEvents(file);
     event.target.value = "";
   });
+  $$('[data-communication-diffusion-upload]').forEach((input) => input.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await uploadCommunicationDiffusionImage(input.dataset.communicationDiffusionUpload, file);
+    event.target.value = "";
+  }));
+  $$('[data-communication-diffusion-download]').forEach((button) => button.addEventListener("click", async () => {
+    await downloadCommunicationDiffusionImage(button.dataset.communicationDiffusionDownload);
+  }));
   $("#syncCommunicationPlanningEvents")?.addEventListener("click", syncCommunicationEventsFromPlanning);
   $("#openCommunicationParticipantsModal")?.addEventListener("click", () => {
     communicationParticipantsModalOpen = true;
@@ -17173,6 +17567,10 @@ $("#logoutButton").addEventListener("click", () => {
     communicationParticipantImportResult = null;
     selectedCommunicationEventForParticipants = "";
     communicationParticipantsModalOpen = false;
+    communicationDiffusionImages = [];
+    communicationDiffusionAvailable = true;
+    communicationDiffusionLoading = false;
+    communicationDiffusionUploadingSlot = "";
     physicalHallOfFameOpen = false;
     physicalHallOfFameTopTest = "";
     physicalHallOfFameGender = "todos";
