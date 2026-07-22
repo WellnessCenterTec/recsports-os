@@ -26,3 +26,27 @@ test("preview keeps 16:9 and a horizontal filmstrip", async () => {
   assert.match(css, /\.executive-presentation-preview-filmstrip[\s\S]*?overflow-x:\s*auto/);
   assert.match(css, /\.executive-presentation-thumbnail-canvas[\s\S]*?transform:\s*scale\(/);
 });
+
+test("history is added without replacing the approved preview", async () => {
+  const app = await readFile(appUrl, "utf8");
+  assert.match(app, /renderExecutivePresentationPreview\(\)/);
+  assert.match(app, /renderExecutivePresentationHistory\(\)/);
+  assert.match(app, /data-presentation-history-save/);
+  assert.match(app, /data-presentation-history-view/);
+  assert.match(app, /data-presentation-history-reuse/);
+  assert.match(app, /Historial de presentaciones/);
+});
+
+test("historical viewer is read only and reuse requires confirmation", async () => {
+  const app = await readFile(appUrl, "utf8");
+  assert.match(app, /sanitizePresentationSnapshotHtml/);
+  assert.match(app, /data-presentation-history-reuse-confirm/);
+  assert.match(app, /contenido editable de la presentación principal/);
+});
+
+test("history layout is compact and responsive", async () => {
+  const css = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  assert.match(css, /\.executive-presentation-history-list/);
+  assert.match(css, /\.executive-presentation-history-card/);
+  assert.match(css, /@media[\s\S]*\.executive-presentation-history-card/);
+});
