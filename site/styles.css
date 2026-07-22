@@ -1730,8 +1730,14 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 }
 
 .gym-attendance-combined-table th {
-  background: #eef3f6;
+  background: #e9eff4;
+  color: #1b2d3d;
   text-transform: none;
+}
+
+.gym-attendance-combined-table thead th:nth-child(n+12) {
+  background: #d6e6f3;
+  color: #123b5b;
 }
 
 .gym-attendance-combined-table th,
@@ -1767,33 +1773,44 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 .gym-attendance-combined-table .gym-table-gap {
   width: 28px;
   min-width: 28px;
-  background: #f1dce7;
-  border-left: 1px solid #d8c3ce;
-  border-right: 1px solid #d8c3ce;
+  background: #2f6f9f;
+  border-left: 1px solid #245a83;
+  border-right: 1px solid #245a83;
 }
 
-.gym-attendance-combined-table tbody td:nth-child(2),
-.gym-attendance-combined-table tbody td:nth-child(3),
-.gym-attendance-combined-table tbody td:nth-child(12),
-.gym-attendance-combined-table tbody td:nth-child(13) {
-  background: #f3dce7;
+.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(-n+10) {
+  background: #f1f4f6;
 }
 
-.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(2),
-.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(3),
-.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(12),
-.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(13) {
-  background: #f6e7ee;
+.gym-attendance-combined-table tbody tr:nth-child(even) td:nth-child(-n+10) {
+  background: #e5f0f8;
+}
+
+.gym-attendance-combined-table tbody tr:nth-child(odd) td:nth-child(n+12) {
+  background: #e9eef2;
+}
+
+.gym-attendance-combined-table tbody tr:nth-child(even) td:nth-child(n+12) {
+  background: #cfe3f3;
 }
 
 .gym-attendance-combined-table strong {
-  color: var(--blue);
+  color: #075b9c;
 }
 
 .gym-attendance-combined-table tfoot td {
-  background: #eef3f6;
+  background: #e4ebf0;
   border-top: 2px solid #c7d3dc;
   font-weight: 900;
+}
+
+.gym-attendance-combined-table tfoot td:nth-child(n+12) {
+  background: #d3e3ef;
+}
+
+.gym-attendance-combined-table tfoot .gym-table-gap {
+  background: #2f6f9f;
+  border-top-color: #245a83;
 }
 
 .gym-form-layout .form-panel,
