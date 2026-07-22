@@ -4978,6 +4978,11 @@ async function loadSupabaseSession() {
   const authUser = sessionData?.session?.user;
   if (!authUser) {
     cloudStatus = "Supabase listo";
+    if (currentUser?.auth === "supabase") {
+      clearSession();
+      activeArea = "general";
+      activeView = "dashboard";
+    }
     return;
   }
   const { profile, error } = await fetchMyProfile();
