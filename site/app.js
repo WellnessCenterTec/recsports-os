@@ -514,6 +514,7 @@ let executivePresentationSaving = false;
 let executivePresentationNotes = loadExecutivePresentationLocalNotes();
 let presentationInventoryDraft = null;
 let presentationFeedbackDraft = null;
+let presentationInventoryPendingUploadKeys = new Set();
 let physicalHallOfFameOpen = false;
 let physicalHallOfFameGender = "todos";
 let physicalHallOfFameTopTest = "";
@@ -1277,6 +1278,67 @@ function addAudit(action, detail = "") {
   };
   auditLog = [entry, ...auditLog].slice(0, 200);
   saveAuditLog();
+}
+
+const uploadSuccessStore = window.WellSyncUploadStatus?.createUploadStatusStore(localStorage);
+
+function latestUploadTimestamp(values) {
+  return (values || []).filter(Boolean).sort((a, b) => String(b).localeCompare(String(a)))[0] || "";
+}
+
+function uploadStatusTarget(selector, key, timestamp = "") {
+  document.querySelectorAll(selector).forEach((node, index) => {
+    const resolvedKey = typeof key === "function" ? key(node, index) : key;
+    const resolvedTimestamp = typeof timestamp === "function" ? timestamp(node, index) : timestamp;
+    const knownTimestamp = resolvedTimestamp || uploadSuccessStore?.get(resolvedKey) || "";
+    const label = document.createElement("small");
+    label.className = "upload-last-success";
+    label.dataset.uploadStatusKey = resolvedKey;
+    label.textContent = window.WellSyncUploadStatus?.formatUploadSuccess(knownTimestamp)
+      || "Última carga exitosa: sin registros";
+    let anchor = node;
+    if (node.matches('[data-semana-tec-group-select]')) anchor = node.closest(".semana-tec-group-file-actions") || node;
+    else if (node.matches('[data-communication-diffusion-upload]')) anchor = node.closest(".communication-diffusion-actions") || node.closest("label") || node;
+    else if (node.matches('input[type="file"]')) anchor = node.closest("label") || node;
+    anchor.insertAdjacentElement("afterend", label);
+  });
+}
+
+function renderUploadSuccessLabels() {
+  document.querySelectorAll(".upload-last-success").forEach((node) => node.remove());
+  const gradeTimestamp = latestUploadTimestamp(classGradeLoadGroups().map((group) => group.updatedAt));
+  const vivenciaParticipantsTimestamp = vivenciaParticipantUploads[0]?.upload_date || vivenciaParticipantUploads[0]?.created_at || "";
+  const communicationParticipantsTimestamp = communicationParticipantUploads[0]?.upload_date || communicationParticipantUploads[0]?.created_at || "";
+  const vivenciaImagesTimestamp = latestUploadTimestamp(vivenciaEventImages.map((image) => image.created_at || image.updated_at));
+
+  uploadStatusTarget("#uploadStudentDatabase", "general.student-database");
+  uploadStatusTarget("#uploadClassGrades", "clases.calificaciones", gradeTimestamp);
+  uploadStatusTarget('[data-schedule-upload="master"]', "clases.horarios.master", scheduleState.updatedAt);
+  uploadStatusTarget('[data-schedule-upload="official"]', "clases.horarios.official", scheduleState.updatedAt);
+  uploadStatusTarget('[data-schedule-upload="booking"]', "clases.horarios.booking", scheduleState.updatedAt);
+  uploadStatusTarget("#classBookingReservationsFile", "clases.booking");
+  uploadStatusTarget("#uploadGymAttendanceCsv", "gimnasio.asistencias");
+  uploadStatusTarget("#importSemanaTec", "semana-tec.alumnos", semanaTecLastUpload?.importedAt);
+  uploadStatusTarget('[data-participation-upload="gamer"]', "gamer.participantes", participationUploadState.gamer?.imported?.importedAt);
+  uploadStatusTarget('[data-participation-upload="representativos"]', "representativos.participantes", participationUploadState.representativos?.imported?.importedAt);
+  uploadStatusTarget("#intramurosParticipantsFile", "intramuros.participantes", intramurosUploadSummary?.importedAt);
+  uploadStatusTarget("#intramurosRolesFile", "intramuros.roles", intramurosRolesUploadSummary?.importedAt);
+  uploadStatusTarget("#saveCollaboratorPhoto", "colaboradores.fotografia");
+  uploadStatusTarget("#vivenciaParticipantsForm button[type=submit]", "vivencia.participantes", vivenciaParticipantsTimestamp);
+  uploadStatusTarget("#uploadVivenciaEventImages", "vivencia.imagenes", vivenciaImagesTimestamp);
+  uploadStatusTarget("#communicationParticipantsForm button[type=submit]", "comunicacion.participantes", communicationParticipantsTimestamp);
+  uploadStatusTarget("[data-inventory-image]", (node) => `presentacion.inventario.${node.dataset.inventoryImage}`);
+  uploadStatusTarget("[data-semana-tec-group-select]", (node) => `semana-tec.grupo.${node.dataset.semanaTecGroupSelect}`, (node) => semanaTecGroupGradeFiles.find((file) => file.group_key === node.dataset.semanaTecGroupSelect)?.updated_at || "");
+  uploadStatusTarget("[data-communication-diffusion-upload]", (node) => `comunicacion.difusion.${node.dataset.communicationDiffusionUpload}`, (node) => communicationDiffusionImage(node.dataset.communicationDiffusionUpload)?.updated_at || "");
+}
+
+function recordUploadSuccess(key, value = new Date().toISOString()) {
+  const recordedAt = uploadSuccessStore?.record(key, value) || value;
+  document.querySelectorAll(".upload-last-success").forEach((label) => {
+    if (label.dataset.uploadStatusKey !== key) return;
+    label.textContent = window.WellSyncUploadStatus?.formatUploadSuccess(recordedAt)
+      || "Última carga exitosa: sin registros";
+  });
 }
 
 function profileToSession(profile, authUser) {
@@ -2279,6 +2341,7 @@ async function replaceStudentDatabaseFromCsv(file) {
     const warningSummary = warnings.length ? `, ${warnings.length} advertencias` : "";
     const omittedSummary = omitted ? `, ${omitted} omitidos` : "";
     addAudit("importacion", `${payload.length} alumnos cargados en Base de datos_alumnos${omittedSummary}${warningSummary}`);
+    recordUploadSuccess("general.student-database");
     toast(`Carga lista: ${payload.length} cargados${omittedSummary}${warningSummary}`);
   } catch (error) {
     console.error(error);
@@ -3616,6 +3679,7 @@ async function importVivenciaParticipants(file, eventId) {
       totalParticipants
     };
     addAudit("vivencia", `${loaded} participantes importados para ${eventRow.event_name}`);
+    recordUploadSuccess("vivencia.participantes");
     await loadVivenciaEvents();
     toast(`Participantes cargados: ${loaded}. Duplicados ignorados: ${duplicates}`);
   } catch (error) {
@@ -3862,6 +3926,7 @@ async function importCommunicationParticipants(file, eventId) {
       totalParticipants
     };
     addAudit("comunicacion", `${loaded} participantes importados para ${eventRow.event_name}`);
+    recordUploadSuccess("comunicacion.participantes");
     await loadCommunicationEvents();
     toast(`Participantes cargados: ${loaded}. Duplicados ignorados: ${duplicates}`);
   } catch (error) {
@@ -4015,6 +4080,7 @@ async function uploadVivenciaEventImages(files, eventId) {
     }
     await loadVivenciaEvents();
     addAudit("vivencia", `${imageFiles.length} imágenes cargadas para ${eventRow.event_name}`);
+    recordUploadSuccess("vivencia.imagenes");
     toast(`${imageFiles.length} imagen${imageFiles.length === 1 ? "" : "es"} guardada${imageFiles.length === 1 ? "" : "s"} en el evento`);
   } catch (error) {
     console.error(error);
@@ -4798,6 +4864,7 @@ async function uploadCollaboratorPhoto() {
       await supabaseClient.storage.from("collaborator-photos").remove([row.__photoPath]);
     }
     addAudit("colaboradores", `Foto actualizada para ${nomina}`);
+    recordUploadSuccess("colaboradores.fotografia");
     photoUploaderOpen = false;
     selectedPhotoNomina = "";
     await loadSupabaseCollaborators();
@@ -7155,6 +7222,7 @@ async function importSemanaTecDraft() {
   semanaTecSaving = false;
   saveSemanaTecLocal();
   addAudit("semana-tec", `${semanaTecLastUpload.total} registros importados desde ${semanaTecLastUpload.fileName}`);
+  recordUploadSuccess("semana-tec.alumnos", semanaTecLastUpload.importedAt);
   render();
   await loadSemanaTecCloud();
   toast("Semana Tec guardada permanentemente en Supabase");
@@ -7463,6 +7531,7 @@ async function uploadSemanaTecGroupGradeFile(groupKey, file) {
     }
     await loadSemanaTecGroupGradeFiles();
     addAudit("semana-tec", `PDF de calificaciones guardado para grupo ${group.group}`);
+    recordUploadSuccess(`semana-tec.grupo.${groupKey}`);
     toast(`Grupo ${group.group}: PDF guardado`);
   } catch (error) {
     console.error(error);
@@ -7754,6 +7823,7 @@ async function importParticipationUpload(areaId) {
   saveParticipationUploadsLocal();
   await loadParticipationUploadsCloud(areaId);
   addAudit(areaId, `${draft.summary.total} registros guardados en Supabase desde ${draft.fileName}`);
+  recordUploadSuccess(`${areaId}.participantes`, participationUploadState[areaId].imported?.importedAt);
   render();
   toast("Información guardada en Supabase");
 }
@@ -8157,6 +8227,7 @@ async function importIntramurosParticipants(file) {
       importedAt: new Date().toISOString()
     };
     addAudit("intramuros", `${parsed.rows.length} participantes procesados desde ${file.name}`);
+    recordUploadSuccess("intramuros.participantes", intramurosUploadSummary.importedAt);
     toast(`${parsed.rows.length.toLocaleString("es-MX")} registros de Intramuros guardados`);
   } catch (error) {
     console.error(error);
@@ -8610,6 +8681,7 @@ async function importIntramurosRoles(file) {
       ].filter(Boolean)
     };
     addAudit("intramuros", `${parsed.rows.length} juegos cargados desde ${file.name}`);
+    recordUploadSuccess("intramuros.roles", intramurosRolesUploadSummary.importedAt);
     toast(`${parsed.rows.length.toLocaleString("es-MX")} roles de juego guardados`);
   } catch (error) {
     console.error(error);
@@ -10939,6 +11011,7 @@ function bindExecutivePresentationControls() {
     try {
       input.disabled = true;
       presentationInventoryDraft[itemIndex].images[imageIndex] = await preparePresentationInventoryImage(file);
+      presentationInventoryPendingUploadKeys.add(`presentacion.inventario.${input.dataset.inventoryImage}`);
       syncPresentationInventoryValue();
       render();
       toast("Fotografía preparada. Guarda la diapositiva para conservarla");
@@ -10956,8 +11029,8 @@ function bindExecutivePresentationControls() {
   }));
   $$('[data-presentation-step]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Math.max(0, Math.min(EXECUTIVE_PRESENTATION_SLIDES.length - 1, executivePresentationIndex + Number(button.dataset.presentationStep))); updateExecutivePresentationStage(); }));
   $('[data-presentation-close]')?.addEventListener("click", () => { executivePresentationMode = false; render(); });
-  $$('[data-presentation-editor-close]').forEach((button) => button.addEventListener("click", (event) => { if (event.target === event.currentTarget || event.currentTarget.tagName === "BUTTON") { executivePresentationEditorOpen = false; render(); } }));
-  $('#executivePresentationForm')?.addEventListener("submit", async (event) => { event.preventDefault(); syncPresentationInventoryValue(); syncPresentationFeedbackValue(); executivePresentationSaving = true; const form = event.currentTarget; const cloud = await saveExecutivePresentationNotes(form); executivePresentationSaving = false; executivePresentationEditorOpen = false; presentationInventoryDraft = null; presentationFeedbackDraft = null; render(); toast(cloud ? "Junta semanal guardada en Supabase" : "Junta semanal guardada en este navegador"); });
+  $$('[data-presentation-editor-close]').forEach((button) => button.addEventListener("click", (event) => { if (event.target === event.currentTarget || event.currentTarget.tagName === "BUTTON") { executivePresentationEditorOpen = false; presentationInventoryPendingUploadKeys.clear(); render(); } }));
+  $('#executivePresentationForm')?.addEventListener("submit", async (event) => { event.preventDefault(); syncPresentationInventoryValue(); syncPresentationFeedbackValue(); executivePresentationSaving = true; const form = event.currentTarget; const cloud = await saveExecutivePresentationNotes(form); presentationInventoryPendingUploadKeys.forEach((key) => recordUploadSuccess(key)); presentationInventoryPendingUploadKeys.clear(); executivePresentationSaving = false; executivePresentationEditorOpen = false; presentationInventoryDraft = null; presentationFeedbackDraft = null; render(); toast(cloud ? "Junta semanal guardada en Supabase" : "Junta semanal guardada en este navegador"); });
 }
 
 function renderDashboard(area) {
@@ -11310,6 +11383,7 @@ async function importClassGradesFile(file) {
       errors: parsed.errors
     };
     addAudit("importacion", `${parsed.validRows.length} calificaciones cargadas desde ${file.name}; periodos reemplazados: ${periods.join(", ")}`);
+    recordUploadSuccess("clases.calificaciones");
     await loadClassGrades();
     render();
     toast(`${parsed.validRows.length} calificaciones cargadas; ${periods.join(", ")} reemplazado`);
@@ -15158,6 +15232,7 @@ async function uploadCommunicationDiffusionImage(slotKey, file) {
     }
     await loadCommunicationDiffusionImages();
     addAudit("comunicacion", `Imagen de difusión actualizada: ${slot.title}`);
+    recordUploadSuccess(`comunicacion.difusion.${slotKey}`);
     toast(`${slot.title}: imagen guardada`);
   } catch (error) {
     console.error(error);
@@ -15662,6 +15737,7 @@ async function importClassBookingReservations(file) {
   const savedCloud = await saveClassBookingReservationsCloud(parsed, file.name);
   if (savedCloud) await loadClassBookingReservationsCloud();
   addAudit("booking", `${file.name}: ${parsed.length} reservaciones importadas`);
+  recordUploadSuccess("clases.booking");
   render();
   toast(savedCloud ? `${parsed.length} reservaciones guardadas en Supabase` : `${parsed.length} reservaciones de Booking cargadas localmente`);
 }
@@ -16145,6 +16221,7 @@ function render() {
     contentHtml = `<div class="permission-strip">No se pudo cargar esta vista: ${escapeHtml(error?.message || "error desconocido")}</div>`;
   }
   $("#contentArea").innerHTML = contentHtml;
+  renderUploadSuccessLabels();
   if (isPresentation) bindExecutivePresentationControls();
   $$(".segmented button[data-view]").forEach((button) => {
     button.onclick = () => {
@@ -16947,6 +17024,7 @@ async function importGymAttendanceCsv(file) {
     }
     await loadGymData();
     addAudit("gimnasio", `Archivo de asistencias cargado: ${payload.length} filas procesadas`);
+    recordUploadSuccess("gimnasio.asistencias");
     const omittedSummary = omitted ? `, ${omitted} omitidas` : "";
     const warningSummary = warnings.length ? `, ${warnings.length} advertencias` : "";
     toast(`Asistencias cargadas: ${payload.length} procesadas${omittedSummary}${warningSummary}`);
@@ -17232,6 +17310,7 @@ async function handleScheduleUpload(file, type) {
       simulatorState = { rows: simulatorBaseRows(), scenarioName: "Escenario desde Calendario Maestro", updatedAt: new Date().toISOString() };
       saveSimulator();
       addAudit("horarios", `${file.name}: maestro con ${parsed.official.length} clases oficiales y ${parsed.booking.length} booking`);
+      recordUploadSuccess("clases.horarios.master", scheduleState.updatedAt);
       render();
       toast("Archivo maestro consolidado en Horarios");
       return;
@@ -17247,6 +17326,7 @@ async function handleScheduleUpload(file, type) {
     simulatorState = { rows: simulatorBaseRows(), scenarioName: "Escenario desde Calendario Maestro", updatedAt: new Date().toISOString() };
     saveSimulator();
     addAudit("horarios", `${file.name}: ${parsed.validRows.length} registros validos, ${parsed.errors.length} errores`);
+    recordUploadSuccess(`clases.horarios.${type}`, scheduleState.updatedAt);
     render();
     toast(`${type === "official" ? "Programacion Oficial" : "Booking"} cargado`);
   } catch (error) {
