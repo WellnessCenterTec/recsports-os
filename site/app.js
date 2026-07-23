@@ -70,26 +70,6 @@
     reports: ["Reporte de campañas", "Conversión por área", "Resumen para dirección"]
   },
   {
-    id: "representativos",
-    name: "Representativos",
-    tone: "green",
-    source: "Repres Lista, Uniformes",
-    capture: ["Matrícula", "Deporte", "Rama", "Coach", "Temporada", "Estatus"],
-    indicators: ["Atletas activos", "Equipos por deporte", "Distribución por género", "Uniformes pendientes"],
-    charts: ["Atletas por deporte", "Rama por equipo", "Estatus de uniforme"],
-    reports: ["Roster por coach", "Uniformes por atleta", "Reporte de temporada"]
-  },
-  {
-    id: "gamer",
-    name: "Gamer",
-    tone: "lav",
-    source: "Gamer Lista",
-    capture: ["Matrícula", "Actividad gamer", "Torneo", "Fecha", "Estatus"],
-    indicators: ["Participantes únicos", "Eventos gamer", "Reincidencia", "Distribución por carrera"],
-    charts: ["Participación por torneo", "Perfil académico", "Tendencia mensual"],
-    reports: ["Lista de participantes", "Reporte de torneos", "Ranking agregado"]
-  },
-  {
     id: "colaboradores",
     name: "Colaboradores",
     tone: "blue",
@@ -202,7 +182,7 @@ const classDisciplineIndicators = [
 const careers = ["ITC", "LAF", "LIN", "MC", "LNB", "ARQ", "IMT", "LAE", "MNA", "DCA"];
 const genders = ["Femenino", "Masculino", "No especificado"];
 const levels = ["Profesional", "Posgrado"];
-const activities = ["clases", "gimnasio", "intramuros", "vivencia", "representativos", "gamer"];
+const activities = ["clases", "gimnasio", "intramuros", "vivencia"];
 const STORAGE_KEY = "recsports_os_local_captures";
 const SCHEDULE_KEY = "recsports_os_class_schedules";
 const CLASS_BOOKING_RESERVATIONS_KEY = "wellsync_class_booking_reservations";
@@ -228,6 +208,7 @@ const BASE_COLLABORATOR_COLUMNS = [
   "Playeras Joma",
   "Talla pants",
   "correo institucional",
+  "Fecha cumpleaños",
   "Genero",
   "Primeros auxilios"
 ];
@@ -654,11 +635,11 @@ const COMMUNICATION_DIFFUSION_SLOTS = [
   { key: "gym-wellness", title: "Horario de Gimnasio Wellness" },
   { key: "gym-emis", title: "Horario de Gimnasio EMIS" },
   { key: "natacion", title: "Horario de Natación" },
-  { key: "booking", title: "Horario de Booking" },
+  { key: "booking", title: "Horario de Booking", maxImages: 2 },
   { key: "clases", title: "Clases" },
   { key: "torneos-intramuros", title: "Torneos Intramuros" },
   { key: "renta-locker", title: "Renta de Locker" },
-  { key: "sitio-wellness", title: "Sitio Wellness" },
+  { key: "sitio-wellness", title: "Sitio Wellness", maxImages: 2 },
   { key: "torneo-relampago", title: "Torneo Relámpago" },
   { key: "extra", title: "Extra" }
 ];
@@ -666,6 +647,7 @@ let communicationDiffusionImages = [];
 let communicationDiffusionAvailable = true;
 let communicationDiffusionLoading = false;
 let communicationDiffusionUploadingSlot = "";
+let communicationDiffusionActiveImage = {};
 let classGradePage = 1;
 let classGradeFilter = {
   search: "",
@@ -1309,7 +1291,7 @@ function uploadStatusTarget(selector, key, timestamp = "") {
       || "Última carga exitosa: sin registros";
     let anchor = node;
     if (node.matches('[data-semana-tec-group-select]')) anchor = node.closest(".semana-tec-group-file-actions") || node;
-    else if (node.matches('[data-communication-diffusion-upload]')) anchor = node.closest(".communication-diffusion-actions") || node.closest("label") || node;
+    else if (node.matches('[data-communication-diffusion-upload]')) anchor = node.closest(".communication-diffusion-image-actions") || node.closest(".communication-diffusion-actions") || node.closest("label") || node;
     else if (node.matches('input[type="file"]')) anchor = node.closest("label") || node;
     anchor.insertAdjacentElement("afterend", label);
   });
@@ -1340,7 +1322,10 @@ function renderUploadSuccessLabels() {
   uploadStatusTarget("#communicationParticipantsForm button[type=submit]", "comunicacion.participantes", communicationParticipantsTimestamp);
   uploadStatusTarget("[data-inventory-image]", (node) => `presentacion.inventario.${node.dataset.inventoryImage}`);
   uploadStatusTarget("[data-semana-tec-group-select]", (node) => `semana-tec.grupo.${node.dataset.semanaTecGroupSelect}`, (node) => semanaTecGroupGradeFiles.find((file) => file.group_key === node.dataset.semanaTecGroupSelect)?.updated_at || "");
-  uploadStatusTarget("[data-communication-diffusion-upload]", (node) => `comunicacion.difusion.${node.dataset.communicationDiffusionUpload}`, (node) => communicationDiffusionImage(node.dataset.communicationDiffusionUpload)?.updated_at || "");
+  uploadStatusTarget("[data-communication-diffusion-upload]", (node) => {
+    const imageIndex = Number(node.dataset.communicationDiffusionImageIndex || 1);
+    return `comunicacion.difusion.${node.dataset.communicationDiffusionUpload}.${imageIndex}`;
+  }, (node) => communicationDiffusionImage(node.dataset.communicationDiffusionUpload, Number(node.dataset.communicationDiffusionImageIndex || 1))?.updated_at || "");
 }
 
 function recordUploadSuccess(key, value = new Date().toISOString()) {
@@ -2556,10 +2541,18 @@ async function loadCommunicationDiffusionImages() {
     return;
   }
   communicationDiffusionLoading = true;
-  const { data, error } = await supabaseClient
+  let { data, error } = await supabaseClient
     .from("communication_diffusion_images")
-    .select("slot_key, title, storage_path, file_name, mime_type, file_size, updated_at")
+    .select("slot_key, image_index, title, storage_path, file_name, mime_type, file_size, updated_at")
     .order("updated_at", { ascending: false });
+  if (error && String(error.message || "").includes("image_index")) {
+    const fallback = await supabaseClient
+      .from("communication_diffusion_images")
+      .select("slot_key, title, storage_path, file_name, mime_type, file_size, updated_at")
+      .order("updated_at", { ascending: false });
+    data = (fallback.data || []).map((row) => ({ ...row, image_index: 1 }));
+    error = fallback.error;
+  }
   communicationDiffusionLoading = false;
   if (error) {
     communicationDiffusionImages = [];
@@ -2570,6 +2563,7 @@ async function loadCommunicationDiffusionImages() {
   communicationDiffusionAvailable = true;
   communicationDiffusionImages = (data || []).map((row) => ({
     ...row,
+    image_index: Number(row.image_index || 1),
     public_url: supabaseClient.storage.from("communication-diffusion").getPublicUrl(row.storage_path).data.publicUrl
   }));
 }
@@ -4687,6 +4681,7 @@ async function addCollaboratorRow() {
     "Playeras Joma": "",
     "Talla pants": "",
     "correo institucional": "",
+    "Fecha cumpleaños": "",
     Genero: "",
     "Primeros auxilios": "",
     ...Object.fromEntries(collaboratorColumns().filter((column) => !BASE_COLLABORATOR_COLUMNS.includes(column)).map((column) => [column, ""]))
@@ -4988,16 +4983,6 @@ async function syncPendingLocalUploadBackups() {
     }
   }
 
-  for (const areaId of ["gamer", "representativos"]) {
-    const state = participationUploadState[areaId];
-    if (state?.source !== "local" || !state.imported?.rows?.length || !canEditArea(areaId)) continue;
-    const saved = await saveParticipationUploadCloud(areaId, state.imported);
-    if (!saved) continue;
-    participationUploadState[areaId].source = "cloud";
-    await loadParticipationUploadsCloud(areaId);
-    migrated += 1;
-  }
-
   if (migrated) {
     saveSemanaTecLocal();
     saveParticipationUploadsLocal();
@@ -5032,7 +5017,6 @@ async function loadSupabaseDataBundle() {
     ["Calendario Comunicación", loadPlanningEventOverrides],
     ["Intramuros", loadIntramurosParticipants],
     ["Booking", loadClassBookingReservationsCloud],
-    ["Gamer y Representativos", loadParticipationUploadsCloud],
     ["Vinculos rapidos", loadConfigQuickLinks],
     ["Presupuesto", loadBudgetData]
   ];
@@ -5171,7 +5155,8 @@ function visibleAreas() {
   if (!currentUser || ["admin", "direccion"].includes(currentUser.role)) return areas;
   if (currentUser.globalAccess) return areas.filter((area) => area.id !== "configuracion");
   if (currentUser.role === "compras") return areas.filter((area) => area.id === "compras");
-  return areas.filter((area) => area.id === currentUser.area);
+  const assignedAreas = areas.filter((area) => area.id === currentUser.area);
+  return assignedAreas.length ? assignedAreas : areas.filter((area) => area.id === "general");
 }
 
 function isLeadership() {
@@ -6116,15 +6101,13 @@ function renderNav() {
     vivencia: "calendar-days",
     "semana-tec": "calendar-range",
     comunicacion: "megaphone",
-    representativos: "medal",
-    gamer: "gamepad-2",
     colaboradores: "users",
     compras: "wallet-cards",
     presentacion: "presentation",
     configuracion: "settings"
   };
   if (!allowed.some((area) => area.id === activeArea)) {
-    activeArea = currentUser?.area || "general";
+    activeArea = allowed[0]?.id || "general";
   }
   $("#areaNav").innerHTML = allowed.map((area) => `
     <button class="nav-item ${area.id === activeArea ? "active" : ""}" data-area="${area.id}">
@@ -6140,17 +6123,6 @@ function renderNav() {
     activeArea = targetArea;
     activeView = "dashboard";
     render();
-    if (["gamer", "representativos"].includes(targetArea) && supabaseClient && currentUser?.auth === "supabase" && !participationUploadLoading[targetArea]) {
-      participationUploadLoading[targetArea] = true;
-      render();
-      try {
-        if (!studentDatabaseLoaded) await loadStudentDatabase();
-        await loadParticipationUploadsCloud(targetArea);
-      } finally {
-        participationUploadLoading[targetArea] = false;
-        if (activeArea === targetArea) render();
-      }
-    }
     if (targetArea === "semana-tec" && supabaseClient && currentUser?.auth === "supabase" && !semanaTecLoading) {
       semanaTecLoading = true;
       render();
@@ -9154,31 +9126,12 @@ function executiveSharedSourceRows() {
         ...context
       };
     });
-  const uploadRows = ["gamer", "representativos"].flatMap((areaId) => {
-    const imported = participationUploadState[areaId].imported;
-    return (imported?.rows || [])
-      .filter((row) => row.matricula && !row.duplicate)
-      .map((row) => {
-        const context = executiveStudentContext(row.matricula);
-        return {
-          matricula: normalizeMatricula(row.matricula),
-          area: areaId,
-          periodo: executiveReportState.period,
-          registros: 1,
-          operacion: areaId === "representativos" ? (row.representativo || "Representativo") : "Gamer",
-          source: participationUploadCloudAvailable ? "participation_uploads_supabase" : "participation_uploads_local",
-          genero: row.found ? (row.genero || context.genero) : context.genero,
-          carrera: row.found ? (row.carrera || context.carrera) : context.carrera,
-          semestre: context.semestre,
-          nivel: row.found ? (row.nivel || context.nivel) : context.nivel
-        };
-      });
-  });
-  return [...bookingRows, ...uploadRows];
+  return bookingRows;
 }
 
 function executiveOperationalRows() {
-  const baseRows = allParticipationRows().filter((row) => row.registros > 0 && !["general", "compras", "configuracion"].includes(row.area));
+  const retiredAreas = ["general", "compras", "configuracion", "gamer", "representativos"];
+  const baseRows = allParticipationRows().filter((row) => row.registros > 0 && !retiredAreas.includes(row.area));
   return [...baseRows, ...executiveSharedSourceRows()];
 }
 
@@ -9188,7 +9141,7 @@ function executiveUniqueCount(rows = executiveOperationalRows()) {
 
 function executiveCountByArea() {
   const rows = executiveOperationalRows();
-  const areaRows = ["clases", "gimnasio", "intramuros", "vivencia", "representativos", "gamer"].map((areaId) => {
+  const areaRows = ["clases", "gimnasio", "intramuros", "vivencia"].map((areaId) => {
     const areaRecords = rows.filter((row) => row.area === areaId);
     return {
       areaId,
@@ -9240,15 +9193,11 @@ function executiveAreaCards() {
   const gymUnique = new Set(gymAsistencias.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
   const gymTotal = gymAttendanceRecords.reduce((sum, row) => sum + (Number(row.attendee_count ?? row.cantidad ?? row.total ?? 0) || 0), 0);
   const vivenciaParticipants = vivenciaVisibleMetrics().reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
-  const representativos = executiveCountByArea().find((row) => row.areaId === "representativos")?.value || participationUploadState.representativos.imported?.summary?.found || 0;
-  const gamer = executiveCountByArea().find((row) => row.areaId === "gamer")?.value || participationUploadState.gamer.imported?.summary?.found || 0;
   const intramuros = executiveCountByArea().find((row) => row.areaId === "intramuros")?.value || 0;
   return [
     { id: "clases", view: "dashboard", area: "Clases Deportivas", metric: `${classes.effectiveness}% efectividad`, action: classes.np > classes.bajas ? "Revisar NP por disciplina" : "Mantener seguimiento", detail: `${classes.banner.toLocaleString("es-MX")} inscritos | ${classes.finished.toLocaleString("es-MX")} acreditados`, ...executiveStatus("clases", classes.banner, { warning: classes.effectiveness < 70 }) },
     { id: "gimnasio", view: "dashboard", area: "Gimnasio", metric: `${(gymUnique || gymTotal).toLocaleString("es-MX")} asistencias`, action: gymAttendanceRecords.length ? "Monitorear horarios pico" : "Cargar asistencia semanal", detail: `${gymAttendanceRecords.length.toLocaleString("es-MX")} semanas/días consolidados`, ...executiveStatus("gimnasio", gymTotal || gymAttendanceRecords.length) },
     { id: "vivencia", view: "dashboard", area: "Vivencia", metric: `${vivenciaParticipants.toLocaleString("es-MX")} participantes`, action: vivenciaEvents.length ? "Actualizar próximos eventos" : "Cargar planeación", detail: `${vivenciaEvents.length.toLocaleString("es-MX")} eventos en seguimiento`, ...executiveStatus("vivencia", vivenciaEvents.length) },
-    { id: "representativos", view: "dashboard", area: "Representativos", metric: `${representativos.toLocaleString("es-MX")} alumnos`, action: "Validar matrículas no encontradas", detail: `${participationUploadState.representativos.imported?.summary?.notFound || 0} no encontradas`, ...executiveStatus("representativos", representativos, { warning: Boolean(participationUploadState.representativos.imported?.summary?.notFound) }) },
-    { id: "gamer", view: "dashboard", area: "Gamer", metric: `${gamer.toLocaleString("es-MX")} participantes`, action: "Actualizar lista de matrículas", detail: `${participationUploadState.gamer.imported?.summary?.notFound || 0} no encontradas`, ...executiveStatus("gamer", gamer, { warning: Boolean(participationUploadState.gamer.imported?.summary?.notFound) }) },
     { id: "intramuros", view: "dashboard", area: "Intramuros", metric: `${intramuros.toLocaleString("es-MX")} alumnos`, action: "Revisar torneos activos", detail: `${executiveIntramurosRows().length.toLocaleString("es-MX")} disciplinas/listas activas`, ...executiveStatus("intramuros", intramuros) }
   ];
 }
@@ -9539,12 +9488,8 @@ function renderExecutiveGeneralDashboard() {
         </div>
         <div class="exec-grid">
           <article class="exec-panel">
-            <h3>Vivencia, Representativos y Gamer</h3>
-            ${renderExecutiveMiniBars([
-              ...vivenciaRows.slice(0, 3),
-              { label: "Representativos", value: areaCounts.find((row) => row.areaId === "representativos")?.value || participationUploadState.representativos.imported?.summary?.found || 0 },
-              { label: "Gamer", value: areaCounts.find((row) => row.areaId === "gamer")?.value || participationUploadState.gamer.imported?.summary?.found || 0 }
-            ], { compact: true })}
+            <h3>Vivencia</h3>
+            ${renderExecutiveMiniBars(vivenciaRows.slice(0, 5), { compact: true })}
           </article>
         </div>
         <footer class="exec-footer-kpis">
@@ -14001,8 +13946,10 @@ function renderClassGrades() {
           <h2>Registro de calificaciones</h2>
         </div>
         <div class="class-grade-actions">
-          <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
-          <button class="primary-btn" type="button" id="uploadClassGrades" ${editable && !classGradesImporting ? "" : "disabled"}>${classGradesImporting ? "Procesando..." : "Subir calificaciones"}</button>
+          <div class="class-grade-upload-control">
+            <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
+            <button class="primary-btn" type="button" id="uploadClassGrades" ${editable && !classGradesImporting ? "" : "disabled"}>${classGradesImporting ? "Procesando..." : "Subir calificaciones"}</button>
+          </div>
           <button class="ghost-btn" type="button" data-download-class-template="grades">Plantilla calificaciones</button>
           <button class="ghost-btn" type="button" id="exportClassGrades">Exportar Excel</button>
         </div>
@@ -14130,12 +14077,15 @@ function renderClassGradesSystemUpload() {
         <span class="session-pill">Excel / CSV</span>
       </div>
       <p>Actualiza la lista de alumnos y sus calificaciones en Supabase. Cada carga reemplaza primero el periodo/semestre incluido en el archivo para evitar duplicados.</p>
-      <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
       <div class="upload-action-row">
-        <button class="primary-btn" id="uploadClassGrades" type="button" ${editable && !classGradesImporting ? "" : "disabled"}>
-          ${classGradesImporting ? "Procesando archivo..." : "Cargar archivo de Calificaciones"}
-        </button>
+        <div class="class-grade-upload-control">
+          <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
+          <button class="primary-btn" id="uploadClassGrades" type="button" ${editable && !classGradesImporting ? "" : "disabled"}>
+            ${classGradesImporting ? "Procesando archivo..." : "Subir calificaciones"}
+          </button>
+        </div>
         <button class="ghost-btn" type="button" data-download-class-template="grades">Plantilla calificaciones</button>
+        <button class="ghost-btn" type="button" id="exportClassGrades">Exportar Excel</button>
       </div>
       <p class="form-message">Columnas requeridas: matricula, materia, calificacion y periodo. El periodo puede ser FJ26; el bloque PMT1, PMT2 o PMT3 se detecta desde la materia. También se aceptan clave_materia, CRN, grupo, profesor, carrera y semestre.</p>
       ${!editable ? `<div class="permission-strip grade-warning">Ingresa con un perfil autorizado de Clases Deportivas para realizar la carga.</div>` : ""}
@@ -15532,8 +15482,16 @@ function renderCollaboratorsCapture(area) {
   `;
 }
 
-function communicationDiffusionImage(slotKey) {
-  return communicationDiffusionImages.find((row) => row.slot_key === slotKey) || null;
+function communicationDiffusionImagesForSlot(slotKey) {
+  return communicationDiffusionImages
+    .filter((row) => row.slot_key === slotKey)
+    .sort((a, b) => Number(a.image_index || 1) - Number(b.image_index || 1));
+}
+
+function communicationDiffusionImage(slotKey, imageIndex = 1) {
+  return communicationDiffusionImages.find((row) => (
+    row.slot_key === slotKey && Number(row.image_index || 1) === Number(imageIndex)
+  )) || null;
 }
 
 function communicationDiffusionUpdatedLabel(value) {
@@ -15545,6 +15503,7 @@ function communicationDiffusionUpdatedLabel(value) {
 
 function renderCommunicationDiffusionView() {
   const editable = canEditArea("comunicacion") && currentUser?.auth === "supabase";
+  const totalCapacity = COMMUNICATION_DIFFUSION_SLOTS.reduce((sum, slot) => sum + Number(slot.maxImages || 1), 0);
   if (!communicationDiffusionAvailable) {
     return `<div class="permission-strip">Imágenes de difusión necesita activar su tabla y almacenamiento en Supabase.</div>`;
   }
@@ -15555,38 +15514,58 @@ function renderCommunicationDiffusionView() {
         <h3>Imágenes de difusión actuales</h3>
         <p>Consulta, reemplaza y descarga la pieza vigente de cada servicio.</p>
       </div>
-      <span class="communication-diffusion-count">${communicationDiffusionImages.length} de ${COMMUNICATION_DIFFUSION_SLOTS.length} disponibles</span>
+      <span class="communication-diffusion-count">${communicationDiffusionImages.length} de ${totalCapacity} imágenes disponibles</span>
     </section>
     ${communicationDiffusionLoading ? `<div class="permission-strip">Cargando imágenes guardadas...</div>` : ""}
     <section class="communication-diffusion-grid" aria-label="Imágenes de difusión actuales">
       ${COMMUNICATION_DIFFUSION_SLOTS.map((slot, index) => {
-        const image = communicationDiffusionImage(slot.key);
-        const uploading = communicationDiffusionUploadingSlot === slot.key;
+        const maxImages = Number(slot.maxImages || 1);
+        const images = communicationDiffusionImagesForSlot(slot.key);
+        const requestedIndex = Number(communicationDiffusionActiveImage[slot.key] || 1);
+        const activeIndex = communicationDiffusionImage(slot.key, requestedIndex) ? requestedIndex : Number(images[0]?.image_index || 1);
+        const image = communicationDiffusionImage(slot.key, activeIndex);
+        const uploading = communicationDiffusionUploadingSlot.startsWith(`${slot.key}:`);
+        const imageActions = Array.from({ length: maxImages }, (_, position) => {
+          const imageIndex = position + 1;
+          const storedImage = communicationDiffusionImage(slot.key, imageIndex);
+          const isUploading = communicationDiffusionUploadingSlot === `${slot.key}:${imageIndex}`;
+          return `
+            <div class="communication-diffusion-image-actions">
+              ${maxImages > 1 ? `<strong>Imagen ${imageIndex}</strong>` : ""}
+              <label class="primary-btn communication-diffusion-upload ${editable && !uploading ? "" : "disabled"}">
+                <i data-lucide="upload"></i>
+                <span>${isUploading ? "Guardando..." : storedImage ? "Reemplazar" : "Cargar imagen"}</span>
+                <input type="file" accept="image/jpeg,image/png,image/webp" data-communication-diffusion-upload="${slot.key}" data-communication-diffusion-image-index="${imageIndex}" ${editable && !uploading ? "" : "disabled"} hidden>
+              </label>
+              <button class="ghost-btn" type="button" data-communication-diffusion-download="${slot.key}" data-communication-diffusion-image-index="${imageIndex}" ${storedImage ? "" : "disabled"}>
+                <i data-lucide="download"></i>
+                <span>Descargar</span>
+              </button>
+            </div>
+          `;
+        }).join("");
         return `
-          <article class="communication-diffusion-card">
+          <article class="communication-diffusion-card ${maxImages > 1 ? "supports-carousel" : ""}">
             <div class="communication-diffusion-title">
               <span>${String(index + 1).padStart(2, "0")}</span>
               <div>
                 <h4>${escapeHtml(slot.title)}</h4>
-                <small>${escapeHtml(communicationDiffusionUpdatedLabel(image?.updated_at))}</small>
+                <small>${images.length ? `${images.length} de ${maxImages} imágenes cargadas` : "Sin imagen cargada"}</small>
               </div>
             </div>
             <div class="communication-diffusion-preview ${image ? "has-image" : "is-empty"}">
               ${image
-                ? `<img src="${escapeHtml(image.public_url)}" alt="Vista previa de ${escapeHtml(slot.title)}" loading="lazy">`
+                ? `<img src="${escapeHtml(image.public_url)}" alt="Vista previa de ${escapeHtml(slot.title)}, imagen ${activeIndex}" loading="lazy">`
                 : `<div><i data-lucide="image"></i><strong>Sin imagen</strong><span>La vista previa aparecerá aquí.</span></div>`}
+              ${maxImages > 1 ? `
+                <button class="communication-diffusion-carousel-arrow previous" type="button" data-communication-diffusion-carousel="${slot.key}" data-direction="-1" aria-label="Ver imagen anterior" ${images.length < 2 ? "disabled" : ""}><i data-lucide="chevron-left"></i></button>
+                <button class="communication-diffusion-carousel-arrow next" type="button" data-communication-diffusion-carousel="${slot.key}" data-direction="1" aria-label="Ver imagen siguiente" ${images.length < 2 ? "disabled" : ""}><i data-lucide="chevron-right"></i></button>
+                <div class="communication-diffusion-carousel-dots" aria-label="Posición de imagen">
+                  ${Array.from({ length: maxImages }, (_, dotIndex) => `<button type="button" data-communication-diffusion-carousel-index="${slot.key}" data-image-index="${dotIndex + 1}" class="${activeIndex === dotIndex + 1 ? "active" : ""}" aria-label="Ver imagen ${dotIndex + 1}" ${communicationDiffusionImage(slot.key, dotIndex + 1) ? "" : "disabled"}></button>`).join("")}
+                </div>
+              ` : ""}
             </div>
-            <div class="communication-diffusion-actions">
-              <label class="primary-btn communication-diffusion-upload ${editable && !uploading ? "" : "disabled"}">
-                <i data-lucide="upload"></i>
-                <span>${uploading ? "Guardando..." : image ? "Reemplazar imagen" : "Cargar imagen"}</span>
-                <input type="file" accept="image/jpeg,image/png,image/webp" data-communication-diffusion-upload="${slot.key}" ${editable && !uploading ? "" : "disabled"} hidden>
-              </label>
-              <button class="ghost-btn" type="button" data-communication-diffusion-download="${slot.key}" ${image ? "" : "disabled"}>
-                <i data-lucide="download"></i>
-                <span>Descargar imagen</span>
-              </button>
-            </div>
+            <div class="communication-diffusion-actions ${maxImages > 1 ? "is-multiple" : ""}">${imageActions}</div>
           </article>
         `;
       }).join("")}
@@ -15594,7 +15573,7 @@ function renderCommunicationDiffusionView() {
   `;
 }
 
-async function uploadCommunicationDiffusionImage(slotKey, file) {
+async function uploadCommunicationDiffusionImage(slotKey, imageIndex, file) {
   const slot = COMMUNICATION_DIFFUSION_SLOTS.find((item) => item.key === slotKey);
   if (!slot || !file) return;
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("comunicacion")) {
@@ -15606,10 +15585,11 @@ async function uploadCommunicationDiffusionImage(slotKey, file) {
     toast("La imagen debe ser JPG, PNG o WEBP y pesar máximo 10 MB");
     return;
   }
-  const previous = communicationDiffusionImage(slotKey);
+  const normalizedImageIndex = Math.max(1, Math.min(Number(slot.maxImages || 1), Number(imageIndex || 1)));
+  const previous = communicationDiffusionImage(slotKey, normalizedImageIndex);
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-") || "imagen";
-  const storagePath = `${slotKey}/${crypto.randomUUID()}-${safeName}`;
-  communicationDiffusionUploadingSlot = slotKey;
+  const storagePath = `${slotKey}/imagen-${normalizedImageIndex}/${crypto.randomUUID()}-${safeName}`;
+  communicationDiffusionUploadingSlot = `${slotKey}:${normalizedImageIndex}`;
   render();
   try {
     const { error: uploadError } = await supabaseClient.storage
@@ -15620,6 +15600,7 @@ async function uploadCommunicationDiffusionImage(slotKey, file) {
       .from("communication_diffusion_images")
       .upsert({
         slot_key: slotKey,
+        image_index: normalizedImageIndex,
         title: slot.title,
         storage_path: storagePath,
         file_name: file.name,
@@ -15627,7 +15608,7 @@ async function uploadCommunicationDiffusionImage(slotKey, file) {
         file_size: file.size,
         updated_by: currentUser.id,
         updated_at: new Date().toISOString()
-      }, { onConflict: "slot_key" });
+      }, { onConflict: "slot_key,image_index" });
     if (metadataError) {
       await supabaseClient.storage.from("communication-diffusion").remove([storagePath]);
       throw metadataError;
@@ -15639,9 +15620,10 @@ async function uploadCommunicationDiffusionImage(slotKey, file) {
       if (removeError) console.warn("No se pudo retirar la imagen anterior", removeError);
     }
     await loadCommunicationDiffusionImages();
-    addAudit("comunicacion", `Imagen de difusión actualizada: ${slot.title}`);
-    recordUploadSuccess(`comunicacion.difusion.${slotKey}`);
-    toast(`${slot.title}: imagen guardada`);
+    communicationDiffusionActiveImage[slotKey] = normalizedImageIndex;
+    addAudit("comunicacion", `Imagen ${normalizedImageIndex} de difusión actualizada: ${slot.title}`);
+    recordUploadSuccess(`comunicacion.difusion.${slotKey}.${normalizedImageIndex}`);
+    toast(`${slot.title}: imagen ${normalizedImageIndex} guardada`);
   } catch (error) {
     console.error(error);
     toast(`No se pudo guardar la imagen: ${supabaseErrorDetail(error) || error.message}`);
@@ -15651,9 +15633,9 @@ async function uploadCommunicationDiffusionImage(slotKey, file) {
   }
 }
 
-async function downloadCommunicationDiffusionImage(slotKey) {
+async function downloadCommunicationDiffusionImage(slotKey, imageIndex = 1) {
   const slot = COMMUNICATION_DIFFUSION_SLOTS.find((item) => item.key === slotKey);
-  const image = communicationDiffusionImage(slotKey);
+  const image = communicationDiffusionImage(slotKey, imageIndex);
   if (!slot || !image || !supabaseClient) return;
   const { data, error } = await supabaseClient.storage
     .from("communication-diffusion")
@@ -15671,7 +15653,7 @@ async function downloadCommunicationDiffusionImage(slotKey) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  addAudit("comunicacion", `Imagen de difusión descargada: ${slot.title}`);
+  addAudit("comunicacion", `Imagen ${imageIndex} de difusión descargada: ${slot.title}`);
 }
 
 function renderSchedules(area) {
@@ -16524,8 +16506,9 @@ function render() {
   if (!currentUser) return;
   const themeSelect = $("#themeSelect");
   if (themeSelect) themeSelect.hidden = !isLeadership();
-  const area = areas.find((a) => a.id === activeArea);
   renderNav();
+  const area = areas.find((a) => a.id === activeArea) || areas.find((a) => a.id === "general");
+  if (area && activeArea !== area.id) activeArea = area.id;
   renderExecutiveKpis();
   renderSystemMap();
   $("#currentTitle").textContent = area.name;
@@ -16554,7 +16537,6 @@ function render() {
   const isGeneral = activeArea === "general";
   const isCollaborators = activeArea === "colaboradores";
   const isPresentation = activeArea === "presentacion";
-  const isParticipationOnly = activeArea === "gamer" || activeArea === "representativos";
   $$(".segmented button").forEach((button) => { button.style.order = ""; });
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
   if (collaboratorInfographicTab) collaboratorInfographicTab.hidden = !isCollaborators;
@@ -16570,13 +16552,13 @@ function render() {
   if (budgetAllocationTab) budgetAllocationTab.hidden = !isBudget;
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
   if (schedulesTab) {
-    schedulesTab.hidden = isGym || isBudget || isCollaborators || isParticipationOnly || isSemanaTec || isCommunication;
+    schedulesTab.hidden = isGym || isBudget || isCollaborators || isSemanaTec || isCommunication;
     schedulesTab.textContent = isGeneral ? "Calendario" : isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
     if (isGeneral) schedulesTab.style.order = "2";
   }
   if (reportsTab) reportsTab.hidden = isGym || isSemanaTec;
   if (systemTab) {
-    systemTab.hidden = isGym || isParticipationOnly || isSemanaTec || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
+    systemTab.hidden = isGym || isSemanaTec || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
     systemTab.textContent = isIntramuros ? "Cargar Roles de Juego" : "Sistema";
   }
   if (isCollaborators) {
@@ -16589,7 +16571,6 @@ function render() {
   if (filtersBand) filtersBand.hidden = !isGeneral;
   const segmentedNav = $(".segmented");
   if (segmentedNav) segmentedNav.hidden = isPresentation;
-  if (isParticipationOnly && !["dashboard", "reports"].includes(activeView)) activeView = "dashboard";
   if (isSemanaTec && !["dashboard", "semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
   if (!isSemanaTec && ["semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
@@ -17002,11 +16983,33 @@ function render() {
   $$('[data-communication-diffusion-upload]').forEach((input) => input.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    await uploadCommunicationDiffusionImage(input.dataset.communicationDiffusionUpload, file);
+    await uploadCommunicationDiffusionImage(
+      input.dataset.communicationDiffusionUpload,
+      Number(input.dataset.communicationDiffusionImageIndex || 1),
+      file
+    );
     event.target.value = "";
   }));
   $$('[data-communication-diffusion-download]').forEach((button) => button.addEventListener("click", async () => {
-    await downloadCommunicationDiffusionImage(button.dataset.communicationDiffusionDownload);
+    await downloadCommunicationDiffusionImage(
+      button.dataset.communicationDiffusionDownload,
+      Number(button.dataset.communicationDiffusionImageIndex || 1)
+    );
+  }));
+  $$('[data-communication-diffusion-carousel]').forEach((button) => button.addEventListener("click", () => {
+    const slotKey = button.dataset.communicationDiffusionCarousel;
+    const available = communicationDiffusionImagesForSlot(slotKey).map((image) => Number(image.image_index || 1));
+    if (available.length < 2) return;
+    const current = Number(communicationDiffusionActiveImage[slotKey] || available[0]);
+    const currentPosition = Math.max(0, available.indexOf(current));
+    const direction = Number(button.dataset.direction || 1);
+    communicationDiffusionActiveImage[slotKey] = available[(currentPosition + direction + available.length) % available.length];
+    render();
+  }));
+  $$('[data-communication-diffusion-carousel-index]').forEach((button) => button.addEventListener("click", () => {
+    if (button.disabled) return;
+    communicationDiffusionActiveImage[button.dataset.communicationDiffusionCarouselIndex] = Number(button.dataset.imageIndex || 1);
+    render();
   }));
   $("#syncCommunicationPlanningEvents")?.addEventListener("click", syncCommunicationEventsFromPlanning);
   $("#openCommunicationParticipantsModal")?.addEventListener("click", () => {
