@@ -9221,7 +9221,9 @@ function renderRepresentativosCards(groups) {
 function renderRepresentativosDashboard() {
   if (participationUploadLoading.representativos) return `<div class="permission-strip">Recuperando la última carga de Representativos desde Supabase...</div>`;
   const state = participationUploadState.representativos;
-  const sourceRows = state.imported?.rows || [];
+  const activeResult = state.draft?.rows?.length ? state.draft : state.imported;
+  const sourceRows = activeResult?.rows || [];
+  const isDraftPreview = Boolean(state.draft?.rows?.length) && activeResult === state.draft;
   const allRows = representativosAcademicRows(sourceRows);
   const rows = representativosFilteredRows(allRows);
   const groups = representativosTeamSummaries(rows);
@@ -9231,10 +9233,19 @@ function renderRepresentativosDashboard() {
   const men = rows.filter((row) => row.genero === "Masculino").length;
   const programs = new Set(rows.map((row) => row.programa).filter(representativosHasValue)).size;
   const matched = rows.filter((row) => row.found).length;
-  const lastUpload = state.imported?.importedAt ? new Date(state.imported.importedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "Sin carga registrada";
+  const lastUpload = isDraftPreview
+    ? `Vista previa: ${state.draft.fileName || state.fileName || "archivo seleccionado"}`
+    : state.imported?.importedAt
+      ? new Date(state.imported.importedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })
+      : "Sin carga registrada";
+  const sourceLabel = isDraftPreview
+    ? "Información validada; falta importarla para compartirla"
+    : state.source === "cloud"
+      ? "Última carga disponible en Supabase"
+      : "Sin fuente compartida";
   return `
     <section class="semana-tec-dashboard representativos-dashboard">
-      <header class="semana-tec-heading"><div><p class="eyebrow">Seguimiento deportivo</p><h3>Representativos</h3><span>La matrícula es el identificador oficial; no se guardan nombres de alumnos.</span></div><div><strong>${escapeHtml(lastUpload)}</strong><span>${state.source === "cloud" ? "Última carga disponible en Supabase" : "Sin fuente compartida"}</span></div></header>
+      <header class="semana-tec-heading"><div><p class="eyebrow">Seguimiento deportivo</p><h3>Representativos</h3><span>La matrícula es el identificador oficial; no se guardan nombres de alumnos.</span></div><div><strong>${escapeHtml(lastUpload)}</strong><span>${escapeHtml(sourceLabel)}</span></div></header>
       ${representativosFilterControls(allRows)}
       ${sourceRows.length ? `
         <div class="semana-tec-kpis representativos-kpis">
