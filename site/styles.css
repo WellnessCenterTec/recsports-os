@@ -8131,6 +8131,14 @@ tbody tr:hover td {
   gap: 10px;
 }
 
+.vivencia-upcoming-panel .vivencia-event-card-list {
+  max-height: 260px;
+  padding-right: 6px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
 .vivencia-event-card {
   display: grid;
   grid-template-columns: 92px minmax(0, 1fr) auto;

@@ -13658,7 +13658,7 @@ function renderVivenciaEventCards(events, metricsByEvent) {
   if (!events.length) return `<div class="vivencia-empty-mini">No hay eventos próximos registrados.</div>`;
   return `
     <div class="vivencia-event-card-list">
-      ${events.slice(0, 6).map((event) => `
+      ${events.map((event) => `
         <article class="vivencia-event-card" data-vivencia-detail="${escapeHtml(event.id)}">
           <time>${escapeHtml(event.event_date || "Sin fecha")}</time>
           <div>
