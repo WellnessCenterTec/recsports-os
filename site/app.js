@@ -220,6 +220,7 @@ const BASE_COLLABORATOR_COLUMNS = [
   "correo institucional",
   "Fecha cumpleaños",
   "Genero",
+  "Disciplina",
   "Primeros auxilios"
 ];
 const COLLABORATOR_WEEK_COLUMNS = ["Destacados", "En Desarrollo"];
@@ -5312,7 +5313,16 @@ function collaboratorColumns() {
   if (!collaboratorColumnOrder.length) return known;
   const ordered = collaboratorColumnOrder.filter((column) => known.includes(column));
   const missing = known.filter((column) => !ordered.includes(column));
-  return [...ordered, ...missing];
+  const columns = [...ordered, ...missing];
+  if (!collaboratorColumnOrder.includes("Disciplina")) {
+    const disciplineIndex = columns.indexOf("Disciplina");
+    const genderIndex = columns.indexOf("Genero");
+    if (disciplineIndex >= 0 && genderIndex >= 0 && disciplineIndex !== genderIndex + 1) {
+      columns.splice(disciplineIndex, 1);
+      columns.splice(genderIndex + 1, 0, "Disciplina");
+    }
+  }
+  return columns;
 }
 
 function escapeHtml(value) {
@@ -14856,6 +14866,7 @@ function renderCollaboratorInfographicDetail(rows) {
   const email = collaboratorProfileValue(selected, ["correo institucional", "Correo", "Email"], "Sin dato");
   const birthday = collaboratorProfileValue(selected, ["Fecha cumpleaños", "Cumpleaños", "Cumpleanos"], "Sin dato");
   const gender = collaboratorProfileValue(selected, ["Genero", "Género"], "Sin dato");
+  const discipline = collaboratorProfileValue(selected, ["Disciplina", "Coach", "Materia"], "Sin dato");
   const shirt = collaboratorProfileValue(selected, ["Playeras Joma", "Playera Joma"], "Sin dato");
   const pants = collaboratorProfileValue(selected, ["Talla pants", "Pants"], "Sin dato");
   const firstAidRaw = collaboratorProfileValue(selected, ["Primeros auxilios"], "");
@@ -14896,7 +14907,7 @@ function renderCollaboratorInfographicDetail(rows) {
             <h3>${escapeHtml(name)}</h3>
             <strong>${escapeHtml(puesto)}</strong>
             <span>${escapeHtml(nomina)}</span>
-            <div class="collaborator-profile-hero-meta"><span>Coordinador: ${escapeHtml(coordinator)}</span><span>Cumpleaños: ${escapeHtml(birthday)}</span><span>Género: ${escapeHtml(gender)}</span></div>
+            <div class="collaborator-profile-hero-meta"><span>Coordinador: ${escapeHtml(coordinator)}</span><span>Cumpleaños: ${escapeHtml(birthday)}</span><span>Género: ${escapeHtml(gender)}</span><span>Coach: ${escapeHtml(discipline)}</span></div>
           </div>
           <div class="collaborator-profile-brand"><img src="assets/borregos_logo_manual_oficial.png" alt="Borregos"><span>BORREGOS</span></div>
           <button class="collaborator-profile-close" type="button" data-close-collab-profile aria-label="Cerrar expediente">×</button>
