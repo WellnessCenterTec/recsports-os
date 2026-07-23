@@ -50,6 +50,7 @@ create table if not exists public.participation_upload_rows (
   carrera text,
   nivel text,
   programa text,
+  semestre text,
   source_name text,
   source_row_number integer check (source_row_number is null or source_row_number > 0),
   created_by uuid references public.app_profiles(id),

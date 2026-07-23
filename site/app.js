@@ -70,6 +70,16 @@
     reports: ["Reporte de campañas", "Conversión por área", "Resumen para dirección"]
   },
   {
+    id: "representativos",
+    name: "Representativos",
+    tone: "green",
+    source: "Lista vigente de alumnos de Representativos",
+    capture: ["Matrícula", "Clave de la materia", "Representativo", "Coach", "Programa", "Género", "Semestre"],
+    indicators: ["Alumnos únicos", "Representativos", "Coaches", "Distribución por programa", "Distribución por semestre"],
+    charts: ["Alumnos por coach", "Top de programas", "Participación por semestre"],
+    reports: ["Resumen por representativo", "Cobertura por coach", "Matrículas no encontradas"]
+  },
+  {
     id: "colaboradores",
     name: "Colaboradores",
     tone: "blue",
@@ -535,6 +545,7 @@ let participationUploadState = {
 };
 let participationUploadCloudAvailable = true;
 let participationUploadLoading = { gamer: false, representativos: false };
+let representativosFilters = { coach: "todos", representativo: "todos", search: "" };
 const SEMANA_TEC_STORAGE_KEY = "wellsync_semana_tec_v1";
 let semanaTecRows = [];
 let semanaTecDraft = null;
@@ -5012,6 +5023,7 @@ async function loadSupabaseDataBundle() {
     ["Simulador de clases", loadClassScheduleSimulatorCloud],
     ["Vivencia", loadVivenciaEvents],
     ["Semana Tec", async () => Promise.all([loadSemanaTecCloud(), loadSemanaTecGroupGradeFiles()])],
+    ["Representativos", () => loadParticipationUploadsCloud("representativos")],
     ["Eventos de Comunicación", loadCommunicationEvents],
     ["Imágenes de difusión", loadCommunicationDiffusionImages],
     ["Calendario Comunicación", loadPlanningEventOverrides],
@@ -6101,6 +6113,7 @@ function renderNav() {
     vivencia: "calendar-days",
     "semana-tec": "calendar-range",
     comunicacion: "megaphone",
+    representativos: "medal",
     colaboradores: "users",
     compras: "wallet-cards",
     presentacion: "presentation",
@@ -6130,6 +6143,16 @@ function renderNav() {
         await Promise.all([loadSemanaTecCloud(), loadSemanaTecGroupGradeFiles()]);
       } finally {
         semanaTecLoading = false;
+        if (activeArea === targetArea) render();
+      }
+    }
+    if (targetArea === "representativos" && supabaseClient && currentUser?.auth === "supabase" && !participationUploadLoading.representativos) {
+      participationUploadLoading.representativos = true;
+      render();
+      try {
+        await loadParticipationUploadsCloud("representativos");
+      } finally {
+        participationUploadLoading.representativos = false;
         if (activeArea === targetArea) render();
       }
     }
@@ -7561,11 +7584,11 @@ const participationUploadConfigs = {
     button: "Cargar información de Representativos",
     templateName: "plantilla-representativos.csv",
     required: ["Matrícula", "Clave de la materia", "Representativo", "Coach"],
-    accepted: ["Matrícula", "Clave de la materia", "Materia de repre", "COACH"],
+    accepted: ["Matrícula", "Clave de la materia", "Materia de repre", "COACH", "Siglas de programa", "Genero", "Semestre acreditado"],
     recommendations: ["No cambiar nombres de columnas.", "No dejar filas vacías.", "Guardar el archivo como .xlsx o .csv.", "Si el archivo trae nombres de alumnos, WellSync los ignora y no los muestra."],
     sample: [
-      { "Matrícula": "A01234567", "Clave de la materia": "DEP101", "Materia de repre": "Fútbol Soccer", "COACH": "Coach responsable" },
-      { "Matrícula": "A07654321", "Clave de la materia": "DEP202", "Materia de repre": "Basquetbol", "COACH": "Coach responsable" }
+      { "Matrícula": "A01234567", "Clave de la materia": "DEP101", "Materia de repre": "Fútbol Soccer", "COACH": "Coach responsable", "Siglas de programa": "IIS", "Genero": "Masculino", "Semestre acreditado": "Cuarto Semestre" },
+      { "Matrícula": "A07654321", "Clave de la materia": "DEP202", "Materia de repre": "Basquetbol", "COACH": "Coach responsable", "Siglas de programa": "LAD", "Genero": "Femenino", "Semestre acreditado": "Segundo Semestre" }
     ]
   }
 };
@@ -7581,6 +7604,7 @@ function participationUploadLocalRow(row) {
     carrera: row.carrera || "Sin carrera",
     nivel: row.nivel || "Sin nivel",
     programa: row.programa || row.carrera || "Sin programa",
+    semestre: row.semestre || "Sin semestre",
     clave_materia: row.clave_materia || "",
     representativo: row.representativo || "",
     coach: row.coach || ""
@@ -7686,26 +7710,39 @@ function uploadedStudentProfile(matricula) {
 
 function normalizeParticipationUploadRow(areaId, row, index, seen) {
   const matricula = normalizeMatricula(pickColumn(row, ["Matrícula", "Matricula", "matricula"]));
-  const duplicate = Boolean(matricula && seen.has(matricula));
-  if (matricula) seen.add(matricula);
   const profile = uploadedStudentProfile(matricula);
+  const sourceProgram = String(pickColumn(row, ["Siglas de programa", "Programa", "programa"]) || "").trim();
+  const sourceGender = normalizeStudentGender(pickColumn(row, ["Genero", "Género", "Sexo", "genero"]));
+  const sourceSemester = String(pickColumn(row, ["Semestre acreditado", "Semestre", "semestre"]) || "").trim();
+  const claveMateria = String(pickColumn(row, ["Clave de la materia", "Clave materia", "clave_materia"]) || "").trim();
+  const representativo = String(pickColumn(row, ["Representativo", "Materia de repre", "Materia repre", "materia_de_repre"]) || "").trim();
+  const coachRaw = String(pickColumn(row, ["Coach", "COACH"]) || "").trim();
+  const coach = normalizeText(coachRaw) === "coach" ? "Sin coach asignado" : (coachRaw || "Sin coach asignado");
+  const duplicateKey = areaId === "representativos"
+    ? [matricula, claveMateria, representativo].map(normalizeText).join("|")
+    : matricula;
+  const duplicate = Boolean(matricula && seen.has(duplicateKey));
+  if (matricula) seen.add(duplicateKey);
+  const cleanSourceProgram = sourceProgram && normalizeText(sourceProgram) !== "n a" ? sourceProgram : "";
+  const cleanSourceSemester = sourceSemester && normalizeText(sourceSemester) !== "n a" ? sourceSemester : "";
   const base = {
     rowNumber: index + 2,
     matricula,
     duplicate,
     empty: !matricula,
     found: profile.found,
-    genero: profile.genero,
+    genero: sourceGender !== "No especificado" ? sourceGender : profile.genero,
     carrera: profile.carrera,
     nivel: profile.nivel,
-    programa: profile.programa
+    programa: cleanSourceProgram || profile.programa,
+    semestre: cleanSourceSemester || "Sin semestre"
   };
   if (areaId === "representativos") {
     return {
       ...base,
-      clave_materia: String(pickColumn(row, ["Clave de la materia", "Clave materia", "clave_materia"]) || "").trim(),
-      representativo: String(pickColumn(row, ["Representativo", "Materia de repre", "Materia repre", "materia_de_repre"]) || "").trim(),
-      coach: String(pickColumn(row, ["Coach", "COACH"]) || "").trim()
+      clave_materia: claveMateria,
+      representativo,
+      coach
     };
   }
   return base;
@@ -7732,13 +7769,14 @@ function validateParticipationUpload(areaId, rows, fileName = "") {
   const seen = new Set();
   const parsedRows = errors.length ? [] : rows
     .map((row, index) => normalizeParticipationUploadRow(areaId, row, index, seen))
-    .filter((row) => row.matricula || (areaId === "representativos" && (row.representativo || row.coach || row.clave_materia)));
+    .filter((row) => row.matricula);
   const emptyRows = parsedRows.filter((row) => row.empty).length;
   const duplicateRows = parsedRows.filter((row) => row.duplicate);
   const notFoundRows = parsedRows.filter((row) => row.matricula && !row.found);
   if (emptyRows) warnings.push(`${emptyRows} filas sin matrícula.`);
   if (duplicateRows.length) warnings.push(`${duplicateRows.length} matrículas duplicadas dentro del archivo.`);
   if (notFoundRows.length) warnings.push(`${notFoundRows.length} matrículas no encontradas en Base de datos_alumnos.`);
+  if (areaId === "representativos") warnings.push("La columna Nombre fue descartada: no se guarda ni se muestra información nominal de alumnos.");
   return {
     areaId,
     fileName,
@@ -8760,6 +8798,7 @@ function participationUploadRowToCloud(areaId, row, fileName = "", uploadId = ""
     carrera: row.carrera || null,
     nivel: row.nivel || null,
     programa: row.programa || null,
+    semestre: row.semestre || null,
     source_name: fileName || participationUploadConfigs[areaId]?.title || areaId,
     source_row_number: row.rowNumber || null,
     created_by: currentUser?.auth === "supabase" ? currentUser.id : null,
@@ -8779,6 +8818,7 @@ function participationUploadRowFromCloud(row) {
     carrera: row.carrera || "Sin carrera",
     nivel: row.nivel || "Sin nivel",
     programa: row.programa || row.carrera || "Sin programa",
+    semestre: row.semestre || "Sin semestre",
     clave_materia: row.clave_materia || "",
     representativo: row.representativo || "",
     coach: row.coach || ""
@@ -9099,6 +9139,156 @@ function renderParticipationUploadDashboard(areaId) {
       ` : ""}
     </section>
   `;
+}
+
+function representativosHasValue(value) {
+  const normalized = normalizeText(value);
+  return Boolean(normalized && !["n a", "na", "sin dato", "sin programa", "sin semestre", "no encontrado", "no especificado"].includes(normalized));
+}
+
+function representativosAcademicRows(rows) {
+  return rows.filter((row) => row.matricula && !row.duplicate).map((row) => {
+    const student = studentFromDatabase(row.matricula);
+    return {
+      ...row,
+      found: Boolean(student),
+      genero: representativosHasValue(student?.genero) ? normalizeStudentGender(student.genero) : normalizeStudentGender(row.genero),
+      carrera: representativosHasValue(student?.carrera) ? student.carrera : (row.carrera || "Sin carrera"),
+      nivel: representativosHasValue(student?.nivel) ? student.nivel : (row.nivel || "Sin nivel"),
+      programa: representativosHasValue(row.programa) ? row.programa : (student?.programa || student?.carrera || "Sin programa"),
+      semestre: representativosHasValue(row.semestre) ? row.semestre : (student?.semestre || "Sin semestre")
+    };
+  });
+}
+
+function representativosFilteredRows(rows) {
+  const term = normalizeText(representativosFilters.search);
+  return rows.filter((row) => {
+    const coachMatch = representativosFilters.coach === "todos" || row.coach === representativosFilters.coach;
+    const teamMatch = representativosFilters.representativo === "todos" || row.representativo === representativosFilters.representativo;
+    const text = normalizeText(`${row.matricula} ${row.representativo} ${row.coach} ${row.programa} ${row.semestre}`);
+    return coachMatch && teamMatch && (!term || text.includes(term));
+  });
+}
+
+function representativosFilterControls(rows) {
+  const coaches = Array.from(new Set(rows.map((row) => row.coach).filter(Boolean))).sort((a, b) => a.localeCompare(b, "es"));
+  const teams = Array.from(new Set(rows.map((row) => row.representativo).filter(Boolean))).sort((a, b) => a.localeCompare(b, "es"));
+  return `
+    <section class="representativos-filters" aria-label="Filtros de Representativos">
+      <select class="representativos-filter" data-filter="representativo" aria-label="Representativo"><option value="todos">Todos los representativos</option>${teams.map((value) => `<option value="${escapeHtml(value)}" ${representativosFilters.representativo === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select>
+      <select class="representativos-filter" data-filter="coach" aria-label="Coach"><option value="todos">Todos los coaches</option>${coaches.map((value) => `<option value="${escapeHtml(value)}" ${representativosFilters.coach === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select>
+      <input id="representativosSearch" type="search" value="${escapeHtml(representativosFilters.search)}" placeholder="Buscar matrícula, representativo o programa" />
+    </section>`;
+}
+
+function representativosTeamSummaries(rows) {
+  const groups = new Map();
+  rows.forEach((row) => {
+    const key = normalizeText(row.representativo || "Sin representativo");
+    const current = groups.get(key) || {
+      representativo: row.representativo || "Sin representativo",
+      students: new Set(),
+      coaches: new Set(),
+      programs: new Set(),
+      women: 0,
+      men: 0
+    };
+    if (!current.students.has(row.matricula)) {
+      current.students.add(row.matricula);
+      if (row.genero === "Femenino") current.women += 1;
+      if (row.genero === "Masculino") current.men += 1;
+    }
+    if (row.coach) current.coaches.add(row.coach);
+    if (representativosHasValue(row.programa)) current.programs.add(row.programa);
+    groups.set(key, current);
+  });
+  return Array.from(groups.values())
+    .map((group) => ({ ...group, total: group.students.size }))
+    .sort((a, b) => b.total - a.total || a.representativo.localeCompare(b.representativo, "es"));
+}
+
+function renderRepresentativosCards(groups) {
+  return `<div class="representativos-card-grid">${groups.map((group) => `
+    <article class="representativos-card">
+      <div><span>Representativo</span><strong>${group.total.toLocaleString("es-MX")}</strong></div>
+      <h4>${escapeHtml(group.representativo)}</h4>
+      <p><i data-lucide="user-round-check"></i>${escapeHtml(Array.from(group.coaches).join(" · ") || "Sin coach asignado")}</p>
+      <div class="representativos-card-stats"><span><b>${group.women}</b> mujeres</span><span><b>${group.men}</b> hombres</span><span><b>${group.programs.size}</b> programas</span></div>
+    </article>`).join("")}</div>`;
+}
+
+function renderRepresentativosDashboard() {
+  if (participationUploadLoading.representativos) return `<div class="permission-strip">Recuperando la última carga de Representativos desde Supabase...</div>`;
+  const state = participationUploadState.representativos;
+  const sourceRows = state.imported?.rows || [];
+  const allRows = representativosAcademicRows(sourceRows);
+  const rows = representativosFilteredRows(allRows);
+  const groups = representativosTeamSummaries(rows);
+  const uniqueStudents = new Set(rows.map((row) => row.matricula)).size;
+  const coaches = new Set(rows.map((row) => row.coach).filter((value) => representativosHasValue(value) && normalizeText(value) !== "sin coach asignado")).size;
+  const women = rows.filter((row) => row.genero === "Femenino").length;
+  const men = rows.filter((row) => row.genero === "Masculino").length;
+  const programs = new Set(rows.map((row) => row.programa).filter(representativosHasValue)).size;
+  const matched = rows.filter((row) => row.found).length;
+  const lastUpload = state.imported?.importedAt ? new Date(state.imported.importedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "Sin carga registrada";
+  return `
+    <section class="semana-tec-dashboard representativos-dashboard">
+      <header class="semana-tec-heading"><div><p class="eyebrow">Seguimiento deportivo</p><h3>Representativos</h3><span>La matrícula es el identificador oficial; no se guardan nombres de alumnos.</span></div><div><strong>${escapeHtml(lastUpload)}</strong><span>${state.source === "cloud" ? "Última carga disponible en Supabase" : "Sin fuente compartida"}</span></div></header>
+      ${representativosFilterControls(allRows)}
+      ${sourceRows.length ? `
+        <div class="semana-tec-kpis representativos-kpis">
+          <article><span>Alumnos únicos</span><strong>${uniqueStudents.toLocaleString("es-MX")}</strong><em>por matrícula</em></article>
+          <article><span>Representativos</span><strong>${groups.length.toLocaleString("es-MX")}</strong><em>deportes y equipos</em></article>
+          <article><span>Coaches</span><strong>${coaches.toLocaleString("es-MX")}</strong><em>responsables</em></article>
+          <article><span>Mujeres</span><strong>${women.toLocaleString("es-MX")}</strong><em>participaciones</em></article>
+          <article><span>Hombres</span><strong>${men.toLocaleString("es-MX")}</strong><em>participaciones</em></article>
+          <article><span>Programas</span><strong>${programs.toLocaleString("es-MX")}</strong><em>académicos</em></article>
+          <article><span>Base Maestra</span><strong>${matched.toLocaleString("es-MX")}</strong><em>matrículas encontradas</em></article>
+        </div>
+        <div class="semana-tec-charts">
+          ${renderUploadBars("Alumnos por coach", semanaTecCountRows(rows, "coach"), 14)}
+          ${renderUploadBars("Top de programas", semanaTecCountRows(rows, "programa").slice(0, 12), 12)}
+          ${renderUploadBars("Participación por semestre", semanaTecSemesterCounts(rows), 12)}
+        </div>
+        <section class="semana-tec-groups-panel">
+          <div class="class-grade-table-header"><div><p class="eyebrow">Detalle operativo</p><h3>Representativos y coaches</h3></div><span>${groups.length} representativos visibles</span></div>
+          ${renderRepresentativosCards(groups)}
+        </section>` : `
+        <section class="vivencia-empty-state"><strong>Representativos está listo para recibir información.</strong><span>Carga la lista de alumnos para generar automáticamente deportes, coaches y perfil académico.</span><button class="primary-btn" type="button" data-view-jump="representativos-upload">Ir a Carga de alumnos</button></section>`}
+    </section>`;
+}
+
+function renderRepresentativosUploadView() {
+  const state = participationUploadState.representativos;
+  const result = state.draft || state.imported;
+  const draft = state.draft;
+  const rows = result?.rows || [];
+  const summary = result?.summary || participationUploadSummary("representativos", []);
+  const pendingLocalSync = currentUser?.auth === "supabase" && state.source === "local" && Boolean(state.imported?.rows?.length);
+  const canImport = currentUser?.auth === "supabase" && canEditArea("representativos") && Boolean((draft && !draft.errors?.length && draft.rows?.length) || pendingLocalSync);
+  const statusClass = !result ? "yellow" : result.errors?.length ? "red" : result.warnings?.length ? "yellow" : "green";
+  return `
+    <section class="upload-center representativos-upload">
+      <div class="upload-center-grid">
+        <article class="upload-info-panel">
+          <div><p class="eyebrow">Representativos</p><h3>Plantilla de alumnos</h3><p>La carga reemplaza la anterior y queda disponible en todas las computadoras.</p></div>
+          <div class="upload-required-list"><strong>Columnas necesarias</strong><span>Matrícula</span><span>Clave de la materia</span><span>Materia de repre</span><span>COACH</span></div>
+          <div class="upload-template-preview"><strong>Columnas analíticas aceptadas</strong><table><thead><tr><th>Matrícula</th><th>Representativo</th><th>Coach</th><th>Programa</th></tr></thead><tbody><tr><td>A01234567</td><td>Fútbol Soccer</td><td>Coach responsable</td><td>IIS</td></tr></tbody></table></div>
+          <ul class="upload-recommendations"><li>Se aceptan archivos .xlsx y .csv.</li><li>La columna Nombre se ignora y nunca se guarda.</li><li>La matrícula se cruza con Base de datos_alumnos.</li><li>Una nueva carga sustituye por completo la carga anterior.</li></ul>
+          <button class="ghost-btn" type="button" data-download-upload-template="representativos">Descargar plantilla</button>
+        </article>
+        <article class="upload-drop-panel">
+          <label class="upload-drop-zone" data-upload-drop="representativos"><input type="file" accept=".csv,.xlsx,.xls" data-participation-upload="representativos" hidden /><strong>Arrastra tu archivo aquí</strong><span>o selecciona un archivo Excel / CSV</span><em>${escapeHtml(draft?.fileName || state.imported?.fileName || state.fileName || "Sin archivo seleccionado")}</em></label>
+          <div class="upload-status ${statusClass}"><span>${!result ? "Selecciona un archivo para comenzar" : result.errors?.length ? `${result.errors.length} errores` : draft ? "Archivo listo para importar" : "Última carga guardada"}</span>${result ? `<strong>${summary.total.toLocaleString("es-MX")} registros</strong>` : ""}</div>
+          <div class="upload-message-list">${(result?.errors || []).map((message) => `<p class="red">${escapeHtml(message)}</p>`).join("")}${(result?.warnings || []).map((message) => `<p class="yellow">${escapeHtml(message)}</p>`).join("")}</div>
+          ${currentUser?.auth !== "supabase" ? `<div class="permission-strip">Inicia sesión con Supabase para guardar la carga y compartirla entre computadoras.</div>` : ""}
+          ${result ? `<div class="semana-tec-load-summary representativos-load-summary"><span><b>${new Set(rows.map((row) => row.matricula)).size}</b> alumnos</span><span><b>${summary.representativos}</b> representativos</span><span><b>${summary.coaches}</b> coaches</span><span><b>${summary.notFound}</b> no encontradas</span></div>` : ""}
+          <button class="primary-btn" type="button" data-import-participation-upload="representativos" ${canImport ? "" : "disabled"}>${pendingLocalSync ? "Guardar respaldo en Supabase" : "Importar información"}</button>
+        </article>
+      </div>
+      ${rows.length ? `<section class="upload-preview-panel"><div class="class-grade-table-header"><div><p class="eyebrow">Vista previa</p><h3>Información que sí se guardará</h3></div><span>Sin nombres ni apellidos</span></div><div class="class-grade-table-wrap"><table class="class-grade-table"><thead><tr><th>Matrícula</th><th>Clave</th><th>Representativo</th><th>Coach</th><th>Programa</th><th>Género</th><th>Semestre</th></tr></thead><tbody>${rows.slice(0, 12).map((row) => `<tr><td>${escapeHtml(row.matricula)}</td><td>${escapeHtml(row.clave_materia)}</td><td>${escapeHtml(row.representativo)}</td><td>${escapeHtml(row.coach)}</td><td>${escapeHtml(row.programa)}</td><td>${escapeHtml(row.genero)}</td><td>${escapeHtml(row.semestre)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
+    </section>`;
 }
 
 function executiveStudentContext(matricula) {
@@ -11396,9 +11586,10 @@ function renderDashboard(area) {
   if (area.id === "vivencia") return renderVivenciaDashboard();
   if (area.id === "semana-tec") return renderSemanaTecDashboard();
   if (area.id === "comunicacion") return renderCommunicationDashboard();
+  if (area.id === "representativos") return renderRepresentativosDashboard();
   if (area.id === "intramuros") return renderIntramurosDashboard();
   if (area.id === "compras") return renderBudgetDashboard();
-  if (area.id === "gamer" || area.id === "representativos") return renderParticipationUploadDashboard(area.id);
+  if (area.id === "gamer") return renderParticipationUploadDashboard(area.id);
   const data = filteredStudents();
   const metrics = metricSet(data);
   const byArea = areas.filter(a => a.id !== "general").map(a => ({
@@ -16521,6 +16712,7 @@ function render() {
   const vivenciaEventsTab = $("#vivenciaEventsViewButton");
   const semanaTecGradesTab = $("#semanaTecGradesViewButton");
   const semanaTecUploadTab = $("#semanaTecUploadViewButton");
+  const representativosUploadTab = $("#representativosUploadViewButton");
   const communicationDiffusionTab = $("#communicationDiffusionViewButton");
   const budgetAllocationTab = $("#budgetAllocationViewButton");
   const budgetRequestTab = $("#budgetRequestViewButton");
@@ -16531,6 +16723,7 @@ function render() {
   const isGym = activeArea === "gimnasio";
   const isVivencia = activeArea === "vivencia";
   const isSemanaTec = activeArea === "semana-tec";
+  const isRepresentativos = activeArea === "representativos";
   const isCommunication = activeArea === "comunicacion";
   const isBudget = activeArea === "compras";
   const isIntramuros = activeArea === "intramuros";
@@ -16548,17 +16741,18 @@ function render() {
   if (vivenciaEventsTab) vivenciaEventsTab.hidden = !isVivencia && !isCommunication;
   if (semanaTecGradesTab) semanaTecGradesTab.hidden = !isSemanaTec;
   if (semanaTecUploadTab) semanaTecUploadTab.hidden = !isSemanaTec;
+  if (representativosUploadTab) representativosUploadTab.hidden = !isRepresentativos;
   if (communicationDiffusionTab) communicationDiffusionTab.hidden = !isCommunication;
   if (budgetAllocationTab) budgetAllocationTab.hidden = !isBudget;
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
   if (schedulesTab) {
-    schedulesTab.hidden = isGym || isBudget || isCollaborators || isSemanaTec || isCommunication;
+    schedulesTab.hidden = isGym || isBudget || isCollaborators || isSemanaTec || isCommunication || isRepresentativos;
     schedulesTab.textContent = isGeneral ? "Calendario" : isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
     if (isGeneral) schedulesTab.style.order = "2";
   }
-  if (reportsTab) reportsTab.hidden = isGym || isSemanaTec;
+  if (reportsTab) reportsTab.hidden = isGym || isSemanaTec || isRepresentativos;
   if (systemTab) {
-    systemTab.hidden = isGym || isSemanaTec || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
+    systemTab.hidden = isGym || isSemanaTec || isRepresentativos || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
     systemTab.textContent = isIntramuros ? "Cargar Roles de Juego" : "Sistema";
   }
   if (isCollaborators) {
@@ -16573,6 +16767,8 @@ function render() {
   if (segmentedNav) segmentedNav.hidden = isPresentation;
   if (isSemanaTec && !["dashboard", "semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
   if (!isSemanaTec && ["semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
+  if (isRepresentativos && !["dashboard", "representativos-upload"].includes(activeView)) activeView = "dashboard";
+  if (!isRepresentativos && activeView === "representativos-upload") activeView = "dashboard";
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isVivencia && !isCommunication && activeView === "vivencia-events") activeView = "dashboard";
@@ -16602,6 +16798,7 @@ function render() {
     else if (activeView === "grades") contentHtml = renderClassGrades();
     else if (activeView === "semana-tec-grades") contentHtml = renderSemanaTecGrades();
     else if (activeView === "semana-tec-upload") contentHtml = renderSemanaTecUploadView();
+    else if (activeView === "representativos-upload") contentHtml = renderRepresentativosUploadView();
     else if (activeView === "evaluations") contentHtml = renderPhysicalEvaluationsDashboard();
     else if (activeView === "collaborator-infographic") contentHtml = renderCollaboratorInfographicView();
     else contentHtml = isIntramuros ? renderIntramurosRolesDashboard() : renderBlueprint(area);
@@ -16644,6 +16841,14 @@ function render() {
   }));
   $("#semanaTecSearch")?.addEventListener("input", (event) => {
     semanaTecFilters.search = event.target.value;
+    render();
+  });
+  $$(".representativos-filter").forEach((input) => input.addEventListener("input", (event) => {
+    representativosFilters[event.target.dataset.filter] = event.target.value;
+    render();
+  }));
+  $("#representativosSearch")?.addEventListener("input", (event) => {
+    representativosFilters.search = event.target.value;
     render();
   });
   $("#downloadSemanaTecTemplate")?.addEventListener("click", downloadSemanaTecTemplate);
