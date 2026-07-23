@@ -7804,7 +7804,18 @@ async function loadParticipationUploadFile(areaId, file) {
     participationUploadState[areaId].fileName = file.name;
     participationUploadState[areaId].draft = validateParticipationUpload(areaId, rows, file.name);
     render();
-    toast("Archivo leído para validación");
+    const draft = participationUploadState[areaId].draft;
+    const canSaveImmediately = areaId === "representativos"
+      && currentUser?.auth === "supabase"
+      && canEditArea(areaId)
+      && draft.rows.length
+      && !draft.errors.length;
+    if (canSaveImmediately) {
+      toast("Archivo validado. Guardando la carga en Supabase...");
+      await importParticipationUpload(areaId);
+    } else {
+      toast("Archivo leído para validación");
+    }
   } catch (error) {
     console.error(error);
     participationUploadState[areaId].draft = {
@@ -7845,6 +7856,7 @@ async function importParticipationUpload(areaId) {
   await loadParticipationUploadsCloud(areaId);
   addAudit(areaId, `${draft.summary.total} registros guardados en Supabase desde ${draft.fileName}`);
   recordUploadSuccess(`${areaId}.participantes`, participationUploadState[areaId].imported?.importedAt);
+  if (areaId === "representativos" && activeArea === areaId) activeView = "dashboard";
   render();
   toast("Información guardada en Supabase");
 }
@@ -9240,7 +9252,7 @@ function renderRepresentativosDashboard() {
       : "Sin carga registrada";
   const sourceLabel = isDraftPreview
     ? "Información validada; falta importarla para compartirla"
-    : state.source === "cloud"
+    : state.source === "cloud" && state.imported?.rows?.length
       ? "Última carga disponible en Supabase"
       : "Sin fuente compartida";
   return `
