@@ -4541,14 +4541,38 @@ async function changePhysicalAccessCode() {
 async function loadCollaboratorPhotoUrls() {
   const paths = [...new Set(cloudCollaborators.map((row) => row.__photoPath).filter(Boolean))];
   if (!paths.length) return;
+  const urls = new Map();
   const { data, error } = await supabaseClient.storage
     .from("collaborator-photos")
     .createSignedUrls(paths, 60 * 60);
   if (error) {
     console.error(error);
-    return;
+  } else {
+    (data || []).forEach((item, index) => {
+      const path = item.path || paths[index];
+      const signedUrl = item.signedUrl || item.signedURL || "";
+      if (path && signedUrl) urls.set(path, signedUrl);
+    });
   }
-  const urls = new Map((data || []).map((item) => [item.path, item.signedUrl]));
+
+  const unresolvedPaths = paths.filter((path) => !urls.has(path));
+  if (unresolvedPaths.length) {
+    const fallbackResults = await Promise.allSettled(unresolvedPaths.map(async (path) => {
+      const result = await supabaseClient.storage
+        .from("collaborator-photos")
+        .createSignedUrl(path, 60 * 60);
+      if (result.error) throw result.error;
+      return { path, signedUrl: result.data?.signedUrl || result.data?.signedURL || "" };
+    }));
+    fallbackResults.forEach((result) => {
+      if (result.status === "fulfilled" && result.value.signedUrl) {
+        urls.set(result.value.path, result.value.signedUrl);
+      } else if (result.status === "rejected") {
+        console.warn("No se pudo resolver una fotografía de colaborador", result.reason);
+      }
+    });
+  }
+
   cloudCollaborators.forEach((row) => {
     row.__photoUrl = urls.get(row.__photoPath) || "";
   });
