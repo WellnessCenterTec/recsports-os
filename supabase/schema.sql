@@ -362,6 +362,10 @@ for select using (
   or public.current_area_key() = 'colaboradores'
 );
 
+drop policy if exists "collaborators read authenticated" on public.collaborators;
+create policy "collaborators read authenticated" on public.collaborators
+for select to authenticated using (true);
+
 drop policy if exists "collaborators manage collaborators leadership" on public.collaborators;
 create policy "collaborators manage collaborators leadership" on public.collaborators
 for all using (public.current_app_role() in ('admin', 'direccion') or public.current_area_key() = 'colaboradores')
