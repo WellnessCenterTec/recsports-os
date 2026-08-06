@@ -201,6 +201,7 @@ const CLASS_SIMULATOR_KEY = "wellsync_spinning_fitness_simulator";
 const CLASS_SCHEDULE_SNAPSHOT_KEY = "wellsync_class_schedule_snapshot";
 const BUDGET_AREAS_KEY = "wellsync_budget_areas";
 const BUDGET_REQUESTS_KEY = "wellsync_budget_requests";
+const BUDGET_PENDING_REQUESTS_KEY = "wellsync_budget_requests_pending";
 const INTRAMUROS_OPERATION_KEY = "wellsync_intramuros_omar_workspace";
 const MASTER_PERIOD_KEY = "wellsync_master_period_v1";
 const MASTER_PERIOD_AD26_MIGRATION_KEY = "wellsync_master_period_ad26_default_v1";
@@ -776,10 +777,13 @@ let physicalEvaluationFilter = {
 };
 let budgetAreaPlans = loadBudgetAreaPlans();
 let budgetRequestRows = loadBudgetRequestRows();
+const budgetRequestSupport = window.WellSyncBudgetRequests;
+const budgetPendingStore = budgetRequestSupport.createPendingStore(localStorage, BUDGET_PENDING_REQUESTS_KEY);
 let budgetCloudReady = false;
 let budgetCloudMessage = "Modo local";
 let budgetPeriodTouched = false;
 let selectedBudgetRequestEditId = "";
+let budgetRequestSaving = false;
 let collaboratorColumnOrder = [];
 let collaboratorSettingsLoaded = false;
 let photoUploaderOpen = false;
@@ -839,7 +843,8 @@ function normalizeBudgetRequest(row) {
     amount: Math.max(0, Number(row.amount || 0)),
     status: String(row.status || "pendiente").trim(),
     priority: String(row.priority || "Media").trim(),
-    type: String(row.type || "General").trim()
+    type: String(row.type || "General").trim(),
+    pendingSync: row.pendingSync === true
   };
 }
 
@@ -1030,18 +1035,7 @@ function budgetPlanFromCloud(row) {
 }
 
 function budgetRequestFromCloud(row) {
-  return normalizeBudgetRequest({
-    id: row.id,
-    period: row.period_key,
-    date: row.request_date,
-    area: row.area_key,
-    concept: row.concept,
-    provider: row.provider,
-    amount: row.amount,
-    status: row.status,
-    priority: row.priority,
-    type: row.request_type
-  });
+  return normalizeBudgetRequest(budgetRequestSupport.fromCloud(row));
 }
 
 function budgetPeriodRank(period) {
@@ -1116,10 +1110,23 @@ async function loadBudgetData() {
     || fallback
   ));
   saveBudgetAreaPlans();
-  budgetRequestRows = cloudRequests.filter((row) => !LEGACY_BUDGET_DEMO_IDS.has(row.id));
-  saveBudgetRequestRows();
   budgetCloudReady = true;
   budgetCloudMessage = "Supabase activo";
+
+  const syncedRows = [];
+  for (const pending of budgetPendingStore.load().filter((row) => BUDGET_ACTIVE_PERIODS.has(row.period))) {
+    const cloudRow = await saveBudgetRequestToCloud(pending, { silent: true });
+    if (!cloudRow) continue;
+    budgetPendingStore.remove(pending.id);
+    syncedRows.push({ ...cloudRow, clientRequestId: pending.id });
+  }
+  budgetRequestRows = budgetRequestSupport.reconcile(
+    [...cloudRequests, ...syncedRows],
+    budgetPendingStore.load()
+  )
+    .map(normalizeBudgetRequest)
+    .filter((row) => row && BUDGET_ACTIVE_PERIODS.has(row.period) && !LEGACY_BUDGET_DEMO_IDS.has(row.id));
+  saveBudgetRequestRows();
 }
 
 async function saveBudgetAllocationToCloud(plan) {
@@ -1140,26 +1147,19 @@ async function saveBudgetAllocationToCloud(plan) {
   return true;
 }
 
-async function saveBudgetRequestToCloud(request) {
+async function saveBudgetRequestToCloud(request, options = {}) {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !budgetCloudReady) return null;
-  const { data, error } = await supabaseClient.from("budget_requests").insert({
-    period_key: request.period,
-    request_date: request.date,
-    area_key: request.area,
-    concept: request.concept,
-    provider: request.provider,
-    amount: request.amount,
-    status: request.status,
-    priority: request.priority,
-    request_type: request.type,
-    created_by: currentUser.id
-  }).select("id").single();
+  const { data, error } = await supabaseClient
+    .from("budget_requests")
+    .upsert(budgetRequestSupport.toCloud(request, currentUser.id), { onConflict: "id" })
+    .select("id, period_key, request_date, area_key, concept, provider, amount, status, priority, request_type")
+    .single();
   if (error) {
     console.warn(error);
-    toast("No se pudo guardar en Supabase; se conserva local");
+    if (!options.silent) toast("No se pudo guardar en Supabase; queda pendiente de sincronizar");
     return null;
   }
-  return data?.id || request.id;
+  return budgetRequestFromCloud(data);
 }
 
 function loadSchedules() {
@@ -13371,10 +13371,13 @@ async function importClassGradesFile(file) {
 }
 
 function money(value) {
-  return Number(value || 0).toLocaleString("es-MX", {
+  const amount = Number(value || 0);
+  const fractionDigits = budgetRequestSupport.fractionDigits(amount);
+  return amount.toLocaleString("es-MX", {
     style: "currency",
     currency: "MXN",
-    maximumFractionDigits: 0
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
   });
 }
 
@@ -13556,34 +13559,50 @@ async function saveBudgetRequest(event) {
     return;
   }
   const form = new FormData(event.currentTarget);
+  const amount = budgetRequestSupport.parseAmount(form.get("amount"));
+  if (amount === null) {
+    toast("Ingresa un monto mayor o igual a $0.01, con máximo dos decimales");
+    return;
+  }
   const request = normalizeBudgetRequest({
-    id: `P-${String(Date.now()).slice(-6)}`,
+    id: window.crypto.randomUUID(),
     period: form.get("period"),
     date: form.get("date"),
     area: form.get("area"),
     concept: form.get("concept"),
     provider: form.get("provider"),
-    amount: form.get("amount"),
+    amount,
     status: form.get("status"),
     priority: form.get("priority"),
     type: form.get("type")
   });
-  if (!request || !request.amount) {
-    toast("Completa concepto, área y monto");
+  if (!request) {
+    toast("Completa concepto y área");
     return;
   }
-  const cloudId = await saveBudgetRequestToCloud(request);
-  if (supabaseClient && currentUser?.auth === "supabase" && !cloudId) {
-    toast(budgetCloudReady ? "La solicitud no se guardó; revisa los permisos de Presupuesto" : "Presupuesto no está conectado a Supabase");
-    return;
-  }
-  const savedRequest = cloudId ? { ...request, id: cloudId } : request;
-  budgetRequestRows = [savedRequest, ...budgetRequestRows];
-  if (!cloudId) saveBudgetRequestRows();
-  addAudit("presupuesto", `Solicitud creada: ${request.concept}`);
-  if (cloudId) await loadBudgetData();
+  const pendingRequest = budgetPendingStore.upsert(request);
+  budgetRequestRows = [pendingRequest, ...budgetRequestRows.filter((row) => row.id !== request.id)];
+  saveBudgetRequestRows();
+  budgetRequestSaving = true;
   render();
-  toast(cloudId ? "Solicitud creada en Supabase" : "Solicitud creada localmente");
+
+  let cloudRow = null;
+  try {
+    cloudRow = await saveBudgetRequestToCloud(request);
+  } catch (error) {
+    console.warn("No se pudo sincronizar solicitud de presupuesto", error);
+  }
+  budgetRequestSaving = false;
+  if (cloudRow) {
+    budgetPendingStore.remove(request.id);
+    budgetRequestRows = [cloudRow, ...budgetRequestRows.filter((row) => row.id !== request.id && row.id !== cloudRow.id)];
+  }
+  saveBudgetRequestRows();
+  addAudit("presupuesto", `Solicitud creada: ${request.concept}`);
+  if (cloudRow) await loadBudgetData();
+  activeView = "dashboard";
+  render();
+  toast(cloudRow ? "Solicitud creada en Supabase" : "Solicitud guardada localmente y pendiente de sincronizar");
 }
 
 async function updateBudgetRequestStatus(id, status) {
@@ -13591,7 +13610,12 @@ async function updateBudgetRequestStatus(id, status) {
     toast("Sin permiso para cambiar estatus");
     return;
   }
-  if (supabaseClient && currentUser?.auth === "supabase" && budgetCloudReady) {
+  const current = budgetRequestRows.find((row) => row.id === id);
+  if (current?.pendingSync) {
+    const pending = budgetPendingStore.upsert({ ...current, status });
+    budgetRequestRows = budgetRequestRows.map((row) => row.id === id ? pending : row);
+    saveBudgetRequestRows();
+  } else if (supabaseClient && currentUser?.auth === "supabase" && budgetCloudReady) {
     const { error } = await supabaseClient.from("budget_requests").update({ status }).eq("id", id);
     if (error) {
       console.warn(error);
@@ -13609,13 +13633,17 @@ async function updateBudgetRequestStatus(id, status) {
 }
 
 async function deleteBudgetRequest(id) {
-  if (!canEditArea("compras")) {
-    toast("Sin permiso para eliminar solicitudes");
+  if (!budgetRequestSupport.canDelete(currentUser)) {
+    toast("Solo Dirección/Admin o el Líder Deportivo puede borrar");
     return;
   }
   const row = budgetRequestRows.find((item) => item.id === id);
   if (!window.confirm(`¿Eliminar definitivamente la solicitud "${row?.concept || id}"? Esta acción se guardará en Supabase.`)) return;
-  if (supabaseClient && currentUser?.auth === "supabase" && budgetCloudReady) {
+  if (row?.pendingSync) {
+    budgetPendingStore.remove(id);
+    budgetRequestRows = budgetRequestRows.filter((item) => item.id !== id);
+    saveBudgetRequestRows();
+  } else if (supabaseClient && currentUser?.auth === "supabase" && budgetCloudReady) {
     const { data, error } = await supabaseClient.from("budget_requests").delete().eq("id", id).select("id");
     if (error) {
       console.warn(error);
@@ -13626,6 +13654,8 @@ async function deleteBudgetRequest(id) {
       toast("Supabase no autorizó borrar esta solicitud");
       return;
     }
+    budgetRequestRows = budgetRequestRows.filter((item) => item.id !== id);
+    saveBudgetRequestRows();
     await loadBudgetData();
   } else {
     budgetRequestRows = budgetRequestRows.filter((item) => item.id !== id);
@@ -13661,6 +13691,11 @@ async function updateBudgetRequest(event) {
   const current = selectedBudgetRequestEdit();
   if (!current) return;
   const form = new FormData(event.currentTarget);
+  const amount = budgetRequestSupport.parseAmount(form.get("amount"));
+  if (amount === null) {
+    toast("Ingresa un monto mayor o igual a $0.01, con máximo dos decimales");
+    return;
+  }
   const next = normalizeBudgetRequest({
     ...current,
     date: form.get("date"),
@@ -13668,7 +13703,7 @@ async function updateBudgetRequest(event) {
     area: form.get("area"),
     concept: form.get("concept"),
     provider: form.get("provider"),
-    amount: form.get("amount"),
+    amount,
     type: form.get("type"),
     priority: form.get("priority"),
     status: form.get("status")
@@ -13677,7 +13712,11 @@ async function updateBudgetRequest(event) {
     toast("Completa concepto y área");
     return;
   }
-  if (supabaseClient && currentUser?.auth === "supabase" && budgetCloudReady) {
+  if (current.pendingSync) {
+    const pending = budgetPendingStore.upsert(next);
+    budgetRequestRows = budgetRequestRows.map((row) => row.id === next.id ? pending : row);
+    saveBudgetRequestRows();
+  } else if (supabaseClient && currentUser?.auth === "supabase" && budgetCloudReady) {
     const { error } = await supabaseClient.from("budget_requests").update({
       period_key: next.period,
       request_date: next.date,
@@ -13774,7 +13813,7 @@ function renderBudgetRequestView() {
           </label>
           <label>Concepto<input name="concept" placeholder="Ej. Material deportivo" ${editable ? "" : "disabled"} /></label>
           <label>Proveedor<input name="provider" placeholder="Proveedor o pendiente" ${editable ? "" : "disabled"} /></label>
-          <label>Monto<input name="amount" type="number" min="0" step="100" placeholder="0" ${editable ? "" : "disabled"} /></label>
+          <label>Monto<input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" ${editable ? "" : "disabled"} /></label>
           <label>Tipo<input name="type" placeholder="Servicio, material, uniforme..." ${editable ? "" : "disabled"} /></label>
           <label>Prioridad
             <select name="priority" ${editable ? "" : "disabled"}>
@@ -13786,7 +13825,7 @@ function renderBudgetRequestView() {
               ${["pendiente", "autorizado", "comprometido", "ejercido", "rechazado"].map((value) => `<option value="${value}">${budgetStatusLabel(value)}</option>`).join("")}
             </select>
           </label>
-          <button class="primary-btn" type="submit" ${editable ? "" : "disabled"}>Crear solicitud</button>
+          <button class="primary-btn" type="submit" ${editable && !budgetRequestSaving ? "" : "disabled"}>${budgetRequestSaving ? "Guardando..." : "Crear solicitud"}</button>
         </form>
       </article>
     </section>
@@ -13816,7 +13855,7 @@ function renderBudgetEditPanel() {
         </label>
         <label>Concepto<input name="concept" value="${escapeHtml(row.concept)}" ${editable ? "" : "disabled"} /></label>
         <label>Proveedor<input name="provider" value="${escapeHtml(row.provider)}" ${editable ? "" : "disabled"} /></label>
-        <label>Monto<input name="amount" type="number" min="0" step="100" value="${Math.round(row.amount || 0)}" ${editable ? "" : "disabled"} /></label>
+        <label>Monto<input name="amount" type="number" min="0.01" step="0.01" value="${escapeHtml(row.amount ?? "")}" ${editable ? "" : "disabled"} /></label>
         <label>Tipo<input name="type" value="${escapeHtml(row.type)}" ${editable ? "" : "disabled"} /></label>
         <label>Prioridad
           <select name="priority" ${editable ? "" : "disabled"}>
@@ -13993,7 +14032,7 @@ function renderBudgetDashboard() {
               <tr>
                 <td>${escapeHtml(row.date)}</td>
                 <td>${escapeHtml(budgetAreaLabel(row.area))}</td>
-                <td><strong>${escapeHtml(row.concept)}</strong><span>${escapeHtml(row.type)}</span></td>
+                <td><strong>${escapeHtml(row.concept)}</strong><span>${escapeHtml(row.type)}${row.pendingSync ? " · Pendiente de sincronizar" : ""}</span></td>
                 <td>${escapeHtml(row.provider)}</td>
                 <td>${money(row.amount)}</td>
                 <td>
@@ -14005,7 +14044,7 @@ function renderBudgetDashboard() {
                 <td>
                   <div class="table-actions compact-table-actions">
                     <button class="ghost-btn compact-action" type="button" data-budget-edit="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Modificar</button>
-                    <button class="danger-btn compact-action" type="button" data-budget-delete="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Eliminar</button>
+                    <button class="danger-btn compact-action" type="button" data-budget-delete="${escapeHtml(row.id)}" ${budgetRequestSupport.canDelete(currentUser) ? "" : "disabled"}>Eliminar</button>
                   </div>
                 </td>
               </tr>
