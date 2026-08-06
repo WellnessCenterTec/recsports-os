@@ -202,9 +202,82 @@ const CLASS_SCHEDULE_SNAPSHOT_KEY = "wellsync_class_schedule_snapshot";
 const BUDGET_AREAS_KEY = "wellsync_budget_areas";
 const BUDGET_REQUESTS_KEY = "wellsync_budget_requests";
 const INTRAMUROS_OPERATION_KEY = "wellsync_intramuros_omar_workspace";
+const MASTER_PERIOD_KEY = "wellsync_master_period_v1";
+const MASTER_PERIOD_AD26_MIGRATION_KEY = "wellsync_master_period_ad26_default_v1";
 const THEME_KEY = "recsports_os_theme";
 const SESSION_KEY = "recsports_os_session";
 const AUDIT_KEY = "recsports_os_audit_log";
+const SPORTS_LEADER_EMAIL = "recsports.mty@servicios.tec.mx";
+const MASTER_PERIODS = {
+  FJ26: { label: "Febrero - Junio 2026", start: "2026-01-01", end: "2026-06-30" },
+  IN26: { label: "Intersemestral 2026", start: "2026-06-01", end: "2026-07-31" },
+  AD26: { label: "Agosto - Diciembre 2026", start: "2026-07-01", end: "2026-12-31" }
+};
+const GYM_PERIOD_CALENDARS = {
+  AD26: { start: "2026-08-10", end: "2026-12-18", label: "Calendario escolar AD26" }
+};
+if (!localStorage.getItem(MASTER_PERIOD_AD26_MIGRATION_KEY)) {
+  localStorage.setItem(MASTER_PERIOD_KEY, "AD26");
+  localStorage.setItem(MASTER_PERIOD_AD26_MIGRATION_KEY, "1");
+}
+let activeMasterPeriod = MASTER_PERIODS[localStorage.getItem(MASTER_PERIOD_KEY)]
+  ? localStorage.getItem(MASTER_PERIOD_KEY)
+  : "AD26";
+
+function periodStorageKey(baseKey) {
+  return `${baseKey}:${activeMasterPeriod}`;
+}
+
+function readPeriodStorage(baseKey, fallback = null) {
+  const scopedKey = periodStorageKey(baseKey);
+  const scopedValue = localStorage.getItem(scopedKey);
+  if (scopedValue !== null) return scopedValue;
+  if (activeMasterPeriod === "FJ26") {
+    const legacyValue = localStorage.getItem(baseKey);
+    if (legacyValue !== null) {
+      localStorage.setItem(scopedKey, legacyValue);
+      return legacyValue;
+    }
+  }
+  return fallback;
+}
+
+function masterPeriodBounds(period = activeMasterPeriod) {
+  return MASTER_PERIODS[period] || MASTER_PERIODS.FJ26;
+}
+
+function masterPeriodMatchesDate(value, period = activeMasterPeriod) {
+  const date = String(value || "").slice(0, 10);
+  if (!date) return false;
+  const { start, end } = masterPeriodBounds(period);
+  return date >= start && date <= end;
+}
+
+function masterPeriodMatchesCode(value, period = activeMasterPeriod) {
+  const code = String(value || "").trim().toUpperCase();
+  return code === period || (period === "FJ26" && (!code || /^PMT[1-3]$/.test(code)));
+}
+
+function masterPeriodCloudArea(areaId) {
+  return `${areaId}:${activeMasterPeriod}`;
+}
+
+function masterPeriodCloudSlot(slotKey, imageIndex = 1, legacyMetadata = false) {
+  const baseSlot = `${activeMasterPeriod}:${slotKey}`;
+  return legacyMetadata && Number(imageIndex) > 1 ? `${baseSlot}~${Number(imageIndex)}` : baseSlot;
+}
+
+function legacyDiffusionImageIndex(slotKey) {
+  const match = String(slotKey || "").match(/~(\d+)$/);
+  return match ? Math.max(1, Number(match[1]) || 1) : 1;
+}
+
+function activePeriodDiffusionSlot(slotKey) {
+  const value = String(slotKey || "");
+  if (value.startsWith(`${activeMasterPeriod}:`)) return value.slice(activeMasterPeriod.length + 1).replace(/~\d+$/, "");
+  if (activeMasterPeriod === "FJ26" && !/^(FJ|AD|IN)\d{2}:/.test(value)) return value.replace(/~\d+$/, "");
+  return "";
+}
 const UNIFORMES_DATA_URL = "./uniformes-data.json";
 const CLASS_GRADES_DATA_URL = "./class-grades-data.json";
 const PLANNING_SEMESTRAL_CSV_URL = "https://docs.google.com/spreadsheets/d/1DL1GIPjzqPqXlJWlnWlAOWEiMJM9tPqknT6M4HCXEHM/gviz/tq?tqx=out:csv&sheet=Respuestas%20de%20formulario%201";
@@ -387,13 +460,15 @@ const GYM_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado
 
 const budgetFilters = { period: "AD26", area: "todos", status: "todos" };
 let budgetPeriods = ["AD26"];
+const BUDGET_ACTIVE_PERIODS = new Set(["AD26"]);
+const BUDGET_RETIRED_PERIODS = ["AN26"];
 let budgetPeriodFormOpen = false;
 
 const BUDGET_VISIBLE_AREAS = [
   { key: "clases", label: "Clases Deportivas", owner: "Coordinación Clases", icon: "activity" },
   { key: "gimnasio", label: "Gimnasio", owner: "Coordinación Gimnasio", icon: "dumbbell" },
   { key: "intramuros", label: "Intramuros", owner: "Coordinación Intramuros", icon: "trophy" },
-  { key: "vivencia", label: "Vivencia", owner: "Coordinación Vivencia", icon: "users" },
+  { key: "vivencia", label: "Vivencia y Semana Tec", owner: "Coordinación Vivencia", icon: "users" },
   { key: "comunicacion", label: "Comunicación", owner: "Coordinación Comunicación", icon: "megaphone" },
   { key: "direccion", label: "Dirección", owner: "Dirección Deportiva", icon: "briefcase-business" }
 ];
@@ -404,21 +479,11 @@ const defaultBudgetAreas = [
   { area: "intramuros", assigned: 640000, owner: "Coordinación Intramuros", threshold: 76 },
   { area: "vivencia", assigned: 520000, owner: "Coordinación Vivencia", threshold: 70 },
   { area: "comunicacion", assigned: 0, owner: "Coordinación Comunicación", threshold: 80 },
-  { area: "direccion", assigned: 0, owner: "Dirección Deportiva", threshold: 80 }
+  { area: "direccion", assigned: 1340000, owner: "Dirección Deportiva", threshold: 80 }
 ];
 
-const defaultBudgetRequests = [
-  { id: "P-001", period: "AD26", date: "2026-08-05", area: "clases", concept: "Material funcional para clases PMT1", provider: "Deportes MX", amount: 118500, status: "autorizado", priority: "Alta", type: "Equipamiento" },
-  { id: "P-002", period: "AD26", date: "2026-08-09", area: "gimnasio", concept: "Mantenimiento preventivo de caminadoras", provider: "Fitness Service", amount: 215000, status: "comprometido", priority: "Alta", type: "Mantenimiento" },
-  { id: "P-003", period: "AD26", date: "2026-08-12", area: "intramuros", concept: "Arbitraje y operación de torneos", provider: "Liga Operativa", amount: 146000, status: "pendiente", priority: "Media", type: "Servicio" },
-  { id: "P-004", period: "AD26", date: "2026-08-14", area: "vivencia", concept: "Activación de bienvenida", provider: "Eventos Campus", amount: 98500, status: "ejercido", priority: "Media", type: "Evento" },
-  { id: "P-005", period: "AD26", date: "2026-08-18", area: "representativos", concept: "Uniformes competencia nacional", provider: "Uniformes Norte", amount: 330000, status: "comprometido", priority: "Alta", type: "Uniformes" },
-  { id: "P-006", period: "AD26", date: "2026-08-21", area: "gamer", concept: "Periféricos para torneo interno", provider: "Tech Arena", amount: 64000, status: "pendiente", priority: "Baja", type: "Equipamiento" },
-  { id: "P-007", period: "AD26", date: "2026-08-25", area: "colaboradores", concept: "Capacitación primeros auxilios", provider: "Safety Pro", amount: 72500, status: "ejercido", priority: "Alta", type: "Capacitación" },
-  { id: "P-008", period: "AD26", date: "2026-09-02", area: "clases", concept: "Reposición de material de yoga", provider: "Wellness Supply", amount: 46000, status: "rechazado", priority: "Baja", type: "Material" },
-  { id: "P-009", period: "AD26", date: "2026-09-06", area: "gimnasio", concept: "Kit de limpieza especializada", provider: "Facility Clean", amount: 38500, status: "ejercido", priority: "Media", type: "Insumos" },
-  { id: "P-010", period: "AD26", date: "2026-09-10", area: "vivencia", concept: "Premiación eventos insignia", provider: "Reconocimientos MTY", amount: 54500, status: "autorizado", priority: "Media", type: "Reconocimientos" }
-];
+const LEGACY_BUDGET_DEMO_IDS = new Set(Array.from({ length: 10 }, (_, index) => `P-${String(index + 1).padStart(3, "0")}`));
+const defaultBudgetRequests = [];
 
 const PHYSICAL_HALL_TESTS = [
   {
@@ -462,6 +527,7 @@ const PHYSICAL_HALL_TESTS = [
 let activeArea = "general";
 let activeView = "dashboard";
 const EXECUTIVE_PRESENTATION_STORAGE_KEY = "wellsync_executive_presentation_notes";
+const EXECUTIVE_PRESENTATION_PENDING_SYNC_KEY = "wellsync_executive_presentation_pending_sync";
 const EXECUTIVE_PRESENTATION_SLIDES = [
   { key: "cover", title: "Portada", icon: "presentation" },
   { key: "general-indicators", title: "Calendario escolar", icon: "calendar-days" },
@@ -473,8 +539,8 @@ const EXECUTIVE_PRESENTATION_SLIDES = [
   { key: "feedback", title: "Retroalimentación personal", icon: "messages-square" },
   { key: "weekly-topics", title: "Temas semanales", icon: "notebook-tabs" },
   { key: "team", title: "Equipo", icon: "users" },
-  { key: "detailed-schedules", title: "Horarios detallados", icon: "calendar-clock" },
-  { key: "map", title: "Mapa / distribución de espacios", icon: "map" }
+  { key: "map", title: "Mapa / distribución de espacios", icon: "map" },
+  { key: "detailed-schedules", title: "Tema especial", icon: "sparkles" }
 ];
 const EXECUTIVE_PRESENTATION_EDIT_FIELDS = {
   cover: [],
@@ -493,7 +559,10 @@ const EXECUTIVE_PRESENTATION_EDIT_FIELDS = {
     ["observations", "Observaciones", "Notas generales para la junta"]
   ],
   team: [["comment_team", "Comentario del equipo", "Movimientos, reconocimientos o seguimiento"]],
-  "detailed-schedules": [["comment_detailed-schedules", "Comentario de horarios detallados", "Incidencias o ajustes"]],
+  "detailed-schedules": [
+    ["special_topic_title", "Título del tema especial", "Escribe el tema principal de la junta"],
+    ["special_topic_points", "Puntos del tema", "Un punto por línea"]
+  ],
   map: [["map_notes", "Mapa y distribución de espacios", "Cambios, bloqueos o necesidades de espacio"]]
 };
 const MAX_PRESENTATION_SELECTION = 3;
@@ -505,6 +574,7 @@ let executivePresentationCloudAvailable = true;
 let executivePresentationSaving = false;
 let executivePresentationNotes = loadExecutivePresentationLocalNotes();
 const presentationHistoryApi = window.WellSyncPresentationHistory;
+const presentationPrioritiesApi = window.WellSyncPresentationPriorities;
 const presentationHistoryPendingStore = presentationHistoryApi.createPendingStore(localStorage);
 let executivePresentationHistory = [];
 let executivePresentationHistoryLoading = false;
@@ -517,6 +587,7 @@ let executivePresentationHistoryReuseTarget = null;
 let executivePresentationHistoryReturnFocus = null;
 let presentationInventoryDraft = null;
 let presentationFeedbackDraft = null;
+let presentationMapImageDraft = null;
 let presentationInventoryPendingUploadKeys = new Set();
 let physicalHallOfFameOpen = false;
 let physicalHallOfFameGender = "todos";
@@ -534,11 +605,23 @@ let intramurosImporting = false;
 let intramurosRolesImporting = false;
 let intramurosUploadSummary = null;
 let intramurosRolesUploadSummary = null;
+let intramurosRolesPendingUpload = null;
 let selectedIntramurosTournament = "";
 let intramurosCalendarLayer = "all";
 let intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", search: "" };
 let intramurosOperationRows = loadIntramurosOperationRows();
 let intramurosOperationCloudAvailable = true;
+const INTRAMUROS_REPORT_BASE_TOURNAMENTS = [
+  "Fútbol soccer",
+  "Fútbol 7",
+  "Básquetbol",
+  "Voleibol de sala",
+  "Voleibol de playa",
+  "Pádel",
+  "Fútbol rápido",
+  "Tochito",
+  "Tenis singles"
+];
 const PARTICIPATION_UPLOAD_STORAGE_KEY = "wellsync_participation_uploads_v1";
 let participationUploadState = {
   gamer: { fileName: "", draft: null, imported: null, source: "" },
@@ -548,6 +631,9 @@ let participationUploadCloudAvailable = true;
 let participationUploadLoading = { gamer: false, representativos: false };
 let representativosFilters = { coach: "todos", representativo: "todos", search: "" };
 const SEMANA_TEC_STORAGE_KEY = "wellsync_semana_tec_v1";
+const SEMANA_TEC_PROGRAM_STORAGE_KEY = "wellsync_semana_tec_programacion_v1";
+const SEMANA_TEC_PROGRAM_SEED_URL = "./semana-tec-programacion-ad26.json";
+const SEMANA_TEC_PROGRAM_BUCKET = "semana-tec-calificaciones";
 let semanaTecRows = [];
 let semanaTecDraft = null;
 let semanaTecLoading = false;
@@ -559,7 +645,14 @@ let semanaTecGroupGradeFiles = [];
 let semanaTecGroupFilesAvailable = true;
 let semanaTecGroupFilesLoading = false;
 let semanaTecGroupFileUploading = "";
-let executiveReportState = { week: 15, period: "FJ26", title: "Reporte Ejecutivo Semana 15" };
+let semanaTecProgramRows = [];
+let semanaTecProgramDraft = null;
+let semanaTecProgramLastUpload = null;
+let semanaTecProgramLoading = false;
+let semanaTecProgramSaving = false;
+let semanaTecProgramCloudAvailable = true;
+let semanaTecProgramFilters = { week: "todas", professor: "todos", schedule: "todos", search: "" };
+let executiveReportState = { week: 15, period: activeMasterPeriod, title: "Reporte Ejecutivo Semana 15" };
 let executivePlanningFilters = { area: "todos", status: "todos", days: "30" };
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
@@ -636,6 +729,7 @@ let communicationEventImporting = false;
 let communicationEventImportResult = null;
 let communicationPlanningSyncing = false;
 let selectedCommunicationEventForDetail = "";
+let selectedCommunicationPlanningDraft = null;
 let communicationParticipants = [];
 let communicationParticipantUploads = [];
 let communicationParticipantsAvailable = true;
@@ -709,14 +803,14 @@ function allowedDataText() {
 
 function loadCaptures() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    return JSON.parse(readPeriodStorage(STORAGE_KEY, "[]") || "[]");
   } catch {
     return [];
   }
 }
 
 function saveCaptures() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(localCaptures));
+  localStorage.setItem(periodStorageKey(STORAGE_KEY), JSON.stringify(localCaptures));
 }
 
 function normalizeBudgetAreaPlan(row) {
@@ -752,8 +846,18 @@ function normalizeBudgetRequest(row) {
 function loadBudgetAreaPlans() {
   try {
     const saved = JSON.parse(localStorage.getItem(BUDGET_AREAS_KEY) || "[]");
-    const rows = Array.isArray(saved) ? saved.map(normalizeBudgetAreaPlan).filter(Boolean) : [];
-    return rows.length ? rows : defaultBudgetAreas.map(normalizeBudgetAreaPlan);
+    const rows = Array.isArray(saved)
+      ? saved.map(normalizeBudgetAreaPlan).filter((row) => row && BUDGET_ACTIVE_PERIODS.has(row.period))
+      : [];
+    const defaults = defaultBudgetAreas.map(normalizeBudgetAreaPlan);
+    const plans = defaults.map((fallback) => rows.find((row) => row.period === fallback.period && row.area === fallback.area) || fallback);
+    const ad26Total = plans.filter((row) => row.period === "AD26").reduce((sum, row) => sum + row.assigned, 0);
+    if (ad26Total === 3160000) {
+      return plans.map((row) => row.period === "AD26" && row.area === "direccion"
+        ? { ...row, assigned: 1340000 }
+        : row);
+    }
+    return plans;
   } catch {
     return defaultBudgetAreas.map(normalizeBudgetAreaPlan);
   }
@@ -766,10 +870,13 @@ function saveBudgetAreaPlans() {
 function loadBudgetRequestRows() {
   try {
     const saved = JSON.parse(localStorage.getItem(BUDGET_REQUESTS_KEY) || "[]");
-    const rows = Array.isArray(saved) ? saved.map(normalizeBudgetRequest).filter(Boolean) : [];
-    return rows.length ? rows : defaultBudgetRequests.map(normalizeBudgetRequest);
+    const rows = Array.isArray(saved)
+      ? saved.map(normalizeBudgetRequest).filter((row) => row && !LEGACY_BUDGET_DEMO_IDS.has(row.id))
+      : [];
+    localStorage.setItem(BUDGET_REQUESTS_KEY, JSON.stringify(rows));
+    return rows;
   } catch {
-    return defaultBudgetRequests.map(normalizeBudgetRequest);
+    return [];
   }
 }
 
@@ -780,6 +887,7 @@ function saveBudgetRequestRows() {
 function normalizeIntramurosOperationRow(row = {}) {
   const id = String(row.id || `INTRA-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   const numberValue = (value) => Math.max(0, Number(value) || 0);
+  const statusMeta = intramurosOperationStatusMeta(row.estatus);
   return {
     id,
     tipo: String(row.tipo || "").trim(),
@@ -793,13 +901,44 @@ function normalizeIntramurosOperationRow(row = {}) {
     juegos_programados: numberValue(row.juegos_programados),
     juegos_realizados: numberValue(row.juegos_realizados),
     bajas: numberValue(row.bajas),
-    estatus: String(row.estatus || "En captura").trim()
+    estatus: String(row.estado_manual ?? statusMeta.estatus ?? row.estatus ?? "En captura").trim(),
+    oc: String(row.oc ?? statusMeta.oc ?? "").trim(),
+    compra: String(row.compra ?? statusMeta.compra ?? "").trim(),
+    orden_compra: String(row.orden_compra ?? statusMeta.orden_compra ?? "").trim(),
+    requisicion: String(row.requisicion ?? statusMeta.requisicion ?? "").trim(),
+    proveedor: String(row.proveedor ?? statusMeta.proveedor ?? "").trim(),
+    pagar: numberValue(row.pagar ?? statusMeta.pagar),
+    arbitraje_total: numberValue(row.arbitraje_total ?? statusMeta.arbitraje_total)
   };
+}
+
+function intramurosOperationStatusMeta(value) {
+  const text = String(value || "").trim();
+  if (!text.startsWith("{")) return { estatus: text || "En captura" };
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" ? parsed : { estatus: "En captura" };
+  } catch {
+    return { estatus: text || "En captura" };
+  }
+}
+
+function intramurosOperationPackedStatus(row) {
+  return JSON.stringify({
+    estatus: row.estatus || "En captura",
+    oc: row.oc || "",
+    compra: row.compra || "",
+    orden_compra: row.orden_compra || "",
+    requisicion: row.requisicion || "",
+    proveedor: row.proveedor || "",
+    pagar: Number(row.pagar || 0),
+    arbitraje_total: Number(row.arbitraje_total || 0)
+  });
 }
 
 function loadIntramurosOperationRows() {
   try {
-    const saved = JSON.parse(localStorage.getItem(INTRAMUROS_OPERATION_KEY) || "[]");
+    const saved = JSON.parse(readPeriodStorage(INTRAMUROS_OPERATION_KEY, "[]") || "[]");
     return Array.isArray(saved) ? saved.map(normalizeIntramurosOperationRow).filter((row) => row.torneo) : [];
   } catch {
     return [];
@@ -808,7 +947,7 @@ function loadIntramurosOperationRows() {
 
 function saveIntramurosOperationRows() {
   intramurosOperationRows = intramurosOperationRows.map(normalizeIntramurosOperationRow).filter((row) => row.torneo);
-  localStorage.setItem(INTRAMUROS_OPERATION_KEY, JSON.stringify(intramurosOperationRows));
+  localStorage.setItem(periodStorageKey(INTRAMUROS_OPERATION_KEY), JSON.stringify(intramurosOperationRows));
 }
 
 function intramurosOperationCloudRow(row = {}) {
@@ -844,7 +983,7 @@ function intramurosOperationToCloud(row) {
     juegos_programados: normalized.juegos_programados,
     juegos_realizados: normalized.juegos_realizados,
     bajas: normalized.bajas,
-    estatus: normalized.estatus
+    estatus: intramurosOperationPackedStatus(normalized)
   };
 }
 
@@ -932,6 +1071,15 @@ async function loadBudgetData() {
   budgetCloudReady = false;
   budgetCloudMessage = "Modo local";
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  if (canEditArea("compras")) {
+    for (const period of BUDGET_RETIRED_PERIODS) {
+      const requestsDelete = await supabaseClient.from("budget_requests").delete().eq("period_key", period);
+      const plansDelete = await supabaseClient.from("budget_area_plans").delete().eq("period_key", period);
+      const periodDelete = await supabaseClient.from("budget_periods").delete().eq("period_key", period);
+      const purgeError = requestsDelete.error || plansDelete.error || periodDelete.error;
+      if (purgeError) console.warn(`No se pudo retirar el periodo presupuestal ${period}`, purgeError);
+    }
+  }
   const [periodsResult, plansResult, requestsResult] = await Promise.all([
     supabaseClient
       .from("budget_periods")
@@ -952,16 +1100,24 @@ async function loadBudgetData() {
     budgetCloudMessage = "Activa las tablas de Presupuesto en Supabase";
     return;
   }
-  const cloudPlans = (plansResult.data || []).map(budgetPlanFromCloud).filter(Boolean);
-  const cloudRequests = (requestsResult.data || []).map(budgetRequestFromCloud).filter(Boolean);
-  const cloudPeriods = (periodsResult.data || []).map((row) => String(row.period_key || "").trim()).filter(Boolean);
+  const cloudPlans = (plansResult.data || []).map(budgetPlanFromCloud).filter((row) => row && BUDGET_ACTIVE_PERIODS.has(row.period));
+  const cloudRequests = (requestsResult.data || []).map(budgetRequestFromCloud).filter((row) => row && BUDGET_ACTIVE_PERIODS.has(row.period));
+  const cloudPeriods = (periodsResult.data || [])
+    .map((row) => String(row.period_key || "").trim())
+    .filter((period) => BUDGET_ACTIVE_PERIODS.has(period));
   budgetPeriods = [...new Set([...cloudPeriods, ...cloudPlans.map((row) => row.period), ...cloudRequests.map((row) => row.period)])]
     .sort((a, b) => budgetPeriodRank(b) - budgetPeriodRank(a) || String(b).localeCompare(String(a), "es-MX"));
   if (!budgetPeriods.length) budgetPeriods = ["AD26"];
-  const latestPeriod = latestBudgetPeriodKey(periodsResult.data || [], budgetPeriods);
-  if (!budgetPeriodTouched || !budgetPeriods.includes(budgetFilters.period)) budgetFilters.period = latestPeriod;
-  if (cloudPlans.length) budgetAreaPlans = cloudPlans;
-  if (cloudRequests.length) budgetRequestRows = cloudRequests;
+  budgetFilters.period = "AD26";
+  const fallbackPlans = defaultBudgetAreas.map(normalizeBudgetAreaPlan);
+  budgetAreaPlans = fallbackPlans.map((fallback) => (
+    cloudPlans.find((row) => row.period === fallback.period && row.area === fallback.area)
+    || budgetAreaPlans.find((row) => row.period === fallback.period && row.area === fallback.area)
+    || fallback
+  ));
+  saveBudgetAreaPlans();
+  budgetRequestRows = cloudRequests.filter((row) => !LEGACY_BUDGET_DEMO_IDS.has(row.id));
+  saveBudgetRequestRows();
   budgetCloudReady = true;
   budgetCloudMessage = "Supabase activo";
 }
@@ -978,7 +1134,7 @@ async function saveBudgetAllocationToCloud(plan) {
   }, { onConflict: "period_key,area_key" });
   if (error) {
     console.warn(error);
-    toast("No se pudo guardar en Supabase; se conserva local");
+    toast(`No se pudo guardar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
     return false;
   }
   return true;
@@ -1008,35 +1164,39 @@ async function saveBudgetRequestToCloud(request) {
 
 function loadSchedules() {
   try {
-    const saved = JSON.parse(localStorage.getItem(SCHEDULE_KEY) || "null");
+    const saved = JSON.parse(readPeriodStorage(SCHEDULE_KEY, "null") || "null");
     if (saved && Array.isArray(saved.official) && Array.isArray(saved.booking)) {
       return {
         official: saved.official,
         booking: saved.booking,
         errors: saved.errors || { master: [], official: [], booking: [] },
         sourceMode: saved.sourceMode || "demo",
-        updatedAt: saved.updatedAt || null
+        updatedAt: saved.updatedAt || null,
+        officialUpdatedAt: saved.officialUpdatedAt || (saved.sourceMode === "master" ? saved.updatedAt || null : null),
+        bookingUpdatedAt: saved.bookingUpdatedAt || (saved.sourceMode === "master" ? saved.updatedAt || null : null)
       };
     }
   } catch {
     // Continue with demo data.
   }
   return {
-    official: sampleOfficialSchedule,
-    booking: sampleBookingSchedule,
+    official: activeMasterPeriod === "FJ26" ? sampleOfficialSchedule : [],
+    booking: activeMasterPeriod === "FJ26" ? sampleBookingSchedule : [],
     errors: { master: [], official: [], booking: [] },
     sourceMode: "demo",
-    updatedAt: null
+    updatedAt: null,
+    officialUpdatedAt: null,
+    bookingUpdatedAt: null
   };
 }
 
 function saveSchedules() {
-  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(scheduleState));
+  localStorage.setItem(periodStorageKey(SCHEDULE_KEY), JSON.stringify(scheduleState));
 }
 
 function loadClassBookingReservations() {
   try {
-    const saved = JSON.parse(localStorage.getItem(CLASS_BOOKING_RESERVATIONS_KEY) || "[]");
+    const saved = JSON.parse(readPeriodStorage(CLASS_BOOKING_RESERVATIONS_KEY, "[]") || "[]");
     return Array.isArray(saved) ? saved : [];
   } catch {
     return [];
@@ -1044,7 +1204,7 @@ function loadClassBookingReservations() {
 }
 
 function saveClassBookingReservations() {
-  localStorage.setItem(CLASS_BOOKING_RESERVATIONS_KEY, JSON.stringify(classBookingReservations));
+  localStorage.setItem(periodStorageKey(CLASS_BOOKING_RESERVATIONS_KEY), JSON.stringify(classBookingReservations));
 }
 
 function bookingReservationFromCloud(row) {
@@ -1091,16 +1251,20 @@ async function loadClassBookingReservationsCloud() {
     return;
   }
   classBookingCloudAvailable = true;
-  classBookingReservations = (data || []).map(bookingReservationFromCloud);
+  classBookingReservations = (data || [])
+    .map(bookingReservationFromCloud)
+    .filter((row) => masterPeriodMatchesDate(row.reservationDate));
   saveClassBookingReservations();
 }
 
 async function saveClassBookingReservationsCloud(rows, fileName = "") {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("clases")) return false;
+  const { start, end } = masterPeriodBounds();
   const { error: deleteError } = await supabaseClient
     .from("class_booking_reservations")
     .delete()
-    .neq("id", "00000000-0000-0000-0000-000000000000");
+    .gte("reservation_at", `${start}T00:00:00`)
+    .lte("reservation_at", `${end}T23:59:59`);
   if (deleteError) {
     classBookingCloudAvailable = false;
     toast(`Booking quedó local; falta activar Supabase: ${supabaseErrorDetail(deleteError) || deleteError.message}`);
@@ -1122,7 +1286,7 @@ async function saveClassBookingReservationsCloud(rows, fileName = "") {
 
 function loadSimulator() {
   try {
-    const saved = JSON.parse(localStorage.getItem(SIMULATOR_KEY) || "null");
+    const saved = JSON.parse(readPeriodStorage(SIMULATOR_KEY, "null") || "null");
     if (Array.isArray(saved?.rows)) {
       return {
         rows: saved.rows,
@@ -1137,12 +1301,12 @@ function loadSimulator() {
 }
 
 function saveSimulator() {
-  localStorage.setItem(SIMULATOR_KEY, JSON.stringify(simulatorState));
+  localStorage.setItem(periodStorageKey(SIMULATOR_KEY), JSON.stringify(simulatorState));
 }
 
 function loadClassScheduleSimulatorLocal() {
   try {
-    const saved = JSON.parse(localStorage.getItem(CLASS_SIMULATOR_KEY) || "[]");
+    const saved = JSON.parse(readPeriodStorage(CLASS_SIMULATOR_KEY, "[]") || "[]");
     return Array.isArray(saved) ? saved.map(normalizeClassSimulatorRow).filter(Boolean) : [];
   } catch {
     return [];
@@ -1150,7 +1314,7 @@ function loadClassScheduleSimulatorLocal() {
 }
 
 function saveClassScheduleSimulatorLocal() {
-  localStorage.setItem(CLASS_SIMULATOR_KEY, JSON.stringify(classScheduleSimulatorRows));
+  localStorage.setItem(periodStorageKey(CLASS_SIMULATOR_KEY), JSON.stringify(classScheduleSimulatorRows));
 }
 
 function normalizeClassSimulatorRow(row) {
@@ -1174,6 +1338,11 @@ function normalizeClassSimulatorRow(row) {
 }
 
 async function loadClassScheduleSimulatorCloud() {
+  if (activeMasterPeriod !== "FJ26") {
+    classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
+    classScheduleSimulatorCloudReady = false;
+    return;
+  }
   if (!supabaseClient || currentUser?.auth !== "supabase") {
     classScheduleSimulatorCloudReady = false;
     return;
@@ -1195,7 +1364,7 @@ async function loadClassScheduleSimulatorCloud() {
 async function saveClassSimulatorRows(rows) {
   classScheduleSimulatorRows = [...classScheduleSimulatorRows, ...rows];
   saveClassScheduleSimulatorLocal();
-  if (!supabaseClient || currentUser?.auth !== "supabase") return { cloud: false };
+  if (activeMasterPeriod !== "FJ26" || !supabaseClient || currentUser?.auth !== "supabase") return { cloud: false };
   const payload = rows.map((row) => ({
     id: row.id,
     area: row.area,
@@ -1222,7 +1391,7 @@ async function deleteClassSimulatorRow(id) {
   if (!confirm("¿Seguro que deseas eliminar esta clase del simulador?")) return;
   classScheduleSimulatorRows = classScheduleSimulatorRows.filter((item) => item.id !== id);
   saveClassScheduleSimulatorLocal();
-  if (supabaseClient && currentUser?.auth === "supabase") {
+  if (activeMasterPeriod === "FJ26" && supabaseClient && currentUser?.auth === "supabase") {
     const { error } = await supabaseClient.from("class_schedule_simulator").delete().eq("id", id);
     classScheduleSimulatorCloudReady = !error;
   }
@@ -1243,6 +1412,11 @@ function loadSession() {
       const directorSession = { ...demoUsers[0] };
       localStorage.setItem(SESSION_KEY, JSON.stringify(directorSession));
       return directorSession;
+    }
+    if (isSportsLeaderAccount(session) && (session.role !== "coordinador" || session.globalAccess !== true)) {
+      const leaderSession = { ...session, role: "coordinador", globalAccess: true };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(leaderSession));
+      return leaderSession;
     }
     return session;
   } catch {
@@ -1287,15 +1461,25 @@ function addAudit(action, detail = "") {
 
 const uploadSuccessStore = window.WellSyncUploadStatus?.createUploadStatusStore(localStorage);
 
+function periodUploadStatusKey(key) {
+  return /^(colaboradores|presentacion|compras)\./.test(String(key || ""))
+    ? key
+    : `${activeMasterPeriod}:${key}`;
+}
+
 function latestUploadTimestamp(values) {
   return (values || []).filter(Boolean).sort((a, b) => String(b).localeCompare(String(a)))[0] || "";
 }
 
 function uploadStatusTarget(selector, key, timestamp = "") {
   document.querySelectorAll(selector).forEach((node, index) => {
-    const resolvedKey = typeof key === "function" ? key(node, index) : key;
+    const baseKey = typeof key === "function" ? key(node, index) : key;
+    const resolvedKey = periodUploadStatusKey(baseKey);
     const resolvedTimestamp = typeof timestamp === "function" ? timestamp(node, index) : timestamp;
-    const knownTimestamp = resolvedTimestamp || uploadSuccessStore?.get(resolvedKey) || "";
+    const knownTimestamp = resolvedTimestamp
+      || uploadSuccessStore?.get(resolvedKey)
+      || (activeMasterPeriod === "FJ26" ? uploadSuccessStore?.get(baseKey) : "")
+      || "";
     const label = document.createElement("small");
     label.className = "upload-last-success";
     label.dataset.uploadStatusKey = resolvedKey;
@@ -1319,8 +1503,8 @@ function renderUploadSuccessLabels() {
   uploadStatusTarget("#uploadStudentDatabase", "general.student-database");
   uploadStatusTarget("#uploadClassGrades", "clases.calificaciones", gradeTimestamp);
   uploadStatusTarget('[data-schedule-upload="master"]', "clases.horarios.master", scheduleState.updatedAt);
-  uploadStatusTarget('[data-schedule-upload="official"]', "clases.horarios.official", scheduleState.updatedAt);
-  uploadStatusTarget('[data-schedule-upload="booking"]', "clases.horarios.booking", scheduleState.updatedAt);
+  uploadStatusTarget('[data-schedule-upload="official"]', "clases.horarios.official", scheduleState.officialUpdatedAt);
+  uploadStatusTarget('[data-schedule-upload="booking"]', "clases.horarios.booking", scheduleState.bookingUpdatedAt);
   uploadStatusTarget("#classBookingReservationsFile", "clases.booking");
   uploadStatusTarget("#uploadGymAttendanceCsv", "gimnasio.asistencias");
   uploadStatusTarget("#importSemanaTec", "semana-tec.alumnos", semanaTecLastUpload?.importedAt);
@@ -1333,6 +1517,7 @@ function renderUploadSuccessLabels() {
   uploadStatusTarget("#uploadVivenciaEventImages", "vivencia.imagenes", vivenciaImagesTimestamp);
   uploadStatusTarget("#communicationParticipantsForm button[type=submit]", "comunicacion.participantes", communicationParticipantsTimestamp);
   uploadStatusTarget("[data-inventory-image]", (node) => `presentacion.inventario.${node.dataset.inventoryImage}`);
+  uploadStatusTarget("[data-presentation-map-image]", "presentacion.mapa.imagen");
   uploadStatusTarget("[data-semana-tec-group-select]", (node) => `semana-tec.grupo.${node.dataset.semanaTecGroupSelect}`, (node) => semanaTecGroupGradeFiles.find((file) => file.group_key === node.dataset.semanaTecGroupSelect)?.updated_at || "");
   uploadStatusTarget("[data-communication-diffusion-upload]", (node) => {
     const imageIndex = Number(node.dataset.communicationDiffusionImageIndex || 1);
@@ -1341,9 +1526,10 @@ function renderUploadSuccessLabels() {
 }
 
 function recordUploadSuccess(key, value = new Date().toISOString()) {
-  const recordedAt = uploadSuccessStore?.record(key, value) || value;
+  const resolvedKey = periodUploadStatusKey(key);
+  const recordedAt = uploadSuccessStore?.record(resolvedKey, value) || value;
   document.querySelectorAll(".upload-last-success").forEach((label) => {
-    if (label.dataset.uploadStatusKey !== key) return;
+    if (label.dataset.uploadStatusKey !== resolvedKey) return;
     label.textContent = window.WellSyncUploadStatus?.formatUploadSuccess(recordedAt)
       || "Última carga exitosa: sin registros";
   });
@@ -1352,7 +1538,7 @@ function recordUploadSuccess(key, value = new Date().toISOString()) {
 function profileToSession(profile, authUser) {
   const sourceRole = profile?.role || "consulta";
   const profileEmail = String(authUser?.email || profile?.email || "").trim().toLowerCase();
-  const isSportsLeader = profileEmail === "recsports.mty@servicios.tec.mx";
+  const isSportsLeader = isSportsLeaderAccount({ email: profileEmail });
   const role = isSportsLeader
     ? "coordinador"
     : (["admin", "direccion", "coordinador", "compras", "consulta", "maestro"].includes(sourceRole) ? sourceRole : "consulta");
@@ -1531,11 +1717,18 @@ async function loadGymData() {
     return;
   }
   if (asistenciasResult.error) console.error(asistenciasResult.error);
-  gymAsistencias = asistenciasResult.error ? [] : (asistenciasResult.data || []);
+  gymAsistencias = asistenciasResult.error
+    ? []
+    : (asistenciasResult.data || []).filter((row) => masterPeriodMatchesDate(row.fecha));
   gymAsistenciasLoadedCount = gymAsistencias.length;
-  gymManualAttendanceRows = attendanceResult.data || [];
+  gymManualAttendanceRows = (attendanceResult.data || [])
+    .filter((row) => masterPeriodMatchesDate(row.attendance_date))
+    .map((row) => ({
+      ...row,
+      week_number: gymCalendarWeekForDate(row.attendance_date) || row.week_number
+    }));
   gymAttendanceRecords = mergeGymAttendanceSources(gymManualAttendanceRows, gymAsistencias);
-  gymStudentRegistrations = registrationsResult.data || [];
+  gymStudentRegistrations = (registrationsResult.data || []).filter((row) => masterPeriodMatchesDate(row.registered_at));
   const highestWeek = Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
   gymWeekSelection.Wellness = Math.max(gymWeekSelection.Wellness, highestWeek);
   gymWeekSelection.EMIS = Math.max(gymWeekSelection.EMIS, highestWeek);
@@ -1675,6 +1868,24 @@ function parseTimeRanges(value, fallbackStart, fallbackEnd) {
   return [];
 }
 
+function normalizeClassScheduleBlock(value, discipline = "") {
+  const text = `${value || ""} ${discipline || ""}`.toUpperCase();
+  const match = text.match(/PMT\s*([123])/);
+  if (match) return `PMT${match[1]}`;
+  const normalized = normalizeText(value);
+  if (normalized.includes("bloque 1") || normalized.includes("modulo 1") || normalized === "1") return "PMT1";
+  if (normalized.includes("bloque 2") || normalized.includes("modulo 2") || normalized === "2") return "PMT2";
+  if (normalized.includes("bloque 3") || normalized.includes("modulo 3") || normalized === "3") return "PMT3";
+  return "";
+}
+
+function classScheduleDisciplineBase(value) {
+  return String(value || "")
+    .replace(/\s*[-/]?\s*PMT\s*[123]\b/ig, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function parseScheduleRows(rows, source) {
   const errors = [];
   const validRows = [];
@@ -1700,8 +1911,17 @@ function parseScheduleRows(rows, source) {
     const installation = String(pickColumn(raw, ["Instalacion", "Espacio", "Cancha", "Salon", "Lugar", " ", "__EMPTY"]) || raw[" "] || raw.__EMPTY || "").trim();
     const frequency = String(frequencyValue || "Semanal").trim();
     const group = String(pickColumn(raw, ["Grupo", "Group", "ETIQUETA_GRUPO"]) || "").trim();
+    const capacity = Number(pickColumn(raw, ["Aforo", "Capacidad", "Capacity"]) || 0);
+    const subjectCode = String(pickColumn(raw, ["Clave materia", "Clave_materia", "Clave", "CLAVE_MATERIA", "CLAVE_ASIGNATURA", "CODIGO_ASIGNATURA"]) || "").trim();
+    const crn = String(pickColumn(raw, ["CRN", "Crn"]) || "").trim();
+    const block = normalizeClassScheduleBlock(
+      pickColumn(raw, ["Bloque", "Modulo", "Módulo", "PMT", "Periodo PMT"]),
+      discipline
+    );
+    const semesterPeriod = String(
+      pickColumn(raw, ["Periodo", "Periodo academico", "Periodo académico", "Ciclo"]) || activeMasterPeriod
+    ).trim().toUpperCase();
     const rowErrors = [];
-    if (!professor) rowErrors.push("Profesor vacio");
     if (!discipline) rowErrors.push(source === "official" ? "Disciplina vacia" : "Actividad vacia");
     if (!days.length) rowErrors.push("Dia o frecuencia invalida");
     if (!timeRanges.length) rowErrors.push("Horario invalido");
@@ -1718,7 +1938,24 @@ function parseScheduleRows(rows, source) {
           errors.push({ row: index + 2, message: `Horario invalido: ${range.start || ""}-${range.end || ""}` });
           return;
         }
-        validRows.push({ id: `${source}-${Date.now()}-${index}-${day}-${rangeIndex}`, source, professor, discipline, day, start, end, installation, frequency, group, rowNumber: index + 2 });
+        validRows.push({
+          id: `${source}-${Date.now()}-${index}-${day}-${rangeIndex}`,
+          source,
+          professor: professor || "Por asignar",
+          discipline,
+          subjectCode,
+          crn,
+          block,
+          semesterPeriod,
+          day,
+          start,
+          end,
+          installation,
+          frequency,
+          group,
+          capacity: Number.isFinite(capacity) ? capacity : 0,
+          rowNumber: index + 2
+        });
       });
     });
   });
@@ -1731,7 +1968,7 @@ async function rowsFromScheduleFile(file) {
     const buffer = await file.arrayBuffer();
     const workbook = window.XLSX.read(buffer, { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    return window.XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    return window.XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
   }
   const text = await file.text();
   const rows = parseCsv(text);
@@ -1746,7 +1983,7 @@ function findWorkbookSheet(workbook, targetName) {
 }
 
 function bookingGridToRows(sheet) {
-  const grid = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  const grid = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
   const periodRow = grid[0] || [];
   const headerRow = grid[1] || [];
   const starts = headerRow.reduce((acc, value, index) => {
@@ -1765,6 +2002,21 @@ function bookingGridToRows(sheet) {
   });
 }
 
+function bookingSheetToRows(sheet) {
+  const grid = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
+  const headerIndex = grid.findIndex((row) => row.some((value) => normalizeText(value) === "disciplina"));
+  if (headerIndex < 0) return [];
+  const headers = grid[headerIndex].map((value, index) => String(value || `campo_${index}`).trim());
+  const simpleTable = headers.some((value) => normalizeText(value) === "profesor")
+    && headers.some((value) => normalizeText(value) === "horario");
+  if (!simpleTable || headerIndex > 1) return bookingGridToRows(sheet);
+  return grid.slice(headerIndex + 1).map((cells, rowIndex) => {
+    const row = headers.reduce((record, header, index) => ({ ...record, [header]: cells[index] || "" }), {});
+    row.__rowNumber = headerIndex + rowIndex + 2;
+    return row;
+  }).filter((row) => String(row.Disciplina || row.Actividad || row.Horario || row.Profesor || "").trim());
+}
+
 async function schedulesFromMasterWorkbook(file) {
   if (!window.XLSX) throw new Error("No esta disponible el lector de Excel");
   const buffer = await file.arrayBuffer();
@@ -1773,11 +2025,13 @@ async function schedulesFromMasterWorkbook(file) {
   const bookingName = findWorkbookSheet(workbook, "booking ofertados");
   const masterErrors = [];
   if (!officialName) masterErrors.push({ row: 0, message: 'No encontre la hoja "programacion clases"' });
-  if (!bookingName) masterErrors.push({ row: 0, message: 'No encontre la hoja "booking ofertados"' });
-  const officialRows = officialName ? window.XLSX.utils.sheet_to_json(workbook.Sheets[officialName], { defval: "" }) : [];
-  const bookingRows = bookingName ? bookingGridToRows(workbook.Sheets[bookingName]) : [];
+  const officialRows = officialName
+    ? window.XLSX.utils.sheet_to_json(workbook.Sheets[officialName], { defval: "", raw: false })
+      .filter((row) => String(pickColumn(row, ["NOMBRE_ASIGNATURA", "Disciplina", "Actividad"]) || "").trim())
+    : [];
+  const bookingRows = bookingName ? bookingSheetToRows(workbook.Sheets[bookingName]) : [];
   const official = parseScheduleRows(officialRows, "official");
-  const booking = parseScheduleRows(bookingRows, "booking");
+  const booking = bookingName ? parseScheduleRows(bookingRows, "booking") : { validRows: [], errors: [] };
   return {
     official: official.validRows,
     booking: booking.validRows,
@@ -2368,6 +2622,7 @@ async function loadSupabaseCaptures() {
     const { data, error } = await supabaseClient
       .from("participations")
       .select("id, matricula, area_key, period_key, status, operation_label, metadata, created_at, students_minimal(genero, carrera, semestre, nivel_escolar)")
+      .eq("period_key", activeMasterPeriod)
       .order("created_at", { ascending: false })
       .range(offset, offset + pageSize - 1);
     if (error) {
@@ -2386,10 +2641,6 @@ async function loadVivenciaParticipantDetails() {
   const rows = [];
   const pageSize = 1000;
   const maxRows = 12000;
-  const countResponse = await supabaseClient
-    .from("vivencia_participant_details")
-    .select("id", { count: "exact", head: true });
-  const totalCount = countResponse.error ? 0 : Number(countResponse.count || 0);
   for (let offset = 0; offset < maxRows; offset += pageSize) {
     const response = await supabaseClient
       .from("vivencia_participant_details")
@@ -2400,7 +2651,7 @@ async function loadVivenciaParticipantDetails() {
     rows.push(...(response.data || []));
     if (!response.data || response.data.length < pageSize) break;
   }
-  return { data: rows, error: null, count: totalCount || rows.length };
+  return { data: rows, error: null, count: rows.length };
 }
 
 async function loadVivenciaEvents() {
@@ -2453,20 +2704,29 @@ async function loadVivenciaEvents() {
     console.warn(metricsResult.error || participantsResult.error || uploadsResult.error || imagesResult.error || settingsResult.error);
   }
   vivenciaEventsAvailable = true;
-  vivenciaEvents = data || [];
-  vivenciaEventMetrics = metricsResult.error ? [] : (metricsResult.data || []);
-  vivenciaParticipantUploads = uploadsResult.error ? [] : (uploadsResult.data || []);
-  vivenciaParticipantDetailsCount = participantsResult.error
-    ? 0
-    : Number(participantsResult.count || participantsResult.data?.length || 0);
-  vivenciaEventImages = (imagesResult.error ? [] : (imagesResult.data || [])).map((image) => ({
+  vivenciaEvents = (data || []).filter((event) => masterPeriodMatchesDate(event.event_date));
+  const activeEventIds = new Set(vivenciaEvents.map((event) => event.id));
+  vivenciaEventMetrics = metricsResult.error
+    ? []
+    : (metricsResult.data || []).filter((row) => activeEventIds.has(row.event_id) || masterPeriodMatchesDate(row.event_date));
+  vivenciaParticipantUploads = uploadsResult.error
+    ? []
+    : (uploadsResult.data || []).filter((row) => activeEventIds.has(row.event_id) || masterPeriodMatchesDate(row.upload_date));
+  const activeParticipantDetails = participantsResult.error
+    ? []
+    : (participantsResult.data || []).filter((participant) => activeEventIds.has(participant.event_id));
+  vivenciaParticipantDetailsCount = activeParticipantDetails.length;
+  vivenciaEventImages = (imagesResult.error ? [] : (imagesResult.data || []))
+    .filter((image) => activeEventIds.has(image.event_id))
+    .map((image) => ({
     ...image,
     public_url: supabaseClient.storage.from("vivencia-event-images").getPublicUrl(image.storage_path).data.publicUrl
   }));
   vivenciaDashboardSettings = settingsResult.error || !settingsResult.data
     ? { impact_goal: 3800 }
     : { ...settingsResult.data, impact_goal: Number(settingsResult.data.impact_goal || 3800) };
-  vivenciaParticipants = (participantsResult.error ? [] : (participantsResult.data || [])).map((participant) => {
+  vivenciaParticipants = activeParticipantDetails
+    .map((participant) => {
     const student = findStudentInDatabase(participant.matricula) || {};
     return {
       ...participant,
@@ -2524,10 +2784,15 @@ async function loadCommunicationEvents() {
     return;
   }
   communicationEventsAvailable = true;
-  communicationEvents = eventsResult.data || [];
+  communicationEvents = (eventsResult.data || []).filter((event) => masterPeriodMatchesDate(event.event_date));
+  const activeEventIds = new Set(communicationEvents.map((event) => event.id));
   communicationParticipantsAvailable = !participantsResult.error && !uploadsResult.error;
-  communicationParticipantUploads = uploadsResult.error ? [] : (uploadsResult.data || []);
-  communicationParticipants = (participantsResult.error ? [] : (participantsResult.data || [])).map((participant) => {
+  communicationParticipantUploads = uploadsResult.error
+    ? []
+    : (uploadsResult.data || []).filter((row) => activeEventIds.has(row.event_id) || masterPeriodMatchesDate(row.upload_date));
+  communicationParticipants = (participantsResult.error ? [] : (participantsResult.data || []))
+    .filter((participant) => activeEventIds.has(participant.event_id))
+    .map((participant) => {
     const student = findStudentInDatabase(participant.matricula) || {};
     return {
       ...participant,
@@ -2543,6 +2808,70 @@ async function loadCommunicationEvents() {
   communicationDashboardSettings = settingsResult.error || !settingsResult.data
     ? { impact_goal: 3800 }
     : { ...settingsResult.data, impact_goal: Number(settingsResult.data.impact_goal || 3800) };
+}
+
+async function loadCommunicationDiffusionStorageImages() {
+  const bucket = supabaseClient.storage.from("communication-diffusion");
+  const requests = COMMUNICATION_DIFFUSION_SLOTS.flatMap((slot) => (
+    Array.from({ length: Number(slot.maxImages || 1) }, (_, position) => {
+      const imageIndex = position + 1;
+      const folder = `${activeMasterPeriod}/${slot.key}/imagen-${imageIndex}`;
+      return bucket
+        .list(folder, { limit: 20, sortBy: { column: "updated_at", order: "desc" } })
+        .then(({ data, error }) => {
+          if (error) return { row: null, error };
+          const file = (data || [])
+            .filter((item) => item.name && item.id)
+            .sort((a, b) => String(b.updated_at || b.created_at || "").localeCompare(String(a.updated_at || a.created_at || "")))[0];
+          if (!file) return { row: null, error: null };
+          const storagePath = `${folder}/${file.name}`;
+          return {
+            error: null,
+            row: {
+              slot_key: slot.key,
+              image_index: imageIndex,
+              title: slot.title,
+              storage_path: storagePath,
+              file_name: file.name.replace(/^[0-9a-f-]{30,}-/, ""),
+              mime_type: file.metadata?.mimetype || file.metadata?.contentType || "image/jpeg",
+              file_size: Number(file.metadata?.size || 0),
+              updated_at: file.updated_at || file.created_at || "",
+              public_url: bucket.getPublicUrl(storagePath).data.publicUrl,
+              source: "storage"
+            }
+          };
+        });
+    })
+  ));
+  const knownPathRequests = COMMUNICATION_DIFFUSION_SLOTS.flatMap((slot) => (
+    Array.from({ length: Number(slot.maxImages || 1) }, async (_, position) => {
+      const imageIndex = position + 1;
+      const storagePath = `${activeMasterPeriod}/${slot.key}/imagen-${imageIndex}/current-image`;
+      const { data, error } = await bucket.createSignedUrl(storagePath, 60 * 60);
+      if (error || !data?.signedUrl) return { row: null, error };
+      return {
+        error: null,
+        row: {
+          slot_key: slot.key,
+          image_index: imageIndex,
+          title: slot.title,
+          storage_path: storagePath,
+          file_name: "imagen-vigente",
+          mime_type: "image/jpeg",
+          file_size: 0,
+          updated_at: "9999-12-31T23:59:59.999Z",
+          public_url: data.signedUrl,
+          source: "known-storage-path"
+        }
+      };
+    })
+  ));
+  const results = await Promise.all([...requests, ...knownPathRequests]);
+  return {
+    rows: results.map((result) => result.row).filter(Boolean),
+    available: results.some((result) => !result.error),
+    errors: results.map((result) => result.error).filter(Boolean)
+  };
 }
 
 async function loadCommunicationDiffusionImages() {
@@ -2562,22 +2891,35 @@ async function loadCommunicationDiffusionImages() {
       .from("communication_diffusion_images")
       .select("slot_key, title, storage_path, file_name, mime_type, file_size, updated_at")
       .order("updated_at", { ascending: false });
-    data = (fallback.data || []).map((row) => ({ ...row, image_index: 1 }));
+    data = (fallback.data || []).map((row) => ({ ...row, image_index: legacyDiffusionImageIndex(row.slot_key) }));
     error = fallback.error;
   }
-  communicationDiffusionLoading = false;
-  if (error) {
-    communicationDiffusionImages = [];
-    communicationDiffusionAvailable = false;
-    console.warn("No se pudo cargar Imágenes de difusión", error);
-    return;
-  }
-  communicationDiffusionAvailable = true;
-  communicationDiffusionImages = (data || []).map((row) => ({
-    ...row,
-    image_index: Number(row.image_index || 1),
-    public_url: supabaseClient.storage.from("communication-diffusion").getPublicUrl(row.storage_path).data.publicUrl
+  const storageResult = await loadCommunicationDiffusionStorageImages();
+  const metadataRows = await Promise.all((error ? [] : (data || [])).map(async (row) => {
+    const slotKey = activePeriodDiffusionSlot(row.slot_key);
+    if (!slotKey) return null;
+    const signed = await supabaseClient.storage.from("communication-diffusion").createSignedUrl(row.storage_path, 60 * 60);
+    return {
+      ...row,
+      slot_key: slotKey,
+      image_index: legacyDiffusionImageIndex(row.slot_key) > 1
+        ? legacyDiffusionImageIndex(row.slot_key)
+        : Number(row.image_index || 1),
+      public_url: signed.data?.signedUrl || supabaseClient.storage.from("communication-diffusion").getPublicUrl(row.storage_path).data.publicUrl
+    };
   }));
+  const validMetadataRows = metadataRows.filter(Boolean);
+  const latestByPosition = new Map();
+  [...validMetadataRows, ...storageResult.rows].forEach((row) => {
+    const key = `${row.slot_key}:${Number(row.image_index || 1)}`;
+    const current = latestByPosition.get(key);
+    if (!current || String(row.updated_at || "") >= String(current.updated_at || "")) latestByPosition.set(key, row);
+  });
+  communicationDiffusionImages = [...latestByPosition.values()];
+  communicationDiffusionAvailable = !error || storageResult.available;
+  communicationDiffusionLoading = false;
+  if (error) console.warn("La tabla de imágenes de difusión no respondió; usando almacenamiento compartido", error);
+  if (storageResult.errors.length && !storageResult.available) console.warn("No se pudo consultar el almacenamiento de difusión", storageResult.errors[0]);
 }
 
 function planningValue(row, aliases) {
@@ -2688,7 +3030,7 @@ function planningCalendarBaseDate(activities, preferredDate) {
   return dated.find((date) => date >= today) || dated[0] || today;
 }
 
-function renderPlanningMonthlyCalendar(activities, baseDate, areaId = "") {
+function renderPlanningMonthlyCalendar(activities, baseDate, areaId = "", maxActivities = 3) {
   const year = baseDate.getFullYear();
   const month = baseDate.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -2721,8 +3063,8 @@ function renderPlanningMonthlyCalendar(activities, baseDate, areaId = "") {
           return `
             <div class="planning-calendar-day">
               <time datetime="${year}-${String(month + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}">${date.getDate()}</time>
-              ${dayActivities.slice(0, 3).map((activity, activityIndex) => `<button type="button" class="${escapeHtml(activity.calendarClass || "")}" data-planning-detail="${escapeHtml(activity.id)}" data-planning-instance="calendar:${escapeHtml(activity.date)}:${escapeHtml(activity.id)}:${activityIndex}">${escapeHtml(activity.activity)}</button>`).join("")}
-              ${dayActivities.length > 3 ? `<em>+${dayActivities.length - 3}</em>` : ""}
+              ${dayActivities.slice(0, maxActivities).map((activity, activityIndex) => `<button type="button" class="${escapeHtml(activity.calendarClass || "")}" data-planning-detail="${escapeHtml(activity.id)}" data-planning-instance="calendar:${escapeHtml(activity.date)}:${escapeHtml(activity.id)}:${activityIndex}">${escapeHtml(activity.activity)}</button>`).join("")}
+              ${dayActivities.length > maxActivities ? `<em>+${dayActivities.length - maxActivities}</em>` : ""}
             </div>`;
         }).join("")}
       </div>
@@ -2963,9 +3305,9 @@ function renderPlanningAreaDashboard(area, rows = planningCalendarRows, loaded =
         <div class="kpi"><span>Con fecha</span><strong>${dated.length}</strong><em>en calendario</em></div>
         <div class="kpi"><span>Sin fecha</span><strong>${pending.length}</strong><em>requieren programación</em></div>
       </div>
-      <div class="planning-dashboard-grid">
-        ${renderPlanningMonthlyCalendar(dated, baseDate, area.id)}
-        <article class="chart-panel planning-agenda-panel">
+      <div class="planning-dashboard-grid ${options.calendarOnly ? "calendar-only" : ""}">
+        ${renderPlanningMonthlyCalendar(dated, baseDate, area.id, options.calendarOnly ? 5 : 3)}
+        ${options.calendarOnly ? "" : `<article class="chart-panel planning-agenda-panel">
           <div class="chart-title-row"><div><p class="eyebrow">Agenda</p><h3>Próximas actividades</h3></div><span>${agenda.length}</span></div>
           <div class="planning-agenda-list">
             ${agenda.length ? agenda.map((activity) => `<button type="button" class="${escapeHtml(activity.calendarClass || "")}" data-planning-detail="${escapeHtml(activity.id)}" data-planning-instance="agenda:${escapeHtml(activity.id)}"><time>${escapeHtml(new Date(`${activity.date}T00:00:00`).toLocaleDateString("es-MX", { day: "numeric", month: "short" }))}</time><span>${escapeHtml(activity.activity)}</span><em>${escapeHtml(activity.status || "Sin estado")}</em></button>`).join("") : `<p>No hay actividades fechadas.</p>`}
@@ -2976,7 +3318,7 @@ function renderPlanningAreaDashboard(area, rows = planningCalendarRows, loaded =
           <div class="planning-pending-list">
             ${pending.length ? pending.map((activity) => `<button type="button" data-planning-detail="${escapeHtml(activity.id)}" data-planning-instance="pending:${escapeHtml(activity.id)}"><strong>${escapeHtml(activity.activity)}</strong><span>${escapeHtml(activity.responsible || "Responsable pendiente")}</span></button>`).join("") : `<p>No hay actividades pendientes de fecha.</p>`}
           </div>
-        </article>
+        </article>`}
       </div>
       ${renderPlanningActivityDetail(selected)}
     </section>`;
@@ -3768,7 +4110,9 @@ async function saveCommunicationEvent(event) {
   }
   const form = new FormData(event.currentTarget);
   const eventId = String(form.get("event_id") || "").trim();
+  const planningActivityId = String(form.get("planning_activity_id") || "").trim();
   const payload = {
+    planning_activity_id: planningActivityId || null,
     campus: String(form.get("campus") || "").trim() || "Monterrey",
     event_name: String(form.get("event_name") || "").trim(),
     discipline: String(form.get("discipline") || "").trim() || null,
@@ -3784,8 +4128,8 @@ async function saveCommunicationEvent(event) {
     reported_total_participants: vivenciaOptionalNumber(form.get("reported_total_participants")),
     reported_men: vivenciaOptionalNumber(form.get("reported_men")),
     reported_women: vivenciaOptionalNumber(form.get("reported_women")),
-    source_name: "captura_manual_comunicacion",
-    source_row_key: crypto.randomUUID(),
+    source_name: planningActivityId ? "planeacion_semestral_comunicacion" : "captura_manual_comunicacion",
+    source_row_key: planningActivityId || crypto.randomUUID(),
     created_by: currentUser.id
   };
   if (eventId) {
@@ -3813,7 +4157,12 @@ async function saveCommunicationEvent(event) {
   communicationEventImportResult = { loaded: 1, omitted: 0, warnings: [], source: eventId ? "Detalle de evento" : "Captura manual" };
   addAudit("comunicacion", `${eventId ? "Evento actualizado" : "Evento creado"}: ${payload.event_name}`);
   await loadCommunicationEvents();
-  selectedCommunicationEventForDetail = eventId;
+  const savedEvent = communicationEvents.find((row) =>
+    (planningActivityId && String(row.planning_activity_id || "") === planningActivityId)
+    || (!eventId && row.event_name === payload.event_name && row.event_date === payload.event_date)
+  );
+  selectedCommunicationEventForDetail = eventId || savedEvent?.id || "";
+  selectedCommunicationPlanningDraft = null;
   render();
   toast(eventId ? "Evento de Comunicación actualizado" : "Evento de Comunicación guardado");
 }
@@ -4230,6 +4579,52 @@ async function loadSupabaseCollaborators({ loadSettings = true } = {}) {
   if (loadSettings) await loadCollaboratorTableSettings();
 }
 
+async function loadPublicCollaboratorDirectory() {
+  if (!supabaseClient || currentUser?.auth === "supabase") return;
+  const [directoryResult, highlightsResult] = await Promise.all([
+    supabaseClient.rpc("get_public_collaborator_directory"),
+    supabaseClient.rpc("get_public_collaborator_highlights")
+  ]);
+  const { data, error } = directoryResult;
+  if (error) {
+    collaboratorsCloudLoaded = false;
+    console.warn("No se pudo cargar el directorio visual de colaboradores", error);
+    return;
+  }
+
+  const highlightsByNomina = new Map((highlightsResult.data || []).map((row) => [
+    String(row.nomina || "").trim().toUpperCase(),
+    String(row.destacados || "").trim()
+  ]));
+  const publicRows = (data || []).map(collaboratorFromCloud);
+  const publicByNomina = new Map(publicRows.map((row) => [String(row.Nomina || "").trim().toUpperCase(), row]));
+  const merged = recordsFor("Uniformes")
+    .filter((row) => String(row.Nomina || row.Colaboradores || "").trim())
+    .map((row) => {
+      const nomina = String(row.Nomina || "").trim();
+      const publicRow = publicByNomina.get(nomina.toUpperCase());
+      if (publicRow) publicByNomina.delete(nomina.toUpperCase());
+      return {
+        ...row,
+        __id: nomina,
+        __photoPath: publicRow?.__photoPath || "",
+        __photoUrl: "",
+        Colaboradores: publicRow?.Colaboradores || row.Colaboradores || "",
+        Puesto: publicRow?.Puesto || row.Puesto || "",
+        Coordinador: publicRow?.Coordinador || row.Coordinador || "",
+        Destacados: highlightsByNomina.get(nomina.toUpperCase()) || row.Destacados || row.Destacado || ""
+      };
+    });
+
+  publicByNomina.forEach((row) => merged.push({
+    ...row,
+    Destacados: highlightsByNomina.get(String(row.Nomina || "").trim().toUpperCase()) || ""
+  }));
+  cloudCollaborators = merged;
+  await loadCollaboratorPhotoUrls();
+  collaboratorsCloudLoaded = true;
+}
+
 async function loadPhysicalEvaluations() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const { data, error } = await supabaseClient
@@ -4358,6 +4753,7 @@ async function importInitialClassGrades() {
 
 async function loadClassGrades(options = {}) {
   const seedIfEmpty = options.seedIfEmpty !== false;
+  const requestedPeriod = activeMasterPeriod;
   await loadClassGradeSeedData();
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const loadedRows = [];
@@ -4371,6 +4767,7 @@ async function loadClassGrades(options = {}) {
       .order("matricula", { ascending: true })
       .range(offset, offset + pageSize - 1);
     if (error) {
+      if (requestedPeriod !== activeMasterPeriod) return;
       classGradesAvailable = false;
       classGradesLoaded = false;
       console.error(error);
@@ -4379,14 +4776,16 @@ async function loadClassGrades(options = {}) {
     loadedRows.push(...(data || []).map(classGradeFromCloud));
     if (!data || data.length < pageSize) break;
   }
+  if (requestedPeriod !== activeMasterPeriod) return;
   classGradesAvailable = true;
-  classGrades = loadedRows;
+  classGrades = loadedRows.filter((row) => masterPeriodMatchesCode(row.period_label, requestedPeriod));
   classGradesLoaded = true;
   if (!classGrades.length && seedIfEmpty) await importInitialClassGrades();
 }
 
 function allClassGradeRows() {
-  return classGradesLoaded && classGrades.length ? classGrades : classGradeSeedRows;
+  if (classGradesLoaded) return classGrades;
+  return activeMasterPeriod === "FJ26" ? classGradeSeedRows : [];
 }
 
 function effectiveClassGradeRows() {
@@ -4982,6 +5381,34 @@ function exportCollaboratorBackup() {
   toast("Respaldo descargado");
 }
 
+function exportCollaboratorTableExcel() {
+  if (!window.XLSX) {
+    toast("No está disponible el generador de Excel");
+    return;
+  }
+  const columns = collaboratorColumns();
+  const rows = collaboratorRows();
+  if (!rows.length) {
+    toast("No hay colaboradores para descargar");
+    return;
+  }
+  const grid = [
+    columns,
+    ...rows.map((row) => columns.map((column) => String(row[column] ?? "")))
+  ];
+  const worksheet = window.XLSX.utils.aoa_to_sheet(grid);
+  worksheet["!autofilter"] = { ref: worksheet["!ref"] };
+  worksheet["!cols"] = columns.map((column, index) => ({
+    wch: Math.min(42, Math.max(12, column.length + 2, ...grid.slice(1, 101).map((row) => String(row[index] || "").length + 2)))
+  }));
+  const workbook = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(workbook, worksheet, "Profesores y colaboradores");
+  const date = new Date().toISOString().slice(0, 10);
+  window.XLSX.writeFile(workbook, `archivo-maestro-colaboradores-${date}.xlsx`);
+  addAudit("exportacion", `Tabla Excel de colaboradores (${rows.length} registros)`);
+  toast(`${rows.length} colaboradores descargados en Excel sin fotografías`);
+}
+
 async function fetchMyProfile() {
   const rpcResult = await supabaseClient.rpc("get_my_profile");
   if (!rpcResult.error && Array.isArray(rpcResult.data) && rpcResult.data[0]) {
@@ -5019,6 +5446,15 @@ async function syncPendingLocalUploadBackups() {
     }
   }
 
+  if (semanaTecProgramLastUpload?.source === "local" && semanaTecProgramRows.length && canEditArea("semana-tec")) {
+    const saved = await saveSemanaTecProgramCloud();
+    if (saved) {
+      semanaTecProgramLastUpload = { ...semanaTecProgramLastUpload, source: "cloud" };
+      saveSemanaTecProgramLocal();
+      migrated += 1;
+    }
+  }
+
   if (migrated) {
     saveSemanaTecLocal();
     saveParticipationUploadsLocal();
@@ -5047,7 +5483,7 @@ async function loadSupabaseDataBundle() {
     ["Gimnasio", loadGymData],
     ["Simulador de clases", loadClassScheduleSimulatorCloud],
     ["Vivencia", loadVivenciaEvents],
-    ["Semana Tec", async () => Promise.all([loadSemanaTecCloud(), loadSemanaTecGroupGradeFiles()])],
+    ["Semana Tec", async () => Promise.all([loadSemanaTecCloud(), loadSemanaTecGroupGradeFiles(), loadSemanaTecProgramCloud()])],
     ["Representativos", () => loadParticipationUploadsCloud("representativos")],
     ["Eventos de Comunicación", loadCommunicationEvents],
     ["Imágenes de difusión", loadCommunicationDiffusionImages],
@@ -5091,6 +5527,7 @@ async function loadSupabaseSession() {
   }
   saveSession(profileToSession(profile, authUser));
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
+  await syncPendingExecutivePresentationNotes();
   await loadSupabaseDataBundle();
 }
 
@@ -5145,10 +5582,14 @@ async function loginWithSupabase() {
   }
   saveSession(profileToSession(profile, authUser));
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
+  const presentationSynced = await syncPendingExecutivePresentationNotes();
+  await loadExecutivePresentationNotes();
+  await syncPendingPresentationHistory();
+  await loadPresentationHistory();
   activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
   activeView = "dashboard";
   render();
-  toast(`Sesion Supabase: ${currentUser.name}`);
+  toast(presentationSynced ? "Presentación sincronizada y disponible en otras computadoras" : `Sesion Supabase: ${currentUser.name}`);
   loadSupabaseDataBundle()
     .then(() => render())
     .catch((loadError) => console.warn("No se pudo completar la carga inicial de Supabase", loadError));
@@ -5188,9 +5629,13 @@ function applyTheme() {
   if (themeSelect) themeSelect.value = activeTheme;
 }
 
+function isSportsLeaderAccount(user = currentUser) {
+  return String(user?.email || "").trim().toLowerCase() === SPORTS_LEADER_EMAIL;
+}
+
 function visibleAreas() {
   if (!currentUser || ["admin", "direccion"].includes(currentUser.role)) return areas;
-  if (currentUser.globalAccess) return areas.filter((area) => area.id !== "configuracion");
+  if (currentUser.globalAccess || isSportsLeaderAccount()) return areas;
   if (currentUser.role === "compras") return areas.filter((area) => area.id === "compras");
   const assignedAreas = areas.filter((area) => area.id === currentUser.area);
   return assignedAreas.length ? assignedAreas : areas.filter((area) => area.id === "general");
@@ -5201,7 +5646,7 @@ function isLeadership() {
 }
 
 function isGlobalOperator() {
-  return currentUser?.role === "coordinador" && currentUser?.globalAccess === true;
+  return currentUser?.role === "coordinador" && (currentUser?.globalAccess === true || isSportsLeaderAccount());
 }
 
 function canUseAuthorizedUploads() {
@@ -5230,10 +5675,12 @@ function allParticipationRows() {
       return student ? { ...row, genero: student.genero, carrera: student.carrera, semestre: student.semestre, nivel: student.nivel } : row;
     });
     const capturedMatriculas = new Set(cloudWithStudentBase.map((row) => row.matricula));
-    const baseOnlyRows = cloudStudentDatabase.filter((student) => !capturedMatriculas.has(student.matricula));
+    const baseOnlyRows = activeMasterPeriod === "FJ26"
+      ? cloudStudentDatabase.filter((student) => !capturedMatriculas.has(student.matricula))
+      : [];
     return [...cloudWithStudentBase, ...baseOnlyRows, ...localCaptures];
   }
-  return [...cloudCaptures, ...localCaptures, ...students];
+  return [...cloudCaptures, ...localCaptures, ...(activeMasterPeriod === "FJ26" ? students : [])];
 }
 
 async function loadUniformesData() {
@@ -5241,6 +5688,7 @@ async function loadUniformesData() {
     const response = await fetch(UNIFORMES_DATA_URL);
     uniformesData = await response.json();
     uniformesLoaded = true;
+    await loadPublicCollaboratorDirectory();
     render();
   } catch {
     uniformesData = {};
@@ -5565,7 +6013,7 @@ function genderLegend(palette = "shirt") {
 }
 
 function collaboratorRows() {
-  const rows = currentUser?.auth === "supabase" && collaboratorsCloudLoaded
+  const rows = collaboratorsCloudLoaded
     ? cloudCollaborators
     : recordsFor("Uniformes").filter((row) => String(row.Nomina || row.Colaboradores || "").trim());
   return [...rows].sort((a, b) => String(a.Colaboradores || "").localeCompare(String(b.Colaboradores || ""), "es"));
@@ -6174,7 +6622,7 @@ function renderNav() {
       semanaTecLoading = true;
       render();
       try {
-        await Promise.all([loadSemanaTecCloud(), loadSemanaTecGroupGradeFiles()]);
+        await Promise.all([loadSemanaTecCloud(), loadSemanaTecGroupGradeFiles(), loadSemanaTecProgramCloud()]);
       } finally {
         semanaTecLoading = false;
         if (activeArea === targetArea) render();
@@ -6189,6 +6637,11 @@ function renderNav() {
         participationUploadLoading.representativos = false;
         if (activeArea === targetArea) render();
       }
+    }
+    if (targetArea === "presentacion" && supabaseClient && currentUser?.auth === "supabase") {
+      budgetFilters.period = "AD26";
+      await Promise.all([loadBudgetData(), loadPlanningCalendarRows()]);
+      if (activeArea === targetArea) render();
     }
   }));
 }
@@ -6304,6 +6757,32 @@ function gymSemesterWeekFromDate(dateValue, startDateValue) {
   return Math.max(1, Math.floor((dateTime - startTime) / (7 * 24 * 60 * 60 * 1000)) + 1);
 }
 
+function gymPeriodCalendar(period = activeMasterPeriod) {
+  return GYM_PERIOD_CALENDARS[period] || null;
+}
+
+function gymCalendarWeekForDate(dateValue, period = activeMasterPeriod) {
+  const calendar = gymPeriodCalendar(period);
+  if (!calendar || !dateValue || dateValue < calendar.start || dateValue > calendar.end) return null;
+  return gymSemesterWeekFromDate(dateValue, calendar.start);
+}
+
+function gymAttendanceDefaultDate() {
+  const today = new Date().toISOString().slice(0, 10);
+  const calendar = gymPeriodCalendar();
+  if (!calendar) return today;
+  if (today < calendar.start) return calendar.start;
+  if (today > calendar.end) return calendar.end;
+  return today;
+}
+
+function gymCalendarDateLabel(value) {
+  if (!value) return "Sin fecha";
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", year: "numeric" }).format(date);
+}
+
 function gymFacilityMatches(rowFacility, selectedFacility = gymDashboardFacility) {
   const normalizedFacility = normalizeGymSite(rowFacility);
   if (selectedFacility === "Ambas") return ["Wellness", "EMIS"].includes(normalizedFacility);
@@ -6333,7 +6812,9 @@ function gymAsistenciasToAttendanceRecords(rows) {
     if (!acc[key]) {
       acc[key] = {
         attendance_date: row.fecha,
-        week_number: gymManualWeekForDate(row.fecha, facility) || gymSemesterWeekFromDate(row.fecha, startDate),
+        week_number: gymManualWeekForDate(row.fecha, facility)
+          || gymCalendarWeekForDate(row.fecha)
+          || gymSemesterWeekFromDate(row.fecha, startDate),
         day_of_week: gymDayFromDate(row.fecha),
         facility,
         attendee_count: 0,
@@ -6854,8 +7335,29 @@ function renderGymDashboard() {
   `;
 }
 
+function syncGymAttendanceDateFields(dateValue) {
+  const dayInput = $("#gymAttendanceDay");
+  const weekInput = $("#gymAttendanceWeek");
+  const weekHelp = $("#gymAttendanceWeekHelp");
+  const dateInput = $("#gymAttendanceDate");
+  const calendar = gymPeriodCalendar();
+  const week = gymCalendarWeekForDate(dateValue);
+  if (dayInput) dayInput.value = gymDayFromDate(dateValue);
+  if (!calendar) return;
+  if (weekInput) weekInput.value = week || "";
+  if (weekHelp) {
+    weekHelp.textContent = week
+      ? `Semana ${week} segun la fecha seleccionada`
+      : `Selecciona una fecha del ${gymCalendarDateLabel(calendar.start)} al ${gymCalendarDateLabel(calendar.end)}`;
+    weekHelp.classList.toggle("error", !week);
+  }
+  if (dateInput) dateInput.setCustomValidity(week ? "" : "La fecha esta fuera del calendario de clases");
+}
+
 function renderGymAttendanceRegistration() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = gymAttendanceDefaultDate();
+  const calendar = gymPeriodCalendar();
+  const calculatedWeek = gymCalendarWeekForDate(today) || gymLatestWeek();
   const importedKeys = new Set(gymAsistenciasToAttendanceRecords(gymAsistencias).map(gymAttendanceSourceKey).filter(Boolean));
   const manualRecords = gymManualAttendanceRows
     .sort((a, b) => {
@@ -6869,9 +7371,19 @@ function renderGymAttendanceRegistration() {
         <section class="form-panel">
           <p class="eyebrow">Gimnasio</p>
           <h3>Registro de Asistencia</h3>
+          ${calendar ? `
+            <div class="gym-semester-calendar">
+              <div>
+                <span>${escapeHtml(calendar.label)}</span>
+                <strong>Semanas automaticas por fecha</strong>
+              </div>
+              <label>Inicio de clases<input type="date" value="${calendar.start}" readonly /></label>
+              <label>Cierre de clases<input type="date" value="${calendar.end}" readonly /></label>
+            </div>
+          ` : ""}
           <form id="gymAttendanceForm">
-            <label>Semana<input name="week_number" type="number" min="1" value="${gymLatestWeek()}" required /></label>
-            <label>Fecha<input id="gymAttendanceDate" name="attendance_date" type="date" value="${today}" required /></label>
+            <label>Semana calculada<input id="gymAttendanceWeek" name="week_number" type="number" min="1" value="${calculatedWeek}" ${calendar ? "readonly" : ""} required /><small id="gymAttendanceWeekHelp">${calendar ? `Semana ${calculatedWeek} segun la fecha seleccionada` : "Selecciona la semana del registro"}</small></label>
+            <label>Fecha<input id="gymAttendanceDate" name="attendance_date" type="date" value="${today}" ${calendar ? `min="${calendar.start}" max="${calendar.end}"` : ""} required /></label>
             <label>Día<input id="gymAttendanceDay" name="day_of_week" value="${gymDayFromDate(today)}" readonly required /></label>
             <label>Instalación
               <select name="facility" required><option>Wellness</option><option>EMIS</option></select>
@@ -6969,6 +7481,267 @@ function renderGymStudentRegistration() {
   `;
 }
 
+function semanaTecProgramStoragePath(period = activeMasterPeriod) {
+  return `programacion/${String(period || "sin-periodo").toLowerCase()}/programacion.json`;
+}
+
+function normalizeSemanaTecProgramRow(row, index = 0, fileName = "") {
+  const group = Number(String(pickColumn(row, ["ETIQUETA_GRUPO", "Grupo", "grupo"]) ?? row.grupo ?? "").trim());
+  const attributes = String(pickColumn(row, ["ATR_GRUPO", "Atributos grupo", "atributos_grupo"]) || row.atributos_grupo || "").trim().toUpperCase();
+  const week = attributes.includes("PMT1") || (group >= 100 && group <= 199)
+    ? 6
+    : attributes.includes("PMT2") || (group >= 200 && group <= 299)
+      ? 12
+      : Number(row.semana || 0);
+  if (!group || ![6, 12].includes(week)) return null;
+  const dayColumns = [["LUN", "L"], ["MAR", "M"], ["MIE", "X"], ["JUE", "J"], ["VIE", "V"]];
+  const storedDays = Array.isArray(row.dias) ? row.dias : [];
+  const days = storedDays.length
+    ? storedDays.map((day) => String(day).trim()).filter(Boolean)
+    : dayColumns.filter(([column]) => String(pickColumn(row, [column]) || "").trim()).map(([, label]) => label);
+  const start = normalizeTimeToken(pickColumn(row, ["HORA_INICIO", "Hora inicio", "hora_inicio"]) ?? row.hora_inicio ?? "");
+  const end = normalizeTimeToken(pickColumn(row, ["HORA_FIN", "Hora fin", "hora_fin"]) ?? row.hora_fin ?? "");
+  const crn = String(pickColumn(row, ["CRN", "crn"]) ?? row.crn ?? "").trim();
+  return {
+    id: String(row.id || `${activeMasterPeriod}-${group}-${crn || index + 1}`),
+    periodo: String(row.periodo || activeMasterPeriod),
+    periodo_origen: String(pickColumn(row, ["PERIODO"]) ?? row.periodo_origen ?? "").trim(),
+    sede: String(pickColumn(row, ["SEDE"]) ?? row.sede ?? "").trim(),
+    codigo_asignatura: String(pickColumn(row, ["CODIGO_ASIGNATURA"]) ?? row.codigo_asignatura ?? "").trim(),
+    nombre_asignatura: String(pickColumn(row, ["NOMBRE_ASIGNATURA"]) ?? row.nombre_asignatura ?? "").trim(),
+    escuela: String(pickColumn(row, ["ESCUELA"]) ?? row.escuela ?? "").trim(),
+    departamento: String(pickColumn(row, ["DEPARTAMENTO"]) ?? row.departamento ?? "").trim(),
+    grupo: group,
+    crn,
+    status: String(pickColumn(row, ["STATUS", "Estatus"]) ?? row.status ?? "ACTIVO").trim().toUpperCase(),
+    semana: week,
+    idioma: attributes.includes("INGL") || normalizeText(row.idioma).includes("ingles") ? "Inglés" : "Español",
+    codigo_docente: String(pickColumn(row, ["CODIGO_DOCENTE"]) ?? row.codigo_docente ?? "").trim(),
+    profesor: String(pickColumn(row, ["NOMBRE_DOCENTE", "Profesor"]) ?? row.profesor ?? "Sin profesor").trim() || "Sin profesor",
+    salon: String(pickColumn(row, ["SALAS", "Salón", "Salon"]) ?? row.salon ?? "Sin salón").trim() || "Sin salón",
+    hora_inicio: start,
+    hora_fin: end,
+    duracion: String(pickColumn(row, ["DURACION"]) ?? row.duracion ?? "").trim().slice(0, 5),
+    dias: days,
+    fecha_inicio: String(pickColumn(row, ["FECHA_INICIO"]) ?? row.fecha_inicio ?? "").trim(),
+    fecha_fin: String(pickColumn(row, ["FECHA_FIN"]) ?? row.fecha_fin ?? "").trim(),
+    atributos_grupo: attributes,
+    archivo_origen: fileName || row.archivo_origen || "Programación Semana Tec"
+  };
+}
+
+function semanaTecProgramPayload(source = "local") {
+  return {
+    version: 1,
+    periodo: activeMasterPeriod,
+    fileName: semanaTecProgramLastUpload?.fileName || "Programación Semana Tec",
+    importedAt: semanaTecProgramLastUpload?.importedAt || new Date().toISOString(),
+    source,
+    rows: semanaTecProgramRows
+  };
+}
+
+function saveSemanaTecProgramLocal() {
+  localStorage.setItem(periodStorageKey(SEMANA_TEC_PROGRAM_STORAGE_KEY), JSON.stringify(semanaTecProgramPayload(semanaTecProgramLastUpload?.source || "local")));
+}
+
+function restoreSemanaTecProgramLocal() {
+  try {
+    const stored = JSON.parse(readPeriodStorage(SEMANA_TEC_PROGRAM_STORAGE_KEY, "null") || "null");
+    if (!stored?.rows?.length) return false;
+    semanaTecProgramRows = stored.rows.map((row, index) => normalizeSemanaTecProgramRow(row, index, stored.fileName)).filter(Boolean);
+    semanaTecProgramLastUpload = { fileName: stored.fileName || "Programación Semana Tec", importedAt: stored.importedAt || "", source: stored.source || "local" };
+    return true;
+  } catch (error) {
+    console.warn("No se pudo recuperar la programación local de Semana Tec", error);
+    return false;
+  }
+}
+
+async function loadSemanaTecProgramSeed() {
+  if (semanaTecProgramRows.length || activeMasterPeriod !== "AD26") return;
+  try {
+    const response = await fetch(`${SEMANA_TEC_PROGRAM_SEED_URL}?v=20260803`, { cache: "no-store" });
+    if (!response.ok) return;
+    const payload = await response.json();
+    semanaTecProgramRows = (payload.rows || []).map((row, index) => normalizeSemanaTecProgramRow(row, index, payload.fileName)).filter(Boolean);
+    semanaTecProgramLastUpload = { fileName: payload.fileName || "ST AD26", importedAt: payload.importedAt || "", source: "seed" };
+  } catch (error) {
+    console.warn("No se pudo cargar la programación inicial de Semana Tec", error);
+  }
+}
+
+function validateSemanaTecProgramRows(sourceRows, fileName = "") {
+  const errors = [];
+  const warnings = [];
+  const required = [
+    ["ETIQUETA_GRUPO", ["ETIQUETA_GRUPO", "Grupo"]],
+    ["NOMBRE_DOCENTE", ["NOMBRE_DOCENTE", "Profesor"]],
+    ["SALAS", ["SALAS", "Salón", "Salon"]],
+    ["HORA_INICIO", ["HORA_INICIO", "Hora inicio"]],
+    ["HORA_FIN", ["HORA_FIN", "Hora fin"]]
+  ];
+  if (!sourceRows.length) errors.push("El archivo está vacío.");
+  required.forEach(([label, aliases]) => {
+    if (sourceRows.length && !uploadHasColumn(sourceRows, aliases)) errors.push(`Falta la columna obligatoria: ${label}.`);
+  });
+  if (errors.length) return { fileName, rows: [], errors, warnings, summary: null };
+  const seen = new Set();
+  let ignored = 0;
+  const rows = [];
+  sourceRows.forEach((row, index) => {
+    const parsed = normalizeSemanaTecProgramRow(row, index, fileName);
+    if (!parsed) { ignored += 1; return; }
+    const key = `${parsed.grupo}|${parsed.crn}`;
+    if (seen.has(key)) { ignored += 1; return; }
+    seen.add(key);
+    rows.push(parsed);
+  });
+  if (!rows.length) errors.push("No encontré grupos ST6 o ST12 en el archivo.");
+  if (ignored) warnings.push(`${ignored} filas fueron omitidas por no corresponder a ST6/ST12 o estar duplicadas.`);
+  return {
+    fileName,
+    rows,
+    errors,
+    warnings,
+    summary: {
+      groups: rows.length,
+      professors: new Set(rows.map((row) => row.profesor)).size,
+      rooms: new Set(rows.map((row) => row.salon)).size,
+      st6: rows.filter((row) => row.semana === 6).length,
+      st12: rows.filter((row) => row.semana === 12).length,
+      english: rows.filter((row) => row.idioma === "Inglés").length
+    }
+  };
+}
+
+async function loadSemanaTecProgramFile(file) {
+  if (!file) return;
+  semanaTecProgramLoading = true;
+  render();
+  try {
+    const rows = await rowsFromScheduleFile(file);
+    semanaTecProgramDraft = validateSemanaTecProgramRows(rows, file.name);
+  } catch (error) {
+    semanaTecProgramDraft = { fileName: file.name, rows: [], errors: ["No pude leer el archivo. Usa Excel o CSV con encabezados."], warnings: [], summary: null };
+    console.error(error);
+  } finally {
+    semanaTecProgramLoading = false;
+    render();
+  }
+}
+
+async function loadSemanaTecProgramCloud() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    await loadSemanaTecProgramSeed();
+    return;
+  }
+  const { data, error } = await supabaseClient.storage.from(SEMANA_TEC_PROGRAM_BUCKET).download(semanaTecProgramStoragePath());
+  if (error || !data) {
+    semanaTecProgramCloudAvailable = false;
+    await loadSemanaTecProgramSeed();
+    return;
+  }
+  try {
+    const payload = JSON.parse(await data.text());
+    semanaTecProgramRows = (payload.rows || []).map((row, index) => normalizeSemanaTecProgramRow(row, index, payload.fileName)).filter(Boolean);
+    semanaTecProgramLastUpload = { fileName: payload.fileName || "Programación Semana Tec", importedAt: payload.importedAt || "", source: "cloud" };
+    semanaTecProgramCloudAvailable = true;
+    saveSemanaTecProgramLocal();
+  } catch (error) {
+    semanaTecProgramCloudAvailable = false;
+    console.warn("No se pudo interpretar la programación compartida de Semana Tec", error);
+  }
+}
+
+async function saveSemanaTecProgramCloud() {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("semana-tec")) return false;
+  const payload = semanaTecProgramPayload("cloud");
+  const body = new Blob([JSON.stringify(payload)], { type: "application/json" });
+  const { error } = await supabaseClient.storage.from(SEMANA_TEC_PROGRAM_BUCKET).upload(semanaTecProgramStoragePath(), body, { contentType: "application/json", upsert: true });
+  semanaTecProgramCloudAvailable = !error;
+  if (error) console.warn("No se pudo guardar la programación compartida de Semana Tec", error);
+  return !error;
+}
+
+async function importSemanaTecProgramDraft() {
+  if (!semanaTecProgramDraft?.rows?.length || semanaTecProgramDraft.errors.length) return;
+  semanaTecProgramSaving = true;
+  render();
+  semanaTecProgramRows = semanaTecProgramDraft.rows;
+  semanaTecProgramLastUpload = { fileName: semanaTecProgramDraft.fileName, importedAt: new Date().toISOString(), source: "local" };
+  saveSemanaTecProgramLocal();
+  const cloudSaved = await saveSemanaTecProgramCloud();
+  if (cloudSaved) {
+    semanaTecProgramLastUpload.source = "cloud";
+    saveSemanaTecProgramLocal();
+  }
+  semanaTecProgramDraft = null;
+  semanaTecProgramSaving = false;
+  addAudit("semana-tec", `${semanaTecProgramRows.length} grupos de programación importados`);
+  render();
+  toast(cloudSaved ? "Programación de Semana Tec guardada y compartida" : "Programación guardada en esta computadora; falta sincronizarla");
+}
+
+function semanaTecProgramSchedule(row) {
+  return [row.hora_inicio, row.hora_fin].filter(Boolean).join("–") || "Sin horario";
+}
+
+function semanaTecProgramFilteredRows() {
+  const term = normalizeText(semanaTecProgramFilters.search);
+  return semanaTecProgramRows.filter((row) => {
+    const weekMatch = semanaTecProgramFilters.week === "todas" || String(row.semana) === semanaTecProgramFilters.week;
+    const professorMatch = semanaTecProgramFilters.professor === "todos" || row.profesor === semanaTecProgramFilters.professor;
+    const scheduleMatch = semanaTecProgramFilters.schedule === "todos" || semanaTecProgramSchedule(row) === semanaTecProgramFilters.schedule;
+    const haystack = normalizeText(`${row.grupo} ${row.crn} ${row.profesor} ${row.salon} ${row.idioma} ${row.nombre_asignatura}`);
+    return weekMatch && professorMatch && scheduleMatch && (!term || haystack.includes(term));
+  });
+}
+
+function semanaTecProgramDateLabel(row) {
+  const parse = (value) => {
+    const date = new Date(`${value}T12:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+  const start = parse(row.fecha_inicio);
+  const end = parse(row.fecha_fin);
+  if (!start || !end) return "Fechas pendientes";
+  const startLabel = start.toLocaleDateString("es-MX", { day: "numeric", month: "long" });
+  const endLabel = end.toLocaleDateString("es-MX", { day: "numeric", month: "long" });
+  return start.getFullYear() === end.getFullYear()
+    ? `${startLabel} al ${endLabel} de ${end.getFullYear()}`
+    : `${startLabel} de ${start.getFullYear()} al ${endLabel} de ${end.getFullYear()}`;
+}
+
+function renderSemanaTecProgramFilters(rows) {
+  const professors = [...new Set(rows.map((row) => row.profesor))].sort((a, b) => a.localeCompare(b, "es"));
+  const schedules = [...new Set(rows.map(semanaTecProgramSchedule))].sort();
+  return `<section class="semana-tec-filters semana-tec-program-filters">
+    <div class="semana-tec-week-switch"><button type="button" data-st-program-week="todas" class="${semanaTecProgramFilters.week === "todas" ? "active" : ""}">Todas</button><button type="button" data-st-program-week="6" class="${semanaTecProgramFilters.week === "6" ? "active" : ""}">ST6</button><button type="button" data-st-program-week="12" class="${semanaTecProgramFilters.week === "12" ? "active" : ""}">ST12</button></div>
+    <select data-st-program-filter="professor"><option value="todos">Todos los profesores</option>${professors.map((value) => `<option value="${escapeHtml(value)}" ${semanaTecProgramFilters.professor === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select>
+    <select data-st-program-filter="schedule"><option value="todos">Todos los horarios</option>${schedules.map((value) => `<option value="${escapeHtml(value)}" ${semanaTecProgramFilters.schedule === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select>
+    <input id="semanaTecProgramSearch" type="search" value="${escapeHtml(semanaTecProgramFilters.search)}" placeholder="Buscar grupo, CRN o salón" />
+  </section>`;
+}
+
+function renderSemanaTecProgramScheduleChart(rows) {
+  const schedules = [...new Set(rows.map(semanaTecProgramSchedule))].sort();
+  const values = schedules.map((schedule) => ({ schedule, st6: rows.filter((row) => semanaTecProgramSchedule(row) === schedule && row.semana === 6).length, st12: rows.filter((row) => semanaTecProgramSchedule(row) === schedule && row.semana === 12).length }));
+  const max = Math.max(...values.map((row) => row.st6 + row.st12), 1);
+  return `<article class="chart-panel semana-tec-program-schedule"><div class="chart-title-row"><div><p class="eyebrow">Distribución</p><h3>Grupos por horario</h3></div><div class="semana-tec-program-legend"><span><i class="st6"></i>ST6</span><span><i class="st12"></i>ST12</span></div></div>${values.map((row) => `<div class="semana-tec-program-schedule-row"><span>${escapeHtml(row.schedule)}</span><div class="semana-tec-program-stack" style="width:${Math.round((row.st6 + row.st12) / max * 100)}%"><i class="st6" style="flex:${row.st6}"></i><i class="st12" style="flex:${row.st12}"></i></div><strong>${row.st6} + ${row.st12} = ${row.st6 + row.st12}</strong></div>`).join("")}</article>`;
+}
+
+function renderSemanaTecProgramCards(rows) {
+  return `<div class="semana-tec-program-group-grid">${rows.map((row) => `<article class="semana-tec-program-group-card st${row.semana}"><div class="semana-tec-program-group-title"><strong>Grupo ${row.grupo}</strong><em>${escapeHtml(row.status || "ACTIVO")}</em></div><div class="semana-tec-program-group-meta"><b class="${row.idioma === "Inglés" ? "language-english" : "language-spanish"}">${escapeHtml(row.idioma.toUpperCase())}</b><span>CRN ${escapeHtml(row.crn)}</span></div><strong class="semana-tec-program-professor">${escapeHtml(row.profesor)}</strong><p>${escapeHtml(row.salon)}</p><small>${escapeHtml(row.dias.join(", ") || "Días pendientes")} · ${escapeHtml(semanaTecProgramSchedule(row))}</small><div class="semana-tec-program-period"><b class="st${row.semana}">ST${row.semana}</b><span>${escapeHtml(semanaTecProgramDateLabel(row))}</span></div></article>`).join("")}</div>`;
+}
+
+function renderSemanaTecProgramDraft() {
+  const draft = semanaTecProgramDraft;
+  if (!draft) return "";
+  const summary = draft.summary;
+  return `<section class="upload-preview-panel semana-tec-program-preview"><div class="class-grade-table-header"><div><p class="eyebrow">Vista previa</p><h3>${escapeHtml(draft.fileName)}</h3></div><span>${draft.errors.length ? `${draft.errors.length} errores` : `${summary.groups} grupos listos`}</span></div>${draft.errors.map((message) => `<p class="form-message error">${escapeHtml(message)}</p>`).join("")}${draft.warnings.map((message) => `<p class="form-message">${escapeHtml(message)}</p>`).join("")}${summary ? `<div class="semana-tec-load-summary"><span><b>${summary.groups}</b> grupos</span><span><b>${summary.professors}</b> profesores</span><span><b>${summary.rooms}</b> salones</span><span><b>${summary.st6}</b> ST6</span><span><b>${summary.st12}</b> ST12</span><span><b>${summary.english}</b> inglés</span></div>` : ""}<div class="semana-tec-program-preview-actions"><button class="ghost-btn" id="cancelSemanaTecProgram" type="button">Cancelar</button><button class="primary-btn" id="importSemanaTecProgram" type="button" ${draft.errors.length || semanaTecProgramSaving ? "disabled" : ""}>${semanaTecProgramSaving ? "Guardando..." : "Reemplazar programación"}</button></div></section>`;
+}
+
 function semanaTecWeekFromGroup(value) {
   const group = Number(String(value ?? "").trim());
   if (!Number.isInteger(group)) return 0;
@@ -7008,7 +7781,7 @@ function normalizeSemanaTecRow(row, index, fileName = "", period = "") {
     genero: normalizeStudentGender(pickColumn(row, ["Genero", "Género", "Sexo", "genero"])),
     semestre: String(pickColumn(row, ["Semestre acreditado", "Semestre", "semestre"]) || "Sin semestre").trim(),
     semana,
-    periodo: period || $("#periodFilter")?.value || "AD26",
+    periodo: period || activeMasterPeriod,
     archivo_origen: fileName || "Carga Semana Tec",
     fecha_carga: new Date().toISOString(),
     duplicate: false
@@ -7039,7 +7812,7 @@ function semanaTecRowFromCloud(row) {
 
 function saveSemanaTecLocal() {
   try {
-    localStorage.setItem(SEMANA_TEC_STORAGE_KEY, JSON.stringify({ version: 1, rows: semanaTecRows, lastUpload: semanaTecLastUpload }));
+    localStorage.setItem(periodStorageKey(SEMANA_TEC_STORAGE_KEY), JSON.stringify({ version: 1, rows: semanaTecRows, lastUpload: semanaTecLastUpload }));
   } catch (error) {
     console.warn("No se pudo guardar el respaldo local de Semana Tec", error);
   }
@@ -7047,7 +7820,7 @@ function saveSemanaTecLocal() {
 
 function restoreSemanaTecLocal() {
   try {
-    const stored = JSON.parse(localStorage.getItem(SEMANA_TEC_STORAGE_KEY) || "{}");
+    const stored = JSON.parse(readPeriodStorage(SEMANA_TEC_STORAGE_KEY, "{}") || "{}");
     if (Array.isArray(stored.rows)) semanaTecRows = stored.rows.map(semanaTecRowFromCloud);
     semanaTecLastUpload = stored.lastUpload || null;
   } catch (error) {
@@ -7056,6 +7829,7 @@ function restoreSemanaTecLocal() {
 }
 
 restoreSemanaTecLocal();
+restoreSemanaTecProgramLocal();
 
 function semanaTecDraftSummary(rows, ignoredRows = 0, duplicates = 0) {
   return {
@@ -7084,7 +7858,7 @@ function validateSemanaTecRows(sourceRows, fileName = "") {
     if (sourceRows.length && !uploadHasColumn(sourceRows, aliases)) errors.push(`Falta la columna obligatoria: ${label}.`);
   });
   if (errors.length) return { fileName, rows: [], errors, warnings, summary: semanaTecDraftSummary([]) };
-  const period = $("#periodFilter")?.value || "AD26";
+  const period = activeMasterPeriod;
   const seen = new Set();
   let ignoredRows = 0;
   let duplicates = 0;
@@ -7130,10 +7904,16 @@ async function loadSemanaTecFile(file) {
 
 async function loadSemanaTecCloud() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const requestedPeriod = activeMasterPeriod;
   const rows = [];
   const pageSize = 1000;
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabaseClient.from("semana_tec_participantes").select("*").order("updated_at", { ascending: false }).range(offset, offset + pageSize - 1);
+    const { data, error } = await supabaseClient
+      .from("semana_tec_participantes")
+      .select("*")
+      .eq("periodo", requestedPeriod)
+      .order("updated_at", { ascending: false })
+      .range(offset, offset + pageSize - 1);
     if (error) {
       semanaTecCloudAvailable = false;
       console.warn("Semana Tec no está disponible en Supabase", error);
@@ -7143,6 +7923,7 @@ async function loadSemanaTecCloud() {
     rows.push(...page);
     if (page.length < pageSize) break;
   }
+  if (requestedPeriod !== activeMasterPeriod) return;
   semanaTecCloudAvailable = true;
   if (!rows.length) {
     const hasPendingLocalUpload = semanaTecLastUpload?.source === "local" && semanaTecRows.length > 0;
@@ -7171,12 +7952,15 @@ async function loadSemanaTecGroupGradeFiles() {
     semanaTecGroupFilesLoading = false;
     return;
   }
+  const requestedPeriod = activeMasterPeriod;
   semanaTecGroupFilesLoading = true;
   const { data, error } = await supabaseClient
     .from("semana_tec_group_grade_files")
     .select("group_key, periodo, semana, numero_grupo, profesor, storage_path, file_name, mime_type, file_size, updated_at")
+    .eq("periodo", requestedPeriod)
     .order("numero_grupo", { ascending: true });
   semanaTecGroupFilesLoading = false;
+  if (requestedPeriod !== activeMasterPeriod) return;
   if (error) {
     semanaTecGroupGradeFiles = [];
     semanaTecGroupFilesAvailable = false;
@@ -7226,10 +8010,12 @@ async function saveSemanaTecRowsCloud(rows) {
   const deleteOldResult = await supabaseClient
     .from("semana_tec_participantes")
     .delete()
+    .eq("periodo", activeMasterPeriod)
     .neq("upload_id", uploadId);
   const deleteLegacyResult = await supabaseClient
     .from("semana_tec_participantes")
     .delete()
+    .eq("periodo", activeMasterPeriod)
     .is("upload_id", null);
   if (deleteOldResult.error || deleteLegacyResult.error) {
     console.warn("La carga nueva de Semana Tec quedó guardada, pero no se pudo retirar la anterior", deleteOldResult.error || deleteLegacyResult.error);
@@ -7289,9 +8075,32 @@ function downloadSemanaTecTemplate() {
   toast("Plantilla de Semana Tec descargada");
 }
 
+function downloadSemanaTecProgramTemplate() {
+  const sample = [
+    {
+      PERIODO: "202613", SEDE: "MTY", CODIGO_ASIGNATURA: "WKLI1014S", NOMBRE_ASIGNATURA: "Construyendo cuerpo y mente", ESCUELA: "LF", DEPARTAMENTO: "DFOD", ETIQUETA_GRUPO: 101, CRN: "12345", STATUS: "ACTIVO", ATR_GRUPO: "ST6", CODIGO_DOCENTE: "L00000001", NOMBRE_DOCENTE: "Profesor responsable", SALAS: "416 - A-A4-", HORA_INICIO: "08:00", HORA_FIN: "11:00", DURACION: "03:00", LUN: "X", MAR: "X", MIE: "", JUE: "X", VIE: "X", FECHA_INICIO: "2026-09-14", FECHA_FIN: "2026-09-20"
+    },
+    {
+      PERIODO: "202613", SEDE: "MTY", CODIGO_ASIGNATURA: "WKLI1014S", NOMBRE_ASIGNATURA: "Construyendo cuerpo y mente", ESCUELA: "LF", DEPARTAMENTO: "DFOD", ETIQUETA_GRUPO: 201, CRN: "12346", STATUS: "ACTIVO", ATR_GRUPO: "ST12,INGL", CODIGO_DOCENTE: "L00000002", NOMBRE_DOCENTE: "Profesor responsable", SALAS: "221 - A-A4-", HORA_INICIO: "11:00", HORA_FIN: "14:00", DURACION: "03:00", LUN: "X", MAR: "X", MIE: "X", JUE: "X", VIE: "X", FECHA_INICIO: "2026-10-26", FECHA_FIN: "2026-11-01"
+    }
+  ];
+  const workbook = window.XLSX.utils.book_new();
+  const sheet = window.XLSX.utils.json_to_sheet(sample);
+  sheet["!cols"] = [
+    { wch: 12 }, { wch: 8 }, { wch: 20 }, { wch: 32 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 10 }, { wch: 12 }, { wch: 16 }, { wch: 18 }, { wch: 28 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 14 }, { wch: 14 }
+  ];
+  window.XLSX.utils.book_append_sheet(workbook, sheet, "Programación Semana Tec");
+  window.XLSX.writeFile(workbook, "plantilla-programacion-semana-tec.xlsx");
+  toast("Plantilla de programación descargada");
+}
+
+function semanaTecRowsForActivePeriod() {
+  return semanaTecRows.filter((row) => masterPeriodMatchesCode(row.periodo));
+}
+
 function semanaTecFilteredRows() {
   const term = normalizeText(semanaTecFilters.search);
-  return semanaTecRows.filter((row) => {
+  return semanaTecRowsForActivePeriod().filter((row) => {
     const weekMatch = semanaTecFilters.week === "todas" || String(row.semana) === semanaTecFilters.week;
     const professorMatch = semanaTecFilters.professor === "todos" || row.profesor === semanaTecFilters.professor;
     const groupMatch = semanaTecFilters.group === "todos" || String(row.numero_grupo) === semanaTecFilters.group;
@@ -7405,43 +8214,42 @@ function semanaTecFilterControls(rows = semanaTecRows) {
 }
 
 function renderSemanaTecDashboard() {
-  if (semanaTecLoading) return `<div class="permission-strip">Leyendo información de Semana Tec...</div>`;
-  const rows = semanaTecFilteredRows();
-  const uniqueStudents = new Set(rows.map((row) => row.matricula)).size;
-  const groups = semanaTecGroupSummaries(rows);
+  const rows = semanaTecProgramFilteredRows();
   const professors = new Set(rows.map((row) => row.profesor)).size;
-  const women = rows.filter((row) => row.genero === "Femenino").length;
-  const men = rows.filter((row) => row.genero === "Masculino").length;
-  const grades = rows.map((row) => Number(row.calificacion)).filter((value, index) => rows[index].calificacion !== "" && Number.isFinite(value));
-  const lastUpload = semanaTecLastUpload?.importedAt ? new Date(semanaTecLastUpload.importedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "Sin carga registrada";
+  const rooms = new Set(rows.map((row) => row.salon)).size;
+  const st6 = rows.filter((row) => row.semana === 6).length;
+  const st12 = rows.filter((row) => row.semana === 12).length;
+  const editable = currentUser?.auth === "supabase" && canEditArea("semana-tec");
+  const lastUpload = semanaTecProgramLastUpload?.importedAt
+    ? new Date(semanaTecProgramLastUpload.importedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })
+    : "Sin carga registrada";
   return `
     <section class="semana-tec-dashboard">
-      <header class="semana-tec-heading"><div><p class="eyebrow">Operación académica</p><h3>Semana Tec</h3><span>Grupos 100 = Semana 6 · Grupos 200 = Semana 12</span></div><div><strong>${escapeHtml(lastUpload)}</strong><span>${semanaTecCloudAvailable ? "Fuente compartida disponible" : "Respaldo local"}</span></div></header>
-      ${semanaTecFilterControls()}
-      ${semanaTecRows.length ? `
+      <header class="semana-tec-heading semana-tec-program-heading"><div><p class="eyebrow">Operación académica</p><h3>Programación Semana Tec ${escapeHtml(activeMasterPeriod)}</h3><span>${escapeHtml(semanaTecProgramLastUpload?.fileName || "Sin archivo")} · ${escapeHtml(lastUpload)}</span></div><div class="semana-tec-program-upload"><input id="semanaTecProgramFile" type="file" accept=".xlsx,.xls,.csv" hidden><div class="semana-tec-program-upload-actions"><button class="primary-btn" id="selectSemanaTecProgram" type="button" ${editable && !semanaTecProgramLoading ? "" : "disabled"}>${semanaTecProgramLoading ? "Leyendo archivo..." : "Cargar programación"}</button><button class="ghost-btn" id="downloadSemanaTecProgramTemplate" type="button"><i data-lucide="download" aria-hidden="true"></i><span>Plantilla de programación</span></button></div><small>${semanaTecProgramCloudAvailable ? "Programación compartida" : editable ? "Respaldo local" : "Inicia sesión para cargar"}</small></div></header>
+      ${renderSemanaTecProgramDraft()}
+      ${renderSemanaTecProgramFilters(semanaTecProgramRows)}
+      ${semanaTecProgramRows.length ? `
         <div class="semana-tec-kpis">
-          <article><span>Alumnos únicos</span><strong>${uniqueStudents.toLocaleString("es-MX")}</strong><em>por matrícula</em></article>
-          <article><span>Grupos</span><strong>${groups.length.toLocaleString("es-MX")}</strong><em>en el filtro</em></article>
+          <article><span>Grupos activos</span><strong>${rows.length.toLocaleString("es-MX")}</strong><em>en el filtro</em></article>
           <article><span>Profesores</span><strong>${professors.toLocaleString("es-MX")}</strong><em>responsables</em></article>
-          <article><span>Promedio por grupo</span><strong>${groups.length ? Math.round(uniqueStudents / groups.length) : 0}</strong><em>alumnos</em></article>
-          <article><span>Mujeres</span><strong>${women.toLocaleString("es-MX")}</strong><em>${uniqueStudents ? Math.round(women / uniqueStudents * 100) : 0}%</em></article>
-          <article><span>Hombres</span><strong>${men.toLocaleString("es-MX")}</strong><em>${uniqueStudents ? Math.round(men / uniqueStudents * 100) : 0}%</em></article>
-          <article><span>Calificaciones</span><strong>${grades.length.toLocaleString("es-MX")}</strong><em>capturadas</em></article>
+          <article><span>Salones</span><strong>${rooms.toLocaleString("es-MX")}</strong><em>espacios asignados</em></article>
+          <article><span>ST6</span><strong>${st6.toLocaleString("es-MX")}</strong><em>grupos</em></article>
+          <article><span>ST12</span><strong>${st12.toLocaleString("es-MX")}</strong><em>grupos</em></article>
         </div>
-        <div class="semana-tec-charts">
-          ${renderUploadBars("Alumnos por profesor", semanaTecCountRows(rows, "profesor"))}
-          ${renderUploadBars("Top programas", semanaTecCountRows(rows, "programa").slice(0, 12), 12)}
-          ${renderUploadBars("Participación por semestre", semanaTecSemesterCounts(rows), 12)}
+        <div class="semana-tec-charts semana-tec-program-charts">
+          <article class="chart-panel"><div class="chart-title-row"><div><p class="eyebrow">Distribución</p><h3>Grupos por Semana Tec</h3></div></div><div class="semana-tec-program-week-row"><span>ST6</span><div><i class="st6" style="width:${rows.length ? Math.round(st6 / Math.max(st6, st12, 1) * 100) : 0}%"></i></div><strong>${st6}</strong></div><div class="semana-tec-program-week-row"><span>ST12</span><div><i class="st12" style="width:${rows.length ? Math.round(st12 / Math.max(st6, st12, 1) * 100) : 0}%"></i></div><strong>${st12}</strong></div></article>
+          ${renderSemanaTecProgramScheduleChart(rows)}
         </div>
         <section class="semana-tec-groups-panel">
-          <div class="class-grade-table-header"><div><p class="eyebrow">Detalle operativo</p><h3>Grupos y profesores</h3></div><span>${groups.length} grupos visibles</span></div>
-          ${semanaTecGroupCards(groups)}
+          <div class="class-grade-table-header"><div><p class="eyebrow">Detalle operativo</p><h3>Grupos, profesores y espacios</h3></div><span>${rows.length} grupos visibles</span></div>
+          ${renderSemanaTecProgramCards(rows)}
         </section>` : `
-        <section class="vivencia-empty-state"><strong>Semana Tec está lista para recibir información.</strong><span>Carga el archivo de alumnos para generar automáticamente grupos, profesores y perfil académico.</span><button class="primary-btn" type="button" data-view-jump="semana-tec-upload">Ir a Carga de alumnos</button></section>`}
+        <section class="vivencia-empty-state"><strong>Semana Tec está lista para recibir programación.</strong><span>Carga el archivo de grupos para generar profesores, horarios, espacios y semanas.</span></section>`}
     </section>`;
 }
 
 function renderSemanaTecGrades() {
+  const periodRows = semanaTecRowsForActivePeriod();
   const rows = semanaTecFilteredRows();
   const groups = semanaTecGroupSummaries(rows);
   const numeric = rows.map((row) => Number(row.calificacion)).filter((value, index) => rows[index].calificacion !== "" && Number.isFinite(value));
@@ -7450,7 +8258,7 @@ function renderSemanaTecGrades() {
   return `
     <section class="semana-tec-dashboard">
       <header class="semana-tec-heading"><div><p class="eyebrow">Seguimiento académico</p><h3>Calificaciones Semana Tec</h3><span>La matrícula es la única referencia del alumno.</span></div></header>
-      ${semanaTecFilterControls()}
+      ${semanaTecFilterControls(periodRows)}
       <div class="semana-tec-kpis compact">
         <article><span>Registros</span><strong>${rows.length.toLocaleString("es-MX")}</strong><em>visibles</em></article>
         <article><span>Capturadas</span><strong>${captured.toLocaleString("es-MX")}</strong><em>${rows.length ? Math.round(captured / rows.length * 100) : 0}%</em></article>
@@ -7474,7 +8282,7 @@ function renderSemanaTecGrades() {
 
 function renderSemanaTecUploadView() {
   const draft = semanaTecDraft;
-  const pendingLocalSync = semanaTecLastUpload?.source === "local" && semanaTecRows.length > 0;
+  const pendingLocalSync = semanaTecLastUpload?.source === "local" && semanaTecRowsForActivePeriod().length > 0;
   const summary = draft?.summary || semanaTecDraftSummary([]);
   const validation = !draft ? `<div class="upload-status yellow"><span>Selecciona un archivo para comenzar</span></div>` : draft.errors.length ? `<div class="upload-status red"><span>${draft.errors.length} errores</span></div>` : `<div class="upload-status green"><span>Archivo listo para importar</span><strong>${summary.total.toLocaleString("es-MX")} registros</strong></div>`;
   return `
@@ -7683,7 +8491,7 @@ function saveParticipationUploadsLocal() {
         rows: state.imported.rows.map(participationUploadLocalRow)
       };
     });
-    localStorage.setItem(PARTICIPATION_UPLOAD_STORAGE_KEY, JSON.stringify({ version: 1, areas: areasSnapshot }));
+    localStorage.setItem(periodStorageKey(PARTICIPATION_UPLOAD_STORAGE_KEY), JSON.stringify({ version: 1, areas: areasSnapshot }));
   } catch (error) {
     console.warn("No se pudo guardar el respaldo local de Gamer/Representativos", error);
   }
@@ -7691,7 +8499,7 @@ function saveParticipationUploadsLocal() {
 
 function restoreParticipationUploadsLocal() {
   try {
-    const stored = JSON.parse(localStorage.getItem(PARTICIPATION_UPLOAD_STORAGE_KEY) || "{}");
+    const stored = JSON.parse(readPeriodStorage(PARTICIPATION_UPLOAD_STORAGE_KEY, "{}") || "{}");
     ["gamer", "representativos"].forEach((areaId) => {
       const snapshot = stored?.areas?.[areaId];
       if (!Array.isArray(snapshot?.rows) || !snapshot.rows.length) return;
@@ -7973,13 +8781,14 @@ function canonicalIntramurosTournament(value) {
   }).join(" ");
 }
 
-async function loadIntramurosTablePages(table, columns, orderColumn) {
+async function loadIntramurosTablePages(table, columns, orderColumn, period = activeMasterPeriod) {
   const rows = [];
   const pageSize = 1000;
   for (let offset = 0; ; offset += pageSize) {
     const response = await supabaseClient
       .from(table)
       .select(columns)
+      .eq("periodo", period)
       .order(orderColumn, { ascending: false, nullsFirst: false })
       .order("id", { ascending: true })
       .range(offset, offset + pageSize - 1);
@@ -8001,25 +8810,41 @@ function uniqueIntramurosRows(rows, keyForRow) {
   });
 }
 
+async function deleteIntramurosRowsById(table, ids) {
+  const validIds = [...new Set(ids.filter(Boolean))];
+  for (let index = 0; index < validIds.length; index += 500) {
+    const { error } = await supabaseClient
+      .from(table)
+      .delete()
+      .in("id", validIds.slice(index, index + 500));
+    if (error) throw error;
+  }
+}
+
 async function loadIntramurosParticipants() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const requestedPeriod = activeMasterPeriod;
   const [participantsResult, rolesResult, operationResult] = await Promise.all([
     loadIntramurosTablePages(
       "intramuros_participantes",
       "id, matricula, genero, programa, modalidad, escuela, tipo_actividad, torneo, rama, equipo, periodo, fecha_carga, archivo_origen, created_at, updated_at",
-      "fecha_carga"
+      "fecha_carga",
+      requestedPeriod
     ),
     loadIntramurosTablePages(
       "intramuros_roles_juego",
       "id, torneo, semana, fecha, hora, cancha, grupo, rama, equipo_local, equipo_visitante, resultado, observaciones, estatus_partido, periodo, fecha_carga, archivo_origen, created_at, updated_at",
-      "fecha"
+      "fecha",
+      requestedPeriod
     ),
     loadIntramurosTablePages(
       "intramuros_operacion_torneos",
       "id, tipo, torneo, periodo, equipos_varoniles, equipos_femeniles, equipos_mixtos, alumnos_varonil, alumnos_femenil, juegos_programados, juegos_realizados, bajas, estatus, created_at, updated_at",
-      "updated_at"
+      "updated_at",
+      requestedPeriod
     )
   ]);
+  if (requestedPeriod !== activeMasterPeriod) return;
   if (participantsResult.error) {
     intramurosCloudAvailable = false;
     console.warn("Intramuros participantes no disponible", participantsResult.error);
@@ -8184,7 +9009,7 @@ function normalizeIntramurosUploadRow(row, index, fileName, seenKeys) {
   const matricula = normalizeMatricula(pickColumn(row, ["Matrícula", "Matricula", "matricula"]));
   const torneo = canonicalIntramurosTournament(intramurosUploadValue(pickColumn(row, ["Torneo", "torneo"]), "Sin torneo"));
   const equipo = intramurosUploadValue(pickColumn(row, ["Equipo", "equipo"]), "Sin equipo");
-  const periodo = intramurosUploadValue(pickColumn(row, ["Periodo", "Período", "periodo"]), "Sin periodo").toUpperCase();
+  const periodo = activeMasterPeriod;
   const payload = {
     matricula,
     genero: normalizeIntramurosGender(pickColumn(row, ["Género", "Genero", "genero"])),
@@ -8258,9 +9083,32 @@ async function importIntramurosParticipants(file) {
       toast(parsed.errors[0]);
       return;
     }
+    if (!parsed.rows.length) {
+      intramurosUploadSummary = {
+        fileName: file.name,
+        processed: parsed.processed,
+        inserted: 0,
+        updated: 0,
+        removed: 0,
+        duplicates: parsed.duplicateRows.length,
+        errors: parsed.errorRows.length || 1,
+        ignoredColumns: parsed.ignoredColumns,
+        messages: ["No hay participantes válidos para sustituir la carga anterior."],
+        importedAt: new Date().toISOString()
+      };
+      toast("No hay participantes válidos para guardar");
+      return;
+    }
+    if (!window.confirm(`Esta carga sustituirá los participantes actuales de ${activeMasterPeriod}. Los demás periodos no cambiarán. ¿Deseas continuar?`)) return;
     const existingKeys = new Set(intramurosParticipants.map(intramurosLogicalKey));
+    const incomingKeys = new Set(parsed.rows.map((row) => row.__key));
+    const staleIds = intramurosParticipants
+      .filter((row) => !incomingKeys.has(intramurosLogicalKey(row)))
+      .map((row) => row.id)
+      .filter(Boolean);
     const inserted = parsed.rows.filter((row) => !existingKeys.has(row.__key)).length;
     const updated = parsed.rows.length - inserted;
+    const importedAt = new Date().toISOString();
     const payload = parsed.rows.map((row) => ({
       matricula: row.matricula,
       genero: row.genero,
@@ -8272,7 +9120,7 @@ async function importIntramurosParticipants(file) {
       rama: row.rama,
       equipo: row.equipo,
       periodo: row.periodo,
-      fecha_carga: row.fecha_carga,
+      fecha_carga: importedAt,
       archivo_origen: row.archivo_origen
     }));
     for (let index = 0; index < payload.length; index += 500) {
@@ -8281,21 +9129,23 @@ async function importIntramurosParticipants(file) {
         .upsert(payload.slice(index, index + 500), { onConflict: "matricula,torneo,equipo,periodo" });
       if (error) throw error;
     }
+    await deleteIntramurosRowsById("intramuros_participantes", staleIds);
     await loadIntramurosParticipants();
     intramurosUploadSummary = {
       fileName: file.name,
       processed: parsed.processed,
       inserted,
       updated,
+      removed: staleIds.length,
       duplicates: parsed.duplicateRows.length,
       errors: parsed.errorRows.length,
       ignoredColumns: parsed.ignoredColumns,
       messages: parsed.errorRows.length ? [`${parsed.errorRows.length} filas se omitieron por matrícula inválida.`] : [],
-      importedAt: new Date().toISOString()
+      importedAt
     };
-    addAudit("intramuros", `${parsed.rows.length} participantes procesados desde ${file.name}`);
+    addAudit("intramuros", `${parsed.rows.length} participantes sustituyeron la carga anterior de ${activeMasterPeriod} desde ${file.name}`);
     recordUploadSuccess("intramuros.participantes", intramurosUploadSummary.importedAt);
-    toast(`${parsed.rows.length.toLocaleString("es-MX")} registros de Intramuros guardados`);
+    toast(`${parsed.rows.length.toLocaleString("es-MX")} participantes sustituyeron la carga anterior`);
   } catch (error) {
     console.error(error);
     intramurosUploadSummary = {
@@ -8375,7 +9225,22 @@ function intramurosRoleTournamentFromBlock(title, group, court) {
   if (block.includes("futbol")) return detail.includes("fut 7") ? "Fútbol 7" : "Fútbol";
   if (block.includes("padel")) return "Pádel";
   if (block.includes("tenis")) return "Tenis singles";
+  if (block.includes("cdb")) {
+    if (/fut\s*7|futbol\s*7/.test(detail)) return "Fútbol 7";
+    if (/soccer|futbol\s+soccer/.test(detail)) return "Fútbol soccer";
+    if (/(^|\s)(bb|basquet|basket)(\s|$)/.test(detail)) return "Básquetbol";
+    if (/(^|\s)(vb|voleibol|volei)(\s|$)/.test(detail)) return "Voleibol de sala";
+  }
   return String(title || "Sin torneo").trim() || "Sin torneo";
+}
+
+function intramurosRoleWorkbookSheets(workbook) {
+  const names = workbook?.SheetNames || [];
+  const preferred = names.filter((name) => {
+    const normalized = normalizeText(name);
+    return normalized.includes("jornada") || normalized.includes("rol de juego") || normalized.includes("roles de juego");
+  });
+  return preferred.length ? preferred : names;
 }
 
 function intramurosRoleSlotKey(row) {
@@ -8418,10 +9283,12 @@ function intramurosTemplateRoleRowsFromGrid(grid, sheetName, fileName) {
 
   const privateRowsIgnored = (grid || []).filter((cells) => /^A\d{7,9}$/.test(normalizeMatricula(cells?.[3]))).length;
   const scanned = [];
+  const sourceBlocks = [];
   [...blockStarts].sort((a, b) => a - b).forEach((start) => {
     const title = (grid || []).slice(0, 6)
       .map((cells) => String(cells?.[start] ?? "").trim())
       .find((value) => value && !normalizeText(value).includes("programacion general") && !/^(feb|ago|ene|jun|ad|fj|ver|in)/i.test(value)) || `Bloque ${start + 1}`;
+    sourceBlocks.push(title);
     let active = false;
     let currentWeek = "";
     let currentDay = "";
@@ -8475,7 +9342,7 @@ function intramurosTemplateRoleRowsFromGrid(grid, sheetName, fileName) {
         equipo_local: local,
         equipo_visitante: visitor,
         resultado: result,
-        observaciones: `Tipo de uso: ${usageType}`,
+        observaciones: `Tipo de uso: ${usageType} | Bloque: ${title} | Hoja: ${sheetName}`,
         estatus_partido: status,
         periodo: intramurosPeriodFromRoleDate(currentDate),
         fecha_carga: new Date().toISOString(),
@@ -8523,6 +9390,8 @@ function intramurosTemplateRoleRowsFromGrid(grid, sheetName, fileName) {
   });
   return {
     detected: true,
+    sourceBlocks,
+    sheetName,
     rows: actionable,
     duplicates,
     missingFields: [...missingFields],
@@ -8587,7 +9456,7 @@ function intramurosGridRowsFromSheet(grid, sheetName, fileName) {
       resultado: pick("resultado"),
       observaciones: pick("observaciones"),
       estatus_partido: pick("estatus_partido") || (pick("resultado") ? "Con resultado" : "Pendiente"),
-      periodo: pick("periodo") || (intramurosFilters.period !== "todos" ? intramurosFilters.period : "Sin periodo"),
+      periodo: activeMasterPeriod,
       fecha_carga: new Date().toISOString(),
       archivo_origen: fileName,
       __sheetName: sheetName,
@@ -8608,7 +9477,8 @@ async function parseIntramurosRolesFile(file) {
   const missingFields = new Set();
   if (["xlsx", "xls"].includes(ext) && window.XLSX) {
     const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
-    workbook.SheetNames.forEach((sheetName) => {
+    const sourceSheets = intramurosRoleWorkbookSheets(workbook);
+    sourceSheets.forEach((sheetName) => {
       const grid = window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "", raw: true });
       const templateResult = intramurosTemplateRoleRowsFromGrid(grid, sheetName, file.name);
       const result = templateResult.detected ? templateResult : intramurosGridRowsFromSheet(grid, sheetName, file.name);
@@ -8645,27 +9515,32 @@ async function parseIntramurosRolesFile(file) {
     privateRowsIgnored: acc.privateRowsIgnored + Number(summary.privateRowsIgnored || 0),
     templateDuplicates: acc.templateDuplicates + Number(summary.duplicates?.length || 0)
   }), { totalSlots: 0, uniqueSlots: 0, availableSlots: 0, games: 0, reservations: 0, conflicts: 0, privateRowsIgnored: 0, templateDuplicates: 0 });
+  const sourceSheets = [...new Set(templateSummaries.map((summary) => summary.sheetName).filter(Boolean))];
+  const sourceBlocks = templateSummaries.flatMap((summary) => summary.sourceBlocks || []);
   return {
     rows: validRows,
     duplicates: [...duplicates, ...templateSummaries.flatMap((summary) => summary.duplicates || [])],
     missingFields: Array.from(missingFields),
     processed: templateTotals.totalSlots || allRows.length,
     ...templateTotals,
-    templateDetected: templateSummaries.length > 0
+    templateDetected: templateSummaries.length > 0,
+    sourceSheets,
+    sourceBlocks
   };
 }
 
-async function importIntramurosRoles(file) {
+async function importIntramurosRoles(file, confirmedParsed = null) {
   if (!file) return;
-  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("intramuros")) {
+  if (confirmedParsed && (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("intramuros"))) {
     toast("Ingresa con Supabase y permisos de Intramuros para cargar roles");
     return;
   }
   intramurosRolesImporting = true;
   render();
   try {
-    const parsed = await parseIntramurosRolesFile(file);
+    const parsed = confirmedParsed || await parseIntramurosRolesFile(file);
     if (!parsed.rows.length) {
+      intramurosRolesPendingUpload = null;
       intramurosRolesUploadSummary = {
         fileName: file.name,
         processed: parsed.processed,
@@ -8680,6 +9555,8 @@ async function importIntramurosRoles(file) {
         reservations: parsed.reservations || 0,
         conflicts: parsed.conflicts || 0,
         privateRowsIgnored: parsed.privateRowsIgnored || 0,
+        sourceSheets: parsed.sourceSheets || [],
+        sourceBlocks: parsed.sourceBlocks || [],
         importedAt: new Date().toISOString(),
         messages: [parsed.templateDetected
           ? "Se reconoció el calendario, pero todavía no contiene juegos con equipos ni reservas identificables."
@@ -8689,6 +9566,12 @@ async function importIntramurosRoles(file) {
       return;
     }
     const existingBySlot = new Map(intramurosGameRoles.map((row) => [intramurosRoleSlotKey(row), row]));
+    const incomingSlotKeys = new Set(parsed.rows.map(intramurosRoleSlotKey));
+    const staleIds = intramurosGameRoles
+      .filter((row) => !incomingSlotKeys.has(intramurosRoleSlotKey(row)))
+      .map((row) => row.id)
+      .filter(Boolean);
+    const replacementImportedAt = new Date().toISOString();
     const payloadFor = (row) => ({
       torneo: canonicalIntramurosTournament(row.torneo),
       semana: row.semana || null,
@@ -8702,8 +9585,8 @@ async function importIntramurosRoles(file) {
       resultado: row.resultado || null,
       observaciones: row.observaciones || null,
       estatus_partido: row.estatus_partido || "Pendiente",
-      periodo: row.periodo || "Sin periodo",
-      fecha_carga: row.fecha_carga,
+      periodo: activeMasterPeriod,
+      fecha_carga: replacementImportedAt,
       archivo_origen: row.archivo_origen
     });
     const updates = [];
@@ -8713,6 +9596,35 @@ async function importIntramurosRoles(file) {
       if (existing?.id) updates.push({ id: existing.id, payload: payloadFor(row) });
       else inserts.push(payloadFor(row));
     });
+    if (!confirmedParsed) {
+      intramurosRolesPendingUpload = { file, parsed };
+      intramurosRolesUploadSummary = {
+        fileName: file.name,
+        processed: parsed.processed,
+        inserted: inserts.length,
+        updated: updates.length,
+        removed: staleIds.length,
+        duplicates: parsed.duplicates.length,
+        errors: 0,
+        missingFields: parsed.missingFields,
+        totalSlots: parsed.totalSlots || 0,
+        availableSlots: parsed.availableSlots || 0,
+        games: parsed.games || 0,
+        reservations: parsed.reservations || 0,
+        conflicts: parsed.conflicts || 0,
+        privateRowsIgnored: parsed.privateRowsIgnored || 0,
+        sourceSheets: parsed.sourceSheets || [],
+        sourceBlocks: parsed.sourceBlocks || [],
+        importedAt: new Date().toISOString(),
+        preview: true,
+        messages: [
+          parsed.games ? "" : "El archivo todavía no contiene partidos con equipo local y visitante; solo se detectaron reservas o eventos.",
+          parsed.conflicts ? `${parsed.conflicts} horarios requieren revisión por posible cruce de cancha.` : ""
+        ].filter(Boolean)
+      };
+      toast(`Archivo revisado: confirma ${parsed.rows.length.toLocaleString("es-MX")} registros antes de guardar`);
+      return;
+    }
     for (let index = 0; index < updates.length; index += 20) {
       const results = await Promise.all(updates.slice(index, index + 20).map(({ id, payload }) => (
         supabaseClient.from("intramuros_roles_juego").update(payload).eq("id", id)
@@ -8726,12 +9638,15 @@ async function importIntramurosRoles(file) {
         .upsert(inserts.slice(index, index + 500), { onConflict: "torneo,fecha,hora,cancha,equipo_local,equipo_visitante" });
       if (error) throw error;
     }
+    await deleteIntramurosRowsById("intramuros_roles_juego", staleIds);
     await loadIntramurosParticipants();
+    intramurosRolesPendingUpload = null;
     intramurosRolesUploadSummary = {
       fileName: file.name,
       processed: parsed.processed,
       inserted: inserts.length,
       updated: updates.length,
+      removed: staleIds.length,
       duplicates: parsed.duplicates.length,
       errors: 0,
       missingFields: parsed.missingFields,
@@ -8741,17 +9656,20 @@ async function importIntramurosRoles(file) {
       reservations: parsed.reservations || 0,
       conflicts: parsed.conflicts || 0,
       privateRowsIgnored: parsed.privateRowsIgnored || 0,
-      importedAt: new Date().toISOString(),
+      sourceSheets: parsed.sourceSheets || [],
+      sourceBlocks: parsed.sourceBlocks || [],
+      importedAt: replacementImportedAt,
       messages: [
         parsed.conflicts ? `${parsed.conflicts} horarios requieren revisión por posible cruce de cancha.` : "",
         parsed.privateRowsIgnored ? "Se ignoró completamente la sección errónea de datos de alumnos." : ""
       ].filter(Boolean)
     };
-    addAudit("intramuros", `${parsed.rows.length} juegos cargados desde ${file.name}`);
+    addAudit("intramuros", `${parsed.rows.length} roles sustituyeron la carga anterior de ${activeMasterPeriod} desde ${file.name}`);
     recordUploadSuccess("intramuros.roles", intramurosRolesUploadSummary.importedAt);
-    toast(`${parsed.rows.length.toLocaleString("es-MX")} roles de juego guardados`);
+    toast(`${parsed.rows.length.toLocaleString("es-MX")} roles sustituyeron la carga anterior`);
   } catch (error) {
     console.error(error);
+    intramurosRolesPendingUpload = null;
     intramurosRolesUploadSummary = {
       fileName: file.name,
       processed: 0,
@@ -8792,7 +9710,7 @@ function downloadIntramurosTemplate(type) {
         "Torneo": "Fútbol 7",
         "Rama": "Femenil",
         "Equipo": "Equipo Azul",
-        "Periodo": "AD26"
+        "Periodo": activeMasterPeriod
       }]
     },
     roles: {
@@ -8811,7 +9729,7 @@ function downloadIntramurosTemplate(type) {
         "Resultado": "",
         "Observaciones": "",
         "Estatus": "Programado",
-        "Periodo": "AD26"
+        "Periodo": activeMasterPeriod
       }]
     }
   };
@@ -8832,7 +9750,7 @@ function participationUploadRowToCloud(areaId, row, fileName = "", uploadId = ""
     ? [matricula, row.clave_materia || "", row.representativo || "", row.coach || ""].map((value) => normalizeText(value)).join("|")
     : normalizeText(matricula);
   return {
-    area_key: areaId,
+    area_key: masterPeriodCloudArea(areaId),
     import_key: importKey,
     matricula,
     found_in_student_base: Boolean(row.found),
@@ -8905,12 +9823,14 @@ async function loadParticipationUploadAreaCloud(areaId) {
   const rows = [];
   const pageSize = 1000;
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabaseClient
+    let query = supabaseClient
       .from("participation_upload_rows")
       .select("*")
-      .eq("area_key", areaId)
-      .order("updated_at", { ascending: false })
-      .range(offset, offset + pageSize - 1);
+      .order("updated_at", { ascending: false });
+    query = activeMasterPeriod === "FJ26"
+      ? query.in("area_key", [areaId, masterPeriodCloudArea(areaId)])
+      : query.eq("area_key", masterPeriodCloudArea(areaId));
+    const { data, error } = await query.range(offset, offset + pageSize - 1);
     if (error) return { areaId, rows: [], error };
     const page = data || [];
     rows.push(...page);
@@ -8970,12 +9890,12 @@ async function saveParticipationUploadCloud(areaId, draft) {
   const deleteOldResult = await supabaseClient
     .from("participation_upload_rows")
     .delete()
-    .eq("area_key", areaId)
+    .eq("area_key", masterPeriodCloudArea(areaId))
     .neq("upload_id", uploadId);
   const deleteLegacyResult = await supabaseClient
     .from("participation_upload_rows")
     .delete()
-    .eq("area_key", areaId)
+    .eq("area_key", masterPeriodCloudArea(areaId))
     .is("upload_id", null);
   if (deleteOldResult.error || deleteLegacyResult.error) {
     console.warn(`La carga nueva de ${areaId} quedó guardada, pero no se pudo retirar la anterior`, deleteOldResult.error || deleteLegacyResult.error);
@@ -9402,6 +10322,18 @@ function executiveCountByArea() {
 }
 
 function executiveClassSummary() {
+  if (activeMasterPeriod !== "FJ26") {
+    const rows = effectiveClassGradeRows();
+    const banner = rows.length;
+    const bajas = rows.filter((row) => normalizeClassGrade(row.grade) === "BAJA").length;
+    const np = rows.filter((row) => normalizeClassGrade(row.grade) === "NP").length;
+    const finished = rows.filter((row) => {
+      const grade = normalizeClassGrade(row.grade);
+      return grade === "ACREDITADO" || (Number.isFinite(Number(grade)) && Number(grade) >= 70);
+    }).length;
+    const effectiveness = banner ? Math.round((finished / Math.max(1, banner - bajas - np)) * 100) : 0;
+    return { banner, bajas, np, finished, effectiveness: Number.isFinite(effectiveness) ? effectiveness : 0 };
+  }
   const totalRows = classDisciplineIndicators.filter((row) => row.total);
   const latest = totalRows[totalRows.length - 1] || { banner: 0, bajas: 0, np: 0, finished: 0 };
   const effectiveness = latest.banner ? Math.round((latest.finished / Math.max(1, latest.banner - latest.bajas - latest.np)) * 100) : 0;
@@ -9550,8 +10482,7 @@ function executivePlanningUpcomingRows() {
       const date = new Date(`${row.date}T00:00:00`);
       return date >= today && date <= end;
     })
-    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
-    .slice(0, 12);
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 
 function executivePlanningFilterOptions(field) {
@@ -9570,6 +10501,7 @@ function renderExecutivePlanningCalendar() {
     return `<article class="exec-panel exec-planning-panel exec-planning-standalone no-print"><h3>Próximos 30 días</h3><div class="exec-empty">No se pudo cargar Planeación Semestral.</div></article>`;
   }
   const rows = executivePlanningUpcomingRows();
+  const agendaRows = rows.slice(0, 12);
   const areaOptions = executivePlanningFilterOptions("area");
   const statusOptions = executivePlanningFilterOptions("status");
   const areaLabel = (area) => areas.find((item) => item.id === area)?.name || area || "Sin área";
@@ -9627,18 +10559,134 @@ function renderExecutivePlanningCalendar() {
         }).join("")}
       </div>
       <div class="exec-planning-list">
-        ${rows.length ? rows.map((row) => `
+        ${agendaRows.length ? agendaRows.map((row) => `
           <div class="exec-planning-item">
             <time>${escapeHtml(new Date(`${row.date}T00:00:00`).toLocaleDateString("es-MX", { day: "2-digit", month: "short" }))}</time>
             <strong>${escapeHtml(row.activity)}</strong>
             <span>${escapeHtml(areaLabel(row.area))}</span>
-            <em>${escapeHtml(row.responsible || "Responsable pendiente")}</em>
             <b>${escapeHtml(row.status || "Sin estado")}</b>
-            <small>${escapeHtml(row.place || "Sin lugar")}</small>
           </div>
         `).join("") : `<div class="exec-empty">No hay actividades dentro del rango seleccionado.</div>`}
+        ${rows.length > agendaRows.length ? `<div class="exec-empty">Mostrando las primeras ${agendaRows.length} de ${rows.length} actividades. El calendario incluye todas.</div>` : ""}
       </div>
     </article>
+  `;
+}
+
+function renderMasterPeriodOptions() {
+  return Object.entries(MASTER_PERIODS)
+    .map(([key, config]) => `<option value="${key}" ${activeMasterPeriod === key ? "selected" : ""}>${escapeHtml(config.label)}</option>`)
+    .join("");
+}
+
+async function switchMasterPeriod(nextPeriod) {
+  if (!MASTER_PERIODS[nextPeriod] || nextPeriod === activeMasterPeriod) return;
+  const nextLabel = MASTER_PERIODS[nextPeriod].label;
+  if (!window.confirm(`Cambiar a ${nextLabel}? Los módulos operativos mostrarán únicamente la información de ese periodo.`)) return;
+
+  activeMasterPeriod = nextPeriod;
+  executiveReportState.period = nextPeriod;
+  localStorage.setItem(MASTER_PERIOD_KEY, nextPeriod);
+
+  localCaptures = loadCaptures();
+  scheduleState = loadSchedules();
+  classBookingReservations = loadClassBookingReservations();
+  simulatorState = loadSimulator();
+  classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
+  classScheduleComparison = loadClassScheduleComparison();
+  intramurosOperationRows = loadIntramurosOperationRows();
+  semanaTecRows = [];
+  semanaTecDraft = null;
+  semanaTecLastUpload = null;
+  semanaTecGroupGradeFiles = [];
+  semanaTecGroupFileUploading = "";
+  semanaTecFilters = { week: "todas", professor: "todos", group: "todos", search: "" };
+  restoreSemanaTecLocal();
+  semanaTecProgramRows = [];
+  semanaTecProgramDraft = null;
+  semanaTecProgramLastUpload = null;
+  semanaTecProgramFilters = { week: "todas", professor: "todos", schedule: "todos", search: "" };
+  restoreSemanaTecProgramLocal();
+  participationUploadState = {
+    gamer: { fileName: "", draft: null, imported: null, source: "" },
+    representativos: { fileName: "", draft: null, imported: null, source: "" }
+  };
+  restoreParticipationUploadsLocal();
+
+  cloudCaptures = [];
+  classGrades = [];
+  classGradesLoaded = false;
+  classGradesUploadSummary = null;
+  gymAttendanceRecords = [];
+  gymAsistencias = [];
+  gymManualAttendanceRows = [];
+  gymStudentRegistrations = [];
+  gymDataLoaded = false;
+  vivenciaEvents = [];
+  vivenciaEventMetrics = [];
+  vivenciaParticipants = [];
+  vivenciaParticipantUploads = [];
+  communicationEvents = [];
+  communicationParticipants = [];
+  communicationParticipantUploads = [];
+  communicationDiffusionImages = [];
+  intramurosParticipants = [];
+  intramurosGameRoles = [];
+  intramurosUploadSummary = null;
+  intramurosRolesUploadSummary = null;
+  intramurosRolesPendingUpload = null;
+  intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", search: "" };
+  selectedIntramurosTournament = "";
+
+  const globalPeriod = $("#periodFilter");
+  if (globalPeriod) globalPeriod.value = nextPeriod;
+  const topPeriod = $("#topPeriodSelect");
+  if (topPeriod) topPeriod.value = nextPeriod;
+  cloudStatus = currentUser?.auth === "supabase" ? `Cargando ${nextLabel}...` : `Periodo ${nextLabel}`;
+  render();
+
+  if (supabaseClient && currentUser?.auth === "supabase") {
+    const loaders = [
+      loadSupabaseCaptures(),
+      loadClassGrades({ seedIfEmpty: false }),
+      loadGymData(),
+      loadClassBookingReservationsCloud(),
+      loadClassScheduleSimulatorCloud(),
+      loadVivenciaEvents(),
+      loadSemanaTecCloud(),
+      loadSemanaTecGroupGradeFiles(),
+      loadSemanaTecProgramCloud(),
+      loadParticipationUploadsCloud("representativos"),
+      loadCommunicationEvents(),
+      loadCommunicationDiffusionImages(),
+      loadIntramurosParticipants()
+    ];
+    Promise.allSettled(loaders).then(() => {
+      cloudStatus = "Supabase conectado";
+      render();
+    });
+  } else {
+    loadSemanaTecProgramSeed().then(() => render());
+  }
+  addAudit("periodo", `Periodo maestro cambiado a ${nextPeriod}`);
+  render();
+  toast(`Periodo activo: ${nextLabel}`);
+}
+
+function renderStudentDatabaseReportAction() {
+  const authorized = canUseAuthorizedUploads();
+  return `
+    <div class="report-row student-database-report-row">
+      <div>
+        <strong>Base de datos de alumnos</strong><br>
+        <span>${studentDatabaseLoaded ? `${cloudStudentDatabase.length.toLocaleString("es-MX")} alumnos cargados.` : "Todavía no hay una base cargada para este periodo."}</span>
+      </div>
+      <div class="student-database-report-actions">
+        <input id="studentDatabaseCsv" type="file" accept=".csv,text/csv" hidden />
+        <button class="primary-btn" id="uploadStudentDatabase" type="button" ${authorized && !studentDatabaseImporting ? "" : "disabled"}>${studentDatabaseImporting ? "Cargando..." : "Cargar base de datos"}</button>
+        ${authorized ? "" : "<small>Disponible para Administrador, Dirección Deportiva y Líder Deportivo.</small>"}
+      </div>
+    </div>
   `;
 }
 
@@ -9660,7 +10708,8 @@ function renderExecutiveGeneralDashboard() {
   return `
     <section class="executive-report" id="executiveReport">
       <div class="exec-controls no-print">
-        <label>Periodo<select id="executivePeriod">${["FJ26", "AD26", "IN26"].map((period) => `<option ${executiveReportState.period === period ? "selected" : ""}>${period}</option>`).join("")}</select></label>
+        <label>Periodo maestro<select id="masterPeriodSelect">${renderMasterPeriodOptions()}</select></label>
+        <button class="primary-btn" id="applyMasterPeriod" type="button">Cambiar periodo</button>
         <label>Semana<select id="executiveWeek">${Array.from({ length: 18 }, (_, index) => `<option value="${index + 1}" ${executiveReportState.week === index + 1 ? "selected" : ""}>Semana ${index + 1}</option>`).join("")}</select></label>
         <label>Título<input id="executiveTitle" value="${escapeHtml(executiveReportState.title)}" /></label>
         <button class="ghost-btn" id="refreshExecutiveData" type="button">Actualizar datos</button>
@@ -9760,7 +10809,7 @@ function intramurosHasNamedTournament(row) {
 }
 
 function intramurosParticipantAnalyticsRows() {
-  return intramurosParticipants.filter(intramurosHasNamedTournament);
+  return intramurosParticipants.filter((row) => masterPeriodMatchesCode(row.periodo) && intramurosHasNamedTournament(row));
 }
 
 function filteredIntramurosParticipants() {
@@ -9985,6 +11034,7 @@ function renderIntramurosUploadSummary() {
       <article><span>Procesados</span><strong>${summary.processed.toLocaleString("es-MX")}</strong></article>
       <article><span>Nuevos</span><strong>${summary.inserted.toLocaleString("es-MX")}</strong></article>
       <article><span>Actualizados</span><strong>${summary.updated.toLocaleString("es-MX")}</strong></article>
+      <article><span>Anteriores sustituidos</span><strong>${Number(summary.removed || 0).toLocaleString("es-MX")}</strong></article>
       <article><span>Duplicados ignorados</span><strong>${summary.duplicates.toLocaleString("es-MX")}</strong></article>
       <article><span>Con error</span><strong>${summary.errors.toLocaleString("es-MX")}</strong></article>
       <article><span>Última carga</span><strong>${new Date(summary.importedAt).toLocaleString("es-MX")}</strong><em>${escapeHtml(summary.fileName)}</em></article>
@@ -10020,7 +11070,7 @@ function renderIntramurosParticipantUploadView() {
           <ul class="upload-recommendations">
             <li>No se guardan nombres ni apellidos.</li>
             <li>La columna Torneo identifica siempre la disciplina o competencia.</li>
-            <li>La llave evita duplicados por matrícula + torneo + equipo + periodo.</li>
+            <li>Cada carga sustituye la lista anterior del periodo activo; no se acumulan semanas.</li>
           </ul>
           <button class="ghost-btn" type="button" data-download-intramuros-template="participants">Descargar plantilla de participantes</button>
         </article>
@@ -10031,7 +11081,7 @@ function renderIntramurosParticipantUploadView() {
             <input id="intramurosParticipantsFile" type="file" accept=".csv,.xlsx,.xls" hidden />
             <strong>${intramurosImporting ? "Cargando archivo..." : "Seleccionar Excel / CSV"}</strong>
             <span>Arrastra aquí o selecciona el archivo de Omar</span>
-            <em>Fuente final: Supabase</em>
+            <em>Sustituye la carga anterior de ${escapeHtml(activeMasterPeriod)}</em>
           </label>
           ${renderIntramurosUploadSummary()}
         </article>
@@ -10048,14 +11098,18 @@ function renderIntramurosRolesUploadSummary() {
       <article><span>Procesados</span><strong>${summary.processed.toLocaleString("es-MX")}</strong></article>
       <article><span>Nuevos</span><strong>${summary.inserted.toLocaleString("es-MX")}</strong></article>
       <article><span>Actualizados</span><strong>${summary.updated.toLocaleString("es-MX")}</strong></article>
+      <article><span>${summary.preview ? "Anteriores por sustituir" : "Anteriores sustituidos"}</span><strong>${Number(summary.removed || 0).toLocaleString("es-MX")}</strong></article>
       <article><span>Duplicados ignorados</span><strong>${summary.duplicates.toLocaleString("es-MX")}</strong></article>
       <article><span>Con error</span><strong>${summary.errors.toLocaleString("es-MX")}</strong></article>
-      <article><span>Última carga</span><strong>${new Date(summary.importedAt).toLocaleString("es-MX")}</strong><em>${escapeHtml(summary.fileName)}</em></article>
+      <article><span>${summary.preview ? "Archivo revisado" : "Última carga"}</span><strong>${new Date(summary.importedAt).toLocaleString("es-MX")}</strong><em>${escapeHtml(summary.fileName)}</em></article>
       ${summary.totalSlots ? `<article><span>Franjas detectadas</span><strong>${summary.totalSlots.toLocaleString("es-MX")}</strong><em>${Number(summary.availableSlots || 0).toLocaleString("es-MX")} disponibles</em></article>` : ""}
       ${summary.totalSlots ? `<article><span>Juegos con equipos</span><strong>${Number(summary.games || 0).toLocaleString("es-MX")}</strong><em>${Number(summary.reservations || 0).toLocaleString("es-MX")} reservas / eventos</em></article>` : ""}
       ${summary.totalSlots ? `<article><span>Posibles conflictos</span><strong>${Number(summary.conflicts || 0).toLocaleString("es-MX")}</strong><em>requieren revisión</em></article>` : ""}
+      ${summary.sourceBlocks?.length ? `<article><span>Origen reconocido</span><strong>${summary.sourceBlocks.length.toLocaleString("es-MX")} bloques</strong><em>${summary.sourceSheets.map(escapeHtml).join(", ")}</em></article>` : ""}
+      ${summary.sourceBlocks?.length ? `<p>Deportes / espacios detectados: ${summary.sourceBlocks.map(escapeHtml).join(" · ")}.</p>` : ""}
       ${summary.missingFields?.length ? `<p>Campos no detectados en algunas filas: ${summary.missingFields.map(escapeHtml).join(", ")}.</p>` : ""}
       ${summary.messages?.map((message) => `<p class="red">${escapeHtml(message)}</p>`).join("") || ""}
+      ${summary.preview ? `<p><strong>Al confirmar, este archivo sustituirá todos los Roles de Juego actuales de ${escapeHtml(activeMasterPeriod)}.</strong></p><div class="intramuros-preview-actions"><button class="primary-btn" type="button" data-confirm-intramuros-roles>Sustituir con ${(Number(summary.inserted || 0) + Number(summary.updated || 0)).toLocaleString("es-MX")} registros</button><button class="ghost-btn" type="button" data-cancel-intramuros-roles>Cancelar</button></div>` : ""}
     </div>
   `;
 }
@@ -10144,7 +11198,7 @@ function intramurosTournamentSummaries() {
 }
 
 function renderIntramurosRolesDashboard() {
-  const roles = intramurosGameRoles;
+  const roles = intramurosRolesPendingUpload?.parsed?.rows || intramurosGameRoles;
   const games = roles.filter(intramurosRoleIsGame);
   const reservations = roles.filter((row) => !intramurosRoleIsGame(row) && String(row.equipo_local || row.equipo_visitante || "").trim());
   const withResult = games.filter(intramurosRoleHasResult).length;
@@ -10178,7 +11232,7 @@ function renderIntramurosRolesDashboard() {
             <input id="intramurosRolesFile" type="file" accept=".csv,.xlsx,.xls" hidden />
             <strong>${intramurosRolesImporting ? "Cargando roles..." : "Seleccionar Roles de Juego"}</strong>
             <span>Excel/CSV semanal de Omar</span>
-            <em>No reemplaza roles anteriores</em>
+            <em>Primero revisa; después sustituye la carga anterior</em>
           </label>
           ${renderIntramurosRolesUploadSummary()}
         </article>
@@ -10268,102 +11322,146 @@ function intramurosOperationSummary() {
   return totals;
 }
 
-function renderIntramurosOperationCell(row, field, type = "number") {
+function intramurosOmarReportRows() {
+  const roleSource = intramurosRolesPendingUpload?.parsed?.rows || intramurosGameRoles;
+  const manualByTournament = new Map(intramurosOperationRows.map((row) => [headerKey(row.torneo), row]));
+  const tournamentNames = [...new Set([
+    ...INTRAMUROS_REPORT_BASE_TOURNAMENTS,
+    ...intramurosParticipants.map((row) => canonicalIntramurosTournament(row.torneo)),
+    ...roleSource.map((row) => canonicalIntramurosTournament(row.torneo)),
+    ...intramurosOperationRows.map((row) => canonicalIntramurosTournament(row.torneo))
+  ].filter((name) => name && name !== "Sin torneo"))].sort((a, b) => a.localeCompare(b, "es-MX"));
+
+  return tournamentNames.map((torneo) => {
+    const manual = manualByTournament.get(headerKey(torneo)) || null;
+    const participants = intramurosParticipants.filter((row) => canonicalIntramurosTournament(row.torneo) === torneo);
+    const roles = roleSource.filter((row) => canonicalIntramurosTournament(row.torneo) === torneo && intramurosRoleIsGame(row));
+    const students = new Map();
+    const teams = new Set();
+    const maleTeams = new Set();
+    const femaleTeams = new Set();
+    const mixedTeams = new Set();
+    const addTeam = (team, branch = "") => {
+      const clean = String(team || "").trim();
+      if (!clean || normalizeText(clean) === "sin equipo") return;
+      teams.add(headerKey(clean));
+      const normalizedBranch = normalizeText(branch);
+      if (normalizedBranch.includes("mixt")) mixedTeams.add(headerKey(clean));
+      else if (normalizedBranch.includes("fem")) femaleTeams.add(headerKey(clean));
+      else if (normalizedBranch.includes("var") || normalizedBranch.includes("masc")) maleTeams.add(headerKey(clean));
+    };
+    participants.forEach((row) => {
+      const matricula = normalizeMatricula(row.matricula);
+      if (matricula && !students.has(matricula)) students.set(matricula, row);
+      addTeam(row.equipo, row.rama || row.genero);
+    });
+    roles.forEach((row) => {
+      addTeam(row.equipo_local, row.rama);
+      addTeam(row.equipo_visitante, row.rama);
+    });
+    const uniqueStudents = [...students.values()];
+    const maleStudents = uniqueStudents.filter((row) => normalizeText(row.genero).includes("mascul") || normalizeText(row.genero) === "hombre").length;
+    const femaleStudents = uniqueStudents.filter((row) => normalizeText(row.genero).includes("femen") || normalizeText(row.genero) === "mujer").length;
+    const hasParticipants = participants.length > 0;
+    const hasRoles = roles.length > 0;
+    const gamesDone = roles.filter(intramurosRoleHasResult).length;
+    const totalStudents = hasParticipants ? uniqueStudents.length : Number(manual?.alumnos_varonil || 0) + Number(manual?.alumnos_femenil || 0);
+    const gamesProgrammed = hasRoles ? roles.length : Number(manual?.juegos_programados || 0);
+    const realized = hasRoles ? gamesDone : Number(manual?.juegos_realizados || 0);
+    const bajas = Number(manual?.bajas || 0);
+    const typeCounts = participants.reduce((map, row) => {
+      const type = String(row.tipo_actividad || "").trim();
+      if (type && normalizeText(type) !== "sin tipo") map.set(type, (map.get(type) || 0) + 1);
+      return map;
+    }, new Map());
+    const inferredType = [...typeCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "Intramuros";
+    return {
+      id: manual?.id || "",
+      torneo,
+      tipo: manual?.tipo || inferredType,
+      periodo: activeMasterPeriod,
+      equipos_varoniles: hasParticipants || hasRoles ? maleTeams.size : Number(manual?.equipos_varoniles || 0),
+      equipos_femeniles: hasParticipants || hasRoles ? femaleTeams.size : Number(manual?.equipos_femeniles || 0),
+      equipos_mixtos: hasParticipants || hasRoles ? mixedTeams.size : Number(manual?.equipos_mixtos || 0),
+      total_equipos: hasParticipants || hasRoles ? teams.size : intramurosOperationMetrics(manual || {}).teams,
+      alumnos_varonil: hasParticipants ? maleStudents : Number(manual?.alumnos_varonil || 0),
+      alumnos_femenil: hasParticipants ? femaleStudents : Number(manual?.alumnos_femenil || 0),
+      total_alumnos: totalStudents,
+      juegos_programados: gamesProgrammed,
+      juegos_realizados: realized,
+      effectiveness: gamesProgrammed ? Math.round((realized / gamesProgrammed) * 1000) / 10 : 0,
+      bajas,
+      retention: totalStudents ? Math.max(0, Math.round(((totalStudents - bajas) / totalStudents) * 1000) / 10) : 0,
+      estatus: manual?.estatus || (gamesProgrammed && realized >= gamesProgrammed ? "Terminado" : gamesProgrammed ? "En curso" : "En captura"),
+      oc: manual?.oc || "",
+      compra: manual?.compra || "",
+      orden_compra: manual?.orden_compra || "",
+      requisicion: manual?.requisicion || "",
+      proveedor: manual?.proveedor || "",
+      pagar: Number(manual?.pagar || 0),
+      arbitraje_total: Number(manual?.arbitraje_total || 0),
+      automaticParticipants: hasParticipants,
+      automaticRoles: hasRoles
+    };
+  });
+}
+
+function renderIntramurosOperationCell(row, field, type = "text") {
   const value = row[field] ?? "";
+  const common = `class="intramuros-op-input" data-op-id="${escapeHtml(row.id)}" data-op-tournament="${escapeHtml(row.torneo)}" data-op-field="${field}"`;
   if (field === "estatus") {
-    return `
-      <select class="intramuros-op-input" data-op-id="${row.id}" data-op-field="${field}">
-        ${["En captura", "En curso", "Terminado", "Cancelado"].map((status) => `<option value="${status}" ${row.estatus === status ? "selected" : ""}>${status}</option>`).join("")}
-      </select>
-    `;
+    return `<select ${common}>${["En captura", "En curso", "Terminado", "Cancelado"].map((status) => `<option value="${status}" ${row.estatus === status ? "selected" : ""}>${status}</option>`).join("")}</select>`;
   }
-  return `<input class="intramuros-op-input" data-op-id="${row.id}" data-op-field="${field}" type="${type}" min="0" value="${escapeHtml(value)}" />`;
+  const numeric = type === "number";
+  return `<input ${common} type="${type}" ${numeric ? 'min="0" step="0.01"' : ""} value="${escapeHtml(value)}" />`;
 }
 
 function renderIntramurosOmarWorkspace() {
-  const summary = intramurosOperationSummary();
-  const automaticRows = intramurosTournamentSummaries().slice(0, 6);
+  const rows = intramurosOmarReportRows();
+  const totals = rows.reduce((acc, row) => {
+    acc.teams += row.total_equipos;
+    acc.students += row.total_alumnos;
+    acc.games += row.juegos_programados;
+    acc.done += row.juegos_realizados;
+    acc.bajas += row.bajas;
+    acc.cost += row.pagar + row.arbitraje_total;
+    return acc;
+  }, { teams: 0, students: 0, games: 0, done: 0, bajas: 0, cost: 0 });
+  const effectiveness = totals.games ? Math.round((totals.done / totals.games) * 1000) / 10 : 0;
+  const retention = totals.students ? Math.max(0, Math.round(((totals.students - totals.bajas) / totals.students) * 1000) / 10) : 0;
   return `
-    <section class="intramuros-omar-direct">
+    <section class="intramuros-omar-direct intramuros-omar-report">
       <div class="budget-table-heading">
-        <div>
-          <p class="eyebrow">Mesa de trabajo de Omar</p>
-          <h3>Control directo de torneos Intramuros</h3>
-        </div>
-        <span>${formatCount(intramurosOperationRows.length)} torneos capturados · ${intramurosOperationCloudAvailable ? "Supabase conectado" : "Modo local"}</span>
+        <div><p class="eyebrow">Reporte operativo</p><h3>Indicadores de torneos de Omar</h3></div>
+        <span>${rows.length.toLocaleString("es-MX")} torneos · ${escapeHtml(activeMasterPeriod)}</span>
+      </div>
+      <div class="intramuros-report-key">
+        <span><i class="automatic"></i>Dato automático desde alumnos o jornadas</span>
+        <span><i class="manual"></i>Celda editable por Omar</span>
       </div>
       <div class="intramuros-op-kpis">
-        <article><span>Equipos</span><strong>${formatCount(summary.teams)}</strong><em>${summary.hasParticipantData ? "participantes / roles" : "capturados"}</em></article>
-        <article><span>Alumnos</span><strong>${formatCount(summary.students)}</strong><em>${summary.hasParticipantData ? "matrículas únicas" : "sin nombres"}</em></article>
-        <article><span>Juegos prog.</span><strong>${formatCount(summary.games)}</strong><em>${summary.hasRoleData ? "roles cargados" : "planeados"}</em></article>
-        <article><span>Juegos realizados</span><strong>${formatCount(summary.done)}</strong><em>${summary.hasRoleData ? "con resultado" : "avance"}</em></article>
-        <article><span>% efectividad</span><strong>${summary.effectiveness}%</strong><em>realizados / prog.</em></article>
-        <article><span>% retención</span><strong>${summary.retention}%</strong><em>alumnos - bajas registradas</em></article>
+        <article><span>Torneos</span><strong>${formatCount(rows.length)}</strong><em>catalogados</em></article>
+        <article><span>Equipos</span><strong>${formatCount(totals.teams)}</strong><em>automático</em></article>
+        <article><span>Alumnos</span><strong>${formatCount(totals.students)}</strong><em>matrículas únicas</em></article>
+        <article><span>Juegos</span><strong>${formatCount(totals.games)}</strong><em>${formatCount(totals.done)} realizados</em></article>
+        <article><span>Efectividad</span><strong>${effectiveness}%</strong><em>realizados / programados</em></article>
+        <article><span>Retención</span><strong>${retention}%</strong><em>considera bajas</em></article>
       </div>
-      <div class="intramuros-op-form">
-        <label>Tipo
-          <select id="intramurosOpTipo">
-            <option>Individual</option>
-            <option>Conjunto</option>
-            <option>Estudiantil</option>
-            <option>Relámpago</option>
-            <option>Selectivo</option>
-          </select>
-        </label>
-        <label>Nombre del torneo
-          <input id="intramurosOpTorneo" placeholder="Ej. Futbol soccer" />
-        </label>
-        <label>Periodo
-          <input id="intramurosOpPeriodo" placeholder="Ej. Febrero - Junio 2026" />
-        </label>
-        <label>Estatus
-          <select id="intramurosOpEstatus">
-            <option>En captura</option>
-            <option>En curso</option>
-            <option>Terminado</option>
-            <option>Cancelado</option>
-          </select>
-        </label>
-        <button class="primary-btn" type="button" id="addIntramurosOperationRow">Agregar torneo</button>
-      </div>
-      <div class="table-wrap intramuros-op-table">
+      <div class="table-wrap intramuros-op-table intramuros-report-table">
         <table>
-          <thead>
+          <thead><tr><th>Tipo</th><th>Nombre del torneo</th><th>Eq. V</th><th>Eq. F</th><th>Eq. M</th><th>Total equipos</th><th>Alum. V</th><th>Alum. F</th><th>Total alumnos</th><th>Juegos prog.</th><th>Realizados</th><th>Efectividad</th><th>Bajas</th><th>Retención</th><th>Estatus</th><th># OC</th><th>Compra</th><th>Orden de compra</th><th>Requisición</th><th>Proveedor</th><th>Pagar</th><th>Arbitraje total</th><th>Costo total</th></tr></thead>
+          <tbody>${rows.length ? rows.map((row) => `
             <tr>
-              <th>Tipo</th><th>Nombre del torneo</th><th>Periodo</th><th>Eq. V</th><th>Eq. F</th><th>Eq. M</th><th>Total equipos</th><th>Alum. V</th><th>Alum. F</th><th>Total alumnos</th><th>Juegos prog.</th><th>Juegos realizados</th><th>% efectividad</th><th>Bajas</th><th>% retención</th><th>Estatus</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            ${intramurosOperationRows.length ? intramurosOperationRows.map((row) => {
-              const metrics = intramurosOperationMetrics(row);
-              return `
-                <tr>
-                  <td>${renderIntramurosOperationCell(row, "tipo", "text")}</td>
-                  <td>${renderIntramurosOperationCell(row, "torneo", "text")}</td>
-                  <td>${renderIntramurosOperationCell(row, "periodo", "text")}</td>
-                  <td>${renderIntramurosOperationCell(row, "equipos_varoniles")}</td>
-                  <td>${renderIntramurosOperationCell(row, "equipos_femeniles")}</td>
-                  <td>${renderIntramurosOperationCell(row, "equipos_mixtos")}</td>
-                  <td><strong>${formatCount(metrics.teams)}</strong></td>
-                  <td>${renderIntramurosOperationCell(row, "alumnos_varonil")}</td>
-                  <td>${renderIntramurosOperationCell(row, "alumnos_femenil")}</td>
-                  <td><strong>${formatCount(metrics.students)}</strong></td>
-                  <td>${renderIntramurosOperationCell(row, "juegos_programados")}</td>
-                  <td>${renderIntramurosOperationCell(row, "juegos_realizados")}</td>
-                  <td><strong>${metrics.effectiveness}%</strong></td>
-                  <td>${renderIntramurosOperationCell(row, "bajas")}</td>
-                  <td><strong>${metrics.retention}%</strong></td>
-                  <td>${renderIntramurosOperationCell(row, "estatus")}</td>
-                  <td><button class="danger-btn" type="button" data-delete-intramuros-op="${row.id}">Borrar</button></td>
-                </tr>
-              `;
-            }).join("") : `<tr><td colspan="17">Aún no hay torneos capturados directo en WellSync. Agrega el primer torneo arriba.</td></tr>`}
-          </tbody>
+              <td class="manual-cell">${renderIntramurosOperationCell(row, "tipo")}</td><td class="auto-cell tournament-name">${escapeHtml(row.torneo)}</td>
+              <td class="auto-cell number">${formatCount(row.equipos_varoniles)}</td><td class="auto-cell number">${formatCount(row.equipos_femeniles)}</td><td class="auto-cell number">${formatCount(row.equipos_mixtos)}</td><td class="auto-cell total">${formatCount(row.total_equipos)}</td>
+              <td class="auto-cell number">${formatCount(row.alumnos_varonil)}</td><td class="auto-cell number">${formatCount(row.alumnos_femenil)}</td><td class="auto-cell total">${formatCount(row.total_alumnos)}</td>
+              <td class="auto-cell number">${formatCount(row.juegos_programados)}</td><td class="auto-cell number">${formatCount(row.juegos_realizados)}</td><td class="auto-cell percent">${row.effectiveness}%</td>
+              <td class="manual-cell">${renderIntramurosOperationCell(row, "bajas", "number")}</td><td class="auto-cell percent">${row.retention}%</td><td class="manual-cell status">${renderIntramurosOperationCell(row, "estatus")}</td>
+              <td class="manual-cell">${renderIntramurosOperationCell(row, "oc")}</td><td class="manual-cell">${renderIntramurosOperationCell(row, "compra")}</td><td class="manual-cell">${renderIntramurosOperationCell(row, "orden_compra")}</td><td class="manual-cell">${renderIntramurosOperationCell(row, "requisicion")}</td><td class="manual-cell wide">${renderIntramurosOperationCell(row, "proveedor")}</td>
+              <td class="manual-cell money">${renderIntramurosOperationCell(row, "pagar", "number")}</td><td class="manual-cell money">${renderIntramurosOperationCell(row, "arbitraje_total", "number")}</td><td class="auto-cell money total">${money(row.pagar + row.arbitraje_total)}</td>
+            </tr>`).join("") : `<tr><td colspan="23" class="intramuros-report-empty">Sube el Registro de Participantes o los Roles de Juego para crear automáticamente la tabla de torneos.</td></tr>`}</tbody>
+          ${rows.length ? `<tfoot><tr><th colspan="5">Total ${escapeHtml(activeMasterPeriod)}</th><th>${formatCount(totals.teams)}</th><th colspan="2"></th><th>${formatCount(totals.students)}</th><th>${formatCount(totals.games)}</th><th>${formatCount(totals.done)}</th><th>${effectiveness}%</th><th>${formatCount(totals.bajas)}</th><th>${retention}%</th><th colspan="8"></th><th>${money(totals.cost)}</th></tr></tfoot>` : ""}
         </table>
-      </div>
-      <div class="intramuros-op-note">
-        <strong>Resumen automático conectado:</strong>
-        ${automaticRows.length ? automaticRows.map((row) => `<span>${escapeHtml(row.torneo)}: ${formatCount(row.totalParticipants)} participantes, ${formatCount(row.games)} juegos</span>`).join("") : `<span>Cuando subas participantes y roles, aquí aparecerá el cruce automático por torneo.</span>`}
       </div>
     </section>
   `;
@@ -10454,8 +11552,6 @@ function renderIntramurosDashboard() {
   const tableRows = rows.slice(0, 250);
   return `
     <section class="upload-center intramuros-dashboard">
-      ${renderIntramurosOmarWorkspace()}
-
       ${renderPlanningAreaDashboard(
         areas.find((item) => item.id === "intramuros") || { id: "intramuros", name: "Intramuros" },
         planningCalendarRows,
@@ -10467,7 +11563,8 @@ function renderIntramurosDashboard() {
           compactHeader: true,
           extraActivities: intramurosRoleCalendarActivities(),
           layer: intramurosCalendarLayer,
-          showLayerSelector: true
+          showLayerSelector: true,
+          calendarOnly: true
         }
       )}
 
@@ -10553,52 +11650,8 @@ function presentationTextItems(value) {
   return String(value || "").split(/\n+/).map((item) => item.trim()).filter(Boolean);
 }
 
-function presentationPriorityItems(notes) {
-  const defaults = [
-    "Planeación: Confirmar calendario y responsables del siguiente bloque.",
-    "Boletos de concierto: Definir entrega, control y seguimiento operativo.",
-    "Desalojo de casillero: Comunicar fechas clave y validar espacios liberados.",
-    "Indicadores: Enviar archivos y lecturas de cierre por área.",
-    "Evaluaciones: Compartir retroalimentación constructiva y acuerdos."
-  ];
-  const icons = ["✓", "▦", "▤", "▥", "★"];
-  const tones = ["blue", "teal", "green", "purple", "navy"];
-  const lines = presentationTextItems(notes.priorities).length ? presentationTextItems(notes.priorities) : defaults;
-  return lines.slice(0, 5).map((line, index) => {
-    const [rawTitle, ...rest] = line.split(":");
-    const hasTitle = rest.length > 0;
-    const title = (hasTitle ? rawTitle : line).trim();
-    const text = (hasTitle ? rest.join(":") : "").trim();
-    return {
-      number: index + 1,
-      title: title || `Prioridad ${index + 1}`,
-      text: text || "Pendiente de definir detalle operativo.",
-      icon: icons[index % icons.length],
-      tone: tones[index % tones.length]
-    };
-  });
-}
-
 function renderPresentationPriorities(notes) {
-  const items = presentationPriorityItems(notes);
-  return `
-    <div class="executive-presentation-priority-board">
-      <div class="executive-presentation-priority-intro">
-        <span>Bloque operativo</span>
-        <strong>Enfocados en mejorar nuestra operación y experiencia</strong>
-      </div>
-      <div class="executive-presentation-priority-grid">
-        ${items.map((item) => `
-          <article class="executive-presentation-priority-card ${item.tone}">
-            <span class="executive-presentation-priority-number">${item.number}</span>
-            <span class="executive-presentation-priority-icon" aria-hidden="true">${escapeHtml(item.icon)}</span>
-            <h3>${escapeHtml(item.title)}</h3>
-            <p>${escapeHtml(item.text)}</p>
-          </article>
-        `).join("")}
-      </div>
-    </div>
-  `;
+  return presentationPrioritiesApi.renderPriorityBoard(notes.priorities, escapeHtml);
 }
 
 function presentationInventoryDefaults() {
@@ -10698,6 +11751,45 @@ async function preparePresentationInventoryImage(file) {
   return canvas.toDataURL("image/jpeg", 0.72);
 }
 
+function presentationMapImage(notes = presentationNotesForCurrentWeek()) {
+  return presentationMapImageDraft === null
+    ? String(notes.map_image || "")
+    : presentationMapImageDraft;
+}
+
+function renderPresentationMapEditor(notes) {
+  const image = presentationMapImage(notes);
+  return `
+    <div class="executive-presentation-map-editor">
+      <textarea name="map_image" id="presentationMapImageValue" hidden>${escapeHtml(image)}</textarea>
+      <div class="executive-presentation-map-editor-preview ${image ? "has-image" : "is-empty"}">
+        ${image
+          ? `<img src="${escapeHtml(image)}" alt="Vista previa del mapa o distribución de espacios" />`
+          : `<span><i data-lucide="map"></i><strong>Sin fotografía</strong><em>Sube el mapa o una imagen de la distribución.</em></span>`}
+      </div>
+      <div class="executive-presentation-map-editor-actions">
+        <label class="primary-btn">${image ? "Reemplazar fotografía" : "Seleccionar fotografía"}<input type="file" accept="image/jpeg,image/png,image/webp" data-presentation-map-image /></label>
+        ${image ? `<button class="ghost-btn danger-text" type="button" data-presentation-map-remove>Quitar fotografía</button>` : ""}
+      </div>
+      <label>Mapa y distribución de espacios
+        <textarea name="map_notes" rows="5" placeholder="Cambios, bloqueos o necesidades de espacio">${escapeHtml(notes.map_notes || "")}</textarea>
+      </label>
+    </div>
+  `;
+}
+
+function renderPresentationMap(notes) {
+  const image = presentationMapImage(notes);
+  const items = presentationTextItems(notes.map_notes);
+  if (!image && !items.length) return presentationEmptyState("Sin información de distribución capturada");
+  return `
+    <div class="executive-presentation-map-board ${image ? "has-image" : "text-only"}">
+      ${image ? `<figure><img src="${escapeHtml(image)}" alt="Mapa o distribución de espacios" /></figure>` : ""}
+      ${items.length ? `<ul class="executive-presentation-checklist">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+    </div>
+  `;
+}
+
 function presentationEmptyState(label = "Sin información disponible") {
   return `<div class="executive-presentation-empty"><i data-lucide="database-zap"></i><strong>${escapeHtml(label)}</strong><span>La diapositiva se actualizará cuando exista una fuente conectada.</span></div>`;
 }
@@ -10752,22 +11844,109 @@ function schoolCalendarProgressSegments(referenceDate = new Date()) {
   return segments;
 }
 
-function renderPresentationSchoolCalendar() {
-  const segments = schoolCalendarProgressSegments();
-  const ephemerides = [
-    { day: "01", title: "Día del Ingeniero", scope: "México", tone: "blue" },
-    { day: "11", title: "Día Mundial de la Población", scope: "ONU", tone: "teal" },
-    { day: "12", title: "Día del Abogado", scope: "México", tone: "gold" },
-    { day: "15", title: "Habilidades de la Juventud", scope: "ONU", tone: "purple" },
-    { day: "18", title: "Aniversario luctuoso de Benito Juárez", scope: "México", tone: "green" },
-    { day: "18", title: "Día Internacional de Nelson Mandela", scope: "ONU", tone: "navy" },
-    { day: "20", title: "Día Mundial del Ajedrez", scope: "ONU", tone: "blue" },
-    { day: "25", title: "Mujeres y Niñas Afrodescendientes", scope: "ONU", tone: "pink" },
-    { day: "26", title: "Conservación de los Manglares", scope: "UNESCO", tone: "teal" },
-    { day: "28", title: "Día Mundial contra la Hepatitis", scope: "OMS", tone: "gold" },
-    { day: "30", title: "Día Internacional de la Amistad", scope: "ONU", tone: "purple" },
-    { day: "30", title: "Día Mundial contra la Trata", scope: "ONU", tone: "green" }
-  ];
+const PRESENTATION_EPHEMERIDES_BY_MONTH = [
+  [
+    [1, "Año Nuevo", "México / Mundial"], [6, "Día de Reyes", "México"],
+    [21, "Día Internacional del Mariachi", "México"], [24, "Día Internacional de la Educación", "ONU"],
+    [27, "Conmemoración de las Víctimas del Holocausto", "ONU"], [28, "Día de la Protección de Datos", "Mundial"]
+  ],
+  [
+    [2, "Día de la Candelaria", "México"], [4, "Día Mundial contra el Cáncer", "OMS"],
+    [5, "Aniversario de la Constitución", "México"], [11, "Mujer y Niña en la Ciencia", "ONU"],
+    [14, "Día del Amor y la Amistad", "México / Mundial"], [20, "Día Mundial de la Justicia Social", "ONU"],
+    [24, "Día de la Bandera", "México"]
+  ],
+  [
+    [8, "Día Internacional de la Mujer", "ONU"], [18, "Aniversario de la Expropiación Petrolera", "México"],
+    [20, "Día Internacional de la Felicidad", "ONU"], [21, "Natalicio de Benito Juárez", "México"],
+    [21, "Día Mundial del Síndrome de Down", "ONU"], [22, "Día Mundial del Agua", "ONU"]
+  ],
+  [
+    [2, "Día Mundial de Concienciación sobre el Autismo", "ONU"], [6, "Día del Deporte para el Desarrollo y la Paz", "ONU"],
+    [7, "Día Mundial de la Salud", "OMS"], [22, "Día Internacional de la Madre Tierra", "ONU"],
+    [23, "Día Mundial del Libro", "UNESCO"], [30, "Día de la Niña y el Niño", "México"]
+  ],
+  [
+    [1, "Día Internacional del Trabajo", "México / Mundial"], [3, "Día Mundial de la Libertad de Prensa", "UNESCO"],
+    [5, "Aniversario de la Batalla de Puebla", "México"], [8, "Día Mundial de la Cruz Roja", "Global"],
+    [10, "Día de las Madres", "México"], [15, "Día del Maestro", "México"],
+    [17, "Día Mundial de Internet", "Mundial"], [31, "Día Mundial sin Tabaco", "OMS"]
+  ],
+  [
+    [3, "Día Mundial de la Bicicleta", "ONU"], [5, "Día Mundial del Medio Ambiente", "ONU"],
+    [8, "Día Mundial de los Océanos", "ONU"], [14, "Día Mundial del Donante de Sangre", "OMS"],
+    [20, "Día Mundial de los Refugiados", "ONU"], [21, "Día Internacional del Yoga", "ONU"]
+  ],
+  [
+    [1, "Día del Ingeniero", "México"], [11, "Día Mundial de la Población", "ONU"],
+    [12, "Día del Abogado", "México"], [20, "Día Mundial del Ajedrez", "ONU"],
+    [24, "Día Internacional del Tequila", "México / Mundial"], [30, "Día Internacional de la Amistad", "ONU"]
+  ],
+  [
+    [1, "Inicio de la Semana Mundial de la Lactancia Materna", "OMS / UNICEF"],
+    [8, "Día Internacional del Gato", "Mundial"], [9, "Día de los Pueblos Indígenas", "ONU"],
+    [12, "Día Internacional de la Juventud", "ONU"], [19, "Día Mundial de la Fotografía", "Mundial"],
+    [22, "Día del Bombero", "México"], [28, "Día de los Abuelos", "México"],
+    [30, "Víctimas de Desapariciones Forzadas", "ONU"]
+  ],
+  [
+    [8, "Día Internacional de la Alfabetización", "UNESCO"], [13, "Día de los Niños Héroes", "México"],
+    [15, "Conmemoración del Grito de Independencia", "México"], [16, "Día de la Independencia", "México"],
+    [21, "Día Internacional de la Paz", "ONU"], [27, "Día Mundial del Turismo", "ONU"],
+    [30, "Natalicio de José María Morelos", "México"]
+  ],
+  [
+    [1, "Día Internacional de las Personas Mayores", "ONU"], [2, "Día Internacional de la No Violencia", "ONU"],
+    [10, "Día Mundial de la Salud Mental", "OMS"], [12, "Día de la Raza", "México"],
+    [16, "Día Mundial de la Alimentación", "FAO"], [19, "Día de la Lucha contra el Cáncer de Mama", "Mundial"],
+    [24, "Día de las Naciones Unidas", "ONU"], [31, "Halloween", "Mundial"]
+  ],
+  [
+    [1, "Día de Todos los Santos", "México"], [2, "Día de Muertos", "México"],
+    [14, "Día Mundial de la Diabetes", "OMS"], [20, "Aniversario de la Revolución Mexicana", "México"],
+    [20, "Día Mundial de la Infancia", "ONU"], [25, "Eliminación de la Violencia contra la Mujer", "ONU"],
+    [30, "Día Internacional de la Seguridad Informática", "Mundial"]
+  ],
+  [
+    [1, "Día Mundial de la Lucha contra el Sida", "ONU"], [3, "Día de las Personas con Discapacidad", "ONU"],
+    [10, "Día de los Derechos Humanos", "ONU"], [12, "Día de la Virgen de Guadalupe", "México"],
+    [18, "Día Internacional del Migrante", "ONU"], [24, "Nochebuena", "México / Mundial"],
+    [25, "Navidad", "México / Mundial"], [31, "Fin de Año", "México / Mundial"]
+  ]
+];
+
+const PRESENTATION_EPHEMERIDES_TONES = ["blue", "teal", "gold", "purple", "green", "navy", "pink"];
+let presentationEphemeridesDateStamp = new Date().toDateString();
+
+function presentationEphemeridesForMonth(referenceDate = new Date()) {
+  const rows = [...(PRESENTATION_EPHEMERIDES_BY_MONTH[referenceDate.getMonth()] || [])];
+  if (referenceDate.getMonth() === 5) {
+    const firstDay = new Date(referenceDate.getFullYear(), 5, 1).getDay();
+    const thirdSunday = 1 + ((7 - firstDay) % 7) + 14;
+    rows.push([thirdSunday, "Día del Padre", "México"]);
+    rows.sort((left, right) => left[0] - right[0]);
+  }
+  return rows.map(([day, title, scope], index) => ({
+    day,
+    title,
+    scope,
+    tone: PRESENTATION_EPHEMERIDES_TONES[index % PRESENTATION_EPHEMERIDES_TONES.length]
+  }));
+}
+
+function refreshPresentationEphemeridesOnDateChange() {
+  const nextDateStamp = new Date().toDateString();
+  if (nextDateStamp === presentationEphemeridesDateStamp) return;
+  presentationEphemeridesDateStamp = nextDateStamp;
+  if (activeArea === "presentacion") render();
+}
+
+function renderPresentationSchoolCalendar(referenceDate = new Date()) {
+  const today = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+  const segments = schoolCalendarProgressSegments(today);
+  const ephemerides = presentationEphemeridesForMonth(today);
+  const monthLabel = today.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+  const normalizedMonthLabel = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
   return `<div class="executive-presentation-school-calendar">
     <div class="executive-presentation-school-calendar-sheet">
       <img src="./assets/calendario-escolar-2026-2027.png" alt="Calendario escolar 2026-2027" />
@@ -10775,28 +11954,33 @@ function renderPresentationSchoolCalendar() {
         ${segments.map((segment) => `<span style="left:${segment.left.toFixed(3)}%;top:${segment.top.toFixed(3)}%;width:${segment.width.toFixed(3)}%"></span>`).join("")}
       </div>
     </div>
-    <aside class="executive-presentation-ephemerides" aria-label="Efemérides de julio">
-      <header><span>Efemérides del mes</span><strong>Julio 2026</strong></header>
+    <aside class="executive-presentation-ephemerides" aria-label="Efemérides de ${escapeHtml(normalizedMonthLabel)}">
+      <header><span>Efemérides del mes</span><strong>${escapeHtml(normalizedMonthLabel)}</strong></header>
       <div class="executive-presentation-ephemerides-list">
-        ${ephemerides.map((item) => `<article><time class="${item.tone}">${item.day}</time><div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.scope)}</span></div></article>`).join("")}
+        ${ephemerides.map((item) => {
+          const state = item.day < today.getDate() ? "past" : item.day === today.getDate() ? "today" : "future";
+          const dateValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(item.day).padStart(2, "0")}`;
+          return `<article class="${state}" title="${state === "past" ? "Fecha transcurrida" : state === "today" ? "Efeméride de hoy" : "Próxima efeméride"}"><time class="${item.tone}" datetime="${dateValue}">${String(item.day).padStart(2, "0")}</time><div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.scope)}</span></div></article>`;
+        }).join("")}
       </div>
     </aside>
   </div>`;
 }
 
 function executivePresentationBudgetData() {
-  const areasForPeriod = budgetAreaPlans.filter((row) => !row.period || row.period === budgetFilters.period);
-  const summaries = areasForPeriod.map((row) => budgetAreaSummary(row.area));
+  const period = "AD26";
+  const summaries = BUDGET_VISIBLE_AREAS.map((area) => budgetAreaSummary(area.key, period));
   const assigned = summaries.reduce((sum, row) => sum + Number(row.assigned || 0), 0);
   const spent = summaries.reduce((sum, row) => sum + Number(row.spent || 0), 0);
   const committed = summaries.reduce((sum, row) => sum + Number(row.committed || 0), 0);
-  return { summaries, assigned, spent, committed, available: Math.max(0, assigned - spent - committed) };
+  return { period, summaries, assigned, spent, committed, available: Math.max(0, assigned - spent - committed) };
 }
 
 function executivePresentationLatestPurchases(summaries = executivePresentationBudgetData().summaries) {
+  const period = "AD26";
   return summaries.slice(0, 6).map((summary) => {
     const rows = budgetRequestRows
-      .filter((row) => row.period === budgetFilters.period && row.area === summary.area && row.status !== "rechazado")
+      .filter((row) => row.period === period && row.area === summary.area && row.status !== "rechazado")
       .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
     return { area: summary.area, owner: summary.owner || "Sin responsable", count: rows.length, purchase: rows[0] || null };
   });
@@ -10825,14 +12009,107 @@ function renderExecutivePresentationBudget(budget, notes) {
       }).join("")}</section>
       <aside><h3>Registros por responsable</h3>${latest.map((row, index) => `<div class="executive-presentation-budget-owner ${budgetPresentationTone(index)}"><span>${escapeHtml(row.owner)}</span><b><i style="width:${Math.min(100, row.count * 12)}%"></i></b><strong>${row.count}</strong></div>`).join("")}</aside>
     </div>
-    <div class="executive-presentation-budget-latest">${latest.map((row, index) => `<article class="${budgetPresentationTone(index)}"><strong>${escapeHtml(budgetAreaLabel(row.area))}</strong>${row.purchase ? `<span>${escapeHtml(row.purchase.concept || "Sin concepto")}</span><em>${escapeHtml(row.purchase.date || "Sin fecha")} · ${money(row.purchase.amount || 0)}</em>` : `<span>Sin compras registradas</span><em>${escapeHtml(budgetFilters.period)}</em>`}</article>`).join("")}</div>
+    <div class="executive-presentation-budget-latest">${latest.map((row, index) => `<article class="${budgetPresentationTone(index)}"><strong>${escapeHtml(budgetAreaLabel(row.area))}</strong>${row.purchase ? `<span>${escapeHtml(row.purchase.concept || "Sin concepto")}</span><em>${escapeHtml(row.purchase.date || "Sin fecha")} · ${money(row.purchase.amount || 0)}</em>` : `<span>Sin compras registradas</span><em>${escapeHtml(budget.period)}</em>`}</article>`).join("")}</div>
     ${presentationManualNote(notes, "comment_budget")}
   </div>`;
 }
 
+function executivePresentationActivityWindow(referenceDate = new Date()) {
+  const start = new Date(referenceDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const fullDate = (date) => date.toLocaleDateString("es-MX", { day: "numeric", month: "long" });
+  const label = start.getMonth() === end.getMonth()
+    ? `${start.getDate()} al ${end.getDate()} de ${end.toLocaleDateString("es-MX", { month: "long" })}`
+    : `${fullDate(start)} al ${fullDate(end)}`;
+  return { startKey: dateKey(start), endKey: dateKey(end), label };
+}
+
 function executivePresentationActivities() {
-  return planningCalendarRows.map((row, index) => normalizePlanningCalendarRow(row, index)).filter((row) => row.activity && row.date)
-    .sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 7);
+  const { startKey, endKey } = executivePresentationActivityWindow();
+  return planningCalendarRows
+    .map((row, index) => normalizePlanningCalendarRow(row, index))
+    .filter((row) => row.activity && row.date && row.date >= startKey && row.date <= endKey)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.activity).localeCompare(String(b.activity), "es-MX"))
+    .slice(0, 7);
+}
+
+function presentationActivityKey(activity) {
+  return String(activity?.planningActivityId || activity?.id || `${activity?.date || ""}|${normalizeText(activity?.activity || "")}`);
+}
+
+function normalizePresentationActivityStatus(value) {
+  const status = normalizeText(value);
+  if (status.includes("complet")) return "completado";
+  if (status.includes("retras") || status.includes("retraz")) return "retrasado";
+  if (status.includes("cancel")) return "cancelado";
+  return "sin-estado";
+}
+
+function presentationActivityStatusLabel(value) {
+  return {
+    "sin-estado": "Sin estado",
+    completado: "Completado",
+    retrasado: "Retrasado",
+    cancelado: "Cancelado"
+  }[normalizePresentationActivityStatus(value)] || "Sin estado";
+}
+
+function presentationActivityStatusRecords(value) {
+  try {
+    const parsed = JSON.parse(String(value || "{}"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function presentationActivitiesForNotes(notes) {
+  const records = presentationActivityStatusRecords(notes.activity_statuses);
+  return executivePresentationActivities().map((activity) => ({
+    ...activity,
+    presentationStatus: normalizePresentationActivityStatus(records[presentationActivityKey(activity)] ?? activity.status)
+  }));
+}
+
+function renderPresentationActivityStatusEditor(notes) {
+  const records = presentationActivityStatusRecords(notes.activity_statuses);
+  const activities = executivePresentationActivities();
+  const values = Object.fromEntries(activities.map((activity) => {
+    const key = presentationActivityKey(activity);
+    return [key, normalizePresentationActivityStatus(records[key] ?? activity.status)];
+  }));
+  const options = [
+    ["sin-estado", "Sin estado"],
+    ["completado", "Completado"],
+    ["retrasado", "Retrasado"],
+    ["cancelado", "Cancelado"]
+  ];
+  return `<div class="executive-presentation-activity-editor">
+    <textarea name="activity_statuses" id="presentationActivityStatusesValue" hidden>${escapeHtml(JSON.stringify(values))}</textarea>
+    ${activities.length ? activities.map((activity) => {
+      const key = presentationActivityKey(activity);
+      const selected = values[key];
+      return `<label>
+        <time>${escapeHtml(activity.date || "Sin fecha")}</time>
+        <span><strong>${escapeHtml(activity.activity)}</strong><em>${escapeHtml(labelArea(activity.area))}</em></span>
+        <select data-presentation-activity-status="${escapeHtml(key)}">
+          ${options.map(([value, label]) => `<option value="${value}" ${selected === value ? "selected" : ""}>${label}</option>`).join("")}
+        </select>
+      </label>`;
+    }).join("") : `<div class="executive-presentation-editor-automatic"><strong>Sin actividades disponibles</strong><p>El calendario todavía no tiene eventos con fecha.</p></div>`}
+    <label class="full">Comentario del calendario<textarea name="comment_block-activities" rows="3" placeholder="Prioridades o cambios relevantes">${escapeHtml(notes["comment_block-activities"] || "")}</textarea></label>
+  </div>`;
+}
+
+function syncPresentationActivityStatusesValue() {
+  const target = $("#presentationActivityStatusesValue");
+  if (!target) return;
+  target.value = JSON.stringify(Object.fromEntries(
+    $$('[data-presentation-activity-status]').map((select) => [select.dataset.presentationActivityStatus, select.value])
+  ));
 }
 
 function executivePresentationScheduleSummary() {
@@ -10860,6 +12137,45 @@ function presentationCollaboratorProfile(row) {
     photoUrl: row.__photoUrl || row.photo_url || "",
     initials: collaboratorInitials(name)
   };
+}
+
+function presentationHighlightedTeam() {
+  const profiles = new Map();
+  collaboratorRows().forEach((row) => {
+    const weeks = collaboratorWeekValues(row, ["Destacados", "Destacado"]);
+    if (!weeks.length) return;
+    const profile = presentationCollaboratorProfile(row);
+    const key = collaboratorMatchKey(profile.nomina || profile.name);
+    if (!key) return;
+    const current = profiles.get(key) || {
+      ...profile,
+      coordinator: String(row.Coordinador || row.coordinador || "Sin coordinador").trim(),
+      weeks: []
+    };
+    current.weeks = [...new Set([...current.weeks, ...weeks])]
+      .sort((a, b) => (Number(a.replace(/\D/g, "")) || 999) - (Number(b.replace(/\D/g, "")) || 999));
+    profiles.set(key, current);
+  });
+  return [...profiles.values()].sort((a, b) => {
+    const firstWeek = (profile) => Number(profile.weeks[0]?.replace(/\D/g, "")) || 999;
+    return b.weeks.length - a.weeks.length
+      || firstWeek(a) - firstWeek(b)
+      || a.name.localeCompare(b.name, "es");
+  });
+}
+
+function renderPresentationHighlightedTeam(profiles) {
+  if (!profiles.length) return presentationEmptyState("Aún no hay profesores marcados como destacados");
+  const density = profiles.length > 15 ? " very-dense" : profiles.length > 10 ? " dense" : "";
+  return `<div class="executive-presentation-team highlighted${density}">${profiles.map((profile, index) => `
+    <article class="rank-${Math.min(index + 1, 4)}">
+      <b class="executive-presentation-team-rank">#${index + 1}</b>
+      ${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="Foto de ${escapeHtml(profile.name)}" />` : `<span>${escapeHtml(profile.initials)}</span>`}
+      <strong>${escapeHtml(profile.name)}</strong>
+      <em>${escapeHtml(profile.coordinator || "Sin coordinador")}</em>
+      <small><b>${profile.weeks.length} ${profile.weeks.length === 1 ? "semana" : "semanas"}</b><span>${profile.weeks.map(escapeHtml).join(" · ")}</span></small>
+    </article>
+  `).join("")}</div>`;
 }
 
 function presentationSelectedCollaborators(notes, key) {
@@ -10996,8 +12312,8 @@ function renderExecutivePresentationSlide(slide, index) {
   const notes = presentationNotesForCurrentWeek();
   const operational = executiveOperationalRows();
   const classes = executiveClassSummary();
-  const activities = executivePresentationActivities();
-  const schedule = executivePresentationScheduleSummary();
+  const activities = presentationActivitiesForNotes(notes);
+  const activityWindow = executivePresentationActivityWindow();
   const budget = executivePresentationBudgetData();
   const collaborators = collaboratorRows();
   const physicalCount = physicalEvaluationsLoaded ? physicalEvaluations.length : physicalRows().length;
@@ -11017,7 +12333,7 @@ function renderExecutivePresentationSlide(slide, index) {
   } else if (slide.key === "budget") {
     body = renderExecutivePresentationBudget(budget, notes);
   } else if (slide.key === "block-activities") {
-    body = `${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => `<div><time>${escapeHtml(row.date)}</time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em>${escapeHtml(row.status || "Sin estado")}</em></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_block-activities")}`;
+    body = `<div class="executive-presentation-activity-block"><div class="executive-presentation-activity-window"><span>Próximos 7 días</span><strong>${escapeHtml(activityWindow.label)}</strong></div>${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => `<div><time>${escapeHtml(row.date)}</time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em class="activity-status ${escapeHtml(row.presentationStatus)}">${escapeHtml(presentationActivityStatusLabel(row.presentationStatus))}</em></div>`).join("")}</div>` : presentationEmptyState(`Sin actividades programadas del ${activityWindow.label}`)}${presentationManualNote(notes, "comment_block-activities")}</div>`;
   } else if (slide.key === "inventory") {
     body = renderPresentationInventory(notes);
   } else if (slide.key === "feedback") {
@@ -11025,13 +12341,24 @@ function renderExecutivePresentationSlide(slide, index) {
   } else if (slide.key === "weekly-topics") {
     body = `<div class="executive-presentation-split"><section><h3>Temas por área</h3>${manualList("area_topics")}<h3>Temas semanales</h3>${manualList("topics")}</section><section><h3>Acuerdos</h3>${manualList("agreements")}<h3>Pendientes</h3>${manualList("pending")}</section></div>${presentationManualNote(notes, "observations", "Observaciones")}`;
   } else if (slide.key === "team") {
-    body = `${collaborators.length ? `<div class="executive-presentation-team">${collaborators.slice(0, 10).map((row) => { const name = row.Colaboradores || row.collaborator_name || row.nombre || "Colaborador"; const image = row.photo_url || row.foto_url || row.image_url || ""; return `<article>${image ? `<img src="${escapeHtml(image)}" alt="" />` : `<span>${escapeHtml(String(name).split(/\s+/).slice(0, 2).map((part) => part[0] || "").join(""))}</span>`}<strong>${escapeHtml(name)}</strong><em>${escapeHtml(row.Puesto || row.role || "Sin dato")}</em></article>`; }).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_team")}`;
+    body = `${renderPresentationHighlightedTeam(presentationHighlightedTeam())}${presentationManualNote(notes, "comment_team")}`;
   } else if (slide.key === "detailed-schedules") {
-    body = `${schedule.rows.length ? `<div class="executive-presentation-table schedule"><div class="head"><span>Día</span><span>Horario</span><span>Clase</span><span>Profesor</span></div>${schedule.rows.slice(0, 9).map((row) => `<div><span>${escapeHtml(row.day)}</span><strong>${escapeHtml(`${row.start || ""} - ${row.end || ""}`)}</strong><span>${escapeHtml(row.discipline || "Sin dato")}</span><em>${escapeHtml(row.professor || "Sin dato")}</em></div>`).join("")}</div>` : presentationEmptyState()}${presentationManualNote(notes, "comment_detailed-schedules")}`;
+    const specialTitle = String(notes.special_topic_title || "").trim();
+    const specialPoints = presentationTextItems(notes.special_topic_points).slice(0, 8);
+    body = specialTitle || specialPoints.length
+      ? `<div class="executive-presentation-special-topic"><header><span>Tema de la semana</span><h3>${escapeHtml(specialTitle || "Tema especial")}</h3><p>Ideas clave, decisiones y contexto para conversar en la junta.</p></header><div>${specialPoints.map((point, pointIndex) => `<article><b>${pointIndex + 1}</b><span>${escapeHtml(point)}</span></article>`).join("") || `<article class="empty"><span>Agrega los puntos principales desde Editar contenido.</span></article>`}</div></div>`
+      : presentationEmptyState("Tema especial pendiente de capturar");
   } else if (slide.key === "map") {
-    body = presentationTextItems(notes.map_notes).length ? manualList("map_notes") : presentationEmptyState("Sin información de distribución capturada");
+    body = renderPresentationMap(notes);
   }
   return `<article class="executive-presentation-slide" data-slide-key="${slide.key}" aria-label="Diapositiva ${index + 1}: ${escapeHtml(slide.title)}"><header><div class="executive-presentation-number">${index + 1}</div><div><h2>${escapeHtml(slide.title)}</h2><p>${index === 0 ? "Junta semanal" : presentationWeekKey()}</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></header><div class="executive-presentation-slide-body">${body}</div><footer>WellSync · Dirección Deportiva</footer></article>`;
+}
+
+function renderPresentationCloudState() {
+  if (currentUser?.auth === "supabase") {
+    return `<div class="executive-presentation-cloud-state connected"><i data-lucide="cloud-check"></i><div><strong>Compartido entre computadoras</strong><span>La diapositiva se guardará en Supabase.</span></div></div>`;
+  }
+  return `<div class="executive-presentation-cloud-state local"><i data-lucide="cloud-off"></i><div><strong>Esta computadora está en modo local</strong><span>Inicia sesión con Supabase para que la foto aparezca en los demás equipos.</span></div><button class="ghost-btn" type="button" data-presentation-cloud-login>Iniciar sesión para compartir</button></div>`;
 }
 
 function renderExecutivePresentationEditor() {
@@ -11039,14 +12366,20 @@ function renderExecutivePresentationEditor() {
   const notes = presentationNotesForCurrentWeek();
   const selectedSlide = EXECUTIVE_PRESENTATION_SLIDES.find((slide) => slide.key === executivePresentationEditingSlide) || EXECUTIVE_PRESENTATION_SLIDES[2];
   const fields = EXECUTIVE_PRESENTATION_EDIT_FIELDS[selectedSlide.key] || [];
-  const editorFields = selectedSlide.key === "feedback"
+  const editorFields = selectedSlide.key === "priorities"
+    ? presentationPrioritiesApi.renderPriorityEditor(notes.priorities, escapeHtml)
+    : selectedSlide.key === "feedback"
     ? renderPresentationFeedbackEditor(notes)
     : selectedSlide.key === "performance"
     ? `${renderPresentationCollaboratorPicker("highlight_nominas", "Destacados", notes)}${renderPresentationCollaboratorPicker("improving_nominas", "En mejora", notes)}`
+    : selectedSlide.key === "block-activities"
+      ? renderPresentationActivityStatusEditor(notes)
     : selectedSlide.key === "inventory"
       ? renderPresentationInventoryEditor(notes)
+      : selectedSlide.key === "map"
+        ? renderPresentationMapEditor(notes)
       : fields.map(([key, label, placeholder]) => `<label>${escapeHtml(label)}<textarea name="${escapeHtml(key)}" rows="5" placeholder="${escapeHtml(placeholder)}">${escapeHtml(notes[key] || "")}</textarea></label>`).join("");
-  return `<div class="executive-presentation-editor-backdrop" data-presentation-editor-close><aside class="executive-presentation-editor" role="dialog" aria-modal="true" aria-labelledby="presentationEditorTitle"><header><div><p class="eyebrow">${escapeHtml(presentationWeekKey())}</p><h2 id="presentationEditorTitle">Editor de la junta semanal</h2><span>Los datos automáticos permanecen conectados; aquí agregas contexto y decisiones.</span></div><button type="button" data-presentation-editor-close aria-label="Cerrar">&times;</button></header><div class="executive-presentation-editor-layout"><nav class="executive-presentation-editor-nav" aria-label="Diapositivas editables">${EXECUTIVE_PRESENTATION_SLIDES.map((slide, index) => `<button type="button" class="${slide.key === selectedSlide.key ? "active" : ""}" data-presentation-editor-slide="${escapeHtml(slide.key)}"><span>${index + 1}</span><div><strong>${escapeHtml(slide.title)}</strong><em>${(EXECUTIVE_PRESENTATION_EDIT_FIELDS[slide.key] || []).length ? "Editable" : "Automática"}</em></div></button>`).join("")}</nav><form id="executivePresentationForm"><div class="executive-presentation-editor-heading"><span>Diapositiva ${EXECUTIVE_PRESENTATION_SLIDES.indexOf(selectedSlide) + 1}</span><h3>${escapeHtml(selectedSlide.title)}</h3></div>${fields.length ? editorFields : `<div class="executive-presentation-editor-automatic"><i data-lucide="refresh-cw"></i><strong>Diapositiva automática</strong><p>Se alimenta directamente con la información disponible en WellSync.</p></div>`}<div class="executive-presentation-editor-actions"><button class="ghost-btn" type="button" data-presentation-editor-close>Cancelar</button>${fields.length ? `<button class="primary-btn" type="submit" ${executivePresentationSaving ? "disabled" : ""}>${executivePresentationSaving ? "Guardando..." : "Guardar diapositiva"}</button>` : ""}</div><p>${executivePresentationCloudAvailable ? "Guardado semanal en Supabase activo cuando las tablas están disponibles." : "Guardado local disponible; activa las tablas para compartir entre computadoras."}</p></form></div></aside></div>`;
+  return `<div class="executive-presentation-editor-backdrop" data-presentation-editor-close><aside class="executive-presentation-editor" role="dialog" aria-modal="true" aria-labelledby="presentationEditorTitle"><header><div><p class="eyebrow">${escapeHtml(presentationWeekKey())}</p><h2 id="presentationEditorTitle">Editor de la junta semanal</h2><span>Los datos automáticos permanecen conectados; aquí agregas contexto y decisiones.</span></div><button type="button" data-presentation-editor-close aria-label="Cerrar">&times;</button></header><div class="executive-presentation-editor-layout"><nav class="executive-presentation-editor-nav" aria-label="Diapositivas editables">${EXECUTIVE_PRESENTATION_SLIDES.map((slide, index) => `<button type="button" class="${slide.key === selectedSlide.key ? "active" : ""}" data-presentation-editor-slide="${escapeHtml(slide.key)}"><span>${index + 1}</span><div><strong>${escapeHtml(slide.title)}</strong><em>${(EXECUTIVE_PRESENTATION_EDIT_FIELDS[slide.key] || []).length ? "Editable" : "Automática"}</em></div></button>`).join("")}</nav><form id="executivePresentationForm"><div class="executive-presentation-editor-heading"><span>Diapositiva ${EXECUTIVE_PRESENTATION_SLIDES.indexOf(selectedSlide) + 1}</span><h3>${escapeHtml(selectedSlide.title)}</h3></div>${fields.length ? editorFields : `<div class="executive-presentation-editor-automatic"><i data-lucide="refresh-cw"></i><strong>Diapositiva automática</strong><p>Se alimenta directamente con la información disponible en WellSync.</p></div>`}<div class="executive-presentation-editor-actions"><button class="ghost-btn" type="button" data-presentation-editor-close>Cancelar</button>${fields.length ? `<button class="primary-btn" type="submit" ${executivePresentationSaving ? "disabled" : ""}>${executivePresentationSaving ? "Guardando..." : "Guardar diapositiva"}</button>` : ""}</div>${renderPresentationCloudState()}</form></div></aside></div>`;
 }
 
 function renderExecutivePresentationStage() {
@@ -11198,15 +12531,23 @@ async function saveExecutivePresentationNotes(form) {
   const weekKey = presentationWeekKey();
   const formData = new FormData(form);
   const values = {};
-  [...new Set([...formData.keys()])].forEach((key) => {
+  const hasPriorityFields = [...formData.keys()].some((key) => /^priority_(title|detail)_\d$/.test(key));
+  [...new Set([...formData.keys()])].filter((key) => !/^priority_(title|detail)_\d$/.test(key)).forEach((key) => {
     const entries = formData.getAll(key).map((value) => String(value || "").trim()).filter(Boolean);
     values[key] = entries.length > 1 || key.endsWith("_nominas") ? entries.slice(0, MAX_PRESENTATION_SELECTION).join(",") : (entries[0] || "");
   });
+  if (hasPriorityFields) {
+    const priorityItems = presentationPrioritiesApi.priorityItemsFromFormEntries(formData.entries());
+    values.priorities = presentationPrioritiesApi.serializePriorityItems(priorityItems);
+  }
   const isFeedbackTracking = Object.prototype.hasOwnProperty.call(values, "feedback_records");
   if (isFeedbackTracking) executivePresentationNotes.__feedback_tracking = { ...(executivePresentationNotes.__feedback_tracking || {}), ...values };
   else executivePresentationNotes[weekKey] = { ...(executivePresentationNotes[weekKey] || {}), ...values };
   saveExecutivePresentationLocalNotes();
-  if (!supabaseClient || currentUser?.auth !== "supabase") return false;
+  if (!isFeedbackTracking) localStorage.setItem(EXECUTIVE_PRESENTATION_PENDING_SYNC_KEY, weekKey);
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    return false;
+  }
   const storageKey = isFeedbackTracking ? "feedback-tracking" : weekKey;
   const storageType = isFeedbackTracking ? "tracking" : "weekly";
   const storageTitle = isFeedbackTracking ? "Seguimiento de retroalimentación personal" : `Junta semanal ${weekKey}`;
@@ -11218,7 +12559,19 @@ async function saveExecutivePresentationNotes(form) {
   const rows = Object.entries(values).map(([section_key, content]) => ({ presentacion_id: head.data.id, section_key, content, updated_at: new Date().toISOString() }));
   const notes = await supabaseClient.from("presentacion_notas").upsert(rows, { onConflict: "presentacion_id,section_key" });
   executivePresentationCloudAvailable = !notes.error;
+  if (!notes.error && !isFeedbackTracking) localStorage.removeItem(EXECUTIVE_PRESENTATION_PENDING_SYNC_KEY);
   return !notes.error;
+}
+
+async function syncPendingExecutivePresentationNotes() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return false;
+  const pendingWeek = localStorage.getItem(EXECUTIVE_PRESENTATION_PENDING_SYNC_KEY);
+  if (!pendingWeek) return false;
+  const values = executivePresentationNotes[pendingWeek];
+  if (!values || pendingWeek !== presentationWeekKey()) return false;
+  const saved = await saveExecutivePresentationEditableContent(values);
+  if (saved) localStorage.removeItem(EXECUTIVE_PRESENTATION_PENDING_SYNC_KEY);
+  return saved;
 }
 
 function captureExecutivePresentationSnapshot(title = "") {
@@ -11438,8 +12791,14 @@ function closePresentationHistoryLayer(layer) {
 function bindExecutivePresentationControls() {
   $$('[data-presentation-action]').forEach((button) => button.addEventListener("click", async () => {
     const action = button.dataset.presentationAction;
-    if (action === "present") { executivePresentationMode = true; render(); }
-    if (action === "edit") { executivePresentationEditingSlide = "priorities"; executivePresentationEditorOpen = true; render(); }
+    if (action === "present") {
+      if (supabaseClient && currentUser?.auth === "supabase") {
+        await Promise.all([loadBudgetData(), loadPlanningCalendarRows()]);
+      }
+      executivePresentationMode = true;
+      render();
+    }
+    if (action === "edit") { executivePresentationEditingSlide = "priorities"; presentationMapImageDraft = null; executivePresentationEditorOpen = true; render(); }
     if (action === "refresh") {
       button.disabled = true;
       button.textContent = "Actualizando...";
@@ -11539,6 +12898,7 @@ function bindExecutivePresentationControls() {
     executivePresentationEditorOpen = true;
     presentationInventoryDraft = null;
     presentationFeedbackDraft = null;
+    presentationMapImageDraft = null;
     await refreshExecutivePresentationData();
     render();
     toast(cloudSaved ? "Presentación cargada para editar" : "Presentación cargada en este navegador");
@@ -11556,8 +12916,8 @@ function bindExecutivePresentationControls() {
     render();
   });
   $$('[data-presentation-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Number(button.dataset.presentationSlide) || 0; executivePresentationMode = true; render(); }));
-  $$('[data-presentation-edit-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditSlide || "priorities"; presentationInventoryDraft = null; presentationFeedbackDraft = null; executivePresentationEditorOpen = true; render(); }));
-  $$('[data-presentation-editor-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditorSlide || "priorities"; presentationInventoryDraft = null; presentationFeedbackDraft = null; render(); }));
+  $$('[data-presentation-edit-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditSlide || "priorities"; presentationInventoryDraft = null; presentationFeedbackDraft = null; presentationMapImageDraft = null; executivePresentationEditorOpen = true; render(); }));
+  $$('[data-presentation-editor-slide]').forEach((button) => button.addEventListener("click", () => { executivePresentationEditingSlide = button.dataset.presentationEditorSlide || "priorities"; presentationInventoryDraft = null; presentationFeedbackDraft = null; presentationMapImageDraft = null; render(); }));
   $$('[data-presentation-collaborator]').forEach((input) => input.addEventListener("change", () => {
     const group = input.dataset.presentationCollaborator;
     const checked = $$(`[data-presentation-collaborator="${group}"]:checked`);
@@ -11627,10 +12987,42 @@ function bindExecutivePresentationControls() {
     syncPresentationInventoryValue();
     render();
   }));
+  $('[data-presentation-map-image]')?.addEventListener("change", async (event) => {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    try {
+      event.currentTarget.disabled = true;
+      presentationMapImageDraft = await preparePresentationInventoryImage(file);
+      presentationInventoryPendingUploadKeys.add("presentacion.mapa.imagen");
+      render();
+      toast("Fotografía preparada. Guarda la diapositiva para conservarla");
+    } catch (error) {
+      event.currentTarget.disabled = false;
+      toast(error.message || "No se pudo preparar la fotografía");
+    }
+  });
+  $('[data-presentation-map-remove]')?.addEventListener("click", () => {
+    presentationMapImageDraft = "";
+    render();
+  });
+  $$('[data-presentation-activity-status]').forEach((select) => select.addEventListener("change", syncPresentationActivityStatusesValue));
+  $('[data-presentation-cloud-login]')?.addEventListener("click", async () => {
+    const form = $('#executivePresentationForm');
+    syncPresentationInventoryValue();
+    syncPresentationFeedbackValue();
+    if (form) await saveExecutivePresentationNotes(form);
+    executivePresentationEditorOpen = false;
+    presentationInventoryDraft = null;
+    presentationFeedbackDraft = null;
+    presentationMapImageDraft = null;
+    clearSession();
+    render();
+    toast("Inicia sesión con Supabase para compartir la presentación");
+  });
   $$('[data-presentation-step]').forEach((button) => button.addEventListener("click", () => { executivePresentationIndex = Math.max(0, Math.min(EXECUTIVE_PRESENTATION_SLIDES.length - 1, executivePresentationIndex + Number(button.dataset.presentationStep))); updateExecutivePresentationStage(); }));
   $('[data-presentation-close]')?.addEventListener("click", () => { executivePresentationMode = false; render(); });
-  $$('[data-presentation-editor-close]').forEach((button) => button.addEventListener("click", (event) => { if (event.target === event.currentTarget || event.currentTarget.tagName === "BUTTON") { executivePresentationEditorOpen = false; presentationInventoryPendingUploadKeys.clear(); render(); } }));
-  $('#executivePresentationForm')?.addEventListener("submit", async (event) => { event.preventDefault(); syncPresentationInventoryValue(); syncPresentationFeedbackValue(); executivePresentationSaving = true; const form = event.currentTarget; const cloud = await saveExecutivePresentationNotes(form); presentationInventoryPendingUploadKeys.forEach((key) => recordUploadSuccess(key)); presentationInventoryPendingUploadKeys.clear(); executivePresentationSaving = false; executivePresentationEditorOpen = false; presentationInventoryDraft = null; presentationFeedbackDraft = null; render(); toast(cloud ? "Junta semanal guardada en Supabase" : "Junta semanal guardada en este navegador"); });
+  $$('[data-presentation-editor-close]').forEach((button) => button.addEventListener("click", (event) => { if (event.target === event.currentTarget || event.currentTarget.tagName === "BUTTON") { executivePresentationEditorOpen = false; presentationMapImageDraft = null; presentationInventoryPendingUploadKeys.clear(); render(); } }));
+  $('#executivePresentationForm')?.addEventListener("submit", async (event) => { event.preventDefault(); syncPresentationInventoryValue(); syncPresentationFeedbackValue(); syncPresentationActivityStatusesValue(); executivePresentationSaving = true; const form = event.currentTarget; const cloud = await saveExecutivePresentationNotes(form); presentationInventoryPendingUploadKeys.forEach((key) => recordUploadSuccess(key)); presentationInventoryPendingUploadKeys.clear(); executivePresentationSaving = false; executivePresentationEditorOpen = false; presentationInventoryDraft = null; presentationFeedbackDraft = null; presentationMapImageDraft = null; render(); toast(cloud ? "Junta semanal guardada y compartida" : "Guardada en este navegador. Inicia sesión con Supabase para compartirla"); });
 }
 
 function renderDashboard(area) {
@@ -11667,27 +13059,6 @@ function renderDashboard(area) {
 
   const alertsMarkup = area.id === "general" ? renderAlertCenter(true) : "";
   const progressMarkup = area.id === "general" ? renderProjectProgress() : "";
-  const studentDatabaseMarkup = area.id === "general" ? `
-    <section class="ops-summary student-database-loader" aria-label="Base de datos de alumnos">
-      <article>
-        <span>Fuente principal</span>
-        <strong>Base de datos_alumnos</strong>
-        <p>${studentDatabaseLoaded ? `${cloudStudentDatabase.length} alumnos cargados desde Supabase.` : "Pendiente de cargar o activar en Supabase."}</p>
-      </article>
-      <article>
-        <span>CSV autorizado</span>
-        <strong>Matrícula + datos académicos</strong>
-        <p>Columnas esperadas: matrícula, género, carrera, semestre y nivel o grado escolar.</p>
-      </article>
-      <article>
-        <span>Reemplazo total</span>
-        <strong>Carga controlada</strong>
-        <p>Cada archivo sustituye la base anterior y alimenta módulos que usan matrícula.</p>
-        <input id="studentDatabaseCsv" type="file" accept=".csv,text/csv" hidden />
-        <button class="primary-btn" id="uploadStudentDatabase" type="button" ${canUseAuthorizedUploads() && !studentDatabaseImporting ? "" : "disabled"}>${studentDatabaseImporting ? "Cargando..." : "Cargar Base de Datos de Alumnos"}</button>
-      </article>
-    </section>
-  ` : "";
   return `
     <div class="permission-strip">
       ${allowedDataText()} Estado: ${cloudStatus}. Capturas nube: ${cloudCaptures.length}. Capturas locales: ${localCaptures.length}.
@@ -11710,7 +13081,6 @@ function renderDashboard(area) {
         <p>Conectar Supabase y activar permisos reales por coordinador.</p>
       </article>
     </section>
-    ${studentDatabaseMarkup}
     ${progressMarkup}
     ${alertsMarkup}
     <div class="kpi-grid">
@@ -11859,7 +13229,7 @@ function parseClassGradeImportRows(rawRows, sourceName = "Archivo de Calificacio
   rows.forEach((raw, index) => {
     const matricula = String(pickColumn(raw, ["matricula", "matrícula", "student_id", "student id"]) || "").trim().toUpperCase();
     const subjectName = String(pickColumn(raw, ["materia", "asignatura", "subject_name", "disciplina", "nombre materia"]) || "").trim();
-    const periodLabel = classGradePeriodFromRow(raw);
+    const periodLabel = activeMasterPeriod === "FJ26" ? classGradePeriodFromRow(raw) : activeMasterPeriod;
     const grade = normalizeClassGrade(classGradeValueFromRow(raw, periodLabel));
     const rowNumber = index + 2;
     if (!matricula && !subjectName && grade === "") return;
@@ -11974,6 +13344,7 @@ async function importClassGradesFile(file) {
       const { error } = await supabaseClient.from("class_grades").upsert(payload, { onConflict: "record_key" });
       if (error) throw error;
     }
+    classGradesAvailable = true;
     classGradesUploadSummary = {
       fileName: file.name,
       processed: rawRows.length,
@@ -12020,7 +13391,7 @@ function budgetAreaLabel(areaKey) {
 }
 
 function budgetPeriodOptions() {
-  const values = [...new Set([budgetFilters.period, ...budgetPeriods].filter(Boolean))];
+  const values = [...new Set([budgetFilters.period, ...budgetPeriods].filter((period) => BUDGET_ACTIVE_PERIODS.has(period)))];
   return values.map((value) => `<option value="${escapeHtml(value)}" ${budgetFilters.period === value ? "selected" : ""}>${escapeHtml(value)}</option>`).join("");
 }
 
@@ -12054,15 +13425,15 @@ function filteredBudgetAreas() {
   return visibleBudgetAreaPlans().filter((row) => budgetFilters.area === "todos" || row.area === budgetFilters.area);
 }
 
-function budgetAreaSummary(areaKey) {
+function budgetAreaSummary(areaKey, period = budgetFilters.period) {
   const definition = budgetAreaDefinition(areaKey);
-  const plan = budgetAreaPlans.find((row) => row.period === budgetFilters.period && row.area === areaKey) || {
-    period: budgetFilters.period,
+  const plan = budgetAreaPlans.find((row) => row.period === period && row.area === areaKey) || {
+    period,
     assigned: 0,
     threshold: 80,
     owner: definition?.owner || ""
   };
-  const rows = budgetRequestRows.filter((row) => row.period === budgetFilters.period && row.area === areaKey && row.status !== "rechazado");
+  const rows = budgetRequestRows.filter((row) => row.period === period && row.area === areaKey && row.status !== "rechazado");
   const spent = rows.filter((row) => row.status === "ejercido").reduce((sum, row) => sum + row.amount, 0);
   const committed = rows.filter((row) => ["autorizado", "comprometido", "pendiente"].includes(row.status)).reduce((sum, row) => sum + row.amount, 0);
   const used = spent + committed;
@@ -12202,6 +13573,10 @@ async function saveBudgetRequest(event) {
     return;
   }
   const cloudId = await saveBudgetRequestToCloud(request);
+  if (supabaseClient && currentUser?.auth === "supabase" && !cloudId) {
+    toast(budgetCloudReady ? "La solicitud no se guardó; revisa los permisos de Presupuesto" : "Presupuesto no está conectado a Supabase");
+    return;
+  }
   const savedRequest = cloudId ? { ...request, id: cloudId } : request;
   budgetRequestRows = [savedRequest, ...budgetRequestRows];
   if (!cloudId) saveBudgetRequestRows();
@@ -12234,17 +13609,21 @@ async function updateBudgetRequestStatus(id, status) {
 }
 
 async function deleteBudgetRequest(id) {
-  if (!isLeadership()) {
-    toast("Solo Dirección/Admin puede borrar");
+  if (!canEditArea("compras")) {
+    toast("Sin permiso para eliminar solicitudes");
     return;
   }
   const row = budgetRequestRows.find((item) => item.id === id);
   if (!window.confirm(`¿Eliminar definitivamente la solicitud "${row?.concept || id}"? Esta acción se guardará en Supabase.`)) return;
   if (supabaseClient && currentUser?.auth === "supabase" && budgetCloudReady) {
-    const { error } = await supabaseClient.from("budget_requests").delete().eq("id", id);
+    const { data, error } = await supabaseClient.from("budget_requests").delete().eq("id", id).select("id");
     if (error) {
       console.warn(error);
-      toast("No se pudo borrar en Supabase");
+      toast(`No se pudo borrar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
+      return;
+    }
+    if (!data?.length) {
+      toast("Supabase no autorizó borrar esta solicitud");
       return;
     }
     await loadBudgetData();
@@ -12626,7 +14005,7 @@ function renderBudgetDashboard() {
                 <td>
                   <div class="table-actions compact-table-actions">
                     <button class="ghost-btn compact-action" type="button" data-budget-edit="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Modificar</button>
-                    <button class="danger-btn compact-action" type="button" data-budget-delete="${escapeHtml(row.id)}" ${isLeadership() ? "" : "disabled"}>Eliminar</button>
+                    <button class="danger-btn compact-action" type="button" data-budget-delete="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Eliminar</button>
                   </div>
                 </td>
               </tr>
@@ -12687,7 +14066,7 @@ function renderClassRiskBoard() {
                 <div><dt>Bajas</dt><dd>${row.bajasRate}%</dd></div>
                 <div><dt>NP</dt><dd>${row.npRate}%</dd></div>
               </dl>
-              ${renderClassTeacherSummary(row.discipline, "card")}
+              ${renderClassTeacherSummary(row, "card")}
               <p>${classOfferRecommendation(row)}</p>
             </article>
           `;
@@ -12805,6 +14184,7 @@ function renderClassDisciplineIndicators() {
           <thead>
             <tr>
               <th>Disciplina del periodo</th>
+              <th>Frecuencia y horario</th>
               <th>Alumnos inscritos Banner</th>
               <th>Bajas</th>
               <th>NP</th>
@@ -12816,6 +14196,7 @@ function renderClassDisciplineIndicators() {
             ${dashboardMetrics.disciplinesWithTotals.map((row) => `
               <tr class="${row.period === "PMT2" ? "period-two" : "period-one"} ${row.total ? "period-total" : ""}">
                 <td>${row.discipline}</td>
+                <td>${renderClassScheduleCell(row)}</td>
                 <td>${row.banner}</td>
                 <td>${row.bajas}</td>
                 <td>${row.np}</td>
@@ -12840,7 +14221,7 @@ function renderClassDisciplineBar(row) {
       <div>
         <strong>${row.discipline}</strong>
         <span>${progressLabel}</span>
-        ${renderClassTeacherSummary(row.discipline, "bar")}
+        ${renderClassTeacherSummary(row, "bar")}
       </div>
       <div class="bar-track"><div class="bar-fill" style="width:${row.approvedRate}%"></div></div>
       <em>${classRiskLabel(risk)}</em>
@@ -12848,7 +14229,11 @@ function renderClassDisciplineBar(row) {
   `;
 }
 
-function classResponsibleTeachers(discipline) {
+function classResponsibleTeachers(disciplineOrRow) {
+  if (disciplineOrRow && typeof disciplineOrRow === "object" && Array.isArray(disciplineOrRow.responsibleTeachers)) {
+    return disciplineOrRow.responsibleTeachers;
+  }
+  const discipline = String(disciplineOrRow || "");
   const clean = normalizeText(discipline);
   if (!clean || isClassTotalDiscipline(discipline)) return [];
   const counts = new Map();
@@ -12858,11 +14243,11 @@ function classResponsibleTeachers(discipline) {
   });
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))
-    .map(([name, count]) => ({ name, count }));
+    .map(([name, count]) => ({ name, count, unit: "alumnos" }));
 }
 
-function renderClassTeacherSummary(discipline, variant = "card") {
-  const teachers = classResponsibleTeachers(discipline);
+function renderClassTeacherSummary(disciplineOrRow, variant = "card") {
+  const teachers = classResponsibleTeachers(disciplineOrRow);
   if (!teachers.length) return `<div class="class-teacher-summary ${variant}"><span>Responsable</span><strong>Por asignar</strong></div>`;
   const visible = teachers.slice(0, variant === "bar" ? 1 : 2);
   const extra = teachers.length - visible.length;
@@ -12870,7 +14255,7 @@ function renderClassTeacherSummary(discipline, variant = "card") {
     <div class="class-teacher-summary ${variant}">
       <span>Responsable${teachers.length > 1 ? "s" : ""}</span>
       <div>
-        ${visible.map((teacher) => `<strong>${escapeHtml(teacher.name)} <em>${teacher.count} alumnos</em></strong>`).join("")}
+        ${visible.map((teacher) => `<strong>${escapeHtml(teacher.name)} <em>${teacher.count} ${escapeHtml(teacher.unit || "alumnos")}</em></strong>`).join("")}
         ${extra > 0 ? `<small>+${extra} profesor${extra === 1 ? "" : "es"}</small>` : ""}
       </div>
     </div>
@@ -12893,7 +14278,7 @@ function renderClassResponsibleTeacherCell(row) {
       </div>
     `;
   }
-  const teachers = classResponsibleTeachers(row.discipline);
+  const teachers = classResponsibleTeachers(row);
   if (!teachers.length) return `<span class="class-teacher-mini muted">Por asignar</span>`;
   const visible = teachers.slice(0, 2);
   const hidden = teachers.slice(2);
@@ -12905,7 +14290,7 @@ function renderClassResponsibleTeacherCell(row) {
       ${visible.map((teacher) => `
         <span class="class-teacher-mini">
           ${escapeHtml(teacher.name)}
-          <em>${teacher.count} alumnos</em>
+          <em>${teacher.count} ${escapeHtml(teacher.unit || "alumnos")}</em>
         </span>
       `).join("")}
       ${extra > 0 ? `
@@ -12915,9 +14300,48 @@ function renderClassResponsibleTeacherCell(row) {
         ${expanded ? hidden.map((teacher) => `
           <span class="class-teacher-mini extra">
             ${escapeHtml(teacher.name)}
-            <em>${teacher.count} alumnos</em>
+            <em>${teacher.count} ${escapeHtml(teacher.unit || "alumnos")}</em>
           </span>
         `).join("") : ""}
+      ` : ""}
+    </div>
+  `;
+}
+
+function formatClassScheduleFrequency(value) {
+  const abbreviations = {
+    Lunes: "Lun",
+    Martes: "Mar",
+    Miercoles: "Mie",
+    Jueves: "Jue",
+    Viernes: "Vie",
+    Sabado: "Sab"
+  };
+  const days = daysFromFrequency(value).map((day) => abbreviations[day] || day);
+  return days.length ? days.join(" y ") : String(value || "Sin frecuencia").trim();
+}
+
+function renderClassScheduleCell(row) {
+  if (row.total) return `<span class="class-schedule-total">${Number(row.scheduledGroups || 0)} grupos programados</span>`;
+  const schedules = Array.isArray(row.schedules) ? row.schedules : [];
+  if (!schedules.length) return `<span class="class-schedule-empty">Sin horario</span>`;
+  const visible = schedules.slice(0, 2);
+  const hidden = schedules.slice(2);
+  const renderSchedule = (schedule) => `
+    <span class="class-schedule-slot">
+      <strong>${escapeHtml(formatClassScheduleFrequency(schedule.frequency))}</strong>
+      <em>${escapeHtml(schedule.start)}-${escapeHtml(schedule.end)}</em>
+      ${schedule.count > 1 ? `<small>${schedule.count} grupos</small>` : ""}
+    </span>
+  `;
+  return `
+    <div class="class-schedule-list">
+      ${visible.map(renderSchedule).join("")}
+      ${hidden.length ? `
+        <details class="class-schedule-more">
+          <summary>+${hidden.length} horario${hidden.length === 1 ? "" : "s"}</summary>
+          ${hidden.map(renderSchedule).join("")}
+        </details>
       ` : ""}
     </div>
   `;
@@ -13036,10 +14460,50 @@ function classPeriodSortValue(period) {
   return clean && !normalizeText(clean).includes("sin periodo") ? 1000 : 0;
 }
 
+function classProgramOfferings() {
+  const offerings = new Map();
+  (scheduleState.official || []).forEach((row) => {
+    const block = row.block || normalizeClassScheduleBlock(row.ATR_GRUPO, row.discipline);
+    const disciplineBase = classScheduleDisciplineBase(row.discipline);
+    if (!block || !disciplineBase) return;
+    const subjectCode = String(row.subjectCode || "").trim();
+    const group = String(row.group || "").trim();
+    const rawCrn = String(row.crn || "").trim();
+    const crn = /^(?:0|0:00(?::00)?)$/.test(rawCrn) ? "" : rawCrn;
+    const professor = String(row.professor || "Por asignar").trim() || "Por asignar";
+    const key = [
+      block,
+      normalizeText(subjectCode || disciplineBase),
+      normalizeText(crn || group),
+      normalizeText(professor),
+      row.start || "",
+      row.end || ""
+    ].join("|");
+    if (offerings.has(key)) return;
+    offerings.set(key, {
+      key,
+      block,
+      semesterPeriod: String(row.semesterPeriod || activeMasterPeriod).trim(),
+      discipline: /PMT\s*[123]/i.test(row.discipline) ? String(row.discipline).trim() : `${disciplineBase} ${block}`,
+      disciplineBase,
+      subjectCode,
+      crn,
+      group,
+      professor,
+      frequency: String(row.frequency || "").trim(),
+      start: String(row.start || "").trim(),
+      end: String(row.end || "").trim(),
+      installation: String(row.installation || "").trim()
+    });
+  });
+  return [...offerings.values()];
+}
+
 function classDashboardBlockOptions() {
-  return [...new Set(effectiveClassGradeRows()
-    .map((row) => classGradeBlockLabel(row))
-    .filter(Boolean))]
+  return [...new Set([
+    ...classProgramOfferings().map((row) => row.block),
+    ...effectiveClassGradeRows().map((row) => classGradeBlockLabel(row))
+  ].filter(Boolean))]
     .sort((a, b) => classPeriodSortValue(b) - classPeriodSortValue(a) || a.localeCompare(b, "es", { numeric: true }));
 }
 
@@ -13049,11 +14513,11 @@ function classDefaultDashboardBlock() {
 }
 
 function classDashboardSemesterLabel() {
-  const semesters = [...new Set(classDashboardRows()
+  const semesters = [...new Set(effectiveClassGradeRows()
     .map(classGradeSemesterLabel)
     .filter(Boolean))]
     .sort((a, b) => classPeriodSortValue(b) - classPeriodSortValue(a) || a.localeCompare(b, "es", { numeric: true }));
-  return semesters[0] || "Periodo sin clasificar";
+  return semesters[0] || MASTER_PERIODS[activeMasterPeriod]?.label || activeMasterPeriod;
 }
 
 function classDashboardRows() {
@@ -13065,16 +14529,68 @@ function classDashboardRows() {
   return eligibleRows.filter((row) => classGradeBlockLabel(row) === selectedBlock);
 }
 
-function buildClassDashboardMetrics(rows) {
+function classDashboardOfferings() {
+  const selectedBlock = classDashboardBlock === "auto" ? classDefaultDashboardBlock() : classDashboardBlock;
+  const offerings = classProgramOfferings();
+  if (!selectedBlock || selectedBlock === "todos") return offerings;
+  return offerings.filter((row) => row.block === selectedBlock);
+}
+
+function buildClassDashboardMetrics(rows, offerings = []) {
   const disciplineMap = new Map();
   const teacherMap = new Map();
   const periods = new Set();
+  const codeToDisciplineKey = new Map();
+  const codeToTeachers = new Map();
+
+  offerings.forEach((offering) => {
+    const period = offering.block || "Sin periodo";
+    const disciplineKey = `${period}\u0000${normalizeText(offering.disciplineBase || offering.discipline)}`;
+    periods.add(period);
+    if (!disciplineMap.has(disciplineKey)) {
+      disciplineMap.set(disciplineKey, {
+        period,
+        discipline: offering.discipline,
+        banner: 0,
+        bajas: 0,
+        np: 0,
+        finished: 0,
+        pending: 0,
+        scheduledGroups: 0,
+        scheduleGroups: new Map(),
+        teacherGroups: new Map(),
+        gradeTeachers: new Map()
+      });
+    }
+    const disciplineRow = disciplineMap.get(disciplineKey);
+    disciplineRow.scheduledGroups += 1;
+    const scheduleKey = [offering.frequency, offering.start, offering.end].map(normalizeText).join("|");
+    if (!disciplineRow.scheduleGroups.has(scheduleKey)) {
+      disciplineRow.scheduleGroups.set(scheduleKey, {
+        frequency: offering.frequency,
+        start: offering.start,
+        end: offering.end,
+        count: 0
+      });
+    }
+    disciplineRow.scheduleGroups.get(scheduleKey).count += 1;
+    disciplineRow.teacherGroups.set(offering.professor, (disciplineRow.teacherGroups.get(offering.professor) || 0) + 1);
+    if (offering.subjectCode) {
+      const codeKey = `${period}|${normalizeText(offering.subjectCode)}`;
+      codeToDisciplineKey.set(codeKey, disciplineKey);
+      if (!codeToTeachers.has(codeKey)) codeToTeachers.set(codeKey, new Set());
+      codeToTeachers.get(codeKey).add(offering.professor);
+    }
+    if (offering.professor && normalizeText(offering.professor) !== "por asignar" && !teacherMap.has(offering.professor)) {
+      teacherMap.set(offering.professor, { teacher: offering.professor, total: 0, approved: 0, failed: 0 });
+    }
+  });
 
   (Array.isArray(rows) ? rows : []).forEach((row) => {
     const discipline = String(row.subject_name || "").trim();
     if (!discipline) return;
     if (isClassTotalDiscipline(discipline)) return;
-    const period = classGradeSemesterLabel(row) || classGradeBlockLabel(row) || "Sin periodo";
+    const period = classGradeBlockLabel(row) || classGradeSemesterLabel(row) || "Sin periodo";
     const grade = String(row.grade ?? "").trim();
     const outcome = classGradeOutcome(grade);
     const isBaja = outcome === "baja";
@@ -13082,9 +14598,24 @@ function buildClassDashboardMetrics(rows) {
     const isApproved = outcome === "approved";
     periods.add(period);
 
-    const disciplineKey = `${period}\u0000${normalizeText(discipline)}`;
+    const subjectCode = String(row.subject_code || "").trim();
+    const codeKey = `${period}|${normalizeText(subjectCode)}`;
+    const disciplineBase = classScheduleDisciplineBase(discipline);
+    const disciplineKey = codeToDisciplineKey.get(codeKey) || `${period}\u0000${normalizeText(disciplineBase || discipline)}`;
     if (!disciplineMap.has(disciplineKey)) {
-      disciplineMap.set(disciplineKey, { period, discipline, banner: 0, bajas: 0, np: 0, finished: 0, pending: 0 });
+      disciplineMap.set(disciplineKey, {
+        period,
+        discipline,
+        banner: 0,
+        bajas: 0,
+        np: 0,
+        finished: 0,
+        pending: 0,
+        scheduledGroups: 0,
+        scheduleGroups: new Map(),
+        teacherGroups: new Map(),
+        gradeTeachers: new Map()
+      });
     }
     const disciplineRow = disciplineMap.get(disciplineKey);
     disciplineRow.banner += 1;
@@ -13093,7 +14624,9 @@ function buildClassDashboardMetrics(rows) {
     else if (isApproved) disciplineRow.finished += 1;
     else disciplineRow.pending += 1;
 
-    const teacher = String(row.teacher_name || "").trim();
+    const scheduledTeachers = [...(codeToTeachers.get(codeKey) || [])].filter((name) => normalizeText(name) !== "por asignar");
+    const teacher = String(row.teacher_name || (scheduledTeachers.length === 1 ? scheduledTeachers[0] : "")).trim();
+    if (teacher) disciplineRow.gradeTeachers.set(teacher, (disciplineRow.gradeTeachers.get(teacher) || 0) + 1);
     if (!teacher || !grade) return;
     if (!teacherMap.has(teacher)) teacherMap.set(teacher, { teacher, total: 0, approved: 0, failed: 0 });
     const teacherRow = teacherMap.get(teacher);
@@ -13102,8 +14635,23 @@ function buildClassDashboardMetrics(rows) {
     else teacherRow.failed += 1;
   });
 
-  const periodList = [...periods].sort((a, b) => a.localeCompare(b, "es", { numeric: true }));
-  const disciplines = [...disciplineMap.values()].sort((a, b) =>
+  const periodList = [...periods].sort((a, b) => classPeriodSortValue(a) - classPeriodSortValue(b) || a.localeCompare(b, "es", { numeric: true }));
+  const disciplines = [...disciplineMap.values()].map((row) => {
+    const scheduledTeachers = [...row.teacherGroups.entries()].map(([name, count]) => ({
+      name,
+      count: row.gradeTeachers.get(name) || count,
+      unit: row.gradeTeachers.has(name) ? "alumnos" : count === 1 ? "grupo" : "grupos"
+    }));
+    const gradeOnlyTeachers = [...row.gradeTeachers.entries()]
+      .filter(([name]) => !row.teacherGroups.has(name))
+      .map(([name, count]) => ({ name, count, unit: "alumnos" }));
+    const responsibleTeachers = [...scheduledTeachers, ...gradeOnlyTeachers]
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "es"));
+    const schedules = [...row.scheduleGroups.values()]
+      .sort((a, b) => a.start.localeCompare(b.start) || a.frequency.localeCompare(b.frequency, "es"));
+    const { scheduleGroups, teacherGroups, gradeTeachers, ...cleanRow } = row;
+    return { ...cleanRow, schedules, responsibleTeachers };
+  }).sort((a, b) =>
     periodList.indexOf(a.period) - periodList.indexOf(b.period)
     || a.discipline.localeCompare(b.discipline, "es")
   );
@@ -13115,8 +14663,9 @@ function buildClassDashboardMetrics(rows) {
       acc.np += row.np;
       acc.finished += row.finished;
       acc.pending += row.pending || 0;
+      acc.scheduledGroups += row.scheduledGroups || 0;
       return acc;
-    }, { period, discipline: `Totales ${period}`, banner: 0, bajas: 0, np: 0, finished: 0, pending: 0, total: true, periodIndex: index });
+    }, { period, discipline: `Totales ${period}`, banner: 0, bajas: 0, np: 0, finished: 0, pending: 0, scheduledGroups: 0, total: true, periodIndex: index });
     return [...periodRows.map((row) => ({ ...row, periodIndex: index })), total];
   });
   const teachers = [...teacherMap.values()]
@@ -13132,13 +14681,7 @@ function buildClassDashboardMetrics(rows) {
 
 function classDashboardMetrics() {
   const rows = classDashboardRows();
-  if (rows.length) return buildClassDashboardMetrics(rows);
-  return {
-    periods: ["PMT1", "PMT2"],
-    disciplines: classDisciplineIndicators.filter((row) => !row.total),
-    disciplinesWithTotals: classDisciplineIndicators,
-    teachers: classTeacherPerformance
-  };
+  return buildClassDashboardMetrics(rows, classDashboardOfferings());
 }
 
 function classGradeStatus(row) {
@@ -13253,7 +14796,7 @@ function scheduleSnapshotKey(row) {
 
 function loadClassScheduleComparison() {
   try {
-    return JSON.parse(localStorage.getItem(CLASS_SCHEDULE_SNAPSHOT_KEY) || "null");
+    return JSON.parse(readPeriodStorage(CLASS_SCHEDULE_SNAPSHOT_KEY, "null") || "null");
   } catch {
     return null;
   }
@@ -13274,7 +14817,7 @@ function saveClassScheduleSnapshot(rows, meta = {}) {
       group: row.group || ""
     }))
   };
-  localStorage.setItem(CLASS_SCHEDULE_SNAPSHOT_KEY, JSON.stringify(snapshot));
+  localStorage.setItem(periodStorageKey(CLASS_SCHEDULE_SNAPSHOT_KEY), JSON.stringify(snapshot));
 }
 
 function compareScheduleSnapshot(previousRows, nextRows) {
@@ -13514,16 +15057,21 @@ function renderVivenciaUpcoming(events) {
   if (!events.length) return `<div class="vivencia-empty-mini">No hay eventos próximos en los siguientes 15 días.</div>`;
   return `
     <div class="vivencia-upcoming-list">
-      ${events.map((event) => `
+      ${events.map((event) => {
+        const date = vivenciaEventDate(event);
+        const day = date ? String(date.getDate()).padStart(2, "0") : "--";
+        const month = date ? date.toLocaleDateString("es-MX", { month: "short" }).replace(".", "").toUpperCase() : "S/F";
+        return `
         <article>
-          <time>${escapeHtml(event.event_date)}</time>
-          <div>
+          <time datetime="${escapeHtml(event.event_date || "")}" class="vivencia-upcoming-date"><b>${day}</b><span>${escapeHtml(month)}</span></time>
+          <div class="vivencia-upcoming-content">
             <strong>${escapeHtml(event.event_name || "")}</strong>
-            <span>${escapeHtml(event.responsible_name || "Responsable pendiente")}  -  Meta ${event.participation_goal ?? "sin meta"}</span>
+            <span>${escapeHtml(event.responsible_name || "Responsable pendiente")}</span>
+            <small>Meta: ${event.participation_goal ?? "sin definir"}</small>
           </div>
           <em>${event.is_signature_event ? "Insignia" : escapeHtml(event.status || "planeado")}</em>
-        </article>
-      `).join("")}
+        </article>`;
+      }).join("")}
     </div>
   `;
 }
@@ -13613,7 +15161,7 @@ function vivenciaDashboardEvents() {
     .filter(Boolean));
   const fallback = vivenciaPlanningEvents()
     .filter((event) => !existingKeys.has(event.planning_activity_id || event.source_row_key || `${normalizeText(event.event_name)}|${event.event_date}`));
-  return [...connectedEvents, ...fallback];
+  return [...connectedEvents, ...fallback].filter((event) => masterPeriodMatchesDate(event.event_date));
 }
 
 function vivenciaCalendarBaseDate(events) {
@@ -13677,7 +15225,7 @@ function renderVivenciaCalendar(events, baseDate, options = {}) {
               ${dayEvents.slice(0, 3).map((event, eventIndex) => planningArea
                 ? event.__communicationEvent
                   ? `<button type="button" data-communication-detail="${escapeHtml(event.id)}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`
-                  : `<button type="button" data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-calendar:${escapeHtml(event.event_date || "")}:${escapeHtml(event.id)}:${eventIndex}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`
+                  : `<button type="button" data-communication-planning-edit="${escapeHtml(event.id)}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`
                 : `<button type="button" data-vivencia-detail="${escapeHtml(event.id)}" class="${escapeHtml(event.status || "planeado")}">${escapeHtml(event.event_name || "Evento")}</button>`).join("")}
               ${dayEvents.length > 3 ? `<em>+${dayEvents.length - 3}</em>` : ""}
             </div>
@@ -13805,9 +15353,38 @@ function communicationDashboardActivities() {
     source_week: activity.week,
     source_timestamp: activity.timestamp,
     source_index: index
-  })).filter((event) => !storedKeys.has(event.planningActivityId || `${normalizeText(event.event_name)}|${event.event_date}`));
+  })).filter((event) => masterPeriodMatchesDate(event.event_date))
+    .filter((event) => !storedKeys.has(event.planningActivityId || `${normalizeText(event.event_name)}|${event.event_date}`));
   return [...storedEvents, ...planningEvents]
     .sort((a, b) => String(a.event_date || "9999-12-31").localeCompare(String(b.event_date || "9999-12-31")));
+}
+
+function openCommunicationPlanningEvent(eventId) {
+  const activity = communicationDashboardActivities().find((event) => String(event.id) === String(eventId));
+  if (!activity) {
+    toast("No pude encontrar la actividad de Comunicación");
+    return;
+  }
+  const planningActivityId = activity.planning_activity_id || activity.planningActivityId || activity.id;
+  const storedEvent = communicationEvents.find((event) =>
+    String(event.planning_activity_id || "") === String(planningActivityId || "")
+    || (normalizeText(event.event_name) === normalizeText(activity.event_name) && event.event_date === activity.event_date)
+  );
+  selectedCommunicationEventForDetail = storedEvent?.id || "";
+  selectedCommunicationPlanningDraft = storedEvent ? null : {
+    __planningDraft: true,
+    planning_activity_id: planningActivityId,
+    campus: "Monterrey",
+    event_name: activity.event_name || activity.activity || "",
+    event_date: activity.event_date || activity.date || "",
+    responsible_name: activity.responsible_name || activity.responsible || "",
+    status: vivenciaStatus(activity.status || "planeado"),
+    description: activity.description || ""
+  };
+  selectedPlanningActivityId = "";
+  activeView = "vivencia-events";
+  render();
+  requestAnimationFrame(() => document.querySelector("#communicationEventForm")?.scrollIntoView({ behavior: "smooth", block: "start" }));
 }
 
 function communicationMonthLabel(event, fallbackYear = new Date().getFullYear()) {
@@ -13916,15 +15493,18 @@ function renderCommunicationImpactGoal(impactCount) {
 function renderCommunicationEventCards(events) {
   if (!events.length) return `<div class="vivencia-empty-mini">No hay actividades próximas en los siguientes 15 días.</div>`;
   return `
-    <div class="vivencia-event-card-list">
-      ${events.slice(0, 6).map((event, index) => `
-        <article class="vivencia-event-card" ${event.__communicationEvent ? `data-communication-detail="${escapeHtml(event.id)}"` : `data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-agenda:${escapeHtml(event.id)}:${index}"`}>
-          <time>${escapeHtml(event.event_date || "Sin fecha")}</time>
-          <div><strong>${escapeHtml(event.event_name || "Actividad sin nombre")}</strong><span>${escapeHtml(event.responsible_name || event.source_month || "Responsable pendiente")}</span></div>
+    <div class="vivencia-event-card-list communication-agenda-list">
+      ${events.slice(0, 6).map((event) => {
+        const date = vivenciaEventDate(event);
+        const day = date ? String(date.getDate()).padStart(2, "0") : "--";
+        const month = date ? date.toLocaleDateString("es-MX", { month: "short" }).replace(".", "").toUpperCase() : "S/F";
+        return `
+        <article class="vivencia-event-card communication-agenda-card" ${event.__communicationEvent ? `data-communication-detail="${escapeHtml(event.id)}"` : `data-communication-planning-edit="${escapeHtml(event.id)}"`}>
+          <time datetime="${escapeHtml(event.event_date || "")}"><b>${day}</b><span>${escapeHtml(month)}</span></time>
+          <div class="communication-agenda-content"><strong>${escapeHtml(event.event_name || "Actividad sin nombre")}</strong><span>${escapeHtml(event.responsible_name || event.source_month || "Responsable pendiente")}</span><small>${escapeHtml(event.place || event.source_week || "Planeación Semestral")}</small></div>
           <em class="${escapeHtml(event.status || "planeado")}">${escapeHtml(vivenciaStateLabel(event.status))}</em>
-          <small>${escapeHtml(event.place || event.source_week || "Planeación Semestral")}</small>
-        </article>
-      `).join("")}
+        </article>`;
+      }).join("")}
     </div>
   `;
 }
@@ -13940,7 +15520,7 @@ function renderCommunicationRecentActivities(events) {
   return `
     <div class="vivencia-recent-list">
       ${rows.map((event, index) => `
-        <button type="button" ${event.__communicationEvent ? `data-communication-detail="${escapeHtml(event.id)}"` : `data-planning-detail="${escapeHtml(event.id)}" data-planning-instance="communication-recent:${escapeHtml(event.id)}:${index}"`}>
+        <button type="button" ${event.__communicationEvent ? `data-communication-detail="${escapeHtml(event.id)}"` : `data-communication-planning-edit="${escapeHtml(event.id)}"`}>
           <span>${index + 1}</span>
           <div><strong>${escapeHtml(event.event_name || "Actividad sin nombre")}</strong><small>${escapeHtml(event.event_date || communicationMonthLabel(event))} · ${escapeHtml(event.responsible_name || "Responsable pendiente")}</small></div>
           <em>${escapeHtml(vivenciaStateLabel(event.status))}</em>
@@ -14026,7 +15606,7 @@ function renderCommunicationDashboard() {
               ${renderVivenciaBars(monthRows, { compact: true })}
             </article>
             <article class="chart-panel vivencia-recent-panel">
-              <div class="chart-title-row"><div><p class="eyebrow">Registro</p><h3>Últimas actividades registradas</h3></div><span>10 recientes</span></div>
+              <div class="chart-title-row"><div><p class="eyebrow">Registro actualizado</p><h3>Eventos históricos del periodo</h3></div><span>${activities.length.toLocaleString("es-MX")} eventos</span></div>
               ${renderCommunicationRecentActivities(activities)}
             </article>
           </div>
@@ -14042,9 +15622,6 @@ function renderCommunicationDashboard() {
 }
 
 function renderVivenciaDashboard() {
-  if (currentUser?.auth !== "supabase") {
-    return `<section class="permission-strip">Inicia sesion con Supabase para ver el Dashboard de Vivencia compartido.</section>`;
-  }
   if (!vivenciaEventsAvailable) {
     return `
       <section class="vivencia-empty-state warning">
@@ -14063,7 +15640,7 @@ function renderVivenciaDashboard() {
   const upcoming = events
     .filter((event) => {
       const date = vivenciaEventDate(event);
-      return !Number.isNaN(date.getTime()) && date >= today && date <= inFifteen;
+      return date && date >= today && date <= inFifteen;
     })
     .sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)));
   const nextEvent = upcoming[0] || events.find((event) => {
@@ -14181,6 +15758,7 @@ function renderClassGrades() {
   const bajas = totalRows.filter((row) => classGradeStatus(row) === "baja").length;
   const pending = totalRows.filter((row) => classGradeStatus(row) === "pendiente").length;
   const editable = currentUser?.auth === "supabase" && canEditArea("clases") && classGradesAvailable;
+  const authorizedUpload = currentUser?.auth === "supabase" && canEditArea("clases");
   const periods = classGradeDerivedOptions(classGradeSemesterLabel);
   const blocks = classGradeDerivedOptions(classGradeBlockLabel);
   const teachers = classGradeOptions("teacher_name");
@@ -14196,15 +15774,20 @@ function renderClassGrades() {
         <div class="class-grade-actions">
           <div class="class-grade-upload-control">
             <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
-            <button class="primary-btn" type="button" id="uploadClassGrades" ${editable && !classGradesImporting ? "" : "disabled"}>${classGradesImporting ? "Procesando..." : "Subir calificaciones"}</button>
+            <button class="primary-btn" type="button" id="uploadClassGrades" ${classGradesImporting ? "disabled" : ""}>${classGradesImporting ? "Procesando..." : "Subir calificaciones"}</button>
           </div>
           <button class="ghost-btn" type="button" data-download-class-template="grades">Plantilla calificaciones</button>
           <button class="ghost-btn" type="button" id="exportClassGrades">Exportar Excel</button>
         </div>
       </div>
-      ${!classGradesAvailable ? `
+      ${authorizedUpload && !classGradesAvailable ? `
         <div class="permission-strip grade-warning">
-          La lista histórica está visible, pero falta activar la tabla de calificaciones en Supabase para poder guardar cambios.
+          No se pudo consultar la tabla de calificaciones. Presiona Subir calificaciones para reintentar la conexión.
+        </div>
+      ` : ""}
+      ${!authorizedUpload ? `
+        <div class="permission-strip grade-warning">
+          Inicia sesión con un perfil autorizado de Clases Deportivas para subir o modificar calificaciones.
         </div>
       ` : ""}
       ${classGradesImporting ? `
@@ -14313,6 +15896,7 @@ function renderClassGrades() {
 
 function renderClassGradesSystemUpload() {
   const editable = currentUser?.auth === "supabase" && canEditArea("clases") && classGradesAvailable;
+  const authorizedUpload = currentUser?.auth === "supabase" && canEditArea("clases");
   const summary = classGradesUploadSummary;
   const loadGroups = classGradeLoadGroups();
   return `
@@ -14328,7 +15912,7 @@ function renderClassGradesSystemUpload() {
       <div class="upload-action-row">
         <div class="class-grade-upload-control">
           <input id="classGradesFile" type="file" accept=".xlsx,.xls,.csv" hidden />
-          <button class="primary-btn" id="uploadClassGrades" type="button" ${editable && !classGradesImporting ? "" : "disabled"}>
+          <button class="primary-btn" id="uploadClassGrades" type="button" ${classGradesImporting ? "disabled" : ""}>
             ${classGradesImporting ? "Procesando archivo..." : "Subir calificaciones"}
           </button>
         </div>
@@ -14336,7 +15920,8 @@ function renderClassGradesSystemUpload() {
         <button class="ghost-btn" type="button" id="exportClassGrades">Exportar Excel</button>
       </div>
       <p class="form-message">Columnas requeridas: matricula, materia, calificacion y periodo. El periodo puede ser FJ26; el bloque PMT1, PMT2 o PMT3 se detecta desde la materia. También se aceptan clave_materia, CRN, grupo, profesor, carrera y semestre.</p>
-      ${!editable ? `<div class="permission-strip grade-warning">Ingresa con un perfil autorizado de Clases Deportivas para realizar la carga.</div>` : ""}
+      ${!authorizedUpload ? `<div class="permission-strip grade-warning">Ingresa con un perfil autorizado de Clases Deportivas para realizar la carga.</div>` : ""}
+      ${authorizedUpload && !classGradesAvailable ? `<div class="permission-strip grade-warning">La conexión con calificaciones se interrumpió. Al cargar el archivo se intentará conectar nuevamente.</div>` : ""}
       ${summary ? `
         <div class="permission-strip ${summary.errors?.length ? "grade-warning" : ""}">
           <span><strong>${escapeHtml(summary.fileName)}</strong>: ${summary.saved.toLocaleString("es-MX")} guardados, ${(summary.replacedRows || 0).toLocaleString("es-MX")} anteriores reemplazados (${(summary.replacedPeriods || []).join(", ") || "sin periodo"}), ${summary.duplicates.toLocaleString("es-MX")} duplicados omitidos y ${(summary.errors?.length || 0).toLocaleString("es-MX")} errores.</span>
@@ -15105,6 +16690,7 @@ function renderCollaboratorsDashboard() {
       </div>
       <div class="table-actions">
         <button class="primary-btn" id="openCollaboratorPhotoUploader" type="button" ${authorizedUpload ? "" : "disabled"}>Cargar imágenes</button>
+        <button class="ghost-btn" id="downloadCollaboratorTable" type="button">Descargar tabla</button>
         <button class="ghost-btn" id="exportCollaboratorBackup" type="button">Exportar respaldo</button>
       </div>
     </div>
@@ -15260,13 +16846,7 @@ function renderVivenciaParticipantUploadHistory() {
 }
 
 function renderVivenciaEventHistory() {
-  if (currentUser?.auth !== "supabase") {
-    return `<div class="vivencia-empty-state">Inicia sesion con Supabase para consultar el historial compartido.</div>`;
-  }
-  if (!vivenciaEventsLoaded) {
-    return `<div class="vivencia-empty-state">Cargando historial de eventos...</div>`;
-  }
-  if (!vivenciaEventsAvailable) {
+  if (currentUser?.auth === "supabase" && vivenciaEventsLoaded && !vivenciaEventsAvailable) {
     return `
       <div class="vivencia-empty-state warning">
         <strong>Falta activar la estructura de Vivencia en Supabase.</strong>
@@ -15274,10 +16854,10 @@ function renderVivenciaEventHistory() {
       </div>
     `;
   }
-  if (!vivenciaEvents.length) {
-    return `<div class="vivencia-empty-state">Todavia no hay eventos guardados en Supabase.</div>`;
-  }
+  const historyEvents = vivenciaVisibleEvents().slice().reverse();
+  if (!historyEvents.length) return `<div class="vivencia-empty-state">Todavia no hay eventos cargados para este periodo.</div>`;
   const editable = currentUser?.auth === "supabase" && canEditArea("vivencia") && vivenciaEventsAvailable;
+  const storedEventIds = new Set(vivenciaEvents.map((row) => String(row.id)));
   const metricsByEvent = new Map(vivenciaEventMetrics.map((row) => [row.event_id, row]));
   return `
     <div class="table-wrap vivencia-history-wrap">
@@ -15296,10 +16876,11 @@ function renderVivenciaEventHistory() {
           </tr>
         </thead>
         <tbody>
-          ${vivenciaEvents.map((row) => {
+          ${historyEvents.map((row) => {
             const metrics = metricsByEvent.get(row.id);
             const calculated = vivenciaMetricParticipants(metrics || row);
             const completion = vivenciaCompletionState(row, metrics);
+            const isStoredEvent = storedEventIds.has(String(row.id));
             return `
               <tr>
                 <td data-label="Fecha">${escapeHtml(row.event_date || "")}</td>
@@ -15318,8 +16899,8 @@ function renderVivenciaEventHistory() {
                 <td data-label="Responsable">${escapeHtml(row.responsible_name || "Sin asignar")}</td>
                 <td data-label="Estado"><span class="vivencia-status ${escapeHtml(completion.className)}">${escapeHtml(completion.label)}</span></td>
                 <td data-label="Acciones">
-                  <button class="ghost-btn compact-action" data-vivencia-detail="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Detalle</button>
-                  <button class="danger-btn compact-action" data-vivencia-delete="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Eliminar</button>
+                  <button class="ghost-btn compact-action" data-vivencia-detail="${escapeHtml(row.id)}">Detalle</button>
+                  <button class="danger-btn compact-action" data-vivencia-delete="${escapeHtml(row.id)}" ${editable && isStoredEvent ? "" : "disabled"}>Eliminar</button>
                 </td>
               </tr>
             `;
@@ -15362,18 +16943,22 @@ function renderVivenciaEventGallery(event, editable) {
 }
 
 function renderVivenciaEventsView() {
-  const editable = currentUser?.auth === "supabase" && canEditArea("vivencia") && vivenciaEventsAvailable;
   const today = new Date().toISOString().slice(0, 10);
-  const detailEvent = vivenciaEvents.find((row) => row.id === selectedVivenciaEventForDetail) || null;
+  const historyEvents = vivenciaVisibleEvents();
+  const detailEvent = historyEvents.find((row) => String(row.id) === String(selectedVivenciaEventForDetail)) || null;
+  const detailIsStored = !detailEvent || vivenciaEvents.some((row) => String(row.id) === String(detailEvent.id));
+  const editable = currentUser?.auth === "supabase" && canEditArea("vivencia") && vivenciaEventsAvailable && detailIsStored;
   const formValue = (key, fallback = "") => escapeHtml(detailEvent?.[key] ?? fallback ?? "");
   const formNumber = (key) => detailEvent?.[key] ?? "";
   const detailStatus = vivenciaStatus(detailEvent?.status || "planeado");
-  const detailSource = detailEvent?.source_name === "planeacion_semestral" ? "Vinculado a Planeacion Semestral" : "Captura manual";
+  const detailSource = detailEvent?.__planningFallback
+    ? "Actividad de Planeacion Semestral"
+    : detailEvent?.source_name === "planeacion_semestral" ? "Vinculado a Planeacion Semestral" : "Captura manual";
   return `
     <section class="vivencia-events-module">
       <div class="permission-strip">
         <span>Supabase es la fuente principal. Excel y CSV se usan solo para cargar eventos.</span>
-        <span>${vivenciaEvents.length} eventos en historial</span>
+        <span>${historyEvents.length} eventos en historial</span>
       </div>
       ${renderVivenciaImportSummary()}
       ${renderVivenciaImportSummary(vivenciaParticipantImportResult)}
@@ -15516,19 +17101,23 @@ function renderCommunicationParticipantsModal(editable) {
 }
 
 function renderCommunicationEventHistory() {
-  if (currentUser?.auth !== "supabase") return `<div class="vivencia-empty-state">Inicia sesión con Supabase para consultar y guardar el historial compartido.</div>`;
-  if (!communicationEventsLoaded) return `<div class="vivencia-empty-state">Cargando historial de eventos...</div>`;
-  if (!communicationEventsAvailable) {
+  if (currentUser?.auth === "supabase" && communicationEventsLoaded && !communicationEventsAvailable) {
     return `<div class="vivencia-empty-state warning"><strong>Falta activar los eventos de Comunicación en Supabase.</strong><span>Ejecuta <code>supabase/communication-events.sql</code> una sola vez.</span></div>`;
   }
-  if (!communicationEvents.length) return `<div class="vivencia-empty-state">Todavía no hay eventos de Comunicación guardados.</div>`;
+  const historyEvents = communicationDashboardActivities().slice().reverse();
+  if (!historyEvents.length) return `<div class="vivencia-empty-state">Todavía no hay eventos de Comunicación cargados para este periodo.</div>`;
   const editable = currentUser?.auth === "supabase" && canEditArea("comunicacion");
   return `
     <div class="table-wrap vivencia-history-wrap">
       <table class="vivencia-history-table">
         <thead><tr><th>Fecha</th><th>Evento</th><th>Meta</th><th>Participantes</th><th>Responsable</th><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody>
-          ${communicationEvents.map((row) => `
+          ${historyEvents.map((row) => {
+            const isStoredEvent = Boolean(row.__communicationEvent);
+            const detailAttribute = isStoredEvent
+              ? `data-communication-detail="${escapeHtml(row.id)}"`
+              : `data-communication-planning-edit="${escapeHtml(row.id)}"`;
+            return `
             <tr>
               <td data-label="Fecha">${escapeHtml(row.event_date || "")}</td>
               <td data-label="Evento"><strong>${escapeHtml(row.event_name || "")}</strong>${row.classification ? `<span>${escapeHtml(row.classification)}</span>` : ""}</td>
@@ -15537,11 +17126,12 @@ function renderCommunicationEventHistory() {
               <td data-label="Responsable">${escapeHtml(row.responsible_name || "Sin asignar")}</td>
               <td data-label="Estado"><span class="vivencia-status ${escapeHtml(row.status || "planeado")}">${escapeHtml(vivenciaStateLabel(row.status))}</span></td>
               <td data-label="Acciones">
-                <button class="ghost-btn compact-action" data-communication-detail="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Detalle</button>
-                <button class="danger-btn compact-action" data-communication-delete="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Eliminar</button>
+                <button class="ghost-btn compact-action" ${detailAttribute}>Detalle</button>
+                <button class="danger-btn compact-action" data-communication-delete="${escapeHtml(row.id)}" ${editable && isStoredEvent ? "" : "disabled"}>Eliminar</button>
               </td>
             </tr>
-          `).join("")}
+          `;
+          }).join("")}
         </tbody>
       </table>
     </div>
@@ -15550,8 +17140,11 @@ function renderCommunicationEventHistory() {
 
 function renderCommunicationEventsView() {
   const editable = currentUser?.auth === "supabase" && canEditArea("comunicacion") && communicationEventsAvailable;
+  const historyEvents = communicationDashboardActivities();
   const today = new Date().toISOString().slice(0, 10);
-  const detailEvent = communicationEvents.find((row) => row.id === selectedCommunicationEventForDetail) || null;
+  const savedDetailEvent = communicationEvents.find((row) => row.id === selectedCommunicationEventForDetail) || null;
+  const detailEvent = savedDetailEvent || selectedCommunicationPlanningDraft || null;
+  const isPlanningDraft = Boolean(detailEvent?.__planningDraft);
   const formValue = (key, fallback = "") => escapeHtml(detailEvent?.[key] ?? fallback ?? "");
   const formNumber = (key) => detailEvent?.[key] ?? "";
   const detailStatus = vivenciaStatus(detailEvent?.status || "planeado");
@@ -15559,7 +17152,7 @@ function renderCommunicationEventsView() {
     <section class="vivencia-events-module communication-events-module">
       <div class="permission-strip">
         <span>Esta carga alimenta únicamente el dashboard y calendario de Comunicación.</span>
-        <span>${communicationEvents.length} eventos en historial</span>
+        <span>${historyEvents.length} eventos en historial</span>
       </div>
       ${renderVivenciaImportSummary(communicationEventImportResult)}
       ${renderVivenciaImportSummary(communicationParticipantImportResult)}
@@ -15567,11 +17160,12 @@ function renderCommunicationEventsView() {
       <div class="vivencia-event-layout">
         <article class="form-panel vivencia-event-entry">
           <div class="vivencia-panel-heading">
-            <div><p class="eyebrow">Comunicación</p><h3>${detailEvent ? "Detalle del evento" : "Captura manual de evento"}</h3></div>
+            <div><p class="eyebrow">Comunicación</p><h3>${isPlanningDraft ? "Completar evento de Planeación" : detailEvent ? "Detalle del evento" : "Captura manual de evento"}</h3></div>
             <span class="editor-status">${editable ? "Guardado en línea activo" : "Modo consulta"}</span>
           </div>
           <form id="communicationEventForm" class="vivencia-event-form">
             <input name="event_id" type="hidden" value="${formValue("id")}" />
+            <input name="planning_activity_id" type="hidden" value="${formValue("planning_activity_id")}" />
             <label>Campus<input name="campus" value="${formValue("campus", "Monterrey")}" ${editable ? "" : "disabled"} /></label>
             <label>Nombre del evento<input name="event_name" required value="${formValue("event_name")}" placeholder="Nombre del evento" ${editable ? "" : "disabled"} /></label>
             <label>Tipo de actividad<input name="discipline" value="${formValue("discipline")}" placeholder="Opcional" ${editable ? "" : "disabled"} /></label>
@@ -15588,7 +17182,7 @@ function renderCommunicationEventsView() {
             <label>Estado<select name="status" ${editable ? "" : "disabled"}><option value="planeado" ${detailStatus === "planeado" ? "selected" : ""}>Planeado</option><option value="realizado" ${detailStatus === "realizado" ? "selected" : ""}>Realizado</option><option value="pospuesto" ${detailStatus === "pospuesto" ? "selected" : ""}>Pospuesto</option><option value="cancelado" ${detailStatus === "cancelado" ? "selected" : ""}>Cancelado</option></select></label>
             <label class="full">Descripción<textarea name="description" rows="3" placeholder="Descripción breve del evento" ${editable ? "" : "disabled"}>${formValue("description")}</textarea></label>
             ${detailEvent ? `<button class="ghost-btn full" id="newCommunicationEvent" type="button">Capturar evento nuevo</button>` : ""}
-            <button class="primary-btn full" type="submit" ${editable ? "" : "disabled"}>${detailEvent ? "Guardar detalle" : "Guardar evento"}</button>
+            <button class="primary-btn full" type="submit" ${editable ? "" : "disabled"}>${isPlanningDraft ? "Guardar evento de Planeación" : detailEvent ? "Guardar detalle" : "Guardar evento"}</button>
           </form>
           <div class="vivencia-bulk-upload">
             <div><strong>Sincronizar desde Planeación</strong><span>Guarda los eventos de Comunicación que ya tienen fecha y evita registros repetidos.</span></div>
@@ -15836,32 +17430,52 @@ async function uploadCommunicationDiffusionImage(slotKey, imageIndex, file) {
   }
   const normalizedImageIndex = Math.max(1, Math.min(Number(slot.maxImages || 1), Number(imageIndex || 1)));
   const previous = communicationDiffusionImage(slotKey, normalizedImageIndex);
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-") || "imagen";
-  const storagePath = `${slotKey}/imagen-${normalizedImageIndex}/${crypto.randomUUID()}-${safeName}`;
+  const storagePath = `${activeMasterPeriod}/${slotKey}/imagen-${normalizedImageIndex}/current-image`;
   communicationDiffusionUploadingSlot = `${slotKey}:${normalizedImageIndex}`;
   render();
   try {
-    const { error: uploadError } = await supabaseClient.storage
+    let { error: uploadError } = await supabaseClient.storage
       .from("communication-diffusion")
-      .upload(storagePath, file, { contentType: file.type, upsert: false });
-    if (uploadError) throw uploadError;
-    const { error: metadataError } = await supabaseClient
-      .from("communication_diffusion_images")
-      .upsert({
-        slot_key: slotKey,
-        image_index: normalizedImageIndex,
-        title: slot.title,
-        storage_path: storagePath,
-        file_name: file.name,
-        mime_type: file.type,
-        file_size: file.size,
-        updated_by: currentUser.id,
-        updated_at: new Date().toISOString()
-      }, { onConflict: "slot_key,image_index" });
-    if (metadataError) {
-      await supabaseClient.storage.from("communication-diffusion").remove([storagePath]);
-      throw metadataError;
+      .upload(storagePath, file, { contentType: file.type, upsert: true });
+    if (uploadError && previous?.storage_path === storagePath) {
+      const removeResult = await supabaseClient.storage.from("communication-diffusion").remove([storagePath]);
+      if (!removeResult.error) {
+        const retry = await supabaseClient.storage
+          .from("communication-diffusion")
+          .upload(storagePath, file, { contentType: file.type, upsert: false });
+        uploadError = retry.error;
+      }
     }
+    if (uploadError) throw uploadError;
+    const metadataPayload = {
+      slot_key: masterPeriodCloudSlot(slotKey),
+      image_index: normalizedImageIndex,
+      title: slot.title,
+      storage_path: storagePath,
+      file_name: file.name,
+      mime_type: file.type,
+      file_size: file.size,
+      updated_by: currentUser.id,
+      updated_at: new Date().toISOString()
+    };
+    let { error: metadataError } = await supabaseClient
+      .from("communication_diffusion_images")
+      .upsert(metadataPayload, { onConflict: "slot_key,image_index" });
+    const metadataDetail = String(supabaseErrorDetail(metadataError) || metadataError?.message || "").toLowerCase();
+    const needsLegacyMetadata = metadataError && (
+      metadataDetail.includes("image_index")
+      || metadataDetail.includes("on conflict")
+      || metadataDetail.includes("unique or exclusion constraint")
+    );
+    if (needsLegacyMetadata) {
+      const { image_index: _ignoredImageIndex, ...legacyPayload } = metadataPayload;
+      legacyPayload.slot_key = masterPeriodCloudSlot(slotKey, normalizedImageIndex, true);
+      const legacyResult = await supabaseClient
+        .from("communication_diffusion_images")
+        .upsert(legacyPayload, { onConflict: "slot_key" });
+      metadataError = legacyResult.error;
+    }
+    if (metadataError) console.warn("La imagen se conservará desde almacenamiento porque no se pudo registrar su ficha", metadataError);
     if (previous?.storage_path && previous.storage_path !== storagePath) {
       const { error: removeError } = await supabaseClient.storage
         .from("communication-diffusion")
@@ -15869,10 +17483,28 @@ async function uploadCommunicationDiffusionImage(slotKey, imageIndex, file) {
       if (removeError) console.warn("No se pudo retirar la imagen anterior", removeError);
     }
     await loadCommunicationDiffusionImages();
+    const signedPreview = await supabaseClient.storage.from("communication-diffusion").createSignedUrl(storagePath, 60 * 60);
+    const directImage = {
+      slot_key: slotKey,
+      image_index: normalizedImageIndex,
+      title: slot.title,
+      storage_path: storagePath,
+      file_name: file.name,
+      mime_type: file.type,
+      file_size: file.size,
+      updated_at: new Date().toISOString(),
+      public_url: signedPreview.data?.signedUrl || URL.createObjectURL(file),
+      source: "current-upload"
+    };
+    communicationDiffusionImages = communicationDiffusionImages.filter((row) => !(
+      row.slot_key === slotKey && Number(row.image_index || 1) === normalizedImageIndex
+    ));
+    communicationDiffusionImages.push(directImage);
     communicationDiffusionActiveImage[slotKey] = normalizedImageIndex;
     addAudit("comunicacion", `Imagen ${normalizedImageIndex} de difusión actualizada: ${slot.title}`);
     recordUploadSuccess(`comunicacion.difusion.${slotKey}.${normalizedImageIndex}`);
-    toast(`${slot.title}: imagen ${normalizedImageIndex} guardada`);
+    render();
+    toast(`${slot.title}: imagen ${normalizedImageIndex} visible y compartida`);
   } catch (error) {
     console.error(error);
     toast(`No se pudo guardar la imagen: ${supabaseErrorDetail(error) || error.message}`);
@@ -15917,20 +17549,24 @@ function renderSchedules(area) {
   }
   const rows = scheduleMasterRows();
   const conflicts = scheduleConflicts();
+  const programmedOfferings = classProgramOfferings();
+  const programmedBlocks = [...new Set(programmedOfferings.map((row) => row.block))].sort((a, b) => classPeriodSortValue(a) - classPeriodSortValue(b));
   return `
     <div class="permission-strip">
-      <span>Calendario Maestro: Programacion Oficial + Booking. Vista de solo lectura; cualquier cambio se realiza en el archivo fuente y se vuelve a cargar.</span>
-      <span>${rows.length} eventos PMT1  -  ${conflicts.length} conflictos</span>
+      <span>Calendario Maestro: Programacion Oficial + Booking. La programación oficial también define disciplinas, bloques y profesores del dashboard.</span>
+      <span>${programmedOfferings.length} grupos en ${programmedBlocks.join(" + ") || "sin bloques"}  -  ${conflicts.length} conflictos de horario</span>
     </div>
-    <section class="schedule-upload-grid">
-      ${renderMasterScheduleUploader(rows.length, scheduleState.errors.master)}
-      <details class="advanced-schedule-load">
-        <summary>Opciones avanzadas de carga</summary>
-        <div class="schedule-upload-grid">
-          ${renderScheduleUploader("official", "Subir Programacion Oficial", scheduleState.official.length, scheduleState.errors.official)}
-          ${renderScheduleUploader("booking", "Subir Booking", scheduleState.booking.length, scheduleState.errors.booking)}
+    <section class="schedule-source-load">
+      <div class="section-title compact">
+        <div>
+          <p class="eyebrow">Carga de programacion</p>
+          <h2>Archivos separados por fuente</h2>
         </div>
-      </details>
+      </div>
+      <div class="schedule-upload-grid">
+        ${renderScheduleUploader("official", "Programacion Oficial de Clases", programmedOfferings.length, scheduleState.errors.official)}
+        ${renderScheduleUploader("booking", "Programacion de Booking", classBookingProgramOfferings().length, scheduleState.errors.booking)}
+      </div>
     </section>
     <section class="schedule-tabs">
       ${["professors", "installations", "availability", "conflicts", "report"].map((mode) => `
@@ -15947,49 +17583,27 @@ function renderSchedules(area) {
   `;
 }
 
-function renderMasterScheduleUploader(count, errors) {
-  return `
-    <article class="schedule-upload-card master-schedule-card">
-      <div>
-        <p class="eyebrow">Fuente principal</p>
-        <h3>Subir archivo maestro de Indicadores</h3>
-        <p>WellSync lee automaticamente las hojas "programacion clases" y "booking ofertados", consolida ambas y actualiza el Calendario Maestro.</p>
-      </div>
-      <div class="upload-action-row">
-        <label class="file-button">
-          Subir archivo maestro
-          <input type="file" accept=".xlsx,.xls" data-schedule-upload="master" />
-        </label>
-        <button class="ghost-btn" type="button" data-download-class-template="master">Plantilla archivo maestro</button>
-      </div>
-      <strong>${count} eventos PMT1 consolidados</strong>
-      ${errors?.length ? `
-        <details class="schedule-errors" open>
-          <summary>${errors.length} errores del archivo maestro</summary>
-          ${errors.slice(0, 8).map((error) => `<p>${error.message}</p>`).join("")}
-        </details>
-      ` : `<span class="schedule-ok">Listo para cargar desde Indicadores</span>`}
-    </article>
-  `;
-}
-
 function renderScheduleUploader(type, title, count, errors) {
-  const sourceLabel = type === "official" ? "clases oficiales" : "booking";
+  const isOfficial = type === "official";
   return `
     <article class="schedule-upload-card">
       <div>
-        <p class="eyebrow">Respaldo manual  -  ${sourceLabel}</p>
+        <p class="eyebrow">${isOfficial ? "Clases deportivas" : "Booking ofertados"}</p>
         <h3>${title}</h3>
-        <p>Usar solo si el archivo maestro no trae esta hoja o si se quiere actualizar esta fuente manualmente.</p>
+        <p>${isOfficial
+          ? "Carga disciplinas, bloques PMT1/PMT2/PMT3, profesores, grupos, frecuencia y horarios. Las métricas de alumnos permanecen en cero hasta subir Calificaciones."
+          : "Carga actividades ofertadas, profesores, frecuencia, horarios, instalaciones y aforo. Las gráficas permanecen en cero hasta subir las listas de Booking."}</p>
       </div>
       <div class="upload-action-row">
-        <label class="file-button">
-          ${title}
-          <input type="file" accept=".xlsx,.xls,.csv" data-schedule-upload="${type}" />
-        </label>
-        <button class="ghost-btn" type="button" data-download-class-template="${type}">Plantilla ${type === "official" ? "programación oficial" : "Booking"}</button>
+        <div class="schedule-upload-control">
+          <label class="file-button">
+            Subir ${isOfficial ? "programacion oficial" : "programacion Booking"}
+            <input type="file" accept=".xlsx,.xls,.csv" data-schedule-upload="${type}" />
+          </label>
+        </div>
+        <button class="ghost-btn" type="button" data-download-class-template="${type}">Plantilla ${isOfficial ? "programación oficial" : "Booking"}</button>
       </div>
-      <strong>${count} registros validos</strong>
+      <strong>${count} ${isOfficial ? "grupos programados" : "servicios ofertados"}</strong>
       ${errors?.length ? `
         <details class="schedule-errors" open>
           <summary>${errors.length} errores detectados</summary>
@@ -16420,8 +18034,71 @@ function bookingTypeLabel(value) {
 
 function inferBookingProfessor(activity) {
   const cleanActivity = normalizeText(activity);
-  const match = scheduleMasterRows().find((row) => normalizeText(row.discipline).includes(cleanActivity) || cleanActivity.includes(normalizeText(row.discipline).replace(/pmt\d/g, "").trim()));
+  const match = [...(scheduleState.booking || []), ...(scheduleState.official || [])]
+    .find((row) => normalizeText(row.discipline).includes(cleanActivity) || cleanActivity.includes(normalizeText(row.discipline).replace(/pmt\d/g, "").trim()));
   return match?.professor || "Sin profesor asignado";
+}
+
+function classBookingProgramOfferings() {
+  const offerings = new Map();
+  (scheduleState.booking || []).forEach((row) => {
+    const activity = cleanBookingActivity(row.discipline);
+    if (!activity) return;
+    const frequency = String(row.frequency || "").trim();
+    const start = String(row.start || "").trim();
+    const end = String(row.end || "").trim();
+    const professor = String(row.professor || "Por asignar").trim() || "Por asignar";
+    const installation = String(row.installation || "Sin instalacion").trim() || "Sin instalacion";
+    const capacity = Number(row.capacity || 0);
+    const key = [activity, frequency, start, end, professor, installation, capacity]
+      .map(normalizeText)
+      .join("|");
+    if (offerings.has(key)) return;
+    offerings.set(key, {
+      activity,
+      frequency,
+      start,
+      end,
+      professor,
+      installation,
+      capacity: Number.isFinite(capacity) ? capacity : 0
+    });
+  });
+  return [...offerings.values()].sort((a, b) =>
+    a.start.localeCompare(b.start)
+    || a.activity.localeCompare(b.activity, "es")
+  );
+}
+
+function renderBookingProgramPanel() {
+  const offerings = classBookingProgramOfferings();
+  return `
+    <details class="booking-program-panel" open>
+      <summary>
+        <span class="booking-program-icon" aria-hidden="true"><i data-lucide="calendar-clock"></i></span>
+        <span><strong>Programacion Booking</strong><small>Grupos, horarios, frecuencia y profesores del Archivo Maestro</small></span>
+        <em>${offerings.length} servicios ofertados</em>
+        <span class="booking-program-toggle" aria-hidden="true"><i data-lucide="chevron-down"></i></span>
+      </summary>
+      ${offerings.length ? `
+        <div class="booking-program-table-wrap">
+          <table class="booking-program-table">
+            <thead><tr><th>Actividad</th><th>Frecuencia</th><th>Horario</th><th>Profesor</th><th>Instalacion</th><th>Aforo</th></tr></thead>
+            <tbody>${offerings.map((row) => `
+              <tr>
+                <td><strong>${escapeHtml(row.activity)}</strong></td>
+                <td>${escapeHtml(formatClassScheduleFrequency(row.frequency))}</td>
+                <td>${escapeHtml(row.start)}-${escapeHtml(row.end)}</td>
+                <td>${escapeHtml(row.professor)}</td>
+                <td>${escapeHtml(row.installation)}</td>
+                <td>${row.capacity ? row.capacity.toLocaleString("es-MX") : "-"}</td>
+              </tr>
+            `).join("")}</tbody>
+          </table>
+        </div>
+      ` : `<div class="booking-program-empty">Carga el Archivo Maestro desde <strong>Horarios</strong> para ver aqui la oferta de Booking.</div>`}
+    </details>
+  `;
 }
 
 function bookingEmptyState() {
@@ -16600,16 +18277,15 @@ function renderClassBookingDashboard() {
   const topProfessor = topActivity === "Sin datos" ? "Sin datos" : inferBookingProfessor(topActivity);
   return `
     <section class="booking-module">
-      <div class="permission-strip booking-upload-strip">
-        <div>
-          <strong>Listas de alumnos de Booking</strong>
-          <span>Plantilla esperada: id, reservation_date, status, type, alumno, espacio.</span>
+      <div class="booking-upload-toolbar">
+        <div class="booking-reservations-upload">
+          <label class="file-button">
+            Cargar reservaciones CSV
+            <input type="file" accept=".csv,.xlsx,.xls" id="classBookingReservationsFile" />
+          </label>
         </div>
-        <label class="file-button">
-          Cargar reservaciones CSV
-          <input type="file" accept=".csv,.xlsx,.xls" id="classBookingReservationsFile" />
-        </label>
       </div>
+      ${renderBookingProgramPanel()}
       <div class="booking-kpi-grid">
         <article><span>Reservaciones</span><strong>${rows.length.toLocaleString("es-MX")}</strong><em>${allRows.length.toLocaleString("es-MX")} cargadas</em></article>
         <article><span>Alumnos únicos</span><strong>${uniqueStudents.toLocaleString("es-MX")}</strong><em>por matrícula</em></article>
@@ -16684,6 +18360,7 @@ function renderReports(area) {
   return `
     <div class="permission-strip">Descargas propuestas con datos agregados. Las listas nominales se sustituyen por matricula y filtros academicos permitidos.</div>
     <div class="reports-list">
+      ${area.id === "general" ? renderStudentDatabaseReportAction() : ""}
       ${selected.reports.map((report) => `
         <div class="report-row">
           <div><strong>${report}</strong><br><span>PDF para lectura y Excel para auditoria operativa.</span></div>
@@ -16753,6 +18430,8 @@ function render() {
   renderLogin();
   syncRoleSelector();
   if (!currentUser) return;
+  const topPeriodSelect = $("#topPeriodSelect");
+  if (topPeriodSelect) topPeriodSelect.value = activeMasterPeriod;
   const themeSelect = $("#themeSelect");
   if (themeSelect) themeSelect.hidden = !isLeadership();
   renderNav();
@@ -16775,6 +18454,7 @@ function render() {
   const budgetAllocationTab = $("#budgetAllocationViewButton");
   const budgetRequestTab = $("#budgetRequestViewButton");
   const collaboratorInfographicTab = $("#collaboratorInfographicViewButton");
+  const dashboardTab = $(`.segmented button[data-view="dashboard"]`);
   const schedulesTab = $(`.segmented button[data-view="schedules"]`);
   const systemTab = $(`.segmented button[data-view="blueprint"]`);
   const reportsTab = $(`.segmented button[data-view="reports"]`);
@@ -16803,6 +18483,7 @@ function render() {
   if (communicationDiffusionTab) communicationDiffusionTab.hidden = !isCommunication;
   if (budgetAllocationTab) budgetAllocationTab.hidden = !isBudget;
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
+  if (dashboardTab) dashboardTab.textContent = isSemanaTec ? "Programación" : "Dashboard";
   if (schedulesTab) {
     schedulesTab.hidden = isGym || isBudget || isCollaborators || isSemanaTec || isCommunication || isRepresentativos;
     schedulesTab.textContent = isGeneral ? "Calendario" : isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
@@ -16852,7 +18533,7 @@ function render() {
     else if (activeView === "schedules") contentHtml = isGeneral ? renderExecutiveCalendarView() : isIntramuros ? renderIntramurosParticipantUploadView() : renderSchedules(area);
     else if (activeView === "booking") contentHtml = renderClassBookingDashboard();
     else if (activeView === "simulator") contentHtml = renderScheduleSimulatorView();
-    else if (activeView === "reports") contentHtml = renderReports(area);
+    else if (activeView === "reports") contentHtml = isIntramuros ? renderIntramurosOmarWorkspace() : renderReports(area);
     else if (activeView === "grades") contentHtml = renderClassGrades();
     else if (activeView === "semana-tec-grades") contentHtml = renderSemanaTecGrades();
     else if (activeView === "semana-tec-upload") contentHtml = renderSemanaTecUploadView();
@@ -16888,6 +18569,27 @@ function render() {
     activeView = button.dataset.viewJump || "dashboard";
     render();
   }));
+  $("#selectSemanaTecProgram")?.addEventListener("click", () => $("#semanaTecProgramFile")?.click());
+  $("#downloadSemanaTecProgramTemplate")?.addEventListener("click", downloadSemanaTecProgramTemplate);
+  $("#semanaTecProgramFile")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (file) await loadSemanaTecProgramFile(file);
+    event.target.value = "";
+  });
+  $$('[data-st-program-week]').forEach((button) => button.addEventListener("click", () => {
+    semanaTecProgramFilters.week = button.dataset.stProgramWeek || "todas";
+    render();
+  }));
+  $$('[data-st-program-filter]').forEach((input) => input.addEventListener("input", (event) => {
+    semanaTecProgramFilters[event.target.dataset.stProgramFilter] = event.target.value;
+    render();
+  }));
+  $("#semanaTecProgramSearch")?.addEventListener("input", (event) => {
+    semanaTecProgramFilters.search = event.target.value;
+    render();
+  });
+  $("#cancelSemanaTecProgram")?.addEventListener("click", () => { semanaTecProgramDraft = null; render(); });
+  $("#importSemanaTecProgram")?.addEventListener("click", importSemanaTecProgramDraft);
   $$("[data-semana-tec-week]").forEach((button) => button.addEventListener("click", () => {
     semanaTecFilters.week = button.dataset.semanaTecWeek || "todas";
     semanaTecFilters.group = "todos";
@@ -16943,6 +18645,9 @@ function render() {
   }));
   $$('[data-semana-tec-group-download]').forEach((button) => button.addEventListener("click", () => {
     downloadSemanaTecGroupGradeFile(button.dataset.semanaTecGroupDownload);
+  }));
+  $$('[data-communication-planning-edit]').forEach((button) => button.addEventListener("click", () => {
+    openCommunicationPlanningEvent(button.dataset.communicationPlanningEdit);
   }));
   $$("[data-planning-detail]").forEach((button) => button.addEventListener("click", () => {
     openPlanningActivityDetail(button, button.dataset.planningDetail, button.dataset.planningInstance);
@@ -17021,9 +18726,8 @@ function render() {
     await replaceStudentDatabaseFromCsv(file);
     event.target.value = "";
   });
-  $("#executivePeriod")?.addEventListener("input", (event) => {
-    executiveReportState.period = event.target.value;
-    render();
+  $("#applyMasterPeriod")?.addEventListener("click", async () => {
+    await switchMasterPeriod($("#masterPeriodSelect")?.value || activeMasterPeriod);
   });
   $("#executiveWeek")?.addEventListener("input", (event) => {
     executiveReportState.week = Number(event.target.value) || 1;
@@ -17103,6 +18807,17 @@ function render() {
     await importIntramurosRoles(file);
     event.target.value = "";
   });
+  $("[data-confirm-intramuros-roles]")?.addEventListener("click", async () => {
+    if (!intramurosRolesPendingUpload) return;
+    const { file, parsed } = intramurosRolesPendingUpload;
+    await importIntramurosRoles(file, parsed);
+  });
+  $("[data-cancel-intramuros-roles]")?.addEventListener("click", () => {
+    intramurosRolesPendingUpload = null;
+    intramurosRolesUploadSummary = null;
+    render();
+    toast("Carga de Roles cancelada; no se guardó ningún dato");
+  });
   $("#intramurosUploadDrop")?.addEventListener("dragover", (event) => {
     event.preventDefault();
     event.currentTarget.classList.add("dragging");
@@ -17160,13 +18875,24 @@ function render() {
     toast(cloudRow ? "Torneo guardado en Supabase" : "Torneo guardado localmente");
   });
   $$(".intramuros-op-input").forEach((input) => input.addEventListener("change", async (event) => {
-    const { opId, opField } = event.target.dataset;
+    const { opId, opField, opTournament } = event.target.dataset;
     let updatedRow = null;
+    let found = false;
     intramurosOperationRows = intramurosOperationRows.map((row) => {
-      if (row.id !== opId) return row;
+      const matches = opId ? row.id === opId : headerKey(row.torneo) === headerKey(opTournament);
+      if (!matches) return row;
+      found = true;
       updatedRow = normalizeIntramurosOperationRow({ ...row, [opField]: event.target.value });
       return updatedRow;
     });
+    if (!found && opTournament) {
+      updatedRow = normalizeIntramurosOperationRow({
+        torneo: opTournament,
+        periodo: activeMasterPeriod,
+        [opField]: event.target.value
+      });
+      intramurosOperationRows = [...intramurosOperationRows, updatedRow];
+    }
     saveIntramurosOperationRows();
     if (updatedRow?.torneo) {
       const cloudRow = await saveIntramurosOperationRowCloud(updatedRow);
@@ -17234,6 +18960,7 @@ function render() {
   $("#communicationImpactGoalForm")?.addEventListener("submit", saveCommunicationImpactGoal);
   $("#newCommunicationEvent")?.addEventListener("click", () => {
     selectedCommunicationEventForDetail = "";
+    selectedCommunicationPlanningDraft = null;
     render();
   });
   $("#uploadCommunicationEvents")?.addEventListener("click", () => $("#communicationEventsFile")?.click());
@@ -17344,6 +19071,7 @@ function render() {
   }));
   $$("[data-communication-detail]").forEach((button) => button.addEventListener("click", () => {
     selectedCommunicationEventForDetail = button.dataset.communicationDetail;
+    selectedCommunicationPlanningDraft = null;
     activeView = "vivencia-events";
     render();
   }));
@@ -17438,8 +19166,7 @@ function render() {
     render();
   });
   $("#gymAttendanceDate")?.addEventListener("change", (event) => {
-    const dayInput = $("#gymAttendanceDay");
-    if (dayInput) dayInput.value = gymDayFromDate(event.target.value);
+    syncGymAttendanceDateFields(event.target.value);
   });
   $("#gymAttendanceForm")?.addEventListener("submit", saveGymAttendance);
   $$("[data-delete-gym-attendance]").forEach((button) => button.addEventListener("click", () => {
@@ -17507,6 +19234,7 @@ function render() {
   }));
   $("#addCollaboratorRow")?.addEventListener("click", addCollaboratorRow);
   $("#addCollaboratorColumn")?.addEventListener("click", addCollaboratorColumn);
+  $("#downloadCollaboratorTable")?.addEventListener("click", exportCollaboratorTableExcel);
   $("#exportCollaboratorBackup")?.addEventListener("click", exportCollaboratorBackup);
   $("#openCollaboratorPhotoUploader")?.addEventListener("click", () => {
     photoUploaderOpen = true;
@@ -17593,7 +19321,23 @@ function render() {
     render();
   }));
   $("#exportClassGrades")?.addEventListener("click", downloadClassGradesCsv);
-  $("#uploadClassGrades")?.addEventListener("click", () => $("#classGradesFile")?.click());
+  $("#uploadClassGrades")?.addEventListener("click", () => {
+    if (!supabaseClient) {
+      toast("Supabase no está disponible en esta publicación");
+      return;
+    }
+    if (currentUser?.auth !== "supabase") {
+      clearSession();
+      render();
+      toast("Inicia sesión con Supabase para subir calificaciones");
+      return;
+    }
+    if (!canEditArea("clases")) {
+      toast("Tu cuenta no tiene permiso para cargar calificaciones de Clases Deportivas");
+      return;
+    }
+    $("#classGradesFile")?.click();
+  });
   $$('[data-download-class-template]').forEach((button) => button.addEventListener("click", () => {
     downloadClassTemplate(button.dataset.downloadClassTemplate);
   }));
@@ -17620,10 +19364,17 @@ async function saveGymAttendance(event) {
     return;
   }
   const form = new FormData(event.currentTarget);
+  const attendanceDate = String(form.get("attendance_date") || "");
+  const calendar = gymPeriodCalendar();
+  const calculatedWeek = gymCalendarWeekForDate(attendanceDate);
+  if (calendar && !calculatedWeek) {
+    toast(`La fecha debe estar entre ${gymCalendarDateLabel(calendar.start)} y ${gymCalendarDateLabel(calendar.end)}`);
+    return;
+  }
   const payload = {
-    week_number: Number(form.get("week_number")),
-    attendance_date: String(form.get("attendance_date") || ""),
-    day_of_week: String(form.get("day_of_week") || ""),
+    week_number: calculatedWeek || Number(form.get("week_number")),
+    attendance_date: attendanceDate,
+    day_of_week: gymDayFromDate(attendanceDate),
     facility: String(form.get("facility") || ""),
     attendee_count: Number(form.get("attendee_count")),
     notes: String(form.get("notes") || "").trim() || null,
@@ -17773,7 +19524,7 @@ async function saveCaptureFromForm() {
     carrera: String(formData.get("carrera") || ""),
     semestre: Number(formData.get("semestre") || 1),
     nivel: String(formData.get("nivel") || "Profesional"),
-    periodo: String(formData.get("periodo") || "AD26"),
+    periodo: String(formData.get("periodo") || activeMasterPeriod),
     operacion: String(formData.get("operacion") || ""),
     estatus: String(formData.get("estatus") || "Activo"),
     area: selected.id === "general" ? "clases" : selected.id,
@@ -17929,7 +19680,7 @@ function downloadClassTemplate(type) {
     },
     official: {
       filename: "plantilla-programacion-oficial.csv",
-      rows: [{ profesor: "Nombre del profesor", disciplina: "Nombre de clase", dia: "Lunes", hora_inicio: "09:00", hora_fin: "10:00", instalacion: "Gimnasio", frecuencia: "Semanal", grupo: "1" }]
+      rows: [{ PERIODO: "202611", CODIGO_ASIGNATURA: "XAFG3011", NOMBRE_ASIGNATURA: "Acondicionamiento físico PMT1", ESCUELA: "LF-Liderazgo y Formación Estudiantil", ETIQUETA_GRUPO: "101", CRN: "12345", STATUS: "ACTIVO", ATR_ASIGNATURA: "CEAC, LiFE, COFI, MT21", ATR_GRUPO: "CVAS,PMT1", VACANTES_GRUPO: 30, Inscritos: 0, Disponibles: 30, CODIGO_DOCENTE: "L00000000", NOMBRE_DOCENTE: "Nombre del profesor", INSTALACION: "106-W-1", LUN: "LuJu", HORA_INICIO: "09:30", HORA_FIN: "11:00", DURACION: "01:30", SEMANAS: "6,7,8,9,10", NUM_SEMANAS: 5, FECHA_INICIO: "2026-02-09", FECHA_FIN: "2026-03-15" }]
     },
     booking: {
       filename: "plantilla-booking.csv",
@@ -17942,11 +19693,16 @@ function downloadClassTemplate(type) {
       return;
     }
     const workbook = window.XLSX.utils.book_new();
-    const official = templates.official.rows;
+    const officialBase = templates.official.rows[0];
+    const official = [
+      officialBase,
+      { ...officialBase, CODIGO_ASIGNATURA: "XAFG3012", NOMBRE_ASIGNATURA: "Acondicionamiento físico PMT2", ETIQUETA_GRUPO: "201", ATR_GRUPO: "CVAS,PMT2", SEMANAS: "12,13,14,15,16,17", NUM_SEMANAS: 6, FECHA_INICIO: "2026-03-23", FECHA_FIN: "2026-05-03" },
+      { ...officialBase, CODIGO_ASIGNATURA: "XAFG3013", NOMBRE_ASIGNATURA: "Acondicionamiento físico PMT3", ETIQUETA_GRUPO: "301", ATR_GRUPO: "CVAS,PMT3", SEMANAS: "19,20,21,22,23", NUM_SEMANAS: 5, FECHA_INICIO: "2026-05-11", FECHA_FIN: "2026-06-14" }
+    ];
     const booking = templates.booking.rows;
     window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(official), "programacion clases");
     window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(booking), "booking ofertados");
-    window.XLSX.writeFile(workbook, "plantilla-archivo-maestro-indicadores.xlsx");
+    window.XLSX.writeFile(workbook, "plantilla-archivo-maestro-clases.xlsx");
     toast("Plantilla archivo maestro descargada");
     return;
   }
@@ -17980,13 +19736,15 @@ async function handleScheduleUpload(file, type) {
       scheduleState.errors = parsed.errors;
       scheduleState.sourceMode = "master";
       scheduleState.updatedAt = new Date().toISOString();
+      scheduleState.officialUpdatedAt = scheduleState.updatedAt;
+      scheduleState.bookingUpdatedAt = scheduleState.updatedAt;
       saveSchedules();
       simulatorState = { rows: simulatorBaseRows(), scenarioName: "Escenario desde Calendario Maestro", updatedAt: new Date().toISOString() };
       saveSimulator();
       addAudit("horarios", `${file.name}: maestro con ${parsed.official.length} clases oficiales y ${parsed.booking.length} booking`);
       recordUploadSuccess("clases.horarios.master", scheduleState.updatedAt);
       render();
-      toast("Archivo maestro consolidado en Horarios");
+      toast(`Archivo Maestro cargado: ${classProgramOfferings().length} grupos alimentan PMT1, PMT2 y PMT3`);
       return;
     }
     const rows = await rowsFromScheduleFile(file);
@@ -17996,6 +19754,7 @@ async function handleScheduleUpload(file, type) {
     scheduleState.errors[type] = parsed.errors;
     scheduleState.sourceMode = "manual";
     scheduleState.updatedAt = new Date().toISOString();
+    scheduleState[`${type}UpdatedAt`] = scheduleState.updatedAt;
     saveSchedules();
     simulatorState = { rows: simulatorBaseRows(), scenarioName: "Escenario desde Calendario Maestro", updatedAt: new Date().toISOString() };
     saveSimulator();
@@ -18006,7 +19765,7 @@ async function handleScheduleUpload(file, type) {
   } catch (error) {
     console.error(error);
     if (type === "master") {
-      scheduleState.errors.master = [{ row: 0, message: "No pude leer el archivo maestro. Usa el Excel de Indicadores con las hojas programacion clases y booking ofertados." }];
+      scheduleState.errors.master = [{ row: 0, message: "No pude leer el Archivo Maestro. Debe incluir la hoja Programación Clases; Booking Ofertados es opcional." }];
     } else {
       scheduleState.errors[type] = [{ row: 0, message: "No pude leer el archivo. Usa Excel o CSV con encabezados." }];
     }
@@ -18219,6 +19978,10 @@ function renderBlueprint(area) {
 
 renderCareers();
 render();
+window.setInterval(refreshPresentationEphemeridesOnDateChange, 60000);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshPresentationEphemeridesOnDateChange();
+});
 loadPlanningCalendarRows().then(() => render());
 loadSupabaseSession().then(async () => {
   await loadExecutivePresentationNotes();
@@ -18271,7 +20034,7 @@ $$(".segmented button").forEach((button) => button.addEventListener("click", () 
   render();
 }));
 
-["periodFilter", "levelFilter", "careerFilter", "genderFilter", "globalSearch", "roleSelect"].forEach((id) => {
+["levelFilter", "careerFilter", "genderFilter", "globalSearch", "roleSelect"].forEach((id) => {
   $(`#${id}`).addEventListener("input", (event) => {
     if (id === "roleSelect") {
       const user = demoUsers.find((item) => item.id === event.target.value) || demoUsers[0];
@@ -18283,6 +20046,19 @@ $$(".segmented button").forEach((button) => button.addEventListener("click", () 
     render();
   });
 });
+
+async function handleMasterPeriodChange(event) {
+  await switchMasterPeriod(event.target.value);
+  const globalPeriod = $("#periodFilter");
+  const topPeriod = $("#topPeriodSelect");
+  if (globalPeriod) globalPeriod.value = activeMasterPeriod;
+  if (topPeriod) topPeriod.value = activeMasterPeriod;
+}
+
+$("#periodFilter").value = activeMasterPeriod;
+$("#topPeriodSelect").value = activeMasterPeriod;
+$("#periodFilter").addEventListener("change", handleMasterPeriodChange);
+$("#topPeriodSelect").addEventListener("change", handleMasterPeriodChange);
 
 $("#themeSelect").addEventListener("input", (event) => {
   activeTheme = event.target.value;
@@ -18337,6 +20113,7 @@ $("#logoutButton").addEventListener("click", () => {
     communicationEventImportResult = null;
     communicationPlanningSyncing = false;
     selectedCommunicationEventForDetail = "";
+    selectedCommunicationPlanningDraft = null;
     communicationParticipants = [];
     communicationParticipantUploads = [];
     communicationParticipantsAvailable = true;
@@ -18375,3 +20152,4 @@ document.addEventListener("mock-config-save", () => {
 
 loadUniformesData();
 loadClassGradeSeedData().then(() => render());
+loadSemanaTecProgramSeed().then(() => render());
