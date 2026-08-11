@@ -576,6 +576,7 @@ let executivePresentationSaving = false;
 let executivePresentationNotes = loadExecutivePresentationLocalNotes();
 const presentationHistoryApi = window.WellSyncPresentationHistory;
 const presentationPrioritiesApi = window.WellSyncPresentationPriorities;
+const studentDatabaseTemplateApi = window.WellSyncStudentDatabaseTemplate;
 const presentationHistoryPendingStore = presentationHistoryApi.createPendingStore(localStorage);
 let executivePresentationHistory = [];
 let executivePresentationHistoryLoading = false;
@@ -10682,8 +10683,7 @@ function renderStudentDatabaseReportAction() {
         <span>${studentDatabaseLoaded ? `${cloudStudentDatabase.length.toLocaleString("es-MX")} alumnos cargados.` : "Todavía no hay una base cargada para este periodo."}</span>
       </div>
       <div class="student-database-report-actions">
-        <input id="studentDatabaseCsv" type="file" accept=".csv,text/csv" hidden />
-        <button class="primary-btn" id="uploadStudentDatabase" type="button" ${authorized && !studentDatabaseImporting ? "" : "disabled"}>${studentDatabaseImporting ? "Cargando..." : "Cargar base de datos"}</button>
+        ${studentDatabaseTemplateApi.renderActions({ authorized, importing: studentDatabaseImporting })}
         ${authorized ? "" : "<small>Disponible para Administrador, Dirección Deportiva y Líder Deportivo.</small>"}
       </div>
     </div>
@@ -18757,6 +18757,10 @@ function render() {
     addAudit("limpieza", "Capturas locales eliminadas");
     render();
     toast("Capturas locales eliminadas");
+  });
+  $("#downloadStudentDatabaseTemplate")?.addEventListener("click", () => {
+    downloadBlob(studentDatabaseTemplateApi.templateCsv(), studentDatabaseTemplateApi.templateFileName);
+    toast("Plantilla de Base de datos de alumnos descargada");
   });
   $("#uploadStudentDatabase")?.addEventListener("click", () => $("#studentDatabaseCsv")?.click());
   $("#studentDatabaseCsv")?.addEventListener("change", async (event) => {
