@@ -577,6 +577,7 @@ let executivePresentationNotes = loadExecutivePresentationLocalNotes();
 const presentationHistoryApi = window.WellSyncPresentationHistory;
 const presentationPrioritiesApi = window.WellSyncPresentationPriorities;
 const studentDatabaseTemplateApi = window.WellSyncStudentDatabaseTemplate;
+const studentDatabaseImportApi = window.WellSyncStudentDatabaseImport;
 const presentationHistoryPendingStore = presentationHistoryApi.createPendingStore(localStorage);
 let executivePresentationHistory = [];
 let executivePresentationHistoryLoading = false;
@@ -2367,6 +2368,8 @@ function parseStudentDatabaseCsv(text) {
     genero: columnFor(["genero", "género", "sexo"]),
     carrera: columnFor(["carrera", "programa", "programa academico", "programa académico"]),
     major: columnFor(["v_Clave Major Agrupado", "clave major agrupado", "major"]),
+    school: columnFor(["desc escuela programa", "escuela programa"]),
+    tec21: columnFor(["ind plan tec21", "plan tec21"]),
     campus: columnFor(["nombre campus", "campus"]),
     periodoAcad: columnFor(["periodo acad", "periodo academico", "periodo académico"]),
     programaDesc: columnFor(["desc programa acad", "desc programa académico", "programa academico", "programa académico"]),
@@ -2407,7 +2410,7 @@ function parseStudentDatabaseCsv(text) {
       columns.programaDesc === undefined ? "" : values[columns.programaDesc]
     ]);
     const semesterResult = columns.semestre === undefined ? { value: null, warning: false } : parseOptionalSemester(values[columns.semestre]);
-    const semestre = semesterResult.value;
+    const semestre = columns.semestre === undefined ? "" : String(values[columns.semestre] || "").trim();
     const genero = columns.genero === undefined ? "No especificado" : normalizeStudentGender(values[columns.genero]);
     const nivel_escolar = columns.nivel === undefined ? "Profesional" : normalizeStudentLevel(values[columns.nivel]);
     const grado_escolar = String(values[columns.gradoEscolar] || values[columns.nivel] || "").trim();
@@ -2424,21 +2427,18 @@ function parseStudentDatabaseCsv(text) {
     seen.add(matricula);
     if (!carrera) warnings.push({ row: rowNumber, message: "Carrera vacia; se cargara sin carrera" });
     if (semesterResult.warning) warnings.push({ row: rowNumber, message: "Semestre no reconocido; se cargara vacio" });
-    const rawPayload = {};
-    originalHeaders.forEach((header, columnIndex) => {
-      if (header) rawPayload[header] = String(values[columnIndex] || "").trim();
-    });
-    payload.push({
-      ...rawPayload,
-      Matricula: matricula,
-      Genero: genero,
-      "Desc Programa Acad": carrera,
-      Carrera: carrera,
-      Semestre: semestre,
-      "Desc Nivel Acad Alumno": grado_escolar || nivel_escolar,
-      "Nombre Campus": columns.campus !== undefined ? String(values[columns.campus] || "").trim() : "",
-      "Periodo acad": columns.periodoAcad !== undefined ? String(values[columns.periodoAcad] || "").trim() : ""
-    });
+    payload.push(studentDatabaseImportApi.toCloudRow({
+      matricula,
+      campus: columns.campus !== undefined ? values[columns.campus] : "",
+      level: grado_escolar || nivel_escolar,
+      program: carrera,
+      period: columns.periodoAcad !== undefined ? values[columns.periodoAcad] : "",
+      gender: genero,
+      semester: semestre,
+      major: columns.major !== undefined ? values[columns.major] : "",
+      school: columns.school !== undefined ? values[columns.school] : "",
+      tec21: columns.tec21 !== undefined ? values[columns.tec21] : ""
+    }));
   });
   return {
     payload,
@@ -2446,9 +2446,9 @@ function parseStudentDatabaseCsv(text) {
       .filter((row) => /^A0[0-9]{6,8}$/.test(row.Matricula))
       .map((row) => ({
         matricula: row.Matricula,
-        genero: row.Genero || "No especificado",
-        carrera: meaningfulAcademicValue([row.Carrera, row["v_Clave Major Agrupado"], row["Desc Programa Acad"]], "Sin carrera"),
-        semestre: row.Semestre || 1,
+        genero: row["Desc Genero"] || "No especificado",
+        carrera: meaningfulAcademicValue([row.carrera, row["v_Clave Major Agrupado"], row["Desc Programa Academico"]], "Sin carrera"),
+        semestre: parseOptionalSemester(row.Semestre).value || 1,
         nivel_escolar: normalizeStudentLevel(row["Desc Nivel Acad Alumno"])
       })),
     errors,
@@ -2589,13 +2589,9 @@ async function replaceStudentDatabaseFromCsv(file) {
       return;
     }
     toast("Reemplazando Base de datos_alumnos en Supabase");
-    const deleteResult = await supabaseClient.rpc("clear_student_master_for_authorized_upload");
-    if (deleteResult.error) throw deleteResult.error;
     const chunkSize = 500;
-    for (let index = 0; index < payload.length; index += chunkSize) {
-      const { error } = await supabaseClient.from("Base de datos_alumnos").insert(payload.slice(index, index + chunkSize));
-      if (error) throw error;
-    }
+    const inserted = await studentDatabaseImportApi.replaceStudentMaster(supabaseClient, payload);
+    if (inserted !== payload.length) throw new Error(`Supabase confirmó ${inserted} de ${payload.length} alumnos`);
     for (let index = 0; index < minimalPayload.length; index += chunkSize) {
       const { error } = await supabaseClient.from("students_minimal").upsert(minimalPayload.slice(index, index + chunkSize), { onConflict: "matricula" });
       if (error) throw error;
