@@ -3756,11 +3756,41 @@ textarea { min-height: 76px; resize: vertical; }
   gap: 10px;
 }
 
+.student-database-report-actions > button {
+  min-height: 38px;
+}
+
+.student-database-template-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.student-database-template-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
 .student-database-report-actions small {
   max-width: 270px;
   color: var(--muted);
   font-size: 11px;
   line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .student-database-report-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .student-database-report-actions > button,
+  .student-database-report-actions small {
+    width: 100%;
+    max-width: none;
+  }
 }
 
 .blueprint-grid {
