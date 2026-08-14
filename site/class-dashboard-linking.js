@@ -49,9 +49,10 @@
     return index;
   }
 
-  function uniqueBucketValue(bucket, key) {
+  function bucketResolution(bucket, key) {
     const matches = bucket?.get(key);
-    return matches?.size === 1 ? [...matches][0] : "";
+    if (!matches) return { found: false, value: "" };
+    return { found: true, value: matches.size === 1 ? [...matches][0] : "" };
   }
 
   function resolveClassOfferingLink(index, candidate) {
@@ -59,13 +60,19 @@
     if (!period || !index) return "";
 
     const crn = normalizeClassLinkIdentifier(candidate?.crn);
-    if (crn) return uniqueBucketValue(index.crn, `${period}|${crn}`);
+    if (crn) {
+      const resolution = bucketResolution(index.crn, `${period}|${crn}`);
+      if (resolution.found) return resolution.value;
+    }
 
     const subjectCode = normalizeClassLinkIdentifier(candidate?.subjectCode);
-    if (subjectCode) return uniqueBucketValue(index.subjectCode, `${period}|${subjectCode}`);
+    if (subjectCode) {
+      const resolution = bucketResolution(index.subjectCode, `${period}|${subjectCode}`);
+      if (resolution.found) return resolution.value;
+    }
 
     const name = normalizeName(candidate?.normalizedName);
-    return name ? uniqueBucketValue(index.name, `${period}|${name}`) : "";
+    return name ? bucketResolution(index.name, `${period}|${name}`).value : "";
   }
 
   return {

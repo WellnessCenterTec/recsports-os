@@ -8,6 +8,8 @@ Relacionar la Programación Oficial con la lista de alumnos de Clases Deportivas
 
 La lista de alumnos de AD26 está cargada, pero el Dashboard intenta unir algunos registros por el nombre normalizado de la materia. Los nombres no siempre coinciden entre fuentes. Por ejemplo, `Fitness PMT1 (Body pump)` en Programación y `Body Pump PMT1` en la lista de alumnos terminan como dos disciplinas separadas: una con horario y cero alumnos, y otra con alumnos y sin horario.
 
+La revisión de archivos confirmó además que la programación antigua usada en la captura contiene 297 filas y cero CRN válidos. `Propuesta_programación AD2026.xlsx` contiene 300 ofertas activas con CRN válidos; 294 de sus CRN coinciden con los 295 CRN distintos de la lista de 7,992 alumnos. La unión por CRN requiere cargar esta programación vigente o cualquier archivo equivalente que conserve esos identificadores.
+
 ## Alcance
 
 - Cambiar únicamente la asociación de Programación Oficial con la lista de alumnos dentro del Dashboard de Clases Deportivas.
@@ -22,8 +24,8 @@ La lista de alumnos de AD26 está cargada, pero el Dashboard intenta unir alguno
 Cada fila de alumnos buscará su oferta programada del mismo bloque en este orden:
 
 1. CRN exacto normalizado.
-2. Clave de materia exacta normalizada, solamente cuando el CRN no produzca una coincidencia.
-3. Nombre base normalizado de la materia, solamente cuando CRN y clave no produzcan una coincidencia.
+2. Clave de materia exacta normalizada cuando el CRN no esté presente en Programación o no produzca una coincidencia.
+3. Nombre base normalizado cuando CRN y clave no produzcan una coincidencia única.
 
 El bloque académico (`PMT1`, `PMT2` o `PMT3`) forma parte de todas las llaves. Un registro de PMT1 no puede asociarse con una oferta de otro bloque.
 
@@ -41,6 +43,7 @@ El bloque académico (`PMT1`, `PMT2` o `PMT3`) forma parte de todas las llaves. 
 - La coincidencia por nombre conserva el comportamiento actual como último respaldo.
 - Una coincidencia válida reutiliza la disciplina, el horario y los profesores de Programación; el conteo de alumnos sigue proviniendo de la lista de alumnos.
 - Las calificaciones vacías cuentan como alumnos inscritos, pero no como acreditados, bajas o NP.
+- Un archivo de Programación sin CRN válidos conserva los respaldos actuales por clave y nombre, pero no puede beneficiarse de la unión exacta por CRN.
 
 ## Arquitectura
 

@@ -14585,8 +14585,7 @@ function buildClassDashboardMetrics(rows, offerings = []) {
   const disciplineMap = new Map();
   const teacherMap = new Map();
   const periods = new Set();
-  const codeToDisciplineKey = new Map();
-  const codeToTeachers = new Map();
+  const offeringLinks = [];
 
   offerings.forEach((offering) => {
     const period = offering.block || "Sin periodo";
@@ -14608,6 +14607,13 @@ function buildClassDashboardMetrics(rows, offerings = []) {
       });
     }
     const disciplineRow = disciplineMap.get(disciplineKey);
+    offeringLinks.push({
+      disciplineKey,
+      period,
+      crn: offering.crn,
+      subjectCode: offering.subjectCode,
+      normalizedName: normalizeText(offering.disciplineBase || offering.discipline)
+    });
     disciplineRow.scheduledGroups += 1;
     const scheduleKey = [offering.frequency, offering.start, offering.end].map(normalizeText).join("|");
     if (!disciplineRow.scheduleGroups.has(scheduleKey)) {
@@ -14620,16 +14626,13 @@ function buildClassDashboardMetrics(rows, offerings = []) {
     }
     disciplineRow.scheduleGroups.get(scheduleKey).count += 1;
     disciplineRow.teacherGroups.set(offering.professor, (disciplineRow.teacherGroups.get(offering.professor) || 0) + 1);
-    if (offering.subjectCode) {
-      const codeKey = `${period}|${normalizeText(offering.subjectCode)}`;
-      codeToDisciplineKey.set(codeKey, disciplineKey);
-      if (!codeToTeachers.has(codeKey)) codeToTeachers.set(codeKey, new Set());
-      codeToTeachers.get(codeKey).add(offering.professor);
-    }
     if (offering.professor && normalizeText(offering.professor) !== "por asignar" && !teacherMap.has(offering.professor)) {
       teacherMap.set(offering.professor, { teacher: offering.professor, total: 0, approved: 0, failed: 0 });
     }
   });
+
+  const classDashboardLinking = window.WellSyncClassDashboardLinking;
+  const offeringLinkIndex = classDashboardLinking?.createClassOfferingLinkIndex(offeringLinks);
 
   (Array.isArray(rows) ? rows : []).forEach((row) => {
     const discipline = String(row.subject_name || "").trim();
@@ -14644,9 +14647,14 @@ function buildClassDashboardMetrics(rows, offerings = []) {
     periods.add(period);
 
     const subjectCode = String(row.subject_code || "").trim();
-    const codeKey = `${period}|${normalizeText(subjectCode)}`;
     const disciplineBase = classScheduleDisciplineBase(discipline);
-    const disciplineKey = codeToDisciplineKey.get(codeKey) || `${period}\u0000${normalizeText(disciplineBase || discipline)}`;
+    const linkedDisciplineKey = classDashboardLinking?.resolveClassOfferingLink(offeringLinkIndex, {
+      period,
+      crn: row.crn,
+      subjectCode,
+      normalizedName: normalizeText(disciplineBase || discipline)
+    }) || "";
+    const disciplineKey = linkedDisciplineKey || `${period}\u0000${normalizeText(disciplineBase || discipline)}`;
     if (!disciplineMap.has(disciplineKey)) {
       disciplineMap.set(disciplineKey, {
         period,
@@ -14669,7 +14677,8 @@ function buildClassDashboardMetrics(rows, offerings = []) {
     else if (isApproved) disciplineRow.finished += 1;
     else disciplineRow.pending += 1;
 
-    const scheduledTeachers = [...(codeToTeachers.get(codeKey) || [])].filter((name) => normalizeText(name) !== "por asignar");
+    const scheduledTeachers = [...(disciplineMap.get(disciplineKey)?.teacherGroups.keys() || [])]
+      .filter((name) => normalizeText(name) !== "por asignar");
     const teacher = String(row.teacher_name || (scheduledTeachers.length === 1 ? scheduledTeachers[0] : "")).trim();
     if (teacher) disciplineRow.gradeTeachers.set(teacher, (disciplineRow.gradeTeachers.get(teacher) || 0) + 1);
     if (!teacher || !grade) return;

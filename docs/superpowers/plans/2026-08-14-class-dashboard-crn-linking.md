@@ -13,7 +13,7 @@
 - CRN es el identificador principal.
 - Clave de materia es el segundo respaldo y nombre normalizado el tercero.
 - El bloque PMT forma parte de cada llave.
-- CRN diferentes no se combinan por similitud de nombre.
+- Un CRN coincidente tiene prioridad; si Programación no contiene ese CRN se usan los respaldos existentes sin asignar identidades ambiguas.
 - Identificadores ambiguos no se asignan automáticamente.
 - No modificar archivos del usuario, Booking, página inicial, otros módulos ni contratos de persistencia.
 
@@ -253,11 +253,12 @@ python3 -m http.server 8765 --directory site
 
 Abrir la versión local, conservar la Programación y la lista de alumnos de prueba, y verificar:
 
-- `Fitness PMT1 (Body pump)` / `Body Pump PMT1` aparecen como una sola disciplina cuando comparten CRN.
+- Con `Propuesta_programación AD2026.xlsx`, Body Pump, Pilates, GAP y HIIT aparecen con sus alumnos y horarios mediante sus CRN coincidentes.
 - La fila unida muestra horario, profesor y 30 inscritos.
 - Pilates, GAP y HIIT siguen la misma regla cuando sus CRN coinciden.
 - Las materias realmente sin alumnos permanecen en cero.
 - Las materias ya correctas, como Natación y Tenis, conservan sus conteos.
+- La programación antigua con CRN en cero se identifica como fuente insuficiente para la unión exacta y no se presenta como una verificación válida del cambio.
 
 - [ ] **Step 4: Registrar evidencia compacta**
 
