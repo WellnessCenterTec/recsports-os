@@ -1901,6 +1901,7 @@ function parseScheduleRows(rows, source) {
     }
   });
   rows.forEach((raw, index) => {
+    const rowNumber = Number(raw.__rowNumber) || index + 2;
     const professor = String(pickColumn(raw, ["Profesor", "Professor", "Docente", "NOMBRE_DOCENTE"]) || "").trim();
     const discipline = String(pickColumn(raw, source === "official" ? ["Disciplina", "Actividad", "NOMBRE_ASIGNATURA"] : ["Actividad", "Disciplina"]) || "").trim();
     const frequencyValue = pickColumn(raw, ["Dia", "Dia", "Day", "Frecuencia", "Frequency", "LUN"]);
@@ -1929,7 +1930,7 @@ function parseScheduleRows(rows, source) {
     if (!timeRanges.length) rowErrors.push("Horario invalido");
     if (!installation) rowErrors.push("Instalacion vacia");
     if (rowErrors.length) {
-      errors.push({ row: index + 2, message: rowErrors.join("; ") });
+      errors.push({ row: rowNumber, message: rowErrors.join("; ") });
       return;
     }
     days.forEach((day) => {
@@ -1937,7 +1938,7 @@ function parseScheduleRows(rows, source) {
         const start = minutesToTime(timeToMinutes(range.start));
         const end = minutesToTime(timeToMinutes(range.end));
         if (!Number.isFinite(timeToMinutes(start)) || !Number.isFinite(timeToMinutes(end)) || timeToMinutes(end) <= timeToMinutes(start)) {
-          errors.push({ row: index + 2, message: `Horario invalido: ${range.start || ""}-${range.end || ""}` });
+          errors.push({ row: rowNumber, message: `Horario invalido: ${range.start || ""}-${range.end || ""}` });
           return;
         }
         validRows.push({
@@ -1956,7 +1957,7 @@ function parseScheduleRows(rows, source) {
           frequency,
           group,
           capacity: Number.isFinite(capacity) ? capacity : 0,
-          rowNumber: index + 2
+          rowNumber
         });
       });
     });
@@ -1976,6 +1977,15 @@ async function rowsFromScheduleFile(file) {
   const rows = parseCsv(text);
   const headers = rows.shift() || [];
   return rows.map((cells) => headers.reduce((row, header, index) => ({ ...row, [header]: cells[index] || "" }), {}));
+}
+
+async function rowsFromBookingScheduleFile(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  if (!["xlsx", "xls"].includes(ext)) return rowsFromScheduleFile(file);
+  if (!window.XLSX || !window.WellSyncBookingScheduleImport) {
+    throw new Error("No está disponible el lector de Booking");
+  }
+  return window.WellSyncBookingScheduleImport.bookingRowsFromFile(file, window.XLSX);
 }
 
 function findWorkbookSheet(workbook, targetName) {
@@ -19786,7 +19796,9 @@ async function handleScheduleUpload(file, type) {
       toast(`Archivo Maestro cargado: ${classProgramOfferings().length} grupos alimentan PMT1, PMT2 y PMT3`);
       return;
     }
-    const rows = await rowsFromScheduleFile(file);
+    const rows = type === "booking"
+      ? await rowsFromBookingScheduleFile(file)
+      : await rowsFromScheduleFile(file);
     const parsed = parseScheduleRows(rows, type);
     scheduleState[type] = parsed.validRows;
     scheduleState.errors.master = [];
@@ -19805,6 +19817,8 @@ async function handleScheduleUpload(file, type) {
     console.error(error);
     if (type === "master") {
       scheduleState.errors.master = [{ row: 0, message: "No pude leer el Archivo Maestro. Debe incluir la hoja Programación Clases; Booking Ofertados es opcional." }];
+    } else if (type === "booking" && /encabezados de Booking|lector de Booking|no contiene hojas/i.test(String(error?.message || ""))) {
+      scheduleState.errors.booking = [{ row: 0, message: error.message }];
     } else {
       scheduleState.errors[type] = [{ row: 0, message: "No pude leer el archivo. Usa Excel o CSV con encabezados." }];
     }
