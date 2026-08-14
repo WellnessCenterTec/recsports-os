@@ -124,3 +124,15 @@ test("WellSync loads and uses the CRN-first resolver in class dashboard metrics"
   assert.match(appSource, /createClassOfferingLinkIndex/);
   assert.match(appSource, /resolveClassOfferingLink/);
 });
+
+test("official schedule import accepts the SALAS installation column", () => {
+  const appSource = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
+
+  assert.match(appSource, /"Instalacion", "Lugar", "SALAS"/);
+});
+
+test("official schedule import ignores total-only footer rows", () => {
+  const appSource = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
+
+  assert.match(appSource, /hasScheduleSessionValue/);
+});

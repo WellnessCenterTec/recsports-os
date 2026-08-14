@@ -1892,7 +1892,7 @@ function parseScheduleRows(rows, source) {
   const errors = [];
   const validRows = [];
   const required = source === "official"
-    ? [["Profesor", "NOMBRE_DOCENTE"], ["Disciplina", "NOMBRE_ASIGNATURA"], ["Dia", "Dia", "LUN", "Frecuencia"], ["Hora inicio", "Inicio", "HORA_INICIO"], ["Hora fin", "Fin", "HORA_FIN"], ["Instalacion", "Lugar", " ", "__EMPTY"]]
+    ? [["Profesor", "NOMBRE_DOCENTE"], ["Disciplina", "NOMBRE_ASIGNATURA"], ["Dia", "Dia", "LUN", "Frecuencia"], ["Hora inicio", "Inicio", "HORA_INICIO"], ["Hora fin", "Fin", "HORA_FIN"], ["Instalacion", "Lugar", "SALAS", " ", "__EMPTY"]]
     : [["Profesor"], ["Actividad", "Disciplina"], ["Dia", "Dia", "Frecuencia"], ["Hora inicio", "Inicio", "Horario"], ["Instalacion", "Lugar"]];
   const headers = Object.keys(rows[0] || {}).map(normalizeText);
   required.forEach((group) => {
@@ -1906,12 +1906,11 @@ function parseScheduleRows(rows, source) {
     const discipline = String(pickColumn(raw, source === "official" ? ["Disciplina", "Actividad", "NOMBRE_ASIGNATURA"] : ["Actividad", "Disciplina"]) || "").trim();
     const frequencyValue = pickColumn(raw, ["Dia", "Dia", "Day", "Frecuencia", "Frequency", "LUN"]);
     const days = daysFromFrequency(frequencyValue);
-    const timeRanges = parseTimeRanges(
-      pickColumn(raw, ["Horario"]),
-      pickColumn(raw, ["Hora inicio", "Inicio", "Start", "Hora inicial", "HORA_INICIO"]),
-      pickColumn(raw, ["Hora fin", "Fin", "End", "Hora final", "HORA_FIN"])
-    );
-    const installation = String(pickColumn(raw, ["Instalacion", "Espacio", "Cancha", "Salon", "Lugar", " ", "__EMPTY"]) || raw[" "] || raw.__EMPTY || "").trim();
+    const scheduleValue = pickColumn(raw, ["Horario"]);
+    const startValue = pickColumn(raw, ["Hora inicio", "Inicio", "Start", "Hora inicial", "HORA_INICIO"]);
+    const endValue = pickColumn(raw, ["Hora fin", "Fin", "End", "Hora final", "HORA_FIN"]);
+    const timeRanges = parseTimeRanges(scheduleValue, startValue, endValue);
+    const installation = String(pickColumn(raw, ["Instalacion", "Espacio", "Cancha", "Salon", "Lugar", "SALAS", " ", "__EMPTY"]) || raw[" "] || raw.__EMPTY || "").trim();
     const frequency = String(frequencyValue || "Semanal").trim();
     const group = String(pickColumn(raw, ["Grupo", "Group", "ETIQUETA_GRUPO"]) || "").trim();
     const capacity = Number(pickColumn(raw, ["Aforo", "Capacidad", "Capacity"]) || 0);
@@ -1924,6 +1923,19 @@ function parseScheduleRows(rows, source) {
     const semesterPeriod = String(
       pickColumn(raw, ["Periodo", "Periodo academico", "Periodo académico", "Ciclo"]) || activeMasterPeriod
     ).trim().toUpperCase();
+    const hasScheduleSessionValue = [
+      professor,
+      discipline,
+      frequencyValue,
+      scheduleValue,
+      startValue,
+      endValue,
+      installation,
+      group,
+      subjectCode,
+      crn
+    ].some((value) => String(value ?? "").trim());
+    if (!hasScheduleSessionValue) return;
     const rowErrors = [];
     if (!discipline) rowErrors.push(source === "official" ? "Disciplina vacia" : "Actividad vacia");
     if (!days.length) rowErrors.push("Dia o frecuencia invalida");
