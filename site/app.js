@@ -578,6 +578,7 @@ const presentationHistoryApi = window.WellSyncPresentationHistory;
 const presentationPrioritiesApi = window.WellSyncPresentationPriorities;
 const studentDatabaseTemplateApi = window.WellSyncStudentDatabaseTemplate;
 const studentDatabaseImportApi = window.WellSyncStudentDatabaseImport;
+const studentSemesterApi = window.WellSyncStudentSemester;
 const presentationHistoryPendingStore = presentationHistoryApi.createPendingStore(localStorage);
 let executivePresentationHistory = [];
 let executivePresentationHistoryLoading = false;
@@ -1624,7 +1625,7 @@ function studentDatabaseFromCloud(row) {
     genero: normalizeStudentGender(generoRaw),
     carrera: programa,
     programa,
-    semestre: Number(row.Semestre || row.semestre || 1),
+    semestre: studentSemesterApi.studentSemesterFromRow(row),
     nivel: normalizeStudentLevel(nivelRaw),
     gradoEscolar: nivelRaw,
     nombreCampus: row["Nombre Campus"] || "",
@@ -2372,11 +2373,10 @@ function isEmptyStudentValue(value) {
 
 function parseOptionalSemester(value) {
   if (isEmptyStudentValue(value)) return { value: null, warning: false };
-  const match = String(value ?? "").match(/\d{1,2}/);
-  if (!match) return { value: null, warning: true };
-  const semester = Number(match[0]);
-  if (!Number.isInteger(semester) || semester < 1 || semester > 12) return { value: null, warning: true };
-  return { value: semester, warning: false };
+  const semester = studentSemesterApi.normalizeAcademicSemester(value);
+  return semester === null
+    ? { value: null, warning: true }
+    : { value: semester, warning: false };
 }
 
 function parseStudentDatabaseCsv(text) {

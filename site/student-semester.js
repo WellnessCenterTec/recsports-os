@@ -52,5 +52,9 @@
     return semesterByOrdinal.get(ordinal) || null;
   }
 
-  return { normalizeAcademicSemester };
+  function studentSemesterFromRow(row = {}) {
+    return normalizeAcademicSemester(row.Semestre) ?? normalizeAcademicSemester(row.semestre);
+  }
+
+  return { normalizeAcademicSemester, studentSemesterFromRow };
 });
