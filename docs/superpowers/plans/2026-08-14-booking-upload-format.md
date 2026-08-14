@@ -27,8 +27,8 @@
 - Create: `tests/booking-schedule-import.test.mjs`
 
 **Interfaces:**
-- Consumes: a SheetJS-style two-dimensional worksheet grid.
-- Produces: `bookingRowsFromGrid(grid): object[]`, with canonical keys `Profesor`, `Actividad`, `Dia`, `Hora inicio`, `Hora fin`, `Instalacion`, `Frecuencia`, `Horas totales`, and `__rowNumber`.
+- Consumes: a SheetJS-style two-dimensional worksheet grid or an Excel `File`-like object plus the existing SheetJS runtime.
+- Produces: `bookingRowsFromGrid(grid): object[]` and `bookingRowsFromFile(file, XLSX): Promise<object[]>`, with canonical keys `Profesor`, `Actividad`, `Dia`, `Hora inicio`, `Hora fin`, `Instalacion`, `Frecuencia`, `Horas totales`, and `__rowNumber`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -80,6 +80,8 @@ test("throws a clear error when no Booking header row exists", () => {
 });
 ```
 
+Add a real-workbook boundary test that loads `site/assets/vendor/xlsx.mini.min.js` in a Node `vm` context, builds an anonymized workbook with a blank first row and the headers in row 2, serializes it, and passes a `File`-like object to `bookingRowsFromFile`. Assert the two normalized output rows, not calls to SheetJS.
+
 - [ ] **Step 2: Run the focused test and verify RED**
 
 Run: `node --test tests/booking-schedule-import.test.mjs`
@@ -104,13 +106,13 @@ function normalizeBookingFrequency(value) {
 }
 ```
 
-Define exact alias groups for professor, activity, day, start, end, installation, frequency, and total. Find the first row within the first 20 rows containing professor, activity, a day/frequency field, start, and installation. Map all later rows to canonical keys, set `__rowNumber = index + 1`, skip empty rows and total-only rows, and retain incomplete session rows that contain any identity/schedule field.
+Define exact alias groups for professor, activity, day, start, end, installation, frequency, and total. Find the first row within the first 20 rows containing professor, activity, a day/frequency field, start, and installation. Map all later rows to canonical keys, set `__rowNumber = index + 1`, skip empty rows and total-only rows, and retain incomplete session rows that contain any identity/schedule field. Add `bookingRowsFromFile` to read the first workbook sheet as a grid with `{ header: 1, defval: "", raw: false }` and delegate to `bookingRowsFromGrid`.
 
 - [ ] **Step 4: Run the focused test and verify GREEN**
 
 Run: `node --test tests/booking-schedule-import.test.mjs`
 
-Expected: 4 tests pass, 0 fail.
+Expected: 5 tests pass, 0 fail.
 
 - [ ] **Step 5: Commit the normalizer**
 
@@ -129,30 +131,10 @@ git commit -m "Add Booking worksheet normalizer"
 - Modify: `tests/booking-schedule-import.test.mjs`
 
 **Interfaces:**
-- Consumes: `window.WellSyncBookingScheduleImport.bookingRowsFromGrid(grid)` from Task 1.
+- Consumes: `window.WellSyncBookingScheduleImport.bookingRowsFromFile(file, window.XLSX)` from Task 1.
 - Produces: `rowsFromBookingScheduleFile(file): Promise<object[]>`, used only when `type === "booking"`.
 
-- [ ] **Step 1: Add failing integration assertions**
-
-Extend the test file to assert that:
-
-```js
-const indexSource = readFileSync(new URL("../site/index.html", import.meta.url), "utf8");
-const appSource = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
-
-assert.match(indexSource, /booking-schedule-import\.js\?v=20260814-booking-import-v1/);
-assert.match(appSource, /rowsFromBookingScheduleFile/);
-assert.match(appSource, /type === "booking"\s*\?\s*await rowsFromBookingScheduleFile\(file\)/);
-assert.match(appSource, /raw\.__rowNumber \|\| index \+ 2/);
-```
-
-- [ ] **Step 2: Run the focused test and verify RED**
-
-Run: `node --test tests/booking-schedule-import.test.mjs`
-
-Expected: FAIL because the script reference and Booking-specific route are absent.
-
-- [ ] **Step 3: Wire the browser adapter and preserve source rows**
+- [ ] **Step 1: Wire the tested reader and preserve source rows**
 
 Add the new script before `app.js` in `site/index.html`. In `site/app.js`, add:
 
@@ -163,16 +145,13 @@ async function rowsFromBookingScheduleFile(file) {
   if (!window.XLSX || !window.WellSyncBookingScheduleImport) {
     throw new Error("No está disponible el lector de Booking");
   }
-  const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const grid = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
-  return window.WellSyncBookingScheduleImport.bookingRowsFromGrid(grid);
+  return window.WellSyncBookingScheduleImport.bookingRowsFromFile(file, window.XLSX);
 }
 ```
 
 In `handleScheduleUpload`, route Booking through this function and leave official uploads on `rowsFromScheduleFile`. In `parseScheduleRows`, use `raw.__rowNumber || index + 2` for errors and the stored `rowNumber`. Surface the specific missing-header error in the Booking catch branch.
 
-- [ ] **Step 4: Run focused tests and syntax checks**
+- [ ] **Step 2: Run focused tests and syntax checks**
 
 Run:
 
@@ -184,7 +163,11 @@ node --check site/app.js
 
 Expected: all tests pass and both syntax checks exit 0.
 
-- [ ] **Step 5: Commit the integration**
+- [ ] **Step 3: Reproduce the user-visible flow locally**
+
+Serve `site/`, open WellSync, navigate to Clases Deportivas → Horarios, and upload an anonymized Excel workbook with the same structure. Verify the rendered error panel is absent and the Booking count reflects the expanded days.
+
+- [ ] **Step 4: Commit the integration**
 
 ```bash
 git add site/index.html site/app.js tests/booking-schedule-import.test.mjs
