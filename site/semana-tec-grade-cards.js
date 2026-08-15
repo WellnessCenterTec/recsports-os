@@ -119,5 +119,22 @@
     }).sort((a, b) => a.group - b.group);
   }
 
-  return { buildSemanaTecGroupSummaries, classifySemanaTecGrade };
+  function preserveSemanaTecGrades(incomingRows, existingRows) {
+    const existingGrades = new Map();
+    (Array.isArray(existingRows) ? existingRows : []).forEach((row) => {
+      const key = gradeRowKey(row);
+      const grade = String(row?.calificacion ?? "").trim();
+      if (key && grade) existingGrades.set(key, row.calificacion);
+    });
+    return (Array.isArray(incomingRows) ? incomingRows : []).map((row) => {
+      const clone = { ...row };
+      const key = gradeRowKey(row);
+      if (!String(row?.calificacion ?? "").trim() && existingGrades.has(key)) {
+        clone.calificacion = existingGrades.get(key);
+      }
+      return clone;
+    });
+  }
+
+  return { buildSemanaTecGroupSummaries, classifySemanaTecGrade, preserveSemanaTecGrades };
 });

@@ -95,3 +95,27 @@ test("does not invent a numeric average from textual grade outcomes", () => {
   assert.equal(summaries[0].approved, 1);
   assert.equal(summaries[0].failed, 1);
 });
+
+test("preserves existing grades when a roster replacement leaves them blank", () => {
+  const incoming = [
+    { periodo: "AD26", numero_grupo: 215, matricula: "a001", calificacion: "", profesor: "Profesor nuevo" },
+    { periodo: "AD26", numero_grupo: 215, matricula: "A002", calificacion: "88" },
+    { periodo: "AD26", numero_grupo: 216, matricula: "A003", calificacion: "" }
+  ];
+  const existing = [
+    { periodo: "AD26", numero_grupo: 215, matricula: "A001", calificacion: "95" },
+    { periodo: "AD26", numero_grupo: 215, matricula: "A002", calificacion: "70" }
+  ];
+  const originalIncoming = structuredClone(incoming);
+  const originalExisting = structuredClone(existing);
+
+  const protectedRows = gradeCards().preserveSemanaTecGrades(incoming, existing);
+
+  assert.deepEqual(protectedRows, [
+    { periodo: "AD26", numero_grupo: 215, matricula: "a001", calificacion: "95", profesor: "Profesor nuevo" },
+    { periodo: "AD26", numero_grupo: 215, matricula: "A002", calificacion: "88" },
+    { periodo: "AD26", numero_grupo: 216, matricula: "A003", calificacion: "" }
+  ]);
+  assert.deepEqual(incoming, originalIncoming);
+  assert.deepEqual(existing, originalExisting);
+});
