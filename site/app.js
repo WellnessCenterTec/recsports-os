@@ -527,6 +527,9 @@ const PHYSICAL_HALL_TESTS = [
 
 let activeArea = "general";
 let activeView = "dashboard";
+const ACTIVE_AREA_STORAGE_KEY = "wellsync_active_area_v1";
+let moduleDataCoordinator = null;
+let moduleDataPlan = null;
 const EXECUTIVE_PRESENTATION_STORAGE_KEY = "wellsync_executive_presentation_notes";
 const EXECUTIVE_PRESENTATION_PENDING_SYNC_KEY = "wellsync_executive_presentation_pending_sync";
 const EXECUTIVE_PRESENTATION_SLIDES = [
@@ -5482,48 +5485,85 @@ async function syncPendingLocalUploadBackups() {
 }
 
 async function loadSupabaseDataBundle() {
-  cloudStatus = "Cargando informacion actualizada...";
-  scheduleProgressiveRender();
+  return ensureAreaData(activeArea);
+}
 
-  // La Base Maestra debe estar lista antes de cruzar matriculas en los modulos.
-  // Si se carga en paralelo, el primer render puede quedar sin genero o carrera.
-  try {
-    await loadStudentDatabase();
-    scheduleProgressiveRender();
-  } catch (error) {
-    console.warn("No se pudo cargar Base de alumnos", error);
-  }
-
-  const loaders = [
-    ["Capturas", loadSupabaseCaptures],
-    ["Colaboradores", loadSupabaseCollaborators],
-    ["Evaluaciones Físicas", loadPhysicalEvaluations],
-    ["Calificaciones", loadClassGrades],
-    ["Gimnasio", loadGymData],
-    ["Simulador de clases", loadClassScheduleSimulatorCloud],
-    ["Vivencia", loadVivenciaEvents],
-    ["Semana Tec", async () => Promise.all([loadSemanaTecCloud(), loadSemanaTecGroupGradeFiles(), loadSemanaTecProgramCloud()])],
-    ["Representativos", () => loadParticipationUploadsCloud("representativos")],
-    ["Eventos de Comunicación", loadCommunicationEvents],
-    ["Imágenes de difusión", loadCommunicationDiffusionImages],
-    ["Calendario Comunicación", loadPlanningEventOverrides],
-    ["Intramuros", loadIntramurosParticipants],
-    ["Booking", loadClassBookingReservationsCloud],
-    ["Vinculos rapidos", loadConfigQuickLinks],
-    ["Presupuesto", loadBudgetData]
-  ];
-  const results = await Promise.allSettled(loaders.map(async ([, loader]) => {
-    await loader();
-    scheduleProgressiveRender();
-  }));
-  results.forEach((result, index) => {
-    if (result.status === "rejected") {
-      console.warn(`No se pudo cargar ${loaders[index][0]}`, result.reason);
+function createProgressiveDataPlan() {
+  if (!window.WellSyncModuleDataLoader || !window.WellSyncModuleDataPlan) return null;
+  moduleDataCoordinator = window.WellSyncModuleDataLoader.createModuleDataLoader({
+    onStateChange: () => scheduleProgressiveRender()
+  });
+  moduleDataPlan = window.WellSyncModuleDataPlan.createModuleDataPlan({
+    coordinator: moduleDataCoordinator,
+    period: activeMasterPeriod,
+    loaders: {
+      "student-master": loadStudentDatabase,
+      captures: loadSupabaseCaptures,
+      collaborators: loadSupabaseCollaborators,
+      "physical-evaluations": loadPhysicalEvaluations,
+      "class-grades": loadClassGrades,
+      gym: loadGymData,
+      "class-simulator": loadClassScheduleSimulatorCloud,
+      vivencia: loadVivenciaEvents,
+      "semana-tec": async () => Promise.all([loadSemanaTecCloud(), loadSemanaTecGroupGradeFiles()]),
+      "semana-tec-program": async () => {
+        await loadSemanaTecProgramCloud();
+        if (!semanaTecProgramRows.length) await loadSemanaTecProgramSeed();
+      },
+      representativos: () => loadParticipationUploadsCloud("representativos"),
+      communication: loadCommunicationEvents,
+      "communication-images": loadCommunicationDiffusionImages,
+      planning: async () => Promise.all([loadPlanningCalendarRows(), loadPlanningEventOverrides()]),
+      intramuros: loadIntramurosParticipants,
+      booking: loadClassBookingReservationsCloud,
+      "quick-links": loadConfigQuickLinks,
+      budget: loadBudgetData,
+      uniformes: loadUniformesData
     }
   });
-  await syncPendingLocalUploadBackups();
-  cloudStatus = "Supabase conectado";
+  return moduleDataPlan;
+}
+
+function areaDataStatus(areaId = activeArea) {
+  if (currentUser?.auth !== "supabase") return "ready";
+  return moduleDataPlan?.status(areaId) || "idle";
+}
+
+function rememberActiveArea(areaId) {
+  if (visibleAreas().some((area) => area.id === areaId)) {
+    localStorage.setItem(ACTIVE_AREA_STORAGE_KEY, areaId);
+  }
+}
+
+function restoreActiveArea(fallbackArea) {
+  const remembered = localStorage.getItem(ACTIVE_AREA_STORAGE_KEY);
+  activeArea = visibleAreas().some((area) => area.id === remembered) ? remembered : fallbackArea;
+}
+
+function renderAreaLoadingState(area) {
+  const state = areaDataStatus(area.id);
+  if (state === "error") {
+    const detail = moduleDataPlan?.error(area.id)?.message || "Error de conexión";
+    return `<section class="empty-state"><h3>No se pudieron cargar los datos</h3><p>${escapeHtml(detail)}</p><button class="primary-btn" data-retry-area="${escapeHtml(area.id)}">Reintentar</button></section>`;
+  }
+  return `<section class="empty-state"><h3>Cargando datos de ${escapeHtml(area.name)}…</h3><p>Puedes cambiar de módulo mientras termina la consulta.</p></section>`;
+}
+
+async function ensureAreaData(areaId = activeArea) {
+  if (currentUser?.auth !== "supabase") return;
+  if (!moduleDataPlan) createProgressiveDataPlan();
+  cloudStatus = `Cargando ${labelArea(areaId)}...`;
   scheduleProgressiveRender();
+  try {
+    await moduleDataPlan.ensureArea(areaId);
+    cloudStatus = "Supabase conectado";
+    if (areaId === activeArea) scheduleProgressiveRender();
+  } catch (error) {
+    cloudStatus = `No se pudo cargar ${labelArea(areaId)}`;
+    console.warn(`No se pudo cargar ${areaId}`, error);
+    if (areaId === activeArea) scheduleProgressiveRender();
+    throw error;
+  }
 }
 
 async function loadSupabaseSession() {
@@ -5545,9 +5585,10 @@ async function loadSupabaseSession() {
     return;
   }
   saveSession(profileToSession(profile, authUser));
-  activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
+  restoreActiveArea(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
   await syncPendingExecutivePresentationNotes();
-  await loadSupabaseDataBundle();
+  render();
+  loadSupabaseDataBundle().catch(() => {});
 }
 
 async function loginWithSupabase() {
@@ -5605,7 +5646,7 @@ async function loginWithSupabase() {
   await loadExecutivePresentationNotes();
   await syncPendingPresentationHistory();
   await loadPresentationHistory();
-  activeArea = currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area;
+  restoreActiveArea(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
   activeView = "dashboard";
   render();
   toast(presentationSynced ? "Presentación sincronizada y disponible en otras computadoras" : `Sesion Supabase: ${currentUser.name}`);
@@ -6636,32 +6677,9 @@ function renderNav() {
     const targetArea = button.dataset.area;
     activeArea = targetArea;
     activeView = "dashboard";
+    rememberActiveArea(targetArea);
     render();
-    if (targetArea === "semana-tec" && supabaseClient && currentUser?.auth === "supabase" && !semanaTecLoading) {
-      semanaTecLoading = true;
-      render();
-      try {
-        await Promise.all([loadSemanaTecCloud(), loadSemanaTecGroupGradeFiles(), loadSemanaTecProgramCloud()]);
-      } finally {
-        semanaTecLoading = false;
-        if (activeArea === targetArea) render();
-      }
-    }
-    if (targetArea === "representativos" && supabaseClient && currentUser?.auth === "supabase" && !participationUploadLoading.representativos) {
-      participationUploadLoading.representativos = true;
-      render();
-      try {
-        await loadParticipationUploadsCloud("representativos");
-      } finally {
-        participationUploadLoading.representativos = false;
-        if (activeArea === targetArea) render();
-      }
-    }
-    if (targetArea === "presentacion" && supabaseClient && currentUser?.auth === "supabase") {
-      budgetFilters.period = "AD26";
-      await Promise.all([loadBudgetData(), loadPlanningCalendarRows()]);
-      if (activeArea === targetArea) render();
-    }
+    ensureAreaData(targetArea).catch(() => {});
   }));
 }
 
@@ -10662,30 +10680,11 @@ async function switchMasterPeriod(nextPeriod) {
   const topPeriod = $("#topPeriodSelect");
   if (topPeriod) topPeriod.value = nextPeriod;
   cloudStatus = currentUser?.auth === "supabase" ? `Cargando ${nextLabel}...` : `Periodo ${nextLabel}`;
+  if (moduleDataPlan) moduleDataPlan.reset(nextPeriod);
   render();
 
   if (supabaseClient && currentUser?.auth === "supabase") {
-    const loaders = [
-      loadSupabaseCaptures(),
-      loadClassGrades({ seedIfEmpty: false }),
-      loadGymData(),
-      loadClassBookingReservationsCloud(),
-      loadClassScheduleSimulatorCloud(),
-      loadVivenciaEvents(),
-      loadSemanaTecCloud(),
-      loadSemanaTecGroupGradeFiles(),
-      loadSemanaTecProgramCloud(),
-      loadParticipationUploadsCloud("representativos"),
-      loadCommunicationEvents(),
-      loadCommunicationDiffusionImages(),
-      loadIntramurosParticipants()
-    ];
-    Promise.allSettled(loaders).then(() => {
-      cloudStatus = "Supabase conectado";
-      render();
-    });
-  } else {
-    loadSemanaTecProgramSeed().then(() => render());
+    ensureAreaData(activeArea).catch(() => {});
   }
   addAudit("periodo", `Periodo maestro cambiado a ${nextPeriod}`);
   render();
@@ -18504,6 +18503,10 @@ function render() {
   const area = areas.find((a) => a.id === activeArea) || areas.find((a) => a.id === "general");
   if (area && activeArea !== area.id) activeArea = area.id;
   renderExecutiveKpis();
+  const currentAreaDataStatus = areaDataStatus(area.id);
+  if (currentAreaDataStatus !== "ready") {
+    $("#executiveKpis").innerHTML = `<div class="hero-kpi"><span>${currentAreaDataStatus === "error" ? "Sin conexión" : "Cargando"}</span><strong>…</strong></div>`;
+  }
   renderSystemMap();
   $("#currentTitle").textContent = area.name;
   const evaluationsTab = $("#evaluationsViewButton");
@@ -18587,7 +18590,9 @@ function render() {
   if (activeView === "simulator" && activeArea !== "clases") activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
   let contentHtml = "";
-  try {
+  if (currentAreaDataStatus !== "ready") {
+    contentHtml = renderAreaLoadingState(area);
+  } else try {
     if (activeView === "dashboard") contentHtml = renderDashboard(area);
     else if (activeView === "capture") contentHtml = renderCapture(area);
     else if (activeView === "gym-attendance") contentHtml = renderGymAttendanceRegistration();
@@ -18612,6 +18617,9 @@ function render() {
     contentHtml = `<div class="permission-strip">No se pudo cargar esta vista: ${escapeHtml(error?.message || "error desconocido")}</div>`;
   }
   $("#contentArea").innerHTML = contentHtml;
+  $("[data-retry-area]")?.addEventListener("click", (event) => {
+    ensureAreaData(event.currentTarget.dataset.retryArea).catch(() => {});
+  });
   renderUploadSuccessLabels();
   if (isPresentation) bindExecutivePresentationControls();
   $$(".segmented button[data-view]").forEach((button) => {
@@ -18629,7 +18637,9 @@ function render() {
   $$("[data-jump]").forEach((button) => button.addEventListener("click", () => {
     activeArea = button.dataset.jump;
     activeView = button.dataset.targetView || "dashboard";
+    rememberActiveArea(activeArea);
     render();
+    ensureAreaData(activeArea).catch(() => {});
   }));
   $$("[data-view-jump]").forEach((button) => button.addEventListener("click", () => {
     activeView = button.dataset.viewJump || "dashboard";
