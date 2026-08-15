@@ -5500,7 +5500,10 @@ function createProgressiveDataPlan() {
       captures: loadSupabaseCaptures,
       collaborators: loadSupabaseCollaborators,
       "physical-evaluations": loadPhysicalEvaluations,
-      "class-grades": loadClassGrades,
+      "class-grades": async () => {
+        if (currentUser?.auth === "supabase") return loadClassGrades();
+        return loadClassGradeSeedData();
+      },
       gym: loadGymData,
       "class-simulator": loadClassScheduleSimulatorCloud,
       vivencia: loadVivenciaEvents,
@@ -5524,7 +5527,7 @@ function createProgressiveDataPlan() {
 }
 
 function areaDataStatus(areaId = activeArea) {
-  if (currentUser?.auth !== "supabase") return "ready";
+  if (!currentUser) return "ready";
   return moduleDataPlan?.status(areaId) || "idle";
 }
 
@@ -5549,7 +5552,7 @@ function renderAreaLoadingState(area) {
 }
 
 async function ensureAreaData(areaId = activeArea) {
-  if (currentUser?.auth !== "supabase") return;
+  if (!currentUser) return;
   if (!moduleDataPlan) createProgressiveDataPlan();
   cloudStatus = `Cargando ${labelArea(areaId)}...`;
   scheduleProgressiveRender();
@@ -5587,7 +5590,9 @@ async function loadSupabaseSession() {
   restoreActiveArea(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
   await syncPendingExecutivePresentationNotes();
   render();
-  loadSupabaseDataBundle().catch(() => {});
+  loadSupabaseDataBundle()
+    .then(() => syncPendingLocalUploadBackups())
+    .catch(() => {});
 }
 
 async function loginWithSupabase() {
@@ -5650,7 +5655,10 @@ async function loginWithSupabase() {
   render();
   toast(presentationSynced ? "Presentación sincronizada y disponible en otras computadoras" : `Sesion Supabase: ${currentUser.name}`);
   loadSupabaseDataBundle()
-    .then(() => render())
+    .then(async () => {
+      await syncPendingLocalUploadBackups();
+      render();
+    })
     .catch((loadError) => console.warn("No se pudo completar la carga inicial de Supabase", loadError));
 }
 
@@ -20060,7 +20068,10 @@ function renderBlueprint(area) {
 }
 
 renderCareers();
+if (currentUser?.auth !== "supabase" && currentUser) restoreActiveArea(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
+if (currentUser?.auth !== "supabase" && currentUser) createProgressiveDataPlan();
 render();
+if (currentUser?.auth !== "supabase" && currentUser) ensureAreaData(activeArea).catch(() => {});
 window.setInterval(refreshPresentationEphemeridesOnDateChange, 60000);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshPresentationEphemeridesOnDateChange();
@@ -20218,6 +20229,9 @@ $("#logoutButton").addEventListener("click", () => {
     cloudStatus = "Supabase listo";
   }
   clearSession();
+  moduleDataCoordinator?.reset();
+  moduleDataCoordinator = null;
+  moduleDataPlan = null;
   render();
   toast("Sesion cerrada");
 });

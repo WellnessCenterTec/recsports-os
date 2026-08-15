@@ -78,3 +78,11 @@ test("startup defers large static resources and class grades query cloud first",
   assert.doesNotMatch(classLoaderSource, /await loadClassGradeSeedData\(\)/);
   assert.match(classLoaderSource, /if \(!classGrades\.length && seedIfEmpty\) await importInitialClassGrades\(\)/);
 });
+
+test("progressive loading preserves demo seeds and pending cloud backup sync", async () => {
+  const appSource = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  assert.match(appSource, /"class-grades": async \(\) => \{[\s\S]*?loadClassGradeSeedData\(\)/);
+  assert.match(appSource, /function areaDataStatus[\s\S]*?if \(!currentUser\) return "ready"/);
+  assert.match(appSource, /loadSupabaseDataBundle\(\)[\s\S]*?syncPendingLocalUploadBackups\(\)/);
+  assert.match(appSource, /renderCareers\(\);\s*if \(currentUser\?\.auth !== "supabase" && currentUser\) restoreActiveArea/);
+});
