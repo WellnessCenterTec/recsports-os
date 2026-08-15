@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import test from "node:test";
 
@@ -118,4 +119,22 @@ test("preserves existing grades when a roster replacement leaves them blank", ()
   ]);
   assert.deepEqual(incoming, originalIncoming);
   assert.deepEqual(existing, originalExisting);
+});
+
+test("WellSync loads the grade-card helper before the app and delegates summaries", () => {
+  const indexHtml = readFileSync(new URL("../site/index.html", import.meta.url), "utf8");
+  const appSource = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
+
+  assert.match(indexHtml, /semana-tec-grade-cards\.js\?v=20260815-grade-source-v1/);
+  assert.match(indexHtml, /app\.js\?v=20260815-grade-source-v1/);
+  assert.ok(indexHtml.indexOf("semana-tec-grade-cards.js") < indexHtml.indexOf("app.js"));
+  assert.match(appSource, /buildSemanaTecGroupSummaries\(rows, semanaTecProgramRows\)/);
+});
+
+test("WellSync protects grades before replacing the cloud roster snapshot", () => {
+  const appSource = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
+
+  assert.match(appSource, /preserveSemanaTecGrades\(draft\.rows, semanaTecRows\)/);
+  assert.match(appSource, /saveSemanaTecRowsCloud\(protectedRows\)/);
+  assert.match(appSource, /semanaTecRows = \[\.\.\.protectedRows\]/);
 });

@@ -8079,14 +8079,15 @@ async function importSemanaTecDraft() {
   if (!draft || draft.errors.length || !draft.rows.length) return;
   semanaTecSaving = true;
   render();
-  const cloudSaved = await saveSemanaTecRowsCloud(draft.rows);
+  const protectedRows = window.WellSyncSemanaTecGradeCards.preserveSemanaTecGrades(draft.rows, semanaTecRows);
+  const cloudSaved = await saveSemanaTecRowsCloud(protectedRows);
   if (!cloudSaved) {
     semanaTecSaving = false;
     render();
     toast("No se guardó en Supabase. La carga sigue lista para reintentar.");
     return;
   }
-  semanaTecRows = [...draft.rows];
+  semanaTecRows = [...protectedRows];
   semanaTecLastUpload = { fileName: draft.fileName, importedAt: new Date().toISOString(), total: draft.rows.length, source: "cloud" };
   semanaTecDraft = null;
   semanaTecSaving = false;
@@ -8178,31 +8179,8 @@ function semanaTecSemesterCounts(rows) {
   });
 }
 
-function semanaTecGradeOutcome(value) {
-  const raw = String(value ?? "").trim();
-  if (!raw) return "pending";
-  const numeric = Number(raw.replace(",", "."));
-  if (Number.isFinite(numeric)) return numeric >= 70 ? "approved" : "failed";
-  const normalized = normalizeText(raw);
-  if (normalized.includes("acredit") || normalized.includes("aprob")) return "approved";
-  return "failed";
-}
-
 function semanaTecGroupSummaries(rows) {
-  const groups = new Map();
-  rows.forEach((row) => {
-    const key = `${row.periodo || "Sin periodo"}|${row.numero_grupo}`;
-    const current = groups.get(key) || { group: row.numero_grupo, week: row.semana, periodo: row.periodo || "Sin periodo", professor: row.profesor, horario: row.horario || "", frecuencia: row.frecuencia || "", students: new Set(), female: 0, male: 0, grades: [], approved: 0, failed: 0, pending: 0 };
-    current.students.add(row.matricula);
-    if (row.genero === "Femenino") current.female += 1;
-    if (row.genero === "Masculino") current.male += 1;
-    const grade = Number(String(row.calificacion ?? "").replace(",", "."));
-    if (row.calificacion !== "" && Number.isFinite(grade)) current.grades.push(grade);
-    const outcome = semanaTecGradeOutcome(row.calificacion);
-    current[outcome] += 1;
-    groups.set(key, current);
-  });
-  return Array.from(groups.values()).map((group) => ({ ...group, total: group.students.size, average: group.grades.length ? group.grades.reduce((sum, value) => sum + value, 0) / group.grades.length : null })).sort((a, b) => a.group - b.group);
+  return window.WellSyncSemanaTecGradeCards.buildSemanaTecGroupSummaries(rows, semanaTecProgramRows);
 }
 
 function semanaTecGroupKey(group) {
@@ -8226,8 +8204,8 @@ function semanaTecGroupCards(groups, { gradeActions = false } = {}) {
         <p>${escapeHtml(group.professor)}</p>
         ${group.horario || group.frecuencia ? `<small>${escapeHtml([group.frecuencia, group.horario].filter(Boolean).join(" · "))}</small>` : ""}
         <div class="semana-tec-group-stats">
-          <b>${group.total} alumnos</b><span>${group.female} mujeres</span><span>${group.male} hombres</span><span>${group.average === null ? "Sin promedio" : `Promedio ${group.average.toFixed(1)}`}</span>
-          <span class="approved">${group.approved} aprobados</span><span class="failed">${group.failed} reprobados</span><span class="pending">${group.pending} pendientes</span>
+          <b>${group.total} alumnos</b><span>${group.female} mujeres</span><span>${group.male} hombres</span>${group.unspecified ? `<span>${group.unspecified} sin especificar</span>` : ""}<span>${group.average === null ? "Sin promedio" : `Promedio ${group.average.toFixed(1)}`}</span>
+          <span class="approved">${group.approved} aprobados</span><span class="failed">${group.failed} reprobados</span>${group.bajas ? `<span class="failed">${group.bajas} bajas</span>` : ""}<span class="pending">${group.pending} pendientes</span>
         </div>
         ${gradeActions ? `
           <div class="semana-tec-group-file ${file ? "has-file" : ""}">
