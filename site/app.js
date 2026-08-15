@@ -7799,10 +7799,7 @@ function semanaTecLogicalKey(row) {
 }
 
 function normalizeSemanaTecGrade(value) {
-  const raw = String(value ?? "").trim();
-  if (!raw) return "";
-  const numeric = Number(raw.replace(",", "."));
-  return Number.isFinite(numeric) ? String(Math.max(0, Math.min(100, numeric))) : raw.toUpperCase();
+  return window.WellSyncSemanaTecGradeCards.normalizeSemanaTecGradeValue(value);
 }
 
 function normalizeSemanaTecRow(row, index, fileName = "", period = "") {

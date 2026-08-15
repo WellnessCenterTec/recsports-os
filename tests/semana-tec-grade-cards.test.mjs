@@ -29,6 +29,15 @@ test("keeps blank, unknown, and out-of-range grades pending", () => {
   assert.deepEqual(classify("-1"), { outcome: "pending", numeric: null });
 });
 
+test("normalizes valid input without turning out-of-range grades into approvals", () => {
+  const normalize = gradeCards().normalizeSemanaTecGradeValue;
+
+  assert.equal(normalize(" 95,5 "), "95.5");
+  assert.equal(normalize("101"), "101");
+  assert.equal(normalize(" aprobado "), "APROBADO");
+  assert.equal(normalize(""), "");
+});
+
 test("keeps groups 215 and 216 separate while programming supplies their identity", () => {
   const grades = [
     { periodo: "AD26", numero_grupo: 215, matricula: "a001", genero: "Femenino", calificacion: "95", profesor: "Profesor de lista", semana: 6 },
@@ -129,6 +138,7 @@ test("WellSync loads the grade-card helper before the app and delegates summarie
   assert.match(indexHtml, /app\.js\?v=20260815-grade-source-v1/);
   assert.ok(indexHtml.indexOf("semana-tec-grade-cards.js") < indexHtml.indexOf("app.js"));
   assert.match(appSource, /buildSemanaTecGroupSummaries\(rows, semanaTecProgramRows\)/);
+  assert.match(appSource, /normalizeSemanaTecGradeValue\(value\)/);
 });
 
 test("WellSync protects grades before replacing the cloud roster snapshot", () => {

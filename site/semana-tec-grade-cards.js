@@ -29,6 +29,14 @@
     return { outcome: "pending", numeric: null };
   }
 
+  function normalizeSemanaTecGradeValue(value) {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    const numeric = Number(raw.replace(",", "."));
+    if (Number.isFinite(numeric) && numeric >= 0 && numeric <= 100) return String(numeric);
+    return raw.toUpperCase();
+  }
+
   function normalizedPeriod(value) {
     return String(value ?? "").trim().toUpperCase() || "SIN PERIODO";
   }
@@ -136,5 +144,10 @@
     });
   }
 
-  return { buildSemanaTecGroupSummaries, classifySemanaTecGrade, preserveSemanaTecGrades };
+  return {
+    buildSemanaTecGroupSummaries,
+    classifySemanaTecGrade,
+    normalizeSemanaTecGradeValue,
+    preserveSemanaTecGrades
+  };
 });
