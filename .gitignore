@@ -17,3 +17,4 @@ work/recsports-os-app/node_modules/
 work/recsports-os-app/.next/
 .vercel
 .env*
+.worktrees/
