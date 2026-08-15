@@ -11551,22 +11551,6 @@ function renderIntramurosDashboard() {
   const tableRows = rows.slice(0, 250);
   return `
     <section class="upload-center intramuros-dashboard">
-      ${renderPlanningAreaDashboard(
-        areas.find((item) => item.id === "intramuros") || { id: "intramuros", name: "Intramuros" },
-        planningCalendarRows,
-        planningCalendarLoaded,
-        planningCalendarError,
-        undefined,
-        null,
-        {
-          compactHeader: true,
-          extraActivities: intramurosRoleCalendarActivities(),
-          layer: intramurosCalendarLayer,
-          showLayerSelector: true,
-          calendarOnly: true
-        }
-      )}
-
       <div class="intramuros-filter-grid">
         ${renderIntramurosFilter("period", "Periodo", intramurosFilterOptions("periodo"))}
         ${renderIntramurosFilter("tournament", "Torneo", intramurosFilterOptions("torneo"))}
