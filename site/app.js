@@ -4776,7 +4776,6 @@ async function importInitialClassGrades() {
 async function loadClassGrades(options = {}) {
   const seedIfEmpty = options.seedIfEmpty !== false;
   const requestedPeriod = activeMasterPeriod;
-  await loadClassGradeSeedData();
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const loadedRows = [];
   const pageSize = 1000;
@@ -20066,7 +20065,6 @@ window.setInterval(refreshPresentationEphemeridesOnDateChange, 60000);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshPresentationEphemeridesOnDateChange();
 });
-loadPlanningCalendarRows().then(() => render());
 loadSupabaseSession().then(async () => {
   await loadExecutivePresentationNotes();
   await syncPendingPresentationHistory();
@@ -20233,7 +20231,3 @@ document.addEventListener("mock-config-save", () => {
   addAudit("configuracion", "Guardado simulado de usuario/catalogo");
   toast("Configuracion simulada guardada localmente");
 });
-
-loadUniformesData();
-loadClassGradeSeedData().then(() => render());
-loadSemanaTecProgramSeed().then(() => render());

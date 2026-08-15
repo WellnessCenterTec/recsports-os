@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import loaderModule from "../site/module-data-loader.js";
 import planModule from "../site/module-data-plan.js";
@@ -60,4 +61,20 @@ test("reports an area error and permits a retry", async () => {
   await plan.ensureArea("gimnasio");
   assert.equal(plan.status("gimnasio"), "ready");
   assert.equal(attempts, 2);
+});
+
+test("startup defers large static resources and class grades query cloud first", async () => {
+  const appSource = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const startupSource = appSource.slice(appSource.indexOf("renderCareers();"));
+  assert.doesNotMatch(startupSource, /loadPlanningCalendarRows\(\)\.then/);
+  assert.doesNotMatch(startupSource, /loadUniformesData\(\);/);
+  assert.doesNotMatch(startupSource, /loadClassGradeSeedData\(\)\.then/);
+  assert.doesNotMatch(startupSource, /loadSemanaTecProgramSeed\(\)\.then/);
+
+  const classLoaderSource = appSource.slice(
+    appSource.indexOf("async function loadClassGrades(options = {})"),
+    appSource.indexOf("function allClassGradeRows()")
+  );
+  assert.doesNotMatch(classLoaderSource, /await loadClassGradeSeedData\(\)/);
+  assert.match(classLoaderSource, /if \(!classGrades\.length && seedIfEmpty\) await importInitialClassGrades\(\)/);
 });
