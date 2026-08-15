@@ -3501,7 +3501,42 @@ body[data-theme="dark"] .communication-diffusion-preview {
 }
 
 .coordinator-palette.gender-row {
-  grid-template-columns: minmax(92px, 145px) 1fr 44px;
+  grid-template-columns: minmax(64px, 80px) minmax(0, 1fr) 30px;
+  gap: 7px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.coordinator-palette.gender-row > span {
+  font-size: 12px;
+}
+
+.coordinator-palette.gender-row > strong {
+  font-size: 13px;
+  text-align: right;
+}
+
+.gender-legend.coordinator-palette {
+  gap: 9px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.coordinator-palette .gender-breakdown {
+  flex-wrap: nowrap;
+  gap: 7px;
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.coordinator-palette .gender-breakdown span {
+  gap: 0;
+}
+
+.coordinator-palette .gender-breakdown .zero-count {
+  display: none;
 }
 
 .gender-row > span {

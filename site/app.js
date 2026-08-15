@@ -6059,8 +6059,8 @@ function renderGenderBars(rows, palette = "shirt") {
           </div>
         </div>
         <div class="gender-breakdown">
-          <span>Mujeres ${row.Mujer}</span>
-          <span>Hombres ${row.Hombre}</span>
+          <span class="${row.Mujer ? "" : "zero-count"}">Mujeres ${row.Mujer}</span>
+          <span class="${row.Hombre ? "" : "zero-count"}">Hombres ${row.Hombre}</span>
           ${row["Sin dato"] ? `<span>Sin dato ${row["Sin dato"]}</span>` : ""}
         </div>
       </div>
