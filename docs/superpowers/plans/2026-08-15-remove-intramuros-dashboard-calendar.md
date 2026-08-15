@@ -4,7 +4,7 @@
 
 **Goal:** Remove the operational calendar from the Intramuros Dashboard while preserving every other Dashboard component and module navigation path.
 
-**Architecture:** Keep the shared planning-calendar renderer unchanged and stop composing it only inside `renderIntramurosDashboard()`. Protect the boundary with a source-level regression test that inspects this renderer independently and asserts both calendar absence and preservation of representative Dashboard sections.
+**Architecture:** Keep the shared planning-calendar renderer unchanged and stop composing it only inside `renderIntramurosDashboard()`. Protect the boundary with a behavioral regression test that executes the real Dashboard renderer with controlled dependencies and asserts both calendar absence and preservation of representative rendered sections.
 
 **Tech Stack:** Static JavaScript application, Node.js built-in test runner, Node.js syntax checker.
 
@@ -39,23 +39,50 @@ import test from "node:test";
 function extractFunction(source, name, nextName) {
   const start = source.indexOf(`function ${name}(`);
   const end = source.indexOf(`\nfunction ${nextName}(`, start + 1);
-  assert.notEqual(start, -1, `${name} must exist`);
-  assert.notEqual(end, -1, `${nextName} must follow ${name}`);
+  assert.notEqual(start, -1, `${name} debe existir`);
+  assert.notEqual(end, -1, `${nextName} debe aparecer después de ${name}`);
   return source.slice(start, end);
 }
 
 test("Intramuros Dashboard omits the calendar and preserves its remaining sections", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
-  const dashboard = extractFunction(app, "renderIntramurosDashboard", "renderDashboard");
+  const dashboardSource = extractFunction(app, "renderIntramurosDashboard", "renderDashboard");
+  const dependencyNames = [
+    "filteredIntramurosParticipants", "normalizeText", "renderPlanningAreaDashboard", "areas",
+    "planningCalendarRows", "planningCalendarLoaded", "planningCalendarError",
+    "intramurosRoleCalendarActivities", "intramurosCalendarLayer", "renderIntramurosFilter",
+    "intramurosFilterOptions", "intramurosFilters", "renderIntramurosExecutiveCharts",
+    "renderTournamentCards", "renderTournamentExpediente", "escapeHtml"
+  ];
+  const createRenderer = Function(...dependencyNames, `"use strict"; ${dashboardSource}; return renderIntramurosDashboard;`);
+  const renderDashboard = createRenderer(
+    () => [{ torneo: "Torneo prueba", genero: "Femenino", escuela: "Ingeniería", matricula: "A001", programa: "ITC", modalidad: "Presencial", tipo_actividad: "Fútbol", rama: "Femenil", equipo: "Azul" }],
+    (value) => String(value || "").toLowerCase(),
+    () => '<div data-test="intramuros-calendar">Calendario operativo</div>',
+    [{ id: "intramuros", name: "Intramuros" }],
+    [],
+    true,
+    "",
+    () => [],
+    "all",
+    (_name, label) => `<label data-test="filter">${label}</label>`,
+    () => [],
+    { search: "" },
+    () => '<div data-test="executive-charts"></div>',
+    () => '<div data-test="tournament-cards"></div>',
+    () => '<div data-test="tournament-expediente"></div>',
+    (value) => String(value ?? "")
+  );
 
-  assert.doesNotMatch(dashboard, /renderPlanningAreaDashboard\s*\(/);
-  assert.doesNotMatch(dashboard, /intramurosCalendarLayer/);
-  assert.match(dashboard, /intramuros-filter-grid/);
-  assert.match(dashboard, /upload-kpi-grid/);
-  assert.match(dashboard, /renderIntramurosExecutiveCharts\(rows\)/);
-  assert.match(dashboard, /renderTournamentCards\(\)/);
-  assert.match(dashboard, /renderTournamentExpediente\(\)/);
-  assert.match(dashboard, /Participantes Intramuros/);
+  const html = renderDashboard();
+
+  assert.doesNotMatch(html, /data-test="intramuros-calendar"/);
+  assert.match(html, /intramuros-filter-grid/);
+  assert.match(html, /upload-kpi-grid/);
+  assert.match(html, /data-test="executive-charts"/);
+  assert.match(html, /data-test="tournament-cards"/);
+  assert.match(html, /data-test="tournament-expediente"/);
+  assert.match(html, /Participantes Intramuros/);
 });
 ```
 
@@ -67,7 +94,7 @@ Run:
 node --test tests/intramuros-dashboard-calendar.test.mjs
 ```
 
-Expected: FAIL on `renderPlanningAreaDashboard` because the calendar is still composed by `renderIntramurosDashboard()`.
+Expected: FAIL because the rendered HTML still contains `data-test="intramuros-calendar"`.
 
 - [ ] **Step 3: Implement the minimal production change**
 
