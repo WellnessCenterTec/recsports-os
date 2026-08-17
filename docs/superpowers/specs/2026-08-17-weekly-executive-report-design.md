@@ -170,11 +170,15 @@ Cuando el espacio sea limitado, se dará prioridad a resultados realizados sobre
 
 La revisión del periodo AD26 encontró:
 
-- Gimnasio: 0 asistencias registradas.
-- Booking: 16 servicios ofertados y 0 reservaciones cargadas.
-- Clases deportivas: 0 registros en el bloque activo.
-- Intramuros: 0 torneos y 0 participantes cargados.
-- Vivencia: 43 eventos programados y 0 participaciones cargadas.
+- Gimnasio: 11,397 ingresos en Semana 1; 11,331 corresponden a Wellness y 66 a EMIS. El módulo identifica 4,492 matrículas únicas con asistencia.
+- Booking: 16 servicios ofertados, 785 reservaciones y 520 matrículas únicas. De las reservaciones, 561 están aprobadas y 224 pendientes.
+- Clases deportivas: 2,591 alumnos inscritos y 98 grupos programados en PMT3. Las disciplinas con mayor inscripción son Natación, Tenis, Box, Ciclismo indoor y Yoga.
+- Intramuros: 1,256 registros distribuidos en 8 torneos. Los torneos con más participantes son Fútbol soccer, Fútbol rápido, Fútbol 7, Tenis singles y Tocho.
+- Vivencia: 44 eventos programados y 0 participaciones cargadas.
+
+La primera revisión se hizo en una sesión distinta que no contenía las cargas locales visibles en la sesión de trabajo del usuario. La fuente visual correcta para esta validación es la sesión activa de WellSync en Chrome con periodo AD26.
+
+El Reporte General actual no reconcilia estos módulos: muestra 785 atenciones y 520 matrículas únicas, que corresponden únicamente a Booking, aunque Gimnasio e Intramuros sí tienen información. El rediseño debe leer cada módulo directamente y comprobar que las cifras coincidan antes de generar el PDF.
 
 Estos valores describen la disponibilidad actual y no deben quedar escritos permanentemente en el diseño. El reporte debe recalcularlos desde WellSync en cada actualización.
 
