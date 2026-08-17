@@ -4,7 +4,16 @@
 
 Rediseñar el Dashboard del Reporte General para producir un reporte ejecutivo semanal de una sola hoja vertical. El reporte conservará la identidad visual azul de WellSync aprobada en la vista previa y utilizará exclusivamente información vigente obtenida de los módulos de WellSync. Las cifras del PDF histórico sirven únicamente como referencia de tipos de gráfica; no serán copiadas ni usadas como datos.
 
-Esta fase documenta el diseño. No autoriza publicación ni despliegue.
+El usuario aprobó publicar el avance descrito en la sección **Alcance aprobado para esta publicación**. El resto del rediseño permanece documentado para iteraciones posteriores.
+
+## Alcance aprobado para esta publicación
+
+Esta publicación se limita a dos cambios dentro del Reporte Ejecutivo Semanal existente:
+
+1. **Gimnasio acumulado por semana seleccionada.** Semana 1 mostrará únicamente S1; Semana 8 mostrará S1 a S8. La fila superior será Wellness en azul y la inferior EMIS en naranja. No se mostrarán semanas posteriores a la elegida.
+2. **Intramuros en cuadrícula.** El mismo panel conservará el resumen de torneos y registros, pero sustituirá las barras por ocho tarjetas compactas organizadas en dos columnas y cuatro filas, cada una con el torneo y su cantidad.
+
+No se modifican en esta publicación las demás gráficas, indicadores, fuentes, navegación, permisos ni módulos.
 
 ## Audiencia y uso
 
@@ -29,7 +38,7 @@ El reporte está dirigido a jefaturas y dirección. Debe permitir identificar r�
 ## Controles
 
 - El selector del reporte comenzará en **Semana 1** por defecto.
-- El usuario podrá cambiar manualmente de la Semana 1 a la Semana 18.
+- El usuario podrá cambiar manualmente de la Semana 1 a la Semana 20.
 - La semana seleccionada controlará las gráficas semanales y el corte acumulado cuando la fuente incluya fecha.
 - El periodo continuará utilizando el periodo maestro de WellSync.
 - Descargar PDF generará la misma hoja que se muestra en pantalla.
@@ -71,7 +80,8 @@ Fuentes actuales:
 
 Gráficas:
 
-- Ingresos por semana, desde Semana 1 hasta la semana seleccionada.
+- Dos series independientes de ingresos por semana: Wellness arriba en azul y EMIS abajo en naranja.
+- Cada serie mostrará únicamente desde Semana 1 hasta la semana seleccionada; nunca dibujará semanas futuras vacías.
 - Promedio de asistentes por día de la semana.
 - La información puede consolidar Wellness y EMIS, respetando las reglas actuales de normalización y evitando duplicar un mismo día cuando existe tanto resumen manual como asistencia importada.
 
@@ -123,7 +133,8 @@ Fuentes actuales:
 
 Gráficas:
 
-- Torneos con mayor número de participantes únicos.
+- Los ocho torneos se mostrarán como tarjetas en una cuadrícula de dos columnas por cuatro filas, sin barras, dentro del panel actual.
+- El encabezado conservará el total de torneos y el total de registros; cada tarjeta mostrará nombre y cantidad.
 - Equipos por torneo.
 - Juegos programados como indicador complementario.
 
@@ -187,17 +198,18 @@ Estos valores describen la disponibilidad actual y no deben quedar escritos perm
 Antes de aprobar una publicación se verificará:
 
 1. Que la Semana 1 aparezca seleccionada al abrir el reporte.
-2. Que cada gráfica coincida con el módulo que la alimenta.
-3. Que los filtros de periodo y semana no mezclen periodos.
-4. Que atenciones y matrículas únicas no se confundan.
-5. Que el porcentaje utilice 17,173 como denominador.
-6. Que los módulos sin datos muestren un estado vacío claro.
-7. Que la hoja se descargue completa en PDF sin cortes, traslapes ni texto ilegible.
-8. Que la navegación y los demás componentes de WellSync permanezcan intactos.
+2. Que al seleccionar Semana 8, Gimnasio muestre exactamente S1 a S8 para Wellness y EMIS, sin S9 a S20.
+3. Que Intramuros conserve el panel actual y muestre ocho tarjetas en una cuadrícula 2 × 4 sin barras.
+4. Que cada gráfica coincida con el módulo que la alimenta.
+5. Que los filtros de periodo y semana no mezclen periodos.
+6. Que atenciones y matrículas únicas no se confundan.
+7. Que el porcentaje utilice 17,173 como denominador.
+8. Que los módulos sin datos muestren un estado vacío claro.
+9. Que la hoja se descargue completa en PDF sin cortes, traslapes ni texto ilegible.
+10. Que la navegación y los demás componentes de WellSync permanezcan intactos.
 
-## Fuera de alcance en esta fase
+## Fuera de alcance de esta publicación
 
-- Publicar o desplegar el cambio.
 - Cargar archivos faltantes en nombre de las áreas.
 - Alterar la estructura de datos de los módulos.
 - Cambiar permisos o roles.
