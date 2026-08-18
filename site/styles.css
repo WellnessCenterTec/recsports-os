@@ -12603,6 +12603,22 @@ tbody tr:hover td {
   margin-left: auto;
 }
 
+.background-refresh-status > span:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.background-refresh-status > span:first-child strong {
+  color: var(--ink, #16324f);
+  font-size: 12px;
+}
+
+.background-refresh-status > span:first-child small {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .refresh-dot {
   animation: refresh-pulse 1.2s ease-in-out infinite;
   background: var(--primary, #0b6e69);

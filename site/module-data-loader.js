@@ -5,7 +5,9 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  function createModuleDataLoader({ onStateChange } = {}) {
+  const DEFAULT_TIMEOUT_MS = 15000;
+
+  function createModuleDataLoader({ onStateChange, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     const entries = new Map();
 
     function notify(key, entry) {
@@ -28,7 +30,21 @@
       } catch (error) {
         taskResult = Promise.reject(error);
       }
-      entry.promise = Promise.resolve(taskResult)
+      const taskPromise = Promise.resolve(taskResult);
+      const guardedPromise = Number(timeoutMs) > 0
+        ? new Promise((resolve, reject) => {
+          const timer = setTimeout(() => {
+            const error = new Error(`La actualización de ${key} tardó demasiado`);
+            error.code = "DATA_LOAD_TIMEOUT";
+            reject(error);
+          }, Number(timeoutMs));
+          taskPromise.then(
+            (value) => { clearTimeout(timer); resolve(value); },
+            (error) => { clearTimeout(timer); reject(error); }
+          );
+        })
+        : taskPromise;
+      entry.promise = guardedPromise
         .then((value) => {
           entry.status = "ready";
           entry.value = value;
@@ -66,5 +82,5 @@
     return { ensure, status, error, reset };
   }
 
-  return { createModuleDataLoader };
+  return { DEFAULT_TIMEOUT_MS, createModuleDataLoader };
 });

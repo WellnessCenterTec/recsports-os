@@ -5496,7 +5496,8 @@ async function loadSupabaseDataBundle() {
 function createProgressiveDataPlan() {
   if (!window.WellSyncModuleDataLoader || !window.WellSyncModuleDataPlan) return null;
   moduleDataCoordinator = window.WellSyncModuleDataLoader.createModuleDataLoader({
-    onStateChange: () => scheduleProgressiveRender()
+    onStateChange: () => scheduleProgressiveRender(),
+    timeoutMs: 15000
   });
   moduleDataPlan = window.WellSyncModuleDataPlan.createModuleDataPlan({
     coordinator: moduleDataCoordinator,
@@ -5629,6 +5630,12 @@ function currentCachedView() {
     : null;
 }
 
+function cachedViewTimestamp(snapshot) {
+  const date = new Date(snapshot?.savedAt || "");
+  if (Number.isNaN(date.getTime())) return "última vista disponible";
+  return `guardada ${date.toLocaleDateString("es-MX", { day: "numeric", month: "short" })}, ${date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
 function syncGlobalFilterControls() {
   const values = {
     levelFilter: globalFilterState.level,
@@ -5645,11 +5652,23 @@ function syncGlobalFilterControls() {
   });
 }
 
+function cleanViewSnapshotHtml(contentNode) {
+  if (!contentNode?.cloneNode) return "";
+  const clone = contentNode.cloneNode(true);
+  clone.querySelectorAll([
+    '[role="dialog"]',
+    ".executive-presentation-stage",
+    ".executive-presentation-editor-backdrop",
+    ".executive-presentation-history-modal-backdrop"
+  ].join(",")).forEach((node) => node.remove());
+  return clone.innerHTML;
+}
+
 function scheduleViewSnapshotPersist(areaId, viewId) {
   clearTimeout(viewSnapshotTimer);
   viewSnapshotTimer = setTimeout(() => {
     if (!currentUser || areaId !== activeArea || viewId !== activeView || areaDataStatus(areaId) !== "ready") return;
-    const contentHtml = $("#contentArea")?.innerHTML || "";
+    const contentHtml = cleanViewSnapshotHtml($("#contentArea"));
     if (!contentHtml.trim()) return;
     const userId = cachedWorkspaceUserId();
     const snapshot = {
@@ -5689,6 +5708,33 @@ async function ensureAreaData(areaId = activeArea) {
   }
 }
 
+function limitBackgroundRefresh(task, label, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`La actualización de ${label} tardó demasiado`)), timeoutMs);
+    Promise.resolve(task).then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
+function startAuthenticatedBackgroundRefresh() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return Promise.resolve([]);
+  const presentationTask = limitBackgroundRefresh((async () => {
+    await syncPendingExecutivePresentationNotes();
+    await loadExecutivePresentationNotes();
+  })(), "presentación");
+  const historyTask = limitBackgroundRefresh((async () => {
+    await syncPendingPresentationHistory();
+    await loadPresentationHistory();
+  })(), "historial");
+  const dataTask = loadSupabaseDataBundle().then(() => syncPendingLocalUploadBackups());
+  return Promise.allSettled([presentationTask, historyTask, dataTask]).then((results) => {
+    render();
+    return results;
+  });
+}
+
 async function loadSupabaseSession() {
   if (!supabaseClient) return;
   const { data: sessionData } = await supabaseClient.auth.getSession();
@@ -5709,11 +5755,8 @@ async function loadSupabaseSession() {
   }
   saveSession(profileToSession(profile, authUser));
   restoreCachedWorkspace(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
-  await syncPendingExecutivePresentationNotes();
   render();
-  loadSupabaseDataBundle()
-    .then(() => syncPendingLocalUploadBackups())
-    .catch(() => {});
+  startAuthenticatedBackgroundRefresh().catch(() => {});
 }
 
 async function loginWithSupabase() {
@@ -5767,19 +5810,11 @@ async function loginWithSupabase() {
   }
   saveSession(profileToSession(profile, authUser));
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
-  const presentationSynced = await syncPendingExecutivePresentationNotes();
-  await loadExecutivePresentationNotes();
-  await syncPendingPresentationHistory();
-  await loadPresentationHistory();
   restoreCachedWorkspace(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
   render();
-  toast(presentationSynced ? "Presentación sincronizada y disponible en otras computadoras" : `Sesion Supabase: ${currentUser.name}`);
-  loadSupabaseDataBundle()
-    .then(async () => {
-      await syncPendingLocalUploadBackups();
-      render();
-    })
-    .catch((loadError) => console.warn("No se pudo completar la carga inicial de Supabase", loadError));
+  toast(`Sesión iniciada · mostrando la última vista disponible`);
+  startAuthenticatedBackgroundRefresh()
+    .catch((loadError) => console.warn("No se pudo completar la actualización en segundo plano", loadError));
 }
 
 async function saveCaptureToSupabase(row) {
@@ -18682,7 +18717,7 @@ function render() {
       const retryAction = currentAreaDataStatus === "error"
         ? `<button class="ghost-btn" data-retry-area="${escapeHtml(area.id)}">Reintentar</button>`
         : `<span class="refresh-dot" aria-hidden="true"></span>`;
-      contentHtml = `<section class="background-refresh-status ${currentAreaDataStatus === "error" ? "is-error" : ""}" aria-live="polite"><span>${refreshLabel}</span>${retryAction}</section><div class="cached-view-content" inert>${cachedView.contentHtml}</div>`;
+      contentHtml = `<section class="background-refresh-status ${currentAreaDataStatus === "error" ? "is-error" : ""}" aria-live="polite"><span><strong>Vista rápida ${escapeHtml(cachedViewTimestamp(cachedView))}</strong><small>${refreshLabel}</small></span>${retryAction}</section><div class="cached-view-content" inert>${cachedView.contentHtml}</div>`;
     } else {
       contentHtml = renderAreaLoadingState(area);
     }
@@ -20165,12 +20200,7 @@ window.setInterval(refreshPresentationEphemeridesOnDateChange, 60000);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshPresentationEphemeridesOnDateChange();
 });
-loadSupabaseSession().then(async () => {
-  await loadExecutivePresentationNotes();
-  await syncPendingPresentationHistory();
-  await loadPresentationHistory();
-  render();
-});
+loadSupabaseSession().catch((error) => console.warn("No se pudo recuperar la sesión de Supabase", error));
 
 document.addEventListener("keydown", (event) => {
   if (executivePresentationHistoryViewer) {

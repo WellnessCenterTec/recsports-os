@@ -88,3 +88,21 @@ test("progressive loading preserves demo seeds and pending cloud backup sync", a
   assert.match(appSource, /Mostrando la última vista guardada mientras se actualiza en segundo plano/);
   assert.doesNotMatch(appSource, /Cargando datos de \$\{escapeHtml\(area\.name\)\}/);
 });
+
+test("authenticated startup renders the cached workspace before background refresh", async () => {
+  const appSource = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const sessionSource = appSource.slice(appSource.indexOf("async function loadSupabaseSession()"), appSource.indexOf("async function loginWithSupabase()"));
+  const loginSource = appSource.slice(appSource.indexOf("async function loginWithSupabase()"), appSource.indexOf("async function saveCaptureToSupabase"));
+
+  assert.ok(sessionSource.indexOf("restoreCachedWorkspace") < sessionSource.indexOf("startAuthenticatedBackgroundRefresh"));
+  assert.ok(sessionSource.indexOf("render();") < sessionSource.indexOf("startAuthenticatedBackgroundRefresh"));
+  assert.ok(loginSource.indexOf("restoreCachedWorkspace") < loginSource.indexOf("startAuthenticatedBackgroundRefresh"));
+  assert.ok(loginSource.indexOf("render();") < loginSource.indexOf("startAuthenticatedBackgroundRefresh"));
+  assert.match(appSource, /Vista rápida \$\{escapeHtml\(cachedViewTimestamp\(cachedView\)\)\}/);
+  assert.match(appSource, /timeoutMs:\s*15000/);
+  assert.match(appSource, /function limitBackgroundRefresh[\s\S]*?tardó demasiado/);
+  assert.match(appSource, /limitBackgroundRefresh\([\s\S]*?"presentación"\)/);
+  assert.match(appSource, /limitBackgroundRefresh\([\s\S]*?"historial"\)/);
+  assert.match(appSource, /function cleanViewSnapshotHtml[\s\S]*?\[role="dialog"\][\s\S]*?node\.remove\(\)/);
+  assert.match(appSource, /const contentHtml = cleanViewSnapshotHtml\(\$\("#contentArea"\)\)/);
+});

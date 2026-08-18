@@ -34,7 +34,7 @@ test("slide six loads the activity helper and renders the ten-event label", asyn
     readFile(new URL("../site/app.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(index, /presentation-activities\.js\?v=20260818-block-activities-v1[^]*app\.js\?v=20260818-block-activities-v1/);
+  assert.match(index, /presentation-activities\.js\?v=20260818-block-activities-v1[^]*app\.js\?v=20260818-instant-view-v1/);
   assert.match(app, /upcomingActivities\([^]*new Date\(\),\s*10\s*\)/);
   assert.match(app, /Próximos 10 eventos/);
   assert.match(app, /Fecha · día/);

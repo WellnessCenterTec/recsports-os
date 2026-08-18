@@ -59,3 +59,13 @@ test("reset clears one key or the entire coordinator", async () => {
   loader.reset();
   assert.equal(loader.status("booking:AD26"), "idle");
 });
+
+test("stops an indefinitely pending refresh and exposes a retryable timeout", async () => {
+  const loader = createModuleDataLoader({ timeoutMs: 10 });
+  await assert.rejects(
+    loader.ensure("planning:AD26", () => new Promise(() => {})),
+    (error) => error?.code === "DATA_LOAD_TIMEOUT"
+  );
+  assert.equal(loader.status("planning:AD26"), "error");
+  assert.equal(await loader.ensure("planning:AD26", async () => "recovered"), "recovered");
+});
