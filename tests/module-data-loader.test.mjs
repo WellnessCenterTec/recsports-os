@@ -69,3 +69,7 @@ test("stops an indefinitely pending refresh and exposes a retryable timeout", as
   assert.equal(loader.status("planning:AD26"), "error");
   assert.equal(await loader.ensure("planning:AD26", async () => "recovered"), "recovered");
 });
+
+test("uses a generous timeout for production-sized datasets", () => {
+  assert.equal(loaderModule.DEFAULT_TIMEOUT_MS, 60000);
+});

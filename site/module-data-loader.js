@@ -5,7 +5,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const DEFAULT_TIMEOUT_MS = 15000;
+  const DEFAULT_TIMEOUT_MS = 60000;
 
   function createModuleDataLoader({ onStateChange, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
     const entries = new Map();

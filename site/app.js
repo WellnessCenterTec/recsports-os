@@ -5497,7 +5497,7 @@ function createProgressiveDataPlan() {
   if (!window.WellSyncModuleDataLoader || !window.WellSyncModuleDataPlan) return null;
   moduleDataCoordinator = window.WellSyncModuleDataLoader.createModuleDataLoader({
     onStateChange: () => scheduleProgressiveRender(),
-    timeoutMs: 15000
+    timeoutMs: 60000
   });
   moduleDataPlan = window.WellSyncModuleDataPlan.createModuleDataPlan({
     coordinator: moduleDataCoordinator,
@@ -5664,10 +5664,11 @@ function cleanViewSnapshotHtml(contentNode) {
   return clone.innerHTML;
 }
 
-function scheduleViewSnapshotPersist(areaId, viewId) {
+function scheduleViewSnapshotPersist(areaId, viewId, { allowPartial = false } = {}) {
   clearTimeout(viewSnapshotTimer);
   viewSnapshotTimer = setTimeout(() => {
-    if (!currentUser || areaId !== activeArea || viewId !== activeView || areaDataStatus(areaId) !== "ready") return;
+    const status = areaDataStatus(areaId);
+    if (!currentUser || areaId !== activeArea || viewId !== activeView || (status !== "ready" && !(allowPartial && status === "error"))) return;
     const contentHtml = cleanViewSnapshotHtml($("#contentArea"));
     if (!contentHtml.trim()) return;
     const userId = cachedWorkspaceUserId();
@@ -5708,7 +5709,7 @@ async function ensureAreaData(areaId = activeArea) {
   }
 }
 
-function limitBackgroundRefresh(task, label, timeoutMs = 15000) {
+function limitBackgroundRefresh(task, label, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`La actualización de ${label} tardó demasiado`)), timeoutMs);
     Promise.resolve(task).then(
@@ -18709,18 +18710,8 @@ function render() {
   if (activeView === "simulator" && activeArea !== "clases") activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
   let contentHtml = "";
-  if (currentAreaDataStatus !== "ready") {
-    if (cachedView) {
-      const refreshLabel = currentAreaDataStatus === "error"
-        ? "No se pudo actualizar. Se conserva la última vista guardada."
-        : "Mostrando la última vista guardada mientras se actualiza en segundo plano…";
-      const retryAction = currentAreaDataStatus === "error"
-        ? `<button class="ghost-btn" data-retry-area="${escapeHtml(area.id)}">Reintentar</button>`
-        : `<span class="refresh-dot" aria-hidden="true"></span>`;
-      contentHtml = `<section class="background-refresh-status ${currentAreaDataStatus === "error" ? "is-error" : ""}" aria-live="polite"><span><strong>Vista rápida ${escapeHtml(cachedViewTimestamp(cachedView))}</strong><small>${refreshLabel}</small></span>${retryAction}</section><div class="cached-view-content" inert>${cachedView.contentHtml}</div>`;
-    } else {
-      contentHtml = renderAreaLoadingState(area);
-    }
+  if (currentAreaDataStatus !== "ready" && currentAreaDataStatus !== "error" && cachedView) {
+    contentHtml = `<section class="background-refresh-status" aria-live="polite"><span><strong>Vista rápida ${escapeHtml(cachedViewTimestamp(cachedView))}</strong><small>Mostrando la última vista guardada mientras se actualiza en segundo plano…</small></span><span class="refresh-dot" aria-hidden="true"></span></section><div class="cached-view-content" inert>${cachedView.contentHtml}</div>`;
   } else try {
     if (activeView === "dashboard") contentHtml = renderDashboard(area);
     else if (activeView === "capture") contentHtml = renderCapture(area);
@@ -18741,6 +18732,16 @@ function render() {
     else if (activeView === "evaluations") contentHtml = renderPhysicalEvaluationsDashboard();
     else if (activeView === "collaborator-infographic") contentHtml = renderCollaboratorInfographicView();
     else contentHtml = isIntramuros ? renderIntramurosRolesDashboard() : renderBlueprint(area);
+    if (currentAreaDataStatus !== "ready") {
+      const isError = currentAreaDataStatus === "error";
+      const message = isError
+        ? "Algunas fuentes no respondieron. Se muestra la información disponible."
+        : `Mostrando información disponible mientras se actualiza ${escapeHtml(area.name)}…`;
+      const action = isError
+        ? `<button class="ghost-btn" data-retry-area="${escapeHtml(area.id)}">Reintentar</button>`
+        : `<span class="refresh-dot" aria-hidden="true"></span>`;
+      contentHtml = `<section class="background-refresh-status ${isError ? "is-error" : ""}" aria-live="polite"><span>${message}</span>${action}</section>${contentHtml}`;
+    }
   } catch (error) {
     console.error("No se pudo renderizar la vista", { activeArea, activeView, area: area?.id, error });
     contentHtml = `<div class="permission-strip">No se pudo cargar esta vista: ${escapeHtml(error?.message || "error desconocido")}</div>`;
@@ -19565,7 +19566,9 @@ function render() {
   $$("[data-delete-column]").forEach((button) => button.addEventListener("click", () => deleteCollaboratorColumn(button.dataset.deleteColumn)));
   $$(".report-download").forEach((button) => button.addEventListener("click", () => downloadCsv(button.dataset.report || "reporte")));
   persistWorkspaceState();
-  if (currentAreaDataStatus === "ready") scheduleViewSnapshotPersist(area.id, activeView);
+  if (currentAreaDataStatus === "ready" || (currentAreaDataStatus === "error" && !cachedView)) {
+    scheduleViewSnapshotPersist(area.id, activeView, { allowPartial: currentAreaDataStatus === "error" });
+  }
 }
 
 async function saveGymAttendance(event) {

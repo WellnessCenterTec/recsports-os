@@ -63,6 +63,29 @@ test("reports an area error and permits a retry", async () => {
   assert.equal(attempts, 2);
 });
 
+test("keeps an area loading while another dependency can still provide data", async () => {
+  let releaseGym;
+  const coordinator = createModuleDataLoader();
+  const plan = createModuleDataPlan({
+    coordinator,
+    period: "AD26",
+    loaders: {
+      "student-master": async () => { throw new Error("student source offline"); },
+      gym: () => new Promise((resolve) => { releaseGym = resolve; })
+    }
+  });
+
+  const pending = plan.ensureArea("gimnasio").catch((error) => error);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(plan.status("gimnasio"), "loading");
+
+  releaseGym(true);
+  await pending;
+  await Promise.resolve();
+  assert.equal(plan.status("gimnasio"), "error");
+});
+
 test("startup defers large static resources and class grades query cloud first", async () => {
   const appSource = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const startupSource = appSource.slice(appSource.indexOf("renderCareers();"));
@@ -99,10 +122,13 @@ test("authenticated startup renders the cached workspace before background refre
   assert.ok(loginSource.indexOf("restoreCachedWorkspace") < loginSource.indexOf("startAuthenticatedBackgroundRefresh"));
   assert.ok(loginSource.indexOf("render();") < loginSource.indexOf("startAuthenticatedBackgroundRefresh"));
   assert.match(appSource, /Vista rápida \$\{escapeHtml\(cachedViewTimestamp\(cachedView\)\)\}/);
-  assert.match(appSource, /timeoutMs:\s*15000/);
+  assert.match(appSource, /timeoutMs:\s*60000/);
   assert.match(appSource, /function limitBackgroundRefresh[\s\S]*?tardó demasiado/);
   assert.match(appSource, /limitBackgroundRefresh\([\s\S]*?"presentación"\)/);
   assert.match(appSource, /limitBackgroundRefresh\([\s\S]*?"historial"\)/);
   assert.match(appSource, /function cleanViewSnapshotHtml[\s\S]*?\[role="dialog"\][\s\S]*?node\.remove\(\)/);
   assert.match(appSource, /const contentHtml = cleanViewSnapshotHtml\(\$\("#contentArea"\)\)/);
+  assert.match(appSource, /Mostrando información disponible mientras se actualiza/);
+  assert.match(appSource, /Algunas fuentes no respondieron\. Se muestra la información disponible\./);
+  assert.match(appSource, /currentAreaDataStatus !== "ready" && currentAreaDataStatus !== "error" && cachedView/);
 });

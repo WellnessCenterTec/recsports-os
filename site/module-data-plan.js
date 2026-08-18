@@ -48,9 +48,9 @@
     function status(areaId) {
       const states = dependencies(areaId).map((dependency) => coordinator.status(cacheKey(dependency)));
       if (!states.length) return "ready";
-      if (states.includes("error")) return "error";
       if (states.every((state) => state === "ready")) return "ready";
       if (states.includes("loading")) return "loading";
+      if (states.includes("error")) return "error";
       return "idle";
     }
 
