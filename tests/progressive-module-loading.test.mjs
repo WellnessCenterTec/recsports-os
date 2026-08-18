@@ -84,5 +84,7 @@ test("progressive loading preserves demo seeds and pending cloud backup sync", a
   assert.match(appSource, /"class-grades": async \(\) => \{[\s\S]*?loadClassGradeSeedData\(\)/);
   assert.match(appSource, /function areaDataStatus[\s\S]*?if \(!currentUser\) return "ready"/);
   assert.match(appSource, /loadSupabaseDataBundle\(\)[\s\S]*?syncPendingLocalUploadBackups\(\)/);
-  assert.match(appSource, /renderCareers\(\);\s*if \(currentUser\?\.auth !== "supabase" && currentUser\) restoreActiveArea/);
+  assert.match(appSource, /renderCareers\(\);\s*if \(currentUser\) restoreCachedWorkspace/);
+  assert.match(appSource, /Mostrando la última vista guardada mientras se actualiza en segundo plano/);
+  assert.doesNotMatch(appSource, /Cargando datos de \$\{escapeHtml\(area\.name\)\}/);
 });
