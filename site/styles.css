@@ -12200,9 +12200,11 @@ tbody tr:hover td {
 .executive-presentation-activity-window span { font-size: 10px; font-weight: 900; text-transform: uppercase; }
 .executive-presentation-activity-window strong { font-size: 13px; }
 .executive-presentation-table { display: grid; gap: 2px; background: #d8e2eb; border: 1px solid #d8e2eb; border-radius: 7px; overflow: hidden; }
-.executive-presentation-table > div { display: grid; grid-template-columns: 110px 2fr 1fr 1fr; gap: 12px; align-items: center; min-height: 43px; padding: 7px 12px; background: #fff; }
+.executive-presentation-table > div { display: grid; grid-template-columns: 175px 2fr 1fr 1fr; gap: 12px; align-items: center; min-height: 36px; padding: 5px 12px; background: #fff; }
 .executive-presentation-table .head { color: #fff; background: #082b55; font-weight: 800; }
 .executive-presentation-table time, .executive-presentation-table em { font-style: normal; color: #617386; }
+.executive-presentation-table time { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.executive-presentation-table time b { color: #0a66b7; font-size: 11px; text-transform: capitalize; }
 .executive-presentation-table .activity-status { justify-self: start; padding: 4px 7px; border: 1px solid #c8d4dd; border-radius: 5px; color: #536676; background: #f4f7f9; font-size: 11px; font-weight: 800; }
 .executive-presentation-table .activity-status.completado { border-color: #85c9a5; color: #17643c; background: #e9f7ef; }
 .executive-presentation-table .activity-status.retrasado { border-color: #e1ba6c; color: #795200; background: #fff7df; }
@@ -12391,7 +12393,9 @@ tbody tr:hover td {
   .executive-presentation-activity-window { padding: 3px 6px; border-left-width: 3px; }
   .executive-presentation-activity-window span { font-size: 6px; }
   .executive-presentation-activity-window strong { font-size: 7px; }
-  .executive-presentation-table > div { grid-template-columns: 55px 1.7fr 1fr 1fr; min-height: 25px; padding: 3px 5px; gap: 5px; font-size: 7px; }
+  .executive-presentation-table > div { grid-template-columns: 88px 1.7fr 1fr 1fr; min-height: 21px; padding: 2px 5px; gap: 5px; font-size: 7px; }
+  .executive-presentation-table time { gap: 3px; }
+  .executive-presentation-table time b { font-size: 6px; }
   .executive-presentation-team { grid-template-columns: repeat(5, 1fr); gap: 4px; }
   .executive-presentation-team article { padding: 4px; font-size: 7px; }
   .executive-presentation-team img, .executive-presentation-team article > span { width: 26px; height: 26px; }

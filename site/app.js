@@ -580,6 +580,7 @@ let executivePresentationSaving = false;
 let executivePresentationNotes = loadExecutivePresentationLocalNotes();
 const presentationHistoryApi = window.WellSyncPresentationHistory;
 const presentationPrioritiesApi = window.WellSyncPresentationPriorities;
+const presentationActivitiesApi = window.WellSyncPresentationActivities;
 const studentDatabaseTemplateApi = window.WellSyncStudentDatabaseTemplate;
 const studentDatabaseImportApi = window.WellSyncStudentDatabaseImport;
 const studentSemesterApi = window.WellSyncStudentSemester;
@@ -12120,23 +12121,17 @@ function renderExecutivePresentationBudget(budget, notes) {
 function executivePresentationActivityWindow(referenceDate = new Date()) {
   const start = new Date(referenceDate);
   start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
   const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-  const fullDate = (date) => date.toLocaleDateString("es-MX", { day: "numeric", month: "long" });
-  const label = start.getMonth() === end.getMonth()
-    ? `${start.getDate()} al ${end.getDate()} de ${end.toLocaleDateString("es-MX", { month: "long" })}`
-    : `${fullDate(start)} al ${fullDate(end)}`;
-  return { startKey: dateKey(start), endKey: dateKey(end), label };
+  const label = start.toLocaleDateString("es-MX", { day: "numeric", month: "long" });
+  return { startKey: dateKey(start), label };
 }
 
 function executivePresentationActivities() {
-  const { startKey, endKey } = executivePresentationActivityWindow();
-  return planningCalendarRows
-    .map((row, index) => normalizePlanningCalendarRow(row, index))
-    .filter((row) => row.activity && row.date && row.date >= startKey && row.date <= endKey)
-    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.activity).localeCompare(String(b.activity), "es-MX"))
-    .slice(0, 7);
+  return presentationActivitiesApi.upcomingActivities(
+    planningCalendarRows.map((row, index) => normalizePlanningCalendarRow(row, index)),
+    new Date(),
+    10
+  );
 }
 
 function presentationActivityKey(activity) {
@@ -12436,7 +12431,10 @@ function renderExecutivePresentationSlide(slide, index) {
   } else if (slide.key === "budget") {
     body = renderExecutivePresentationBudget(budget, notes);
   } else if (slide.key === "block-activities") {
-    body = `<div class="executive-presentation-activity-block"><div class="executive-presentation-activity-window"><span>Próximos 7 días</span><strong>${escapeHtml(activityWindow.label)}</strong></div>${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => `<div><time>${escapeHtml(row.date)}</time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em class="activity-status ${escapeHtml(row.presentationStatus)}">${escapeHtml(presentationActivityStatusLabel(row.presentationStatus))}</em></div>`).join("")}</div>` : presentationEmptyState(`Sin actividades programadas del ${activityWindow.label}`)}${presentationManualNote(notes, "comment_block-activities")}</div>`;
+    body = `<div class="executive-presentation-activity-block"><div class="executive-presentation-activity-window"><span>Próximos 10 eventos</span><strong>Desde ${escapeHtml(activityWindow.label)}</strong></div>${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha · día</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => {
+      const dateParts = presentationActivitiesApi.activityDateParts(row.date);
+      return `<div><time><span>${escapeHtml(dateParts.date)}</span><b>${escapeHtml(dateParts.weekday)}</b></time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em class="activity-status ${escapeHtml(row.presentationStatus)}">${escapeHtml(presentationActivityStatusLabel(row.presentationStatus))}</em></div>`;
+    }).join("")}</div>` : presentationEmptyState(`Sin próximos eventos desde el ${activityWindow.label}`)}${presentationManualNote(notes, "comment_block-activities")}</div>`;
   } else if (slide.key === "inventory") {
     body = renderPresentationInventory(notes);
   } else if (slide.key === "feedback") {
