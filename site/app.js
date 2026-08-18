@@ -527,6 +527,7 @@ const PHYSICAL_HALL_TESTS = [
 
 let activeArea = "general";
 let activeView = "dashboard";
+let globalFilterState = { level: "todos", career: "todos", gender: "todos", search: "" };
 const ACTIVE_AREA_STORAGE_KEY = "wellsync_active_area_v1";
 let moduleDataCoordinator = null;
 let moduleDataPlan = null;
@@ -579,6 +580,7 @@ let executivePresentationSaving = false;
 let executivePresentationNotes = loadExecutivePresentationLocalNotes();
 const presentationHistoryApi = window.WellSyncPresentationHistory;
 const presentationPrioritiesApi = window.WellSyncPresentationPriorities;
+const presentationActivitiesApi = window.WellSyncPresentationActivities;
 const studentDatabaseTemplateApi = window.WellSyncStudentDatabaseTemplate;
 const studentDatabaseImportApi = window.WellSyncStudentDatabaseImport;
 const studentSemesterApi = window.WellSyncStudentSemester;
@@ -670,6 +672,10 @@ let classSimulatorTeacherConflictIds = new Set();
 let classSimulatorTeacherConflictMessage = "";
 let activeTheme = localStorage.getItem(THEME_KEY) || "tec";
 let currentUser = loadSession();
+const viewCacheApi = window.WellSyncViewCache;
+const lastViewStore = viewCacheApi?.createLastViewStore(localStorage) || null;
+let cachedViewSnapshot = null;
+let viewSnapshotTimer = null;
 let cloudCaptures = [];
 let cloudStudentDatabase = [];
 let studentDatabaseLoaded = false;
@@ -5490,7 +5496,8 @@ async function loadSupabaseDataBundle() {
 function createProgressiveDataPlan() {
   if (!window.WellSyncModuleDataLoader || !window.WellSyncModuleDataPlan) return null;
   moduleDataCoordinator = window.WellSyncModuleDataLoader.createModuleDataLoader({
-    onStateChange: () => scheduleProgressiveRender()
+    onStateChange: () => scheduleProgressiveRender(),
+    timeoutMs: 60000
   });
   moduleDataPlan = window.WellSyncModuleDataPlan.createModuleDataPlan({
     coordinator: moduleDataCoordinator,
@@ -5542,19 +5549,153 @@ function restoreActiveArea(fallbackArea) {
   activeArea = visibleAreas().some((area) => area.id === remembered) ? remembered : fallbackArea;
 }
 
+function cachedWorkspaceUserId() {
+  return currentUser?.id || currentUser?.email || currentUser?.name || "";
+}
+
+function copyFilterState(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? { ...value } : {};
+}
+
+function currentWorkspaceState() {
+  return {
+    activeArea,
+    activeView,
+    filters: {
+      global: copyFilterState(globalFilterState),
+      schedule: copyFilterState(scheduleFilters),
+      booking: copyFilterState(classBookingFilters),
+      intramuros: copyFilterState(intramurosFilters),
+      representativos: copyFilterState(representativosFilters),
+      semanaTec: copyFilterState(semanaTecFilters),
+      semanaTecProgram: copyFilterState(semanaTecProgramFilters),
+      simulator: copyFilterState(simulatorFilters),
+      gymWeeks: copyFilterState(gymWeekSelection),
+      gymFacility: gymDashboardFacility,
+      gymHeatmap: gymHeatmapMode,
+      classGrades: copyFilterState(classGradeFilter),
+      collaborators: copyFilterState(collaboratorFilter),
+      physicalEvaluations: copyFilterState(physicalEvaluationFilter),
+      budget: copyFilterState(budgetFilters),
+      executivePlanning: copyFilterState(executivePlanningFilters)
+    }
+  };
+}
+
+function persistWorkspaceState() {
+  const userId = cachedWorkspaceUserId();
+  if (!userId || !lastViewStore) return false;
+  rememberActiveArea(activeArea);
+  return lastViewStore.writeWorkspace(userId, activeMasterPeriod, currentWorkspaceState());
+}
+
+function restoreCachedWorkspace(fallbackArea = "general") {
+  const userId = cachedWorkspaceUserId();
+  const workspace = userId ? lastViewStore?.readWorkspace(userId, activeMasterPeriod) : null;
+  const allowedAreas = visibleAreas();
+  if (workspace && allowedAreas.some((area) => area.id === workspace.activeArea)) {
+    activeArea = workspace.activeArea;
+    activeView = typeof workspace.activeView === "string" ? workspace.activeView : "dashboard";
+    const filters = workspace.filters || {};
+    Object.assign(globalFilterState, copyFilterState(filters.global));
+    Object.assign(scheduleFilters, copyFilterState(filters.schedule));
+    Object.assign(classBookingFilters, copyFilterState(filters.booking));
+    Object.assign(intramurosFilters, copyFilterState(filters.intramuros));
+    Object.assign(representativosFilters, copyFilterState(filters.representativos));
+    Object.assign(semanaTecFilters, copyFilterState(filters.semanaTec));
+    Object.assign(semanaTecProgramFilters, copyFilterState(filters.semanaTecProgram));
+    Object.assign(simulatorFilters, copyFilterState(filters.simulator));
+    Object.assign(gymWeekSelection, copyFilterState(filters.gymWeeks));
+    Object.assign(classGradeFilter, copyFilterState(filters.classGrades));
+    Object.assign(collaboratorFilter, copyFilterState(filters.collaborators));
+    Object.assign(physicalEvaluationFilter, copyFilterState(filters.physicalEvaluations));
+    Object.assign(budgetFilters, copyFilterState(filters.budget));
+    Object.assign(executivePlanningFilters, copyFilterState(filters.executivePlanning));
+    if (typeof filters.gymFacility === "string") gymDashboardFacility = filters.gymFacility;
+    if (typeof filters.gymHeatmap === "string") gymHeatmapMode = filters.gymHeatmap;
+  } else {
+    restoreActiveArea(fallbackArea);
+    activeView = "dashboard";
+  }
+  cachedViewSnapshot = userId
+    ? lastViewStore?.readSnapshot(userId, activeMasterPeriod, { area: activeArea, view: activeView }) || null
+    : null;
+  return Boolean(workspace);
+}
+
+function currentCachedView() {
+  if (!cachedViewSnapshot) return null;
+  return cachedViewSnapshot.area === activeArea && cachedViewSnapshot.view === activeView
+    ? cachedViewSnapshot
+    : null;
+}
+
+function cachedViewTimestamp(snapshot) {
+  const date = new Date(snapshot?.savedAt || "");
+  if (Number.isNaN(date.getTime())) return "última vista disponible";
+  return `guardada ${date.toLocaleDateString("es-MX", { day: "numeric", month: "short" })}, ${date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+function syncGlobalFilterControls() {
+  const values = {
+    levelFilter: globalFilterState.level,
+    careerFilter: globalFilterState.career,
+    genderFilter: globalFilterState.gender,
+    globalSearch: globalFilterState.search
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const control = $(`#${id}`);
+    const optionExists = Array.from(control?.options || []).some((option) => option.value === value);
+    if (control && value !== undefined && (optionExists || control.type === "search")) {
+      control.value = value;
+    }
+  });
+}
+
+function cleanViewSnapshotHtml(contentNode) {
+  if (!contentNode?.cloneNode) return "";
+  const clone = contentNode.cloneNode(true);
+  clone.querySelectorAll([
+    '[role="dialog"]',
+    ".executive-presentation-stage",
+    ".executive-presentation-editor-backdrop",
+    ".executive-presentation-history-modal-backdrop"
+  ].join(",")).forEach((node) => node.remove());
+  return clone.innerHTML;
+}
+
+function scheduleViewSnapshotPersist(areaId, viewId, { allowPartial = false } = {}) {
+  clearTimeout(viewSnapshotTimer);
+  viewSnapshotTimer = setTimeout(() => {
+    const status = areaDataStatus(areaId);
+    if (!currentUser || areaId !== activeArea || viewId !== activeView || (status !== "ready" && !(allowPartial && status === "error"))) return;
+    const contentHtml = cleanViewSnapshotHtml($("#contentArea"));
+    if (!contentHtml.trim()) return;
+    const userId = cachedWorkspaceUserId();
+    const snapshot = {
+      area: areaId,
+      view: viewId,
+      title: $("#currentTitle")?.textContent || labelArea(areaId),
+      contentHtml,
+      kpisHtml: $("#executiveKpis")?.innerHTML || ""
+    };
+    if (lastViewStore?.writeSnapshot(userId, activeMasterPeriod, snapshot)) cachedViewSnapshot = snapshot;
+  }, 160);
+}
+
 function renderAreaLoadingState(area) {
   const state = areaDataStatus(area.id);
   if (state === "error") {
     const detail = moduleDataPlan?.error(area.id)?.message || "Error de conexión";
-    return `<section class="empty-state"><h3>No se pudieron cargar los datos</h3><p>${escapeHtml(detail)}</p><button class="primary-btn" data-retry-area="${escapeHtml(area.id)}">Reintentar</button></section>`;
+    return `<section class="background-refresh-status is-error"><span>No se pudo actualizar en segundo plano: ${escapeHtml(detail)}</span><button class="ghost-btn" data-retry-area="${escapeHtml(area.id)}">Reintentar</button></section>`;
   }
-  return `<section class="empty-state"><h3>Cargando datos de ${escapeHtml(area.name)}…</h3><p>Puedes cambiar de módulo mientras termina la consulta.</p></section>`;
+  return `<section class="background-refresh-status" aria-live="polite"><span class="refresh-dot" aria-hidden="true"></span><span>Actualizando ${escapeHtml(area.name)} en segundo plano…</span></section><div class="view-loading-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>`;
 }
 
 async function ensureAreaData(areaId = activeArea) {
   if (!currentUser) return;
   if (!moduleDataPlan) createProgressiveDataPlan();
-  cloudStatus = `Cargando ${labelArea(areaId)}...`;
+  cloudStatus = `Actualizando ${labelArea(areaId)} en segundo plano`;
   scheduleProgressiveRender();
   try {
     await moduleDataPlan.ensureArea(areaId);
@@ -5566,6 +5707,33 @@ async function ensureAreaData(areaId = activeArea) {
     if (areaId === activeArea) scheduleProgressiveRender();
     throw error;
   }
+}
+
+function limitBackgroundRefresh(task, label, timeoutMs = 60000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`La actualización de ${label} tardó demasiado`)), timeoutMs);
+    Promise.resolve(task).then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
+function startAuthenticatedBackgroundRefresh() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return Promise.resolve([]);
+  const presentationTask = limitBackgroundRefresh((async () => {
+    await syncPendingExecutivePresentationNotes();
+    await loadExecutivePresentationNotes();
+  })(), "presentación");
+  const historyTask = limitBackgroundRefresh((async () => {
+    await syncPendingPresentationHistory();
+    await loadPresentationHistory();
+  })(), "historial");
+  const dataTask = loadSupabaseDataBundle().then(() => syncPendingLocalUploadBackups());
+  return Promise.allSettled([presentationTask, historyTask, dataTask]).then((results) => {
+    render();
+    return results;
+  });
 }
 
 async function loadSupabaseSession() {
@@ -5587,12 +5755,9 @@ async function loadSupabaseSession() {
     return;
   }
   saveSession(profileToSession(profile, authUser));
-  restoreActiveArea(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
-  await syncPendingExecutivePresentationNotes();
+  restoreCachedWorkspace(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
   render();
-  loadSupabaseDataBundle()
-    .then(() => syncPendingLocalUploadBackups())
-    .catch(() => {});
+  startAuthenticatedBackgroundRefresh().catch(() => {});
 }
 
 async function loginWithSupabase() {
@@ -5646,20 +5811,11 @@ async function loginWithSupabase() {
   }
   saveSession(profileToSession(profile, authUser));
   addAudit("login", `Ingreso Supabase como ${currentUser.name}`);
-  const presentationSynced = await syncPendingExecutivePresentationNotes();
-  await loadExecutivePresentationNotes();
-  await syncPendingPresentationHistory();
-  await loadPresentationHistory();
-  restoreActiveArea(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
-  activeView = "dashboard";
+  restoreCachedWorkspace(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
   render();
-  toast(presentationSynced ? "Presentación sincronizada y disponible en otras computadoras" : `Sesion Supabase: ${currentUser.name}`);
-  loadSupabaseDataBundle()
-    .then(async () => {
-      await syncPendingLocalUploadBackups();
-      render();
-    })
-    .catch((loadError) => console.warn("No se pudo completar la carga inicial de Supabase", loadError));
+  toast(`Sesión iniciada · mostrando la última vista disponible`);
+  startAuthenticatedBackgroundRefresh()
+    .catch((loadError) => console.warn("No se pudo completar la actualización en segundo plano", loadError));
 }
 
 async function saveCaptureToSupabase(row) {
@@ -6630,10 +6786,10 @@ function renderPhysicalEvaluationsDashboard() {
 }
 
 function filteredStudents() {
-  const level = $("#levelFilter").value;
-  const career = $("#careerFilter").value;
-  const gender = $("#genderFilter").value;
-  const term = $("#globalSearch").value.trim().toLowerCase();
+  const level = globalFilterState.level;
+  const career = globalFilterState.career;
+  const gender = globalFilterState.gender;
+  const term = String(globalFilterState.search || "").trim().toLowerCase();
   return allParticipationRows().filter((s) => {
     const areaMatch = activeArea === "general" || s.area === activeArea;
     const levelMatch = level === "todos" || s.nivel === level;
@@ -10661,8 +10817,9 @@ async function switchMasterPeriod(nextPeriod) {
   if (globalPeriod) globalPeriod.value = nextPeriod;
   const topPeriod = $("#topPeriodSelect");
   if (topPeriod) topPeriod.value = nextPeriod;
-  cloudStatus = currentUser?.auth === "supabase" ? `Cargando ${nextLabel}...` : `Periodo ${nextLabel}`;
+  cloudStatus = currentUser?.auth === "supabase" ? `Actualizando ${nextLabel} en segundo plano` : `Periodo ${nextLabel}`;
   if (moduleDataPlan) moduleDataPlan.reset(nextPeriod);
+  restoreCachedWorkspace(activeArea);
   render();
 
   if (supabaseClient && currentUser?.auth === "supabase") {
@@ -12000,23 +12157,17 @@ function renderExecutivePresentationBudget(budget, notes) {
 function executivePresentationActivityWindow(referenceDate = new Date()) {
   const start = new Date(referenceDate);
   start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
   const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-  const fullDate = (date) => date.toLocaleDateString("es-MX", { day: "numeric", month: "long" });
-  const label = start.getMonth() === end.getMonth()
-    ? `${start.getDate()} al ${end.getDate()} de ${end.toLocaleDateString("es-MX", { month: "long" })}`
-    : `${fullDate(start)} al ${fullDate(end)}`;
-  return { startKey: dateKey(start), endKey: dateKey(end), label };
+  const label = start.toLocaleDateString("es-MX", { day: "numeric", month: "long" });
+  return { startKey: dateKey(start), label };
 }
 
 function executivePresentationActivities() {
-  const { startKey, endKey } = executivePresentationActivityWindow();
-  return planningCalendarRows
-    .map((row, index) => normalizePlanningCalendarRow(row, index))
-    .filter((row) => row.activity && row.date && row.date >= startKey && row.date <= endKey)
-    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.activity).localeCompare(String(b.activity), "es-MX"))
-    .slice(0, 7);
+  return presentationActivitiesApi.upcomingActivities(
+    planningCalendarRows.map((row, index) => normalizePlanningCalendarRow(row, index)),
+    new Date(),
+    10
+  );
 }
 
 function presentationActivityKey(activity) {
@@ -12316,7 +12467,10 @@ function renderExecutivePresentationSlide(slide, index) {
   } else if (slide.key === "budget") {
     body = renderExecutivePresentationBudget(budget, notes);
   } else if (slide.key === "block-activities") {
-    body = `<div class="executive-presentation-activity-block"><div class="executive-presentation-activity-window"><span>Próximos 7 días</span><strong>${escapeHtml(activityWindow.label)}</strong></div>${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => `<div><time>${escapeHtml(row.date)}</time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em class="activity-status ${escapeHtml(row.presentationStatus)}">${escapeHtml(presentationActivityStatusLabel(row.presentationStatus))}</em></div>`).join("")}</div>` : presentationEmptyState(`Sin actividades programadas del ${activityWindow.label}`)}${presentationManualNote(notes, "comment_block-activities")}</div>`;
+    body = `<div class="executive-presentation-activity-block"><div class="executive-presentation-activity-window"><span>Próximos 10 eventos</span><strong>Desde ${escapeHtml(activityWindow.label)}</strong></div>${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha · día</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => {
+      const dateParts = presentationActivitiesApi.activityDateParts(row.date);
+      return `<div><time><span>${escapeHtml(dateParts.date)}</span><b>${escapeHtml(dateParts.weekday)}</b></time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em class="activity-status ${escapeHtml(row.presentationStatus)}">${escapeHtml(presentationActivityStatusLabel(row.presentationStatus))}</em></div>`;
+    }).join("")}</div>` : presentationEmptyState(`Sin próximos eventos desde el ${activityWindow.label}`)}${presentationManualNote(notes, "comment_block-activities")}</div>`;
   } else if (slide.key === "inventory") {
     body = renderPresentationInventory(notes);
   } else if (slide.key === "feedback") {
@@ -18466,13 +18620,13 @@ function render() {
   const themeSelect = $("#themeSelect");
   if (themeSelect) themeSelect.hidden = !isLeadership();
   renderNav();
+  syncGlobalFilterControls();
   const area = areas.find((a) => a.id === activeArea) || areas.find((a) => a.id === "general");
   if (area && activeArea !== area.id) activeArea = area.id;
   renderExecutiveKpis();
   const currentAreaDataStatus = areaDataStatus(area.id);
-  if (currentAreaDataStatus !== "ready") {
-    $("#executiveKpis").innerHTML = `<div class="hero-kpi"><span>${currentAreaDataStatus === "error" ? "Sin conexión" : "Cargando"}</span><strong>…</strong></div>`;
-  }
+  const cachedView = currentCachedView();
+  if (currentAreaDataStatus !== "ready" && cachedView?.kpisHtml) $("#executiveKpis").innerHTML = cachedView.kpisHtml;
   renderSystemMap();
   $("#currentTitle").textContent = area.name;
   const evaluationsTab = $("#evaluationsViewButton");
@@ -18556,8 +18710,8 @@ function render() {
   if (activeView === "simulator" && activeArea !== "clases") activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
   let contentHtml = "";
-  if (currentAreaDataStatus !== "ready") {
-    contentHtml = renderAreaLoadingState(area);
+  if (currentAreaDataStatus !== "ready" && currentAreaDataStatus !== "error" && cachedView) {
+    contentHtml = `<section class="background-refresh-status" aria-live="polite"><span><strong>Vista rápida ${escapeHtml(cachedViewTimestamp(cachedView))}</strong><small>Mostrando la última vista guardada mientras se actualiza en segundo plano…</small></span><span class="refresh-dot" aria-hidden="true"></span></section><div class="cached-view-content" inert>${cachedView.contentHtml}</div>`;
   } else try {
     if (activeView === "dashboard") contentHtml = renderDashboard(area);
     else if (activeView === "capture") contentHtml = renderCapture(area);
@@ -18578,6 +18732,16 @@ function render() {
     else if (activeView === "evaluations") contentHtml = renderPhysicalEvaluationsDashboard();
     else if (activeView === "collaborator-infographic") contentHtml = renderCollaboratorInfographicView();
     else contentHtml = isIntramuros ? renderIntramurosRolesDashboard() : renderBlueprint(area);
+    if (currentAreaDataStatus !== "ready") {
+      const isError = currentAreaDataStatus === "error";
+      const message = isError
+        ? "Algunas fuentes no respondieron. Se muestra la información disponible."
+        : `Mostrando información disponible mientras se actualiza ${escapeHtml(area.name)}…`;
+      const action = isError
+        ? `<button class="ghost-btn" data-retry-area="${escapeHtml(area.id)}">Reintentar</button>`
+        : `<span class="refresh-dot" aria-hidden="true"></span>`;
+      contentHtml = `<section class="background-refresh-status ${isError ? "is-error" : ""}" aria-live="polite"><span>${message}</span>${action}</section>${contentHtml}`;
+    }
   } catch (error) {
     console.error("No se pudo renderizar la vista", { activeArea, activeView, area: area?.id, error });
     contentHtml = `<div class="permission-strip">No se pudo cargar esta vista: ${escapeHtml(error?.message || "error desconocido")}</div>`;
@@ -19401,6 +19565,10 @@ function render() {
   }));
   $$("[data-delete-column]").forEach((button) => button.addEventListener("click", () => deleteCollaboratorColumn(button.dataset.deleteColumn)));
   $$(".report-download").forEach((button) => button.addEventListener("click", () => downloadCsv(button.dataset.report || "reporte")));
+  persistWorkspaceState();
+  if (currentAreaDataStatus === "ready" || (currentAreaDataStatus === "error" && !cachedView)) {
+    scheduleViewSnapshotPersist(area.id, activeView, { allowPartial: currentAreaDataStatus === "error" });
+  }
 }
 
 async function saveGymAttendance(event) {
@@ -20027,7 +20195,7 @@ function renderBlueprint(area) {
 }
 
 renderCareers();
-if (currentUser?.auth !== "supabase" && currentUser) restoreActiveArea(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
+if (currentUser) restoreCachedWorkspace(currentUser.role === "direccion" || currentUser.role === "admin" ? "general" : currentUser.area);
 if (currentUser?.auth !== "supabase" && currentUser) createProgressiveDataPlan();
 render();
 if (currentUser?.auth !== "supabase" && currentUser) ensureAreaData(activeArea).catch(() => {});
@@ -20035,12 +20203,7 @@ window.setInterval(refreshPresentationEphemeridesOnDateChange, 60000);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshPresentationEphemeridesOnDateChange();
 });
-loadSupabaseSession().then(async () => {
-  await loadExecutivePresentationNotes();
-  await syncPendingPresentationHistory();
-  await loadPresentationHistory();
-  render();
-});
+loadSupabaseSession().catch((error) => console.warn("No se pudo recuperar la sesión de Supabase", error));
 
 document.addEventListener("keydown", (event) => {
   if (executivePresentationHistoryViewer) {
@@ -20092,8 +20255,10 @@ $$(".segmented button").forEach((button) => button.addEventListener("click", () 
       const user = demoUsers.find((item) => item.id === event.target.value) || demoUsers[0];
       saveSession(user);
       addAudit("cambio_rol", `Cambio a ${user.name}`);
-      activeArea = user.role === "direccion" ? "general" : user.area;
-      activeView = "dashboard";
+      restoreCachedWorkspace(user.role === "direccion" ? "general" : user.area);
+    } else {
+      const filterKey = { levelFilter: "level", careerFilter: "career", genderFilter: "gender", globalSearch: "search" }[id];
+      globalFilterState[filterKey] = event.target.value;
     }
     render();
   });

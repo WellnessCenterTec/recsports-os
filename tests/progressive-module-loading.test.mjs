@@ -63,6 +63,29 @@ test("reports an area error and permits a retry", async () => {
   assert.equal(attempts, 2);
 });
 
+test("keeps an area loading while another dependency can still provide data", async () => {
+  let releaseGym;
+  const coordinator = createModuleDataLoader();
+  const plan = createModuleDataPlan({
+    coordinator,
+    period: "AD26",
+    loaders: {
+      "student-master": async () => { throw new Error("student source offline"); },
+      gym: () => new Promise((resolve) => { releaseGym = resolve; })
+    }
+  });
+
+  const pending = plan.ensureArea("gimnasio").catch((error) => error);
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(plan.status("gimnasio"), "loading");
+
+  releaseGym(true);
+  await pending;
+  await Promise.resolve();
+  assert.equal(plan.status("gimnasio"), "error");
+});
+
 test("startup defers large static resources and class grades query cloud first", async () => {
   const appSource = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const startupSource = appSource.slice(appSource.indexOf("renderCareers();"));
@@ -84,5 +107,28 @@ test("progressive loading preserves demo seeds and pending cloud backup sync", a
   assert.match(appSource, /"class-grades": async \(\) => \{[\s\S]*?loadClassGradeSeedData\(\)/);
   assert.match(appSource, /function areaDataStatus[\s\S]*?if \(!currentUser\) return "ready"/);
   assert.match(appSource, /loadSupabaseDataBundle\(\)[\s\S]*?syncPendingLocalUploadBackups\(\)/);
-  assert.match(appSource, /renderCareers\(\);\s*if \(currentUser\?\.auth !== "supabase" && currentUser\) restoreActiveArea/);
+  assert.match(appSource, /renderCareers\(\);\s*if \(currentUser\) restoreCachedWorkspace/);
+  assert.match(appSource, /Mostrando la última vista guardada mientras se actualiza en segundo plano/);
+  assert.doesNotMatch(appSource, /Cargando datos de \$\{escapeHtml\(area\.name\)\}/);
+});
+
+test("authenticated startup renders the cached workspace before background refresh", async () => {
+  const appSource = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const sessionSource = appSource.slice(appSource.indexOf("async function loadSupabaseSession()"), appSource.indexOf("async function loginWithSupabase()"));
+  const loginSource = appSource.slice(appSource.indexOf("async function loginWithSupabase()"), appSource.indexOf("async function saveCaptureToSupabase"));
+
+  assert.ok(sessionSource.indexOf("restoreCachedWorkspace") < sessionSource.indexOf("startAuthenticatedBackgroundRefresh"));
+  assert.ok(sessionSource.indexOf("render();") < sessionSource.indexOf("startAuthenticatedBackgroundRefresh"));
+  assert.ok(loginSource.indexOf("restoreCachedWorkspace") < loginSource.indexOf("startAuthenticatedBackgroundRefresh"));
+  assert.ok(loginSource.indexOf("render();") < loginSource.indexOf("startAuthenticatedBackgroundRefresh"));
+  assert.match(appSource, /Vista rápida \$\{escapeHtml\(cachedViewTimestamp\(cachedView\)\)\}/);
+  assert.match(appSource, /timeoutMs:\s*60000/);
+  assert.match(appSource, /function limitBackgroundRefresh[\s\S]*?tardó demasiado/);
+  assert.match(appSource, /limitBackgroundRefresh\([\s\S]*?"presentación"\)/);
+  assert.match(appSource, /limitBackgroundRefresh\([\s\S]*?"historial"\)/);
+  assert.match(appSource, /function cleanViewSnapshotHtml[\s\S]*?\[role="dialog"\][\s\S]*?node\.remove\(\)/);
+  assert.match(appSource, /const contentHtml = cleanViewSnapshotHtml\(\$\("#contentArea"\)\)/);
+  assert.match(appSource, /Mostrando información disponible mientras se actualiza/);
+  assert.match(appSource, /Algunas fuentes no respondieron\. Se muestra la información disponible\./);
+  assert.match(appSource, /currentAreaDataStatus !== "ready" && currentAreaDataStatus !== "error" && cachedView/);
 });
