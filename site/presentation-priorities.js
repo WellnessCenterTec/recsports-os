@@ -95,6 +95,34 @@
     return 4;
   }
 
+  function priorityDetailItems(detail) {
+    return String(detail || "")
+      .split(/(?:\r?\n)+|(?:^|\s+)[•·]\s+|(?:^|\s+)-\s+/u)
+      .map((item) => item.trim().replace(/^[-•·]\s*/u, ""))
+      .filter(Boolean);
+  }
+
+  function priorityDetailIcon(detail, title = "") {
+    const text = String(detail || "").toLocaleLowerCase("es-MX");
+    if (/indicador|reporte|medici[oó]n|avance/.test(text)) return "📊";
+    if (/playera|uniforme|ropa/.test(text)) return "👕";
+    if (/equipo de apoyo|material|herramienta/.test(text)) return "🧰";
+    if (/pantalla|sitio|archivo|l[ií]nea|digital/.test(text)) return "💻";
+    if (/comunicaci[oó]n|difundir|publicar|anuncio/.test(text)) return "📣";
+    if (/carrera|correr|gimnasio|recorrido/.test(text)) return "🏃";
+    if (/ceremonia|talento|copa|premio/.test(text)) return "🏆";
+    if (/personal|profesor|staff|reuni[oó]n|pl[aá]tica|omar|wendy|ivonne|anabel|ram[oó]n/.test(text)) return "👥";
+    if (/vale|despensa|pago|pagado/.test(text)) return "🎫";
+    if (/fecha|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|lunes|martes|hora|agenda|\d{1,2}:\d{2}/.test(text)) return "📅";
+    const context = String(title || "").toLocaleLowerCase("es-MX");
+    if (/indicador/.test(context)) return "📊";
+    if (/comunicaci[oó]n/.test(context)) return "📣";
+    if (/carrera|recorrido/.test(context)) return "🏃";
+    if (/ceremonia|talento|copa/.test(context)) return "🏆";
+    if (/vale|despensa/.test(context)) return "🎫";
+    return "✨";
+  }
+
   function renderPriorityBoard(source, escape = escapeHtml) {
     const captured = parsePriorityItems(source);
     const items = captured.length ? captured : DEFAULT_ITEMS;
@@ -106,10 +134,13 @@
         <strong>Enfocados en mejorar nuestra operación y experiencia</strong>
       </div>
       <div class="executive-presentation-priority-grid priority-columns-${columns}">
-        ${items.map((item, index) => `<article class="executive-presentation-priority-card ${tones[index]}">
-          <h3>${escape(item.title.toLocaleUpperCase("es-MX"))}</h3>
-          ${item.detail ? `<p>${escape(item.detail)}</p>` : ""}
-        </article>`).join("")}
+        ${items.map((item, index) => {
+          const details = priorityDetailItems(item.detail);
+          return `<article class="executive-presentation-priority-card ${tones[index]}${details.length ? "" : " title-only"}">
+            <h3>${escape(item.title.toLocaleUpperCase("es-MX"))}</h3>
+            ${details.length ? `<ul class="executive-presentation-priority-details" data-priority-detail-count="${details.length}">${details.map((detail) => `<li><span class="executive-presentation-priority-detail-icon" aria-hidden="true">${priorityDetailIcon(detail, item.title)}</span><span>${escape(detail)}</span></li>`).join("")}</ul>` : ""}
+          </article>`;
+        }).join("")}
       </div>
     </div>`;
   }
@@ -121,6 +152,8 @@
     normalizePriorityItems,
     parsePriorityItems,
     priorityColumnCount,
+    priorityDetailIcon,
+    priorityDetailItems,
     priorityItemsFromFormEntries,
     renderPriorityBoard,
     renderPriorityEditor,

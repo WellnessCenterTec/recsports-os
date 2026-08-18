@@ -87,7 +87,23 @@ test("selects a balanced column count for every supported item count", () => {
   );
 });
 
-test("board renders title hierarchy, detail, and no visible numbering", () => {
+test("turns separated detail phrases into clean bullet items", () => {
+  assert.deepEqual(
+    priorities.priorityDetailItems("- Reunión del staff - Playeras de uniforme\n• Equipos de apoyo"),
+    ["Reunión del staff", "Playeras de uniforme", "Equipos de apoyo"]
+  );
+  assert.deepEqual(priorities.priorityDetailItems("Actualizar los indicadores"), ["Actualizar los indicadores"]);
+});
+
+test("chooses a topic icon for each priority detail", () => {
+  assert.equal(priorities.priorityDetailIcon("Actualizar los indicadores"), "📊");
+  assert.equal(priorities.priorityDetailIcon("Playeras de uniforme"), "👕");
+  assert.equal(priorities.priorityDetailIcon("Reunión del staff"), "👥");
+  assert.equal(priorities.priorityDetailIcon("Agenda con departamentos"), "📅");
+  assert.equal(priorities.priorityDetailIcon("Difundir la carrera"), "📣");
+});
+
+test("board renders centered title hierarchy, bulleted detail, and no visible numbering", () => {
   const source = JSON.stringify({
     version: 2,
     items: Array.from({ length: 8 }, (_, index) => ({
@@ -100,7 +116,9 @@ test("board renders title hierarchy, detail, and no visible numbering", () => {
   assert.match(html, /data-priority-count="8"/);
   assert.match(html, /priority-columns-4/);
   assert.match(html, /<h3>TEMA 1<\/h3>/);
-  assert.match(html, /<p>Detalle 1<\/p>/);
+  assert.match(html, /executive-presentation-priority-details/);
+  assert.match(html, /executive-presentation-priority-detail-icon/);
+  assert.match(html, /<span>Detalle 1<\/span>/);
   assert.equal((html.match(/executive-presentation-priority-card/g) || []).length, 8);
   assert.doesNotMatch(html, /executive-presentation-priority-number/);
 });
@@ -112,6 +130,8 @@ test("WellSync loads the priority module before the app and uses it in editor an
   ]);
 
   assert.match(index, /presentation-priorities\.js[^]*app\.js/);
+  assert.match(index, /wellsync-version" content="20260818-priority-icons-v1/);
+  assert.match(index, /presentation-priorities\.js\?v=20260818-priority-icons-v1/);
   assert.match(app, /WellSyncPresentationPriorities/);
   assert.match(app, /renderPriorityEditor\(notes\.priorities/);
   assert.match(app, /renderPriorityBoard\(notes\.priorities/);
@@ -131,4 +151,6 @@ test("priority grid and editor collapse safely on narrow screens", async () => {
   assert.match(css, /\.executive-presentation-priority-grid\.priority-columns-4\s*\{\s*grid-template-columns:\s*repeat\(4/);
   assert.match(css, /\.executive-presentation-priority-grid\s*\{\s*grid-template-columns:\s*1fr !important;\s*\}/);
   assert.match(css, /\.executive-presentation-priority-editor\s*\{\s*grid-template-columns:\s*1fr;\s*\}/);
+  assert.match(css, /\.executive-presentation-priority-card h3[^}]*text-align:\s*center/);
+  assert.match(css, /\.executive-presentation-priority-detail-icon/);
 });
