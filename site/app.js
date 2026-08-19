@@ -10570,6 +10570,29 @@ function executiveAttentionSummary() {
   return { gym, intramuros, booking, clases, vivencia, semanaTec, total: gym + intramuros + booking + clases + vivencia + semanaTec };
 }
 
+function executiveGenderAttendanceSummary() {
+  const totals = { masculino: 0, femenino: 0 };
+  const add = (matricula, genero, weight = 1) => {
+    const resolved = genero || executiveStudentContext(matricula).genero;
+    const normalized = normalizeText(resolved);
+    const value = Math.max(1, Number(weight) || 1);
+    if (normalized.includes("masculino") || normalized.includes("hombre")) totals.masculino += value;
+    if (normalized.includes("femenino") || normalized.includes("mujer")) totals.femenino += value;
+  };
+  executiveOperationalRows().forEach((row) => add(row.matricula, row.genero, row.registros));
+  gymAsistencias.forEach((row) => add(row.matricula, row.genero));
+  intramurosParticipants.forEach((row) => add(row.matricula, row.genero));
+  vivenciaParticipants.forEach((row) => add(row.matricula, row.genero));
+  semanaTecRows.forEach((row) => add(row.matricula, row.genero));
+  const known = totals.masculino + totals.femenino;
+  return {
+    ...totals,
+    known,
+    masculinoPct: known ? Math.round((totals.masculino / known) * 1000) / 10 : 0,
+    femeninoPct: known ? Math.round((totals.femenino / known) * 1000) / 10 : 0
+  };
+}
+
 function executiveIntramurosRows() {
   const rows = intramurosParticipants.length ? intramurosParticipants : executiveOperationalRows().filter((row) => row.area === "intramuros");
   const grouped = new Map();
@@ -10711,6 +10734,21 @@ function renderExecutiveGymWeeklyReport(rows) {
 
 function renderExecutiveIntramurosTiles(rows) {
   return `<div class="exec-report-intramuros-grid">${rows.length ? rows.map((row) => `<article><span>${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")}</strong></article>`).join("") : `<div class="exec-empty">Sin registros de Intramuros.</div>`}</div>`;
+}
+
+function renderExecutiveGenderDonut(summary, total) {
+  const maleStop = summary.known ? summary.masculinoPct : 0;
+  return `
+    <div class="exec-report-gender">
+      <h4>Distribución por género</h4>
+      <div class="exec-report-gender-donut ${summary.known ? "" : "empty"}" style="--male-stop:${maleStop}%">
+        <div><strong>${total.toLocaleString("es-MX")}</strong><span>total</span></div>
+      </div>
+      <div class="exec-report-gender-legend">
+        <span class="male">Masculino <b>${summary.known ? `${summary.masculinoPct}%` : "—"}</b></span>
+        <span class="female">Femenino <b>${summary.known ? `${summary.femeninoPct}%` : "—"}</b></span>
+      </div>
+    </div>`;
 }
 
 function executivePlanningUpcomingRows() {
@@ -10927,6 +10965,7 @@ function renderExecutiveGeneralDashboard() {
   const vivenciaEventsCount = vivenciaVisibleEvents().length;
   const semanaTecUnique = new Set(semanaTecRows.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
   const intramurosRows = executiveIntramurosRows();
+  const genderSummary = executiveGenderAttendanceSummary();
   return `
     <section class="executive-report" id="executiveReport">
       <div class="exec-controls no-print">
@@ -10953,9 +10992,8 @@ function renderExecutiveGeneralDashboard() {
               <li><strong>Vivencia — ${vivenciaEventsCount.toLocaleString("es-MX")}</strong> eventos · ${attentions.vivencia.toLocaleString("es-MX")} participaciones</li>
               <li><strong>Semana TEC — ${attentions.semanaTec.toLocaleString("es-MX")}</strong> intervenciones</li>
             </ul>
-            <small>Datos reales consultados directamente en los módulos de WellSync.</small>
           </div>
-          <div class="exec-report-attended"><span>ALUMNOS ATENDIDOS</span><strong>${attentions.total.toLocaleString("es-MX")}</strong></div>
+          <div class="exec-report-attended"><span>ALUMNOS ATENDIDOS</span><strong>${attentions.total.toLocaleString("es-MX")}</strong>${renderExecutiveGenderDonut(genderSummary, attentions.total)}</div>
         </section>
         <h3 class="exec-report-section-title">Comportamiento semanal e impacto real</h3>
         <article class="exec-report-card"><h3>Gimnasio · Atenciones semanales</h3>${renderExecutiveGymWeeklyReport(executiveGymWeekly())}</article>

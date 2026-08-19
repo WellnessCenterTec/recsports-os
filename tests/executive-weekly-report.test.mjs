@@ -11,6 +11,8 @@ test("weekly report uses the approved ten-week full-width dashboard", () => {
     "ALUMNOS ATENDIDOS",
     "Semana TEC —",
     "Promedio de asistencias en Wellness",
+    "Distribución por género",
+    "executiveGenderAttendanceSummary",
     "Cantidad de matrículas únicas",
     "Impacto general en el Tec de Monterrey",
     "Array.from({ length: 10 }",
@@ -18,7 +20,9 @@ test("weekly report uses the approved ten-week full-width dashboard", () => {
   ].forEach((needle) => assert.ok(source.includes(needle), `Missing approved report marker: ${needle}`));
   assert.ok(styles.includes("max-width: 1344px"), "Report must be 20% wider than the former 1120px layout");
   assert.ok(styles.includes("grid-template-columns: repeat(10"), "Gym chart must reserve ten weekly columns");
+  assert.ok(styles.includes("grid-template-columns: repeat(4"), "Intramuros must use four columns on desktop");
   assert.ok(!source.includes("Alumnos únicos en Gimnasio"), "Legacy gym-only unique KPI must stay removed");
+  assert.ok(!source.includes("Datos reales consultados directamente en los módulos de WellSync"), "Removed report legend must stay absent");
 });
 
 test("daily Wellness average is computed from dated Wellness visits only", () => {
