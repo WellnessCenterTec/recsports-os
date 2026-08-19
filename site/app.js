@@ -661,7 +661,7 @@ let semanaTecProgramLoading = false;
 let semanaTecProgramSaving = false;
 let semanaTecProgramCloudAvailable = true;
 let semanaTecProgramFilters = { week: "todas", professor: "todos", schedule: "todos", search: "" };
-let executiveReportState = { week: 15, period: activeMasterPeriod, title: "Reporte Ejecutivo Semana 15" };
+let executiveReportState = { week: 1, period: activeMasterPeriod, title: "Reporte Ejecutivo Semanal" };
 let executivePlanningFilters = { area: "todos", status: "todos", days: "30" };
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
@@ -10478,7 +10478,15 @@ function executiveOperationalRows() {
 }
 
 function executiveUniqueCount(rows = executiveOperationalRows()) {
-  return new Set(rows.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
+  const matriculas = [
+    ...rows.map((row) => row.matricula),
+    ...gymAsistencias.map((row) => row.matricula),
+    ...intramurosParticipants.map((row) => row.matricula),
+    ...vivenciaParticipants.map((row) => row.matricula),
+    ...classBookingReservations.map((row) => row.student),
+    ...semanaTecRows.map((row) => row.matricula)
+  ];
+  return new Set(matriculas.map(normalizeMatricula).filter(Boolean)).size;
 }
 
 function executiveCountByArea() {
@@ -10516,23 +10524,60 @@ function executiveClassSummary() {
 }
 
 function executiveGymWeekly() {
-  const counts = new Map();
+  const counts = { Wellness: new Map(), EMIS: new Map() };
   gymAttendanceRecords.forEach((row) => {
     const week = Number(row.week_number) || 0;
     const count = Number(row.attendee_count ?? row.cantidad ?? row.total ?? 0) || 0;
-    if (week > 0 && week <= 18) counts.set(week, (counts.get(week) || 0) + count);
+    const facility = normalizeGymSite(row.facility || row.sitio);
+    if (counts[facility] && week > 0 && week <= 10) counts[facility].set(week, (counts[facility].get(week) || 0) + count);
   });
-  return Array.from({ length: 18 }, (_, index) => ({ label: `S${index + 1}`, value: counts.get(index + 1) || 0 }));
+  return Array.from({ length: 10 }, (_, index) => ({
+    week: index + 1,
+    label: `S${index + 1}`,
+    wellness: counts.Wellness.get(index + 1) || 0,
+    emis: counts.EMIS.get(index + 1) || 0
+  }));
+}
+
+function executiveWellnessDailyAverages() {
+  const perDate = new Map();
+  gymAsistencias
+    .filter((row) => row.fecha && normalizeGymSite(row.sitio) === "Wellness")
+    .forEach((row) => perDate.set(row.fecha, (perDate.get(row.fecha) || 0) + 1));
+  const dayNames = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const grouped = new Map(dayNames.map((day) => [day, []]));
+  perDate.forEach((count, date) => {
+    const day = dayNames[new Date(`${date}T12:00:00`).getDay()];
+    grouped.get(day).push(count);
+  });
+  return ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"].map((day) => {
+    const values = grouped.get(day);
+    const average = values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
+    return { day, average };
+  });
+}
+
+function executiveAttentionSummary() {
+  const classes = executiveClassSummary();
+  const gym = gymAttendanceRecords
+    .filter((row) => (Number(row.week_number) || 0) <= executiveReportState.week)
+    .reduce((sum, row) => sum + (Number(row.attendee_count ?? row.cantidad ?? row.total ?? 0) || 0), 0);
+  const intramuros = intramurosParticipants.length;
+  const booking = classBookingReservations.length;
+  const clases = Number(classes.banner || 0);
+  const vivencia = vivenciaVisibleMetrics().reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
+  const semanaTec = semanaTecRows.length;
+  return { gym, intramuros, booking, clases, vivencia, semanaTec, total: gym + intramuros + booking + clases + vivencia + semanaTec };
 }
 
 function executiveIntramurosRows() {
-  const rows = executiveOperationalRows().filter((row) => row.area === "intramuros");
+  const rows = intramurosParticipants.length ? intramurosParticipants : executiveOperationalRows().filter((row) => row.area === "intramuros");
   const grouped = new Map();
   rows.forEach((row) => {
-    const key = row.operacion || "Intramuros";
+    const key = row.torneo || row.operacion || "Intramuros";
     grouped.set(key, (grouped.get(key) || 0) + 1);
   });
-  return Array.from(grouped.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+  return Array.from(grouped.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8);
 }
 
 function executiveStatus(areaId, value, options = {}) {
@@ -10641,6 +10686,31 @@ function renderExecutiveWeeklyBars(rows, tone = "blue") {
       ${rows.map((row) => `<div><strong>${row.value ? row.value.toLocaleString("es-MX") : ""}</strong><span style="height:${Math.max(8, Math.round((row.value / max) * 150))}px"></span><em>${row.label}</em></div>`).join("")}
     </div>
   `;
+}
+
+function renderExecutiveGymWeeklyReport(rows) {
+  const max = Math.max(...rows.flatMap((row) => [row.wellness, row.emis]), 1);
+  const lane = (key, label, tone) => `
+    <div class="exec-report-gym-lane ${tone}">
+      <strong class="exec-report-gym-label">${label}</strong>
+      <div class="exec-report-gym-columns">
+        ${rows.map((row) => `<div><b>${row[key] ? row[key].toLocaleString("es-MX") : ""}</b><span style="height:${Math.max(7, Math.round((row[key] / max) * 108))}px"></span><em>${row.label}</em></div>`).join("")}
+      </div>
+    </div>`;
+  const averages = executiveWellnessDailyAverages();
+  return `
+    <div class="exec-report-gym-layout">
+      <div class="exec-report-gym-chart">${lane("wellness", "Wellness", "wellness")}${lane("emis", "EMIS", "emis")}</div>
+      <aside class="exec-report-daily-average">
+        <h4>Promedio de asistencias en Wellness</h4>
+        ${averages.map((row) => `<div><span>${row.day}</span><strong>${row.average === null ? "—" : row.average.toLocaleString("es-MX")}</strong></div>`).join("")}
+        <small>Promedio diario · Wellness</small>
+      </aside>
+    </div>`;
+}
+
+function renderExecutiveIntramurosTiles(rows) {
+  return `<div class="exec-report-intramuros-grid">${rows.length ? rows.map((row) => `<article><span>${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")}</strong></article>`).join("") : `<div class="exec-empty">Sin registros de Intramuros.</div>`}</div>`;
 }
 
 function executivePlanningUpcomingRows() {
@@ -10849,107 +10919,59 @@ function renderStudentDatabaseReportAction() {
 function renderExecutiveGeneralDashboard() {
   const rows = executiveOperationalRows();
   const unique = executiveUniqueCount(rows);
-  const baseUniverse = cloudStudentDatabase.length || 18322;
+  const baseUniverse = 17173;
   const impact = baseUniverse ? Math.round((unique / baseUniverse) * 1000) / 10 : 0;
   const classes = executiveClassSummary();
-  const gymTotal = gymAttendanceRecords.reduce((sum, row) => sum + (Number(row.attendee_count ?? row.cantidad ?? row.total ?? 0) || 0), 0);
-  const bookingVivencia = classBookingReservations.length + vivenciaVisibleMetrics().reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
-  const areaCounts = executiveCountByArea();
-  const cards = executiveAreaCards();
-  const priorities = executivePriorityList(cards);
-  const genderRows = ["Femenino", "Masculino", "No especificado"].map((label) => ({ label, value: rows.filter((row) => row.genero === label).length })).filter((row) => row.value);
-  const schoolRows = careerParticipationSummary(rows).slice(0, 7).map((row) => ({ label: row.career, value: row.count }));
-  const bookingRows = groupBookingRows(classBookingReservations, "activity").slice(0, 6).map((row) => ({ label: row.label, value: row.count }));
-  const vivenciaRows = Array.from(new Map(vivenciaVisibleEvents().map((event) => [event.event_name || "Vivencia", vivenciaEventParticipantsCount(event, vivenciaEventMetricMap())])).entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 5);
+  const attentions = executiveAttentionSummary();
+  const bookingUnique = new Set(classBookingReservations.map((row) => normalizeMatricula(row.student)).filter(Boolean)).size;
+  const vivenciaEventsCount = vivenciaVisibleEvents().length;
+  const semanaTecUnique = new Set(semanaTecRows.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
+  const intramurosRows = executiveIntramurosRows();
   return `
     <section class="executive-report" id="executiveReport">
       <div class="exec-controls no-print">
         <label>Periodo maestro<select id="masterPeriodSelect">${renderMasterPeriodOptions()}</select></label>
         <button class="primary-btn" id="applyMasterPeriod" type="button">Cambiar periodo</button>
-        <label>Semana<select id="executiveWeek">${Array.from({ length: 18 }, (_, index) => `<option value="${index + 1}" ${executiveReportState.week === index + 1 ? "selected" : ""}>Semana ${index + 1}</option>`).join("")}</select></label>
+        <label>Semana<select id="executiveWeek">${Array.from({ length: 20 }, (_, index) => `<option value="${index + 1}" ${executiveReportState.week === index + 1 ? "selected" : ""}>Semana ${index + 1}</option>`).join("")}</select></label>
         <label>Título<input id="executiveTitle" value="${escapeHtml(executiveReportState.title)}" /></label>
         <button class="ghost-btn" id="refreshExecutiveData" type="button">Actualizar datos</button>
         <button class="primary-btn" id="downloadExecutivePdf" type="button">Descargar PDF</button>
       </div>
       <div class="exec-page">
-        <header class="exec-header">
-          <div>
-            <p>Semana ${executiveReportState.week} de 18 | ${escapeHtml(executiveReportState.period)} | Corte ${new Date().toLocaleDateString("es-MX")}</p>
-            <h2>${escapeHtml(executiveReportState.title || `Reporte Ejecutivo Semana ${executiveReportState.week}`)}</h2>
-            <span>Indicadores Ejecutivos RecSports</span>
-          </div>
+        <header class="exec-report-titlebar">
           <div class="exec-logo">WS</div>
+          <div><h2>${escapeHtml(executiveReportState.title || "Reporte Ejecutivo Semanal")}</h2><span>WellSync · RecSports &amp; Wellness · ${escapeHtml(executiveReportState.period)}</span></div>
+          <div><strong>Semana ${executiveReportState.week}</strong><span>Semana ${executiveReportState.week} de 20</span></div>
         </header>
-        <div class="exec-hero-row">
-          <article class="exec-hero-kpi"><span>Atenciones alumnos acumulados</span><strong>${rows.reduce((sum, row) => sum + row.registros, 0).toLocaleString("es-MX")}</strong></article>
-          <article><strong>${gymTotal.toLocaleString("es-MX")}</strong><span>Total gimnasio</span></article>
-          <article><strong>${classes.finished.toLocaleString("es-MX")}</strong><span>Acreditados clases</span></article>
-          <article><strong>${(areaCounts.find((row) => row.areaId === "intramuros")?.value || 0).toLocaleString("es-MX")}</strong><span>Intramuros únicos</span></article>
-          <article><strong>${bookingVivencia.toLocaleString("es-MX")}</strong><span>Booking + Vivencia</span></article>
-        </div>
-        <section class="exec-status-strip">
-          ${cards.map((card) => `
-            <article class="exec-area-link" data-jump="${card.id}" data-target-view="${card.view}">
-              <span class="exec-dot ${card.tone}"></span>
-              <strong>${escapeHtml(card.area)}</strong>
-              <em>${escapeHtml(card.metric)}</em>
-              <b>${escapeHtml(card.detail)}</b>
-              <small>${escapeHtml(card.action)}</small>
-              <button class="exec-open-btn no-print" type="button">Abrir</button>
-            </article>
-          `).join("")}
+        <section class="exec-report-hero">
+          <div><p>CORTE OPERATIVO · SEMANA ${executiveReportState.week}</p>
+            <ul>
+              <li><strong>Gimnasio — ${attentions.gym.toLocaleString("es-MX")}</strong> asistencias</li>
+              <li><strong>Intramuros — ${attentions.intramuros.toLocaleString("es-MX")}</strong> registros</li>
+              <li><strong>Booking — ${attentions.booking.toLocaleString("es-MX")}</strong> reservaciones</li>
+              <li><strong>Clases — ${attentions.clases.toLocaleString("es-MX")}</strong> inscritos</li>
+              <li><strong>Vivencia — ${vivenciaEventsCount.toLocaleString("es-MX")}</strong> eventos · ${attentions.vivencia.toLocaleString("es-MX")} participaciones</li>
+              <li><strong>Semana TEC — ${attentions.semanaTec.toLocaleString("es-MX")}</strong> intervenciones</li>
+            </ul>
+            <small>Datos reales consultados directamente en los módulos de WellSync.</small>
+          </div>
+          <div class="exec-report-attended"><span>ALUMNOS ATENDIDOS</span><strong>${attentions.total.toLocaleString("es-MX")}</strong></div>
         </section>
-        <div class="exec-grid three">
-          <article class="exec-panel">
-            <h3>Top 5 prioridades operativas</h3>
-            <div class="exec-priority-list">${priorities.length ? priorities.map((item) => `<div><span class="${item.tone}">${escapeHtml(item.tone)}</span><strong>${escapeHtml(item.title)}</strong><em>${escapeHtml(item.text)}</em></div>`).join("") : `<div class="exec-empty">Operación estable sin alertas principales.</div>`}</div>
-          </article>
-          <article class="exec-panel">
-            <h3>Retención por clase</h3>
-            ${renderExecutivePercentBars(executiveClassRetentionRows("top"), { tone: "green" })}
-          </article>
-          <article class="exec-panel exec-panel-link" data-jump="clases" data-target-view="booking">
-            <h3>Booking por actividad</h3>
-            ${renderExecutiveMiniBars(bookingRows)}
-            <button class="exec-open-btn no-print" type="button">Abrir Booking</button>
-          </article>
-        </div>
-        <div class="exec-grid wide-left">
-          <article class="exec-panel">
-            <h3>Alumnos atendidos en Gimnasio Wellness Center</h3>
-            ${renderExecutiveWeeklyBars(executiveGymWeekly().slice(0, executiveReportState.week), "blue")}
-          </article>
-          <article class="exec-panel">
-            <h3>Participación por escuela</h3>
-            ${renderExecutiveMiniBars(schoolRows, { compact: true })}
-          </article>
-        </div>
-        <div class="exec-grid three">
-          <article class="exec-panel">
-            <h3>Clases con seguimiento</h3>
-            ${renderExecutivePercentBars(executiveClassRetentionRows("low"), { compact: true, tone: "red" })}
-          </article>
-          <article class="exec-panel">
-            <h3>Género impactado</h3>
-            ${renderExecutivePie(genderRows)}
-          </article>
-          <article class="exec-panel">
-            <h3>Intramuros</h3>
-            ${renderExecutiveMiniBars(executiveIntramurosRows(), { compact: true })}
-          </article>
-        </div>
-        <div class="exec-grid">
-          <article class="exec-panel">
-            <h3>Vivencia</h3>
-            ${renderExecutiveMiniBars(vivenciaRows.slice(0, 5), { compact: true })}
-          </article>
-        </div>
+        <h3 class="exec-report-section-title">Comportamiento semanal e impacto real</h3>
+        <article class="exec-report-card"><h3>Gimnasio · Atenciones semanales</h3>${renderExecutiveGymWeeklyReport(executiveGymWeekly())}</article>
+        <section class="exec-report-module-grid">
+          <article><h3>Booking</h3><strong>${attentions.booking.toLocaleString("es-MX")}</strong><span>reservaciones</span><b>${bookingUnique.toLocaleString("es-MX")} alumnos únicos</b></article>
+          <article><h3>Clases deportivas</h3><strong>${attentions.clases.toLocaleString("es-MX")}</strong><span>inscritos</span><b>${classes.finished.toLocaleString("es-MX")} acreditados</b></article>
+          <article><h3>Vivencia</h3><strong>${vivenciaEventsCount.toLocaleString("es-MX")}</strong><span>eventos</span><b>${attentions.vivencia.toLocaleString("es-MX")} participaciones reportadas</b></article>
+          <article><h3>Semana TEC</h3><strong>${attentions.semanaTec.toLocaleString("es-MX")}</strong><span>intervenciones</span><b>${semanaTecUnique.toLocaleString("es-MX")} matrículas únicas</b></article>
+        </section>
+        <article class="exec-report-card exec-report-intramuros"><h3>Intramuros · Participación por torneo</h3><p>${attentions.intramuros.toLocaleString("es-MX")} registros en el módulo</p>${renderExecutiveIntramurosTiles(intramurosRows)}</article>
         <footer class="exec-footer-kpis">
-          <article><strong>${unique.toLocaleString("es-MX")}</strong><span>Matrículas únicas impactadas</span></article>
-          <article><strong>${baseUniverse.toLocaleString("es-MX")}</strong><span>Matrículas únicas Base Datos</span></article>
-          <article><strong>${impact}%</strong><span>% de impacto sobre universo base</span></article>
+          <article><strong>${unique.toLocaleString("es-MX")}</strong><span>Cantidad de matrículas únicas</span></article>
+          <article><strong>${baseUniverse.toLocaleString("es-MX")}</strong><span>Alumnos en la base TEC</span></article>
+          <article><strong>${impact}%</strong><span>Impacto general en el Tec de Monterrey</span></article>
         </footer>
-        <p class="exec-privacy">Reporte generado automáticamente - sin nombres de alumnos - datos agregados.</p>
+        <p class="exec-privacy">Fuente: módulos vigentes de WellSync · Sin datos personales.</p>
       </div>
     </section>
   `;
