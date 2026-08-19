@@ -50,6 +50,6 @@ test("snapshot writes require a concrete area, view, and HTML payload", () => {
 
 test("WellSync loads the last-view cache before the main application", async () => {
   const indexHtml = await readFile(new URL("../site/index.html", import.meta.url), "utf8");
-  assert.match(indexHtml, /view-cache\.js\?v=20260818-last-view-v1/);
+  assert.match(indexHtml, /view-cache\.js\?v=20260819-last-view-v2/);
   assert.ok(indexHtml.indexOf("view-cache.js") < indexHtml.indexOf("app.js"));
 });
