@@ -39,6 +39,32 @@ test("loads only the active area's dependencies and reuses ready data", async ()
   assert.deepEqual(calls.slice(-2), ["student-master", "gym"]);
 });
 
+test("keeps Reporte General lean and loads planning only for Calendario", async () => {
+  const calls = [];
+  const dashboardDependencies = [
+    "student-master", "captures", "class-grades", "gym", "booking",
+    "vivencia", "semana-tec", "intramuros"
+  ];
+  const loaders = Object.fromEntries([...dashboardDependencies, "planning"].map((name) => [name, async () => {
+    calls.push(name);
+    return name;
+  }]));
+  const coordinator = createModuleDataLoader();
+  const plan = createModuleDataPlan({ coordinator, loaders, period: "AD26" });
+
+  await plan.ensureArea("general", "dashboard");
+  assert.deepEqual(calls, dashboardDependencies);
+  assert.equal(plan.dependencies("general", "dashboard").includes("planning"), false);
+  assert.equal(plan.dependencies("general", "dashboard").includes("budget"), false);
+  assert.equal(plan.dependencies("general", "dashboard").includes("communication"), false);
+  assert.equal(plan.dependencies("general", "dashboard").includes("representativos"), false);
+  assert.equal(plan.dependencies("general", "dashboard").includes("class-simulator"), false);
+
+  await plan.ensureArea("general", "schedules");
+  assert.equal(calls.filter((name) => name === "planning").length, 1);
+  assert.equal(plan.status("general", "schedules"), "ready");
+});
+
 test("reports an area error and permits a retry", async () => {
   let attempts = 0;
   const coordinator = createModuleDataLoader();
@@ -110,6 +136,34 @@ test("progressive loading preserves demo seeds and pending cloud backup sync", a
   assert.match(appSource, /renderCareers\(\);\s*if \(currentUser\) restoreCachedWorkspace/);
   assert.match(appSource, /Mostrando la última vista guardada mientras se actualiza en segundo plano/);
   assert.doesNotMatch(appSource, /Cargando datos de \$\{escapeHtml\(area\.name\)\}/);
+});
+
+test("large operational queries are filtered by the active period in Supabase", async () => {
+  const appSource = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const gymSource = appSource.slice(
+    appSource.indexOf("async function loadGymAsistencias"),
+    appSource.indexOf("function studentFromDatabase")
+  );
+  const bookingSource = appSource.slice(
+    appSource.indexOf("async function loadClassBookingReservationsCloud"),
+    appSource.indexOf("async function saveClassBookingReservationsCloud")
+  );
+  const classGradeSource = appSource.slice(
+    appSource.indexOf("async function loadClassGrades(options = {})"),
+    appSource.indexOf("function allClassGradeRows()")
+  );
+
+  assert.match(gymSource, /\.gte\("fecha", start\)[\s\S]*?\.lte\("fecha", end\)/);
+  assert.match(gymSource, /\.gte\("attendance_date", start\)[\s\S]*?\.lte\("attendance_date", end\)/);
+  assert.match(gymSource, /\.gte\("registered_at", `\$\{start\}T00:00:00`\)/);
+  assert.doesNotMatch(gymSource, /\.from\("gym_attendance_records"\)[\s\S]*?\.select\("\*"\)/);
+  assert.doesNotMatch(gymSource, /\.from\("gym_asistencias"\)[\s\S]*?\.select\("\*"\)/);
+  assert.match(bookingSource, /\.gte\("reservation_at", `\$\{start\}T00:00:00`\)/);
+  assert.match(bookingSource, /\.lte\("reservation_at", `\$\{end\}T23:59:59\.999`\)/);
+  assert.doesNotMatch(bookingSource, /\.select\("\*"\)/);
+  assert.match(classGradeSource, /query\.eq\("period_label", requestedPeriod\)/);
+  assert.match(classGradeSource, /period_label\.in\.\(PMT1,PMT2,PMT3\)/);
+  assert.doesNotMatch(classGradeSource, /\.select\("\*"\)/);
 });
 
 test("authenticated startup renders the cached workspace before background refresh", async () => {

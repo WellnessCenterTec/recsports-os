@@ -18,25 +18,33 @@
     configuracion: ["quick-links", "collaborators"],
     presentacion: ["captures", "collaborators", "physical-evaluations", "budget", "planning", "uniformes"],
     general: [
-      "student-master", "captures", "class-grades", "gym", "booking", "class-simulator",
-      "vivencia", "semana-tec", "representativos", "communication", "intramuros", "budget", "planning"
+      "student-master", "captures", "class-grades", "gym", "booking",
+      "vivencia", "semana-tec", "intramuros"
     ]
+  });
+
+  const AREA_VIEW_DEPENDENCIES = Object.freeze({
+    general: Object.freeze({
+      schedules: ["planning"]
+    })
   });
 
   function createModuleDataPlan({ coordinator, loaders = {}, period = "" }) {
     if (!coordinator?.ensure) throw new Error("A module data coordinator is required");
     let activePeriod = String(period || "");
 
-    function dependencies(areaId) {
-      return AREA_DEPENDENCIES[areaId] || [];
+    function dependencies(areaId, viewId = "dashboard") {
+      const base = AREA_DEPENDENCIES[areaId] || [];
+      const view = AREA_VIEW_DEPENDENCIES[areaId]?.[viewId] || [];
+      return [...new Set([...base, ...view])];
     }
 
     function cacheKey(dependency) {
       return `${dependency}:${activePeriod}`;
     }
 
-    function ensureArea(areaId) {
-      return Promise.all(dependencies(areaId).map((dependency) => {
+    function ensureArea(areaId, viewId = "dashboard") {
+      return Promise.all(dependencies(areaId, viewId).map((dependency) => {
         const task = loaders[dependency];
         if (typeof task !== "function") {
           return Promise.reject(new Error(`Missing loader: ${dependency}`));
@@ -45,8 +53,8 @@
       }));
     }
 
-    function status(areaId) {
-      const states = dependencies(areaId).map((dependency) => coordinator.status(cacheKey(dependency)));
+    function status(areaId, viewId = "dashboard") {
+      const states = dependencies(areaId, viewId).map((dependency) => coordinator.status(cacheKey(dependency)));
       if (!states.length) return "ready";
       if (states.every((state) => state === "ready")) return "ready";
       if (states.includes("loading")) return "loading";
@@ -54,8 +62,8 @@
       return "idle";
     }
 
-    function error(areaId) {
-      for (const dependency of dependencies(areaId)) {
+    function error(areaId, viewId = "dashboard") {
+      for (const dependency of dependencies(areaId, viewId)) {
         const dependencyError = coordinator.error(cacheKey(dependency));
         if (dependencyError) return dependencyError;
       }
@@ -70,5 +78,5 @@
     return { ensureArea, status, error, reset, dependencies };
   }
 
-  return { AREA_DEPENDENCIES, createModuleDataPlan };
+  return { AREA_DEPENDENCIES, AREA_VIEW_DEPENDENCIES, createModuleDataPlan };
 });

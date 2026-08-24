@@ -1253,11 +1253,16 @@ function bookingReservationToCloud(row, fileName = "") {
 
 async function loadClassBookingReservationsCloud() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const requestedPeriod = activeMasterPeriod;
+  const { start, end } = masterPeriodBounds(requestedPeriod);
   const { data, error } = await supabaseClient
     .from("class_booking_reservations")
-    .select("*")
+    .select("id, source_reservation_id, reservation_at, status, reservation_type, matricula, activity, raw_space")
+    .gte("reservation_at", `${start}T00:00:00`)
+    .lte("reservation_at", `${end}T23:59:59.999`)
     .order("reservation_at", { ascending: false })
     .limit(20000);
+  if (requestedPeriod !== activeMasterPeriod) return;
   if (error) {
     classBookingCloudAvailable = false;
     console.warn("Booking Supabase no disponible", error);
@@ -1265,8 +1270,7 @@ async function loadClassBookingReservationsCloud() {
   }
   classBookingCloudAvailable = true;
   classBookingReservations = (data || [])
-    .map(bookingReservationFromCloud)
-    .filter((row) => masterPeriodMatchesDate(row.reservationDate));
+    .map(bookingReservationFromCloud);
   saveClassBookingReservations();
 }
 
@@ -1692,14 +1696,18 @@ function findStudentInDatabase(matricula) {
   return cloudStudentDatabase.find((student) => normalizeMatricula(student.matricula) === clean) || null;
 }
 
-async function loadGymAsistencias() {
+async function loadGymAsistencias(period = activeMasterPeriod) {
   if (!supabaseClient || currentUser?.auth !== "supabase") return { data: [], error: null };
+  const requestedPeriod = period;
+  const { start, end } = masterPeriodBounds(requestedPeriod);
   const rows = [];
   const pageSize = 1000;
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await supabaseClient
       .from("gym_asistencias")
-      .select("id, id_origen, matricula, nombre_completo, fecha, hora, sitio, observaciones, created_by, created_at")
+      .select("id, matricula, fecha, hora, sitio")
+      .gte("fecha", start)
+      .lte("fecha", end)
       .order("fecha", { ascending: true })
       .order("hora", { ascending: true })
       .range(offset, offset + pageSize - 1);
@@ -1710,38 +1718,57 @@ async function loadGymAsistencias() {
   return { data: rows, error: null };
 }
 
+async function loadGymAttendanceRecords(period = activeMasterPeriod) {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return { data: [], error: null };
+  const { start, end } = masterPeriodBounds(period);
+  const rows = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabaseClient
+      .from("gym_attendance_records")
+      .select("id, week_number, attendance_date, day_of_week, facility, attendee_count, notes, created_by, created_at")
+      .gte("attendance_date", start)
+      .lte("attendance_date", end)
+      .order("attendance_date", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) return { data: rows, error };
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  return { data: rows, error: null };
+}
+
 async function loadGymData() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const requestedPeriod = activeMasterPeriod;
+  const { start, end } = masterPeriodBounds(requestedPeriod);
   const [attendanceResult, registrationsResult, asistenciasResult] = await Promise.all([
-    supabaseClient
-      .from("gym_attendance_records")
-      .select("*")
-      .order("attendance_date", { ascending: true }),
+    loadGymAttendanceRecords(requestedPeriod),
     supabaseClient
       .from("gym_student_registrations")
-      .select("*")
+      .select("id, matricula, student_snapshot, registered_by, registered_at")
+      .gte("registered_at", `${start}T00:00:00`)
+      .lte("registered_at", `${end}T23:59:59.999`)
       .order("registered_at", { ascending: false })
       .limit(500),
-    loadGymAsistencias()
+    loadGymAsistencias(requestedPeriod)
   ]);
+  if (requestedPeriod !== activeMasterPeriod) return;
   if (attendanceResult.error || registrationsResult.error) {
     gymDataLoaded = false;
     console.error(attendanceResult.error || registrationsResult.error);
     return;
   }
   if (asistenciasResult.error) console.error(asistenciasResult.error);
-  gymAsistencias = asistenciasResult.error
-    ? []
-    : (asistenciasResult.data || []).filter((row) => masterPeriodMatchesDate(row.fecha));
+  gymAsistencias = asistenciasResult.error ? [] : (asistenciasResult.data || []);
   gymAsistenciasLoadedCount = gymAsistencias.length;
   gymManualAttendanceRows = (attendanceResult.data || [])
-    .filter((row) => masterPeriodMatchesDate(row.attendance_date))
     .map((row) => ({
       ...row,
       week_number: gymCalendarWeekForDate(row.attendance_date) || row.week_number
     }));
   gymAttendanceRecords = mergeGymAttendanceSources(gymManualAttendanceRows, gymAsistencias);
-  gymStudentRegistrations = (registrationsResult.data || []).filter((row) => masterPeriodMatchesDate(row.registered_at));
+  gymStudentRegistrations = registrationsResult.data || [];
   const highestWeek = Math.max(20, ...gymAttendanceRecords.map((row) => Number(row.week_number) || 0));
   gymWeekSelection.Wellness = Math.max(gymWeekSelection.Wellness, highestWeek);
   gymWeekSelection.EMIS = Math.max(gymWeekSelection.EMIS, highestWeek);
@@ -4787,9 +4814,13 @@ async function loadClassGrades(options = {}) {
   const loadedRows = [];
   const pageSize = 1000;
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabaseClient
+    let query = supabaseClient
       .from("class_grades")
-      .select("*")
+      .select("record_key, matricula, subject_code, subject_name, crn, group_number, teacher_name, career_code, semester_label, period_label, grade_text, source_name, source_row, updated_at");
+    query = requestedPeriod === "FJ26"
+      ? query.or("period_label.eq.FJ26,period_label.is.null,period_label.in.(PMT1,PMT2,PMT3)")
+      : query.eq("period_label", requestedPeriod);
+    const { data, error } = await query
       .order("teacher_name", { ascending: true })
       .order("subject_name", { ascending: true })
       .order("matricula", { ascending: true })
@@ -5534,9 +5565,9 @@ function createProgressiveDataPlan() {
   return moduleDataPlan;
 }
 
-function areaDataStatus(areaId = activeArea) {
+function areaDataStatus(areaId = activeArea, viewId = areaId === activeArea ? activeView : "dashboard") {
   if (!currentUser) return "ready";
-  return moduleDataPlan?.status(areaId) || "idle";
+  return moduleDataPlan?.status(areaId, viewId) || "idle";
 }
 
 function rememberActiveArea(areaId) {
@@ -5668,7 +5699,7 @@ function cleanViewSnapshotHtml(contentNode) {
 function scheduleViewSnapshotPersist(areaId, viewId, { allowPartial = false } = {}) {
   clearTimeout(viewSnapshotTimer);
   viewSnapshotTimer = setTimeout(() => {
-    const status = areaDataStatus(areaId);
+    const status = areaDataStatus(areaId, viewId);
     if (!currentUser || areaId !== activeArea || viewId !== activeView || (status !== "ready" && !(allowPartial && status === "error"))) return;
     const contentHtml = cleanViewSnapshotHtml($("#contentArea"));
     if (!contentHtml.trim()) return;
@@ -5687,19 +5718,19 @@ function scheduleViewSnapshotPersist(areaId, viewId, { allowPartial = false } = 
 function renderAreaLoadingState(area) {
   const state = areaDataStatus(area.id);
   if (state === "error") {
-    const detail = moduleDataPlan?.error(area.id)?.message || "Error de conexión";
+    const detail = moduleDataPlan?.error(area.id, area.id === activeArea ? activeView : "dashboard")?.message || "Error de conexión";
     return `<section class="background-refresh-status is-error"><span>No se pudo actualizar en segundo plano: ${escapeHtml(detail)}</span><button class="ghost-btn" data-retry-area="${escapeHtml(area.id)}">Reintentar</button></section>`;
   }
   return `<section class="background-refresh-status" aria-live="polite"><span class="refresh-dot" aria-hidden="true"></span><span>Actualizando ${escapeHtml(area.name)} en segundo plano…</span></section><div class="view-loading-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>`;
 }
 
-async function ensureAreaData(areaId = activeArea) {
+async function ensureAreaData(areaId = activeArea, viewId = areaId === activeArea ? activeView : "dashboard") {
   if (!currentUser) return;
   if (!moduleDataPlan) createProgressiveDataPlan();
   cloudStatus = `Actualizando ${labelArea(areaId)} en segundo plano`;
   scheduleProgressiveRender();
   try {
-    await moduleDataPlan.ensureArea(areaId);
+    await moduleDataPlan.ensureArea(areaId, viewId);
     cloudStatus = "Supabase conectado";
     if (areaId === activeArea) scheduleProgressiveRender();
   } catch (error) {
@@ -18878,6 +18909,7 @@ function render() {
       if (button.hidden) return;
       activeView = button.dataset.view;
       render();
+      if (currentUser) ensureAreaData(activeArea, activeView).catch(() => {});
       if (activeArea === "clases" && activeView === "booking") {
         $("#contentArea").innerHTML = renderClassBookingDashboard();
         bindClassBookingControls();
