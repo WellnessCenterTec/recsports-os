@@ -16,7 +16,7 @@
     colaboradores: ["collaborators", "physical-evaluations", "uniformes"],
     compras: ["budget", "planning"],
     configuracion: ["quick-links", "collaborators"],
-    presentacion: ["captures", "collaborators", "physical-evaluations", "budget", "planning"],
+    presentacion: ["captures", "collaborators", "physical-evaluations", "budget", "planning", "uniformes"],
     general: [
       "student-master", "captures", "class-grades", "gym", "booking", "class-simulator",
       "vivencia", "semana-tec", "representativos", "communication", "intramuros", "budget", "planning"

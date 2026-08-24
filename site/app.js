@@ -580,6 +580,7 @@ let executivePresentationSaving = false;
 let executivePresentationNotes = loadExecutivePresentationLocalNotes();
 const presentationHistoryApi = window.WellSyncPresentationHistory;
 const presentationPrioritiesApi = window.WellSyncPresentationPriorities;
+const presentationBirthdaysApi = window.WellSyncPresentationBirthdays;
 const presentationActivitiesApi = window.WellSyncPresentationActivities;
 const studentDatabaseTemplateApi = window.WellSyncStudentDatabaseTemplate;
 const studentDatabaseImportApi = window.WellSyncStudentDatabaseImport;
@@ -12194,6 +12195,13 @@ function renderPresentationSchoolCalendar(referenceDate = new Date()) {
   const today = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
   const segments = schoolCalendarProgressSegments(today);
   const ephemerides = presentationEphemeridesForMonth(today);
+  const collaboratorBirthdayRows = collaboratorRows();
+  const birthdays = presentationBirthdaysApi.birthdaysForMonth(collaboratorBirthdayRows, today.getMonth());
+  const birthdayMarkers = presentationBirthdaysApi.schoolCalendarBirthdayMarkers(collaboratorBirthdayRows);
+  const calendarItems = [
+    ...ephemerides.map((item) => ({ ...item, type: "ephemeris" })),
+    ...birthdays.map((item) => ({ ...item, type: "birthday", title: item.names.join(", "), scope: "Cumpleaños", tone: "birthday" }))
+  ].sort((left, right) => left.day - right.day || (left.type === "birthday" ? -1 : 1));
   const monthLabel = today.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
   const normalizedMonthLabel = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
   return `<div class="executive-presentation-school-calendar">
@@ -12202,14 +12210,18 @@ function renderPresentationSchoolCalendar(referenceDate = new Date()) {
       <div class="executive-presentation-school-calendar-progress" aria-hidden="true">
         ${segments.map((segment) => `<span style="left:${segment.left.toFixed(3)}%;top:${segment.top.toFixed(3)}%;width:${segment.width.toFixed(3)}%"></span>`).join("")}
       </div>
+      <div class="executive-presentation-school-calendar-birthdays" aria-label="Cumpleaños de colaboradores en el calendario escolar">
+        ${birthdayMarkers.map((marker) => `<span role="img" aria-label="Cumpleaños: ${escapeHtml(marker.names.join(", "))}" title="Cumpleaños: ${escapeHtml(marker.names.join(", "))}" style="left:${marker.left.toFixed(3)}%;top:${marker.top.toFixed(3)}%">🎂</span>`).join("")}
+      </div>
     </div>
-    <aside class="executive-presentation-ephemerides" aria-label="Efemérides de ${escapeHtml(normalizedMonthLabel)}">
-      <header><span>Efemérides del mes</span><strong>${escapeHtml(normalizedMonthLabel)}</strong></header>
+    <aside class="executive-presentation-ephemerides" aria-label="Efemérides y cumpleaños de ${escapeHtml(normalizedMonthLabel)}">
+      <header><span>Fechas del mes</span><strong>${escapeHtml(normalizedMonthLabel)}</strong></header>
       <div class="executive-presentation-ephemerides-list">
-        ${ephemerides.map((item) => {
+        ${calendarItems.map((item) => {
           const state = item.day < today.getDate() ? "past" : item.day === today.getDate() ? "today" : "future";
           const dateValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(item.day).padStart(2, "0")}`;
-          return `<article class="${state}" title="${state === "past" ? "Fecha transcurrida" : state === "today" ? "Efeméride de hoy" : "Próxima efeméride"}"><time class="${item.tone}" datetime="${dateValue}">${String(item.day).padStart(2, "0")}</time><div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.scope)}</span></div></article>`;
+          const timingLabel = state === "past" ? "Fecha transcurrida" : state === "today" ? "Fecha de hoy" : "Próxima fecha";
+          return `<article class="${state} ${item.type}" title="${timingLabel}"><time class="${item.tone}" datetime="${dateValue}">${String(item.day).padStart(2, "0")}</time><div><strong>${item.type === "birthday" ? `<b aria-hidden="true">🎂</b> ` : ""}${escapeHtml(item.title)}</strong><span>${escapeHtml(item.scope)}</span></div></article>`;
         }).join("")}
       </div>
     </aside>
