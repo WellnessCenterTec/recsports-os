@@ -9,7 +9,7 @@ test("weekly report uses the approved ten-week full-width dashboard", () => {
   [
     "Reporte Ejecutivo Semanal",
     "ALUMNOS ATENDIDOS",
-    "Semana TEC —",
+    "<span>Semana TEC</span><strong>",
     "Promedio de asistencias en Wellness",
     "Distribución por género",
     "executiveGenderAttendanceSummary",
@@ -44,7 +44,10 @@ test("general report PDF uses an isolated one-page landscape export view", () =>
   const handler = source.slice(source.indexOf('$("#downloadExecutivePdf")'), source.indexOf('$("#refreshExecutiveData")'));
   assert.ok(handler.includes("printExecutiveGeneralReport()"), "General report button must use its dedicated export view");
   assert.ok(!handler.includes("window.print()"), "General report handler must not print the normal module view");
+  assert.ok(source.includes('class="exec-report-attended-total"'), "Attended total must have its own horizontal hero column");
+  assert.ok(source.includes('<li><span>Gimnasio</span><strong>'), "Operational module totals must use separated labels and values");
   assert.match(styles, /@page executive-report-page\s*{\s*size:\s*A4 landscape;\s*margin:\s*4mm;/);
+  assert.match(styles, /\.executive-report-print-page \.exec-report-attended\s*{[^}]*grid-template-columns:\s*repeat\(2,/s);
   assert.ok(styles.includes("print-color-adjust: exact !important"), "PDF export must preserve report colors");
   assert.ok(styles.includes("page-break-inside: avoid"), "PDF cards and charts must avoid internal page breaks");
   assert.ok(styles.includes("--executive-report-print-scale"), "PDF export must scale its dedicated page to fit");

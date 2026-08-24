@@ -11066,15 +11066,18 @@ function renderExecutiveGeneralDashboard() {
         <section class="exec-report-hero">
           <div><p>CORTE OPERATIVO · SEMANA ${executiveReportState.week}</p>
             <ul>
-              <li><strong>Gimnasio — ${attentions.gym.toLocaleString("es-MX")}</strong> asistencias</li>
-              <li><strong>Intramuros — ${attentions.intramuros.toLocaleString("es-MX")}</strong> registros</li>
-              <li><strong>Booking — ${attentions.booking.toLocaleString("es-MX")}</strong> reservaciones</li>
-              <li><strong>Clases — ${attentions.clases.toLocaleString("es-MX")}</strong> inscritos</li>
-              <li><strong>Vivencia — ${vivenciaEventsCount.toLocaleString("es-MX")}</strong> eventos · ${attentions.vivencia.toLocaleString("es-MX")} participaciones</li>
-              <li><strong>Semana TEC — ${attentions.semanaTec.toLocaleString("es-MX")}</strong> intervenciones</li>
+              <li><span>Gimnasio</span><strong>${attentions.gym.toLocaleString("es-MX")}</strong><em>asistencias</em></li>
+              <li><span>Intramuros</span><strong>${attentions.intramuros.toLocaleString("es-MX")}</strong><em>registros</em></li>
+              <li><span>Booking</span><strong>${attentions.booking.toLocaleString("es-MX")}</strong><em>reservaciones</em></li>
+              <li><span>Clases</span><strong>${attentions.clases.toLocaleString("es-MX")}</strong><em>inscritos</em></li>
+              <li><span>Vivencia</span><strong>${vivenciaEventsCount.toLocaleString("es-MX")}</strong><em>eventos · ${attentions.vivencia.toLocaleString("es-MX")} participaciones</em></li>
+              <li><span>Semana TEC</span><strong>${attentions.semanaTec.toLocaleString("es-MX")}</strong><em>intervenciones</em></li>
             </ul>
           </div>
-          <div class="exec-report-attended"><span>ALUMNOS ATENDIDOS</span><strong>${attentions.total.toLocaleString("es-MX")}</strong>${renderExecutiveGenderDonut(genderSummary, attentions.total)}</div>
+          <div class="exec-report-attended">
+            <div class="exec-report-attended-total"><span>ALUMNOS ATENDIDOS</span><strong>${attentions.total.toLocaleString("es-MX")}</strong></div>
+            ${renderExecutiveGenderDonut(genderSummary, attentions.total)}
+          </div>
         </section>
         <h3 class="exec-report-section-title">Comportamiento semanal e impacto real</h3>
         <article class="exec-report-card"><h3>Gimnasio · Atenciones semanales</h3>${renderExecutiveGymWeeklyReport(executiveGymWeekly())}</article>
