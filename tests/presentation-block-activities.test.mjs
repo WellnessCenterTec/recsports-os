@@ -28,15 +28,16 @@ test("formats the weekday in Spanish beside the original date", () => {
   });
 });
 
-test("slide six loads the activity helper and renders the ten-event label", async () => {
+test("slide four loads the activity helper and renders the ten-event label", async () => {
   const [index, app] = await Promise.all([
     readFile(new URL("../site/index.html", import.meta.url), "utf8"),
     readFile(new URL("../site/app.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(index, /presentation-activities\.js\?v=20260818-block-activities-v1[^]*app\.js\?v=20260824-birthday-calendar-v1/);
+  assert.match(index, /presentation-activities\.js\?v=20260818-block-activities-v1[^]*app\.js\?v=20260824-presentation-layout-v2/);
   assert.match(app, /upcomingActivities\([^]*new Date\(\),\s*10\s*\)/);
   assert.match(app, /Próximos 10 eventos/);
   assert.match(app, /Fecha · día/);
   assert.match(app, /activityDateParts\(row\.date\)/);
+  assert.match(app, /key: "priorities"[^]*key: "block-activities"[^]*key: "performance"[^]*key: "budget"[^]*key: "inventory"/);
 });

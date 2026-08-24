@@ -12049,12 +12049,13 @@ tbody tr:hover td {
 .executive-presentation-slide-edit { position: absolute; top: 50%; right: 8px; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; color: #0a66b7; background: #edf6fd; border: 0; border-radius: 5px; cursor: pointer; transform: translateY(-50%); }
 .executive-presentation-slide-edit svg { width: 15px; }
 .executive-presentation-slide-grid svg { width: 21px; color: #0a66b7; }
-.executive-presentation-stage { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 48px 70px 42px; background: #071321; }
-.executive-presentation-stage-toolbar { position: fixed; top: 12px; right: 18px; left: 18px; z-index: 2; display: flex; justify-content: space-between; align-items: center; color: #fff; }
+.executive-presentation-stage { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 44px 10px 8px; background: #071321; }
+.executive-presentation-stage-toolbar { position: fixed; top: 5px; right: 10px; left: 10px; z-index: 2; display: flex; justify-content: space-between; align-items: center; color: #fff; }
 .executive-presentation-stage-toolbar > div { display: flex; align-items: center; gap: 8px; }
 .executive-presentation-stage-toolbar .executive-presentation-stage-edit { width: auto; padding: 0 14px; border-radius: 7px; font-size: 13px; }
-.executive-presentation-stage-toolbar button { display: grid; place-items: center; width: 38px; height: 38px; color: #fff; background: #17314d; border: 1px solid #41617e; border-radius: 50%; font-size: 26px; cursor: pointer; }
-.executive-presentation-canvas { width: min(88vw, 1420px); max-height: 82vh; aspect-ratio: 16 / 9; }
+.executive-presentation-stage-toolbar button { display: grid; place-items: center; width: 34px; height: 34px; color: #fff; background: #17314d; border: 1px solid #41617e; border-radius: 50%; font-size: 24px; cursor: pointer; }
+.executive-presentation-canvas { width: min(calc(100vw - 20px), calc((100vh - 52px) * 16 / 9)); max-height: calc(100vh - 52px); aspect-ratio: 16 / 9; }
+.executive-presentation-stage .executive-presentation-canvas > .executive-presentation-slide { width: calc(100% / 1.05); height: calc(100% / 1.05); zoom: 1.05; }
 .executive-presentation-nav { position: fixed; top: 50%; width: 48px; height: 72px; color: #fff; background: #17314d; border: 1px solid #41617e; border-radius: 7px; font-size: 42px; cursor: pointer; transform: translateY(-50%); }
 .executive-presentation-nav.previous { left: 12px; }
 .executive-presentation-nav.next { right: 12px; }
@@ -12123,6 +12124,13 @@ tbody tr:hover td {
 .executive-presentation-ephemerides-list article div { min-width: 0; }
 .executive-presentation-ephemerides-list article strong { display: block; overflow: hidden; color: #17334f; font-size: 10px; line-height: 1.15; text-overflow: ellipsis; white-space: nowrap; }
 .executive-presentation-ephemerides-list article span { display: block; margin-top: 1px; color: #72869a; font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.executive-presentation-slide[data-slide-key="general-indicators"] > header { grid-template-columns: 44px minmax(0, 1fr) 60px; gap: 10px; min-height: 68px; padding: 8px 16px; }
+.executive-presentation-slide[data-slide-key="general-indicators"] > header img { width: 52px; height: 42px; }
+.executive-presentation-slide[data-slide-key="general-indicators"] .executive-presentation-number { width: 38px; height: 38px; font-size: 19px; }
+.executive-presentation-slide[data-slide-key="general-indicators"] .executive-presentation-slide-body { padding: 6px 8px; }
+.executive-presentation-slide[data-slide-key="general-indicators"] > footer { padding: 3px 16px; }
+.executive-presentation-slide[data-slide-key="general-indicators"] .executive-presentation-school-calendar { justify-content: space-between; gap: 8px; }
+.executive-presentation-slide[data-slide-key="general-indicators"] .executive-presentation-school-calendar-sheet { max-width: calc(100% - 298px); }
 .executive-presentation-feedback-board { display: grid; grid-template-rows: 76px minmax(0, 1fr); gap: 12px; height: 100%; min-height: 0; }
 .executive-presentation-feedback-summary { display: grid; grid-template-columns: 1.15fr .85fr .7fr 1.3fr; overflow: hidden; background: #fff; border: 1px solid #d4e0e9; border-radius: 7px; }
 .executive-presentation-feedback-summary > div { display: grid; align-content: center; min-width: 0; padding: 10px 16px; border-right: 1px solid #dce6ee; }

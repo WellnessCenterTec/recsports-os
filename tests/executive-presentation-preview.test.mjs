@@ -27,6 +27,13 @@ test("preview keeps 16:9 and a horizontal filmstrip", async () => {
   assert.match(css, /\.executive-presentation-thumbnail-canvas[\s\S]*?transform:\s*scale\(/);
 });
 
+test("fullscreen presentation expands the white canvas and slightly enlarges its content", async () => {
+  const css = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  assert.match(css, /\.executive-presentation-stage\s*\{[^}]*padding:\s*44px 10px 8px/);
+  assert.match(css, /\.executive-presentation-canvas\s*\{[^}]*100vw - 20px[^}]*100vh - 52px/);
+  assert.match(css, /\.executive-presentation-stage \.executive-presentation-canvas > \.executive-presentation-slide\s*\{[^}]*zoom:\s*1\.05/);
+});
+
 test("history is added without replacing the approved preview", async () => {
   const app = await readFile(appUrl, "utf8");
   assert.match(app, /renderExecutivePresentationPreview\(\)/);
