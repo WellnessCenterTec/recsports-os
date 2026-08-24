@@ -30,3 +30,22 @@ test("daily Wellness average is computed from dated Wellness visits only", () =>
   assert.ok(source.includes("perDate.set(row.fecha"));
   assert.ok(source.includes('"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"'));
 });
+
+test("general report PDF uses an isolated one-page landscape export view", () => {
+  [
+    "printExecutiveGeneralReport()",
+    "createExecutiveReportPrintView()",
+    'printRoot.className = "executive-report-print-root"',
+    'page.classList.add("executive-report-print-page")',
+    "fitExecutiveReportPrintPage(sheet, page)",
+    'window.addEventListener("beforeprint", () => fitExecutiveReportPrintPage(sheet, page), { once: true })',
+    'window.addEventListener("afterprint", cleanup, { once: true })'
+  ].forEach((needle) => assert.ok(source.includes(needle), `Missing isolated PDF export marker: ${needle}`));
+  const handler = source.slice(source.indexOf('$("#downloadExecutivePdf")'), source.indexOf('$("#refreshExecutiveData")'));
+  assert.ok(handler.includes("printExecutiveGeneralReport()"), "General report button must use its dedicated export view");
+  assert.ok(!handler.includes("window.print()"), "General report handler must not print the normal module view");
+  assert.match(styles, /@page executive-report-page\s*{\s*size:\s*A4 landscape;\s*margin:\s*4mm;/);
+  assert.ok(styles.includes("print-color-adjust: exact !important"), "PDF export must preserve report colors");
+  assert.ok(styles.includes("page-break-inside: avoid"), "PDF cards and charts must avoid internal page breaks");
+  assert.ok(styles.includes("--executive-report-print-scale"), "PDF export must scale its dedicated page to fit");
+});

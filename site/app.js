@@ -10751,6 +10751,55 @@ function renderExecutiveGenderDonut(summary, total) {
     </div>`;
 }
 
+function cleanupExecutiveReportPrintView() {
+  document.querySelector(".executive-report-print-root")?.remove();
+  document.body.classList.remove("executive-report-print");
+}
+
+function fitExecutiveReportPrintPage(sheet, page) {
+  page.style.setProperty("--executive-report-print-scale", "1");
+  const contentWidth = Math.max(page.scrollWidth, page.offsetWidth, 1);
+  const contentHeight = Math.max(page.scrollHeight, page.offsetHeight, 1);
+  const scale = Math.min(sheet.clientWidth / contentWidth, sheet.clientHeight / contentHeight, 1) * 0.98;
+  page.style.setProperty("--executive-report-print-scale", scale.toFixed(4));
+  sheet.dataset.printScale = scale.toFixed(4);
+  document.body.dataset.lastExecutiveReportPrintScale = scale.toFixed(4);
+}
+
+function createExecutiveReportPrintView() {
+  const source = $("#executiveReport .exec-page");
+  if (!source) return null;
+  cleanupExecutiveReportPrintView();
+
+  const printRoot = document.createElement("div");
+  printRoot.className = "executive-report-print-root";
+  const sheet = document.createElement("div");
+  sheet.className = "executive-report-print-sheet";
+  const page = source.cloneNode(true);
+  page.classList.add("executive-report-print-page");
+  sheet.appendChild(page);
+  printRoot.appendChild(sheet);
+  document.body.appendChild(printRoot);
+  document.body.classList.add("executive-report-print");
+  return { sheet, page };
+}
+
+function printExecutiveGeneralReport() {
+  const printView = createExecutiveReportPrintView();
+  if (!printView) return;
+  const { sheet, page } = printView;
+  const cleanup = () => cleanupExecutiveReportPrintView();
+  window.addEventListener("beforeprint", () => fitExecutiveReportPrintPage(sheet, page), { once: true });
+  window.addEventListener("afterprint", cleanup, { once: true });
+  requestAnimationFrame(() => {
+    fitExecutiveReportPrintPage(sheet, page);
+    requestAnimationFrame(() => {
+      window.print();
+      setTimeout(cleanup, 1000);
+    });
+  });
+}
+
 function executivePlanningUpcomingRows() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -19010,7 +19059,7 @@ function render() {
   $("#downloadExecutivePdf")?.addEventListener("click", () => {
     addAudit("exportacion", `PDF ejecutivo general semana ${executiveReportState.week}`);
     toast("Abriendo impresión para guardar como PDF");
-    setTimeout(() => window.print(), 300);
+    printExecutiveGeneralReport();
   });
   $("#refreshExecutiveData")?.addEventListener("click", async () => {
     if (currentUser?.auth !== "supabase") {

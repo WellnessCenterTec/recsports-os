@@ -9972,96 +9972,145 @@ body.planning-modal-open {
   .login-card form { padding: 24px; }
 }
 
+.executive-report-print-root {
+  height: 202mm;
+  left: -200vw;
+  page: executive-report-page;
+  position: fixed;
+  top: 0;
+  width: 289mm;
+}
+
+body.executive-report-print {
+  page: executive-report-page;
+}
+
+.executive-report-print-sheet {
+  height: 202mm;
+  overflow: hidden;
+  page: executive-report-page;
+  width: 289mm;
+}
+
+.executive-report-print-page {
+  box-sizing: border-box;
+  max-width: none !important;
+  page: executive-report-page;
+  transform: scale(var(--executive-report-print-scale, 1));
+  transform-origin: left top;
+  width: 1152px;
+}
+
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 7mm;
+  @page executive-report-page {
+    size: A4 landscape;
+    margin: 4mm;
   }
 
-  body * {
-    visibility: hidden;
+  body.executive-report-print,
+  body.executive-report-print * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  .executive-report,
-  .executive-report * {
-    visibility: visible;
-  }
-
-  .executive-report {
-    left: 0;
-    position: absolute;
-    top: 0;
-    width: 100%;
-  }
-
-  .sidebar,
-  .topbar,
-  .filters-band,
-  .section-title,
-  .hero-dashboard,
-  .segmented,
-  .planning-link,
-  .no-print,
-  .toast {
+  body.executive-report-print > *:not(.executive-report-print-root) {
     display: none !important;
   }
 
-  .app-shell {
-    display: block;
-  }
-
-  .workspace {
-    padding: 0;
-    background: #fff;
-  }
-
-  .view-grid,
-  .main-panel,
-  #contentArea {
-    display: block;
-    border: 0;
-    padding: 0;
-  }
-
-  .hero-dashboard,
-  .main-panel,
-  .chart-panel,
-  .table-wrap {
-    box-shadow: none;
-  }
-
-  .exec-page {
-    border: 0;
-    box-shadow: none;
-    max-width: none;
-    padding: 0;
-  }
-
-  .exec-header h2 { font-size: 25px; }
-  .exec-header p { font-size: 14px; }
-  .exec-hero-row article { min-height: 74px; padding: 10px; }
-  .exec-hero-kpi strong { font-size: 34px; }
-  .exec-hero-row strong { font-size: 18px; }
-  .exec-status-strip,
-  .exec-grid,
-  .exec-hero-row {
-    break-inside: avoid;
-  }
-
-  .exec-panel,
-  .exec-status-strip article {
-    break-inside: avoid;
-    padding: 9px;
-  }
-
-  .exec-week-bars {
-    min-height: 145px;
-  }
-
-  .exec-footer-kpis strong {
-    font-size: 24px;
+  body.executive-report-print > .executive-report-print-root {
+    display: block !important;
+    height: 202mm;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 289mm;
   }
 }
+
+.executive-report-print-sheet,
+.executive-report-print-page,
+.executive-report-print-page > * {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+  .executive-report-print-page {
+    background: #fff;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    gap: 7px;
+    margin: 0;
+    padding: 10px 12px;
+  }
+
+  .executive-report-print-page .exec-report-titlebar { gap: 10px; padding: 0 0 5px; }
+  .executive-report-print-page .exec-report-titlebar h2 { font-size: 22px; margin-bottom: 1px; }
+  .executive-report-print-page .exec-report-titlebar span { font-size: 11px; }
+  .executive-report-print-page .exec-report-titlebar > div:last-child { gap: 1px; }
+  .executive-report-print-page .exec-report-titlebar > div:last-child strong { font-size: 17px; }
+  .executive-report-print-page .exec-logo { border-radius: 11px; font-size: 15px; height: 42px; width: 42px; }
+
+  .executive-report-print-page .exec-report-hero {
+    border-radius: 13px;
+    grid-template-columns: 64% 36%;
+    min-height: 0;
+    padding: 10px 18px;
+  }
+  .executive-report-print-page .exec-report-hero p { font-size: 12px; margin-bottom: 5px; }
+  .executive-report-print-page .exec-report-hero ul { gap: 2px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .executive-report-print-page .exec-report-hero li { font-size: 10px; }
+  .executive-report-print-page .exec-report-hero li strong { font-size: 12px; }
+  .executive-report-print-page .exec-report-attended { gap: 1px; padding-left: 10px; }
+  .executive-report-print-page .exec-report-attended > span { font-size: 11px; }
+  .executive-report-print-page .exec-report-attended > strong { font-size: 38px; }
+  .executive-report-print-page .exec-report-gender { gap: 1px; }
+  .executive-report-print-page .exec-report-gender h4 { font-size: 10px; margin: 0; }
+  .executive-report-print-page .exec-report-gender-donut { height: 58px; width: 58px; }
+  .executive-report-print-page .exec-report-gender-donut > div { height: 40px; width: 40px; }
+  .executive-report-print-page .exec-report-gender-donut strong { font-size: 10px; }
+  .executive-report-print-page .exec-report-gender-donut span,
+  .executive-report-print-page .exec-report-gender-legend span { font-size: 7px; }
+  .executive-report-print-page .exec-report-gender-legend { gap: 7px; }
+
+  .executive-report-print-page .exec-report-section-title { font-size: 15px; margin: 0; }
+  .executive-report-print-page .exec-report-card { border-radius: 11px; padding: 7px 12px; }
+  .executive-report-print-page .exec-report-card > h3 { font-size: 13px; margin-bottom: 4px; }
+  .executive-report-print-page .exec-report-gym-layout { grid-template-columns: minmax(0, 78%) minmax(170px, 22%); }
+  .executive-report-print-page .exec-report-gym-chart { gap: 4px; padding-right: 12px; }
+  .executive-report-print-page .exec-report-gym-lane { gap: 2px; }
+  .executive-report-print-page .exec-report-gym-label { font-size: 10px; }
+  .executive-report-print-page .exec-report-gym-label::before { height: 7px; margin-right: 4px; width: 7px; }
+  .executive-report-print-page .exec-report-gym-columns { gap: 7px; min-height: 54px; }
+  .executive-report-print-page .exec-report-gym-columns > div { gap: 1px; }
+  .executive-report-print-page .exec-report-gym-columns b { font-size: 7px; min-height: 8px; }
+  .executive-report-print-page .exec-report-gym-columns span { max-height: 48px !important; min-height: 3px; }
+  .executive-report-print-page .exec-report-gym-columns em { font-size: 7px; }
+  .executive-report-print-page .exec-report-daily-average { gap: 2px; padding-left: 12px; }
+  .executive-report-print-page .exec-report-daily-average h4 { font-size: 10px; margin: 0 0 2px; }
+  .executive-report-print-page .exec-report-daily-average div span,
+  .executive-report-print-page .exec-report-daily-average div strong { font-size: 8px; }
+  .executive-report-print-page .exec-report-daily-average small { font-size: 7px; }
+
+  .executive-report-print-page .exec-report-module-grid { gap: 7px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .executive-report-print-page .exec-report-module-grid article { border-radius: 10px; gap: 2px; padding: 7px 10px; }
+  .executive-report-print-page .exec-report-module-grid h3 { font-size: 11px; }
+  .executive-report-print-page .exec-report-module-grid strong { font-size: 21px; }
+  .executive-report-print-page .exec-report-module-grid span,
+  .executive-report-print-page .exec-report-module-grid b { font-size: 8px; }
+  .executive-report-print-page .exec-report-module-grid b { margin-top: 2px; padding-top: 4px; }
+
+  .executive-report-print-page .exec-report-intramuros p { font-size: 8px; margin: -2px 0 4px; }
+  .executive-report-print-page .exec-report-intramuros-grid { gap: 4px 6px; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .executive-report-print-page .exec-report-intramuros-grid article { border-radius: 7px; padding: 4px 7px; }
+  .executive-report-print-page .exec-report-intramuros-grid span { font-size: 8px; }
+  .executive-report-print-page .exec-report-intramuros-grid strong { font-size: 14px; }
+
+  .executive-report-print-page .exec-footer-kpis { border-radius: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
+  .executive-report-print-page .exec-footer-kpis article { gap: 1px; padding: 6px; }
+  .executive-report-print-page .exec-footer-kpis strong { font-size: 18px; }
+  .executive-report-print-page .exec-footer-kpis span { font-size: 8px; }
+  .executive-report-print-page .exec-privacy { font-size: 7px; }
 
 
 .class-executive-hero,
@@ -12488,10 +12537,11 @@ tbody tr:hover td {
 }
 
 @media print {
+  body.executive-presentation-print { page: executive-presentation-page; }
   body.executive-presentation-print > * { display: none !important; }
   body.executive-presentation-print > .executive-presentation-print-root { display: block !important; position: absolute; inset: 0; }
-  body.executive-presentation-print .executive-presentation-slide { display: grid !important; width: 13.333in; height: 7.5in; margin: 0; page-break-after: always; border: 0; box-shadow: none; }
-  @page { size: 13.333in 7.5in; margin: 0; }
+  body.executive-presentation-print .executive-presentation-slide { display: grid !important; width: 13.333in; height: 7.5in; margin: 0; page: executive-presentation-page; page-break-after: always; border: 0; box-shadow: none; }
+  @page executive-presentation-page { size: 13.333in 7.5in; margin: 0; }
 }
 .vivencia-upload-actions {
   display: flex !important;
