@@ -6448,9 +6448,9 @@ tbody tr:hover td {
 .exec-week-group-grid em { color: #42638d; font-size: 10px; font-style: normal; }
 .exec-report-intramuros p { color: #42638d; margin: -8px 0 14px; }
 .exec-report-intramuros-grid { display: grid; gap: 8px 12px; grid-template-columns: repeat(var(--exec-report-intramuros-columns, 1), minmax(0, 1fr)); }
-.exec-report-intramuros-grid article { align-items: center; border: 1px solid #d3e2f2; border-radius: 12px; display: flex; justify-content: space-between; padding: 12px 18px; }
-.exec-report-intramuros-grid span { color: #163c71; font-weight: 850; }
-.exec-report-intramuros-grid strong { color: #08285d; font-size: 30px; }
+.exec-report-intramuros-grid article { align-content: center; border: 1px solid #d3e2f2; border-radius: 12px; display: grid; gap: 5px; justify-items: center; min-width: 0; padding: 10px 6px; text-align: center; }
+.exec-report-intramuros-grid span { color: #163c71; font-weight: 850; line-height: 1.1; overflow-wrap: anywhere; }
+.exec-report-intramuros-grid strong { color: #08285d; font-size: 30px; line-height: 1; white-space: nowrap; }
 .exec-report-gender { align-items: center; display: grid; gap: 5px; justify-items: center; }
 .exec-report-gender h4 { font-size: 17px; margin: 2px 0 0; }
 .exec-report-gender-donut { align-items: center; background: conic-gradient(#c4dfff 0 var(--male-stop), #b89df4 var(--male-stop) 100%); border-radius: 50%; display: flex; height: 118px; justify-content: center; width: 118px; }

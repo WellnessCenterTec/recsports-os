@@ -50,6 +50,8 @@ test("general report PDF uses an isolated one-page landscape export view", () =>
   assert.match(styles, /@page executive-report-page\s*{\s*size:\s*A4 landscape;\s*margin:\s*4mm;/);
   assert.match(styles, /\.executive-report-print-page \.exec-report-attended\s*{[^}]*grid-template-columns:\s*repeat\(2,/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-intramuros-grid\s*{[^}]*grid-template-columns:\s*repeat\(var\(--exec-report-intramuros-columns,/s);
+  assert.match(styles, /\.exec-report-intramuros-grid article\s*{[^}]*display:\s*grid;[^}]*justify-items:\s*center/s, "Intramuros labels and totals must stack without overlapping");
+  assert.match(styles, /\.exec-report-intramuros-grid strong\s*{[^}]*white-space:\s*nowrap/s, "Intramuros totals must remain intact on their own row");
   assert.ok(styles.includes("print-color-adjust: exact !important"), "PDF export must preserve report colors");
   assert.ok(styles.includes("page-break-inside: avoid"), "PDF cards and charts must avoid internal page breaks");
   assert.ok(styles.includes("--executive-report-print-scale"), "PDF export must scale its dedicated page to fit");
