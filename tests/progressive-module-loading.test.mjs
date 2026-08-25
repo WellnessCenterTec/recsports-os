@@ -160,6 +160,11 @@ test("large operational queries are filtered by the active period in Supabase", 
   assert.doesNotMatch(gymSource, /\.from\("gym_asistencias"\)[\s\S]*?\.select\("\*"\)/);
   assert.match(bookingSource, /\.gte\("reservation_at", `\$\{start\}T00:00:00`\)/);
   assert.match(bookingSource, /\.lte\("reservation_at", `\$\{end\}T23:59:59\.999`\)/);
+  assert.match(bookingSource, /const pageSize = 1000;/);
+  assert.match(bookingSource, /\.range\(offset, offset \+ pageSize - 1\)/);
+  assert.match(bookingSource, /data\.push\(\.\.\.page\);/);
+  assert.match(bookingSource, /if \(page\.length < pageSize\) break;/);
+  assert.doesNotMatch(bookingSource, /\.limit\(20000\)/);
   assert.doesNotMatch(bookingSource, /\.select\("\*"\)/);
   assert.match(classGradeSource, /query\.eq\("period_label", requestedPeriod\)/);
   assert.match(classGradeSource, /period_label\.in\.\(PMT1,PMT2,PMT3\)/);

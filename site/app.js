@@ -1255,22 +1255,29 @@ async function loadClassBookingReservationsCloud() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const requestedPeriod = activeMasterPeriod;
   const { start, end } = masterPeriodBounds(requestedPeriod);
-  const { data, error } = await supabaseClient
-    .from("class_booking_reservations")
-    .select("id, source_reservation_id, reservation_at, status, reservation_type, matricula, activity, raw_space")
-    .gte("reservation_at", `${start}T00:00:00`)
-    .lte("reservation_at", `${end}T23:59:59.999`)
-    .order("reservation_at", { ascending: false })
-    .limit(20000);
-  if (requestedPeriod !== activeMasterPeriod) return;
-  if (error) {
-    classBookingCloudAvailable = false;
-    console.warn("Booking Supabase no disponible", error);
-    return;
+  const data = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const response = await supabaseClient
+      .from("class_booking_reservations")
+      .select("id, source_reservation_id, reservation_at, status, reservation_type, matricula, activity, raw_space")
+      .gte("reservation_at", `${start}T00:00:00`)
+      .lte("reservation_at", `${end}T23:59:59.999`)
+      .order("reservation_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (requestedPeriod !== activeMasterPeriod) return;
+    if (response.error) {
+      classBookingCloudAvailable = false;
+      console.warn("Booking Supabase no disponible", response.error);
+      return;
+    }
+    const page = response.data || [];
+    data.push(...page);
+    if (page.length < pageSize) break;
   }
   classBookingCloudAvailable = true;
-  classBookingReservations = (data || [])
-    .map(bookingReservationFromCloud);
+  classBookingReservations = data.map(bookingReservationFromCloud);
   saveClassBookingReservations();
 }
 
