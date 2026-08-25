@@ -6388,10 +6388,10 @@ tbody tr:hover td {
 .exec-report-hero li strong { font-size: 26px; line-height: 1; }
 .exec-report-hero li em { font-size: 13px; font-style: normal; grid-column: 1 / -1; opacity: .9; text-align: right; }
 .exec-report-hero small { display: none; }
-.exec-report-attended { align-items: center; border-left: 1px solid rgba(255,255,255,.75); display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-left: 24px; }
-.exec-report-attended-total { display: grid; gap: 7px; justify-items: center; text-align: center; }
-.exec-report-attended-total > span { font-size: 21px; font-weight: 950; }
-.exec-report-attended-total > strong { font-size: clamp(62px, 8vw, 100px); line-height: .92; text-shadow: 0 8px 18px rgba(0,38,92,.25); }
+.exec-report-attended { align-items: center; border-left: 1px solid rgba(255,255,255,.75); display: grid; gap: 12px; grid-template-columns: minmax(0, 1.05fr) minmax(170px, .95fr); padding-left: 24px; }
+.exec-report-attended-total { container-type: inline-size; display: grid; gap: 7px; justify-items: center; min-width: 0; text-align: center; }
+.exec-report-attended-total > span { font-size: clamp(11px, 8.5cqw, 18px); font-weight: 950; white-space: nowrap; }
+.exec-report-attended-total > strong { font-size: clamp(26px, 22cqw, 72px); letter-spacing: -.03em; line-height: .92; max-width: 100%; text-shadow: 0 8px 18px rgba(0,38,92,.25); white-space: nowrap; }
 .exec-report-section-title { color: #08285d; font-size: 25px; margin: 12px 0 2px; }
 .exec-report-card { border: 1px solid #d3e2f2; border-radius: 20px; padding: 22px 28px; }
 .exec-report-card > h3 { color: #08285d; font-size: 23px; margin: 0 0 12px; }

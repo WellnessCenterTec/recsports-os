@@ -53,6 +53,9 @@ test("general report PDF uses an isolated one-page landscape export view", () =>
   assert.ok(styles.includes("print-color-adjust: exact !important"), "PDF export must preserve report colors");
   assert.ok(styles.includes("page-break-inside: avoid"), "PDF cards and charts must avoid internal page breaks");
   assert.ok(styles.includes("--executive-report-print-scale"), "PDF export must scale its dedicated page to fit");
+  assert.match(styles, /\.exec-report-attended\s*{[^}]*grid-template-columns:\s*minmax\(0,\s*1\.05fr\)\s*minmax\(170px,\s*\.95fr\)/s, "Attended total and gender chart must reserve separate screen columns");
+  assert.match(styles, /\.exec-report-attended-total\s*{[^}]*container-type:\s*inline-size/s, "Attended total must size against its own column");
+  assert.match(styles, /\.exec-report-attended-total > strong\s*{[^}]*font-size:\s*clamp\(26px,\s*22cqw,\s*72px\)[^}]*white-space:\s*nowrap/s, "Large attended totals must stay inside their own column");
 });
 
 test("repeated module totals are replaced by actionable comparisons", () => {
