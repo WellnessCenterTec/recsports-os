@@ -18486,6 +18486,27 @@ function groupBookingActivityRows(rows) {
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
+function groupBookingStudentRows(rows) {
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const label = row.student || "Sin dato";
+    if (!grouped.has(label)) grouped.set(label, { label, count: 0, activities: new Map() });
+    const entry = grouped.get(label);
+    const activity = row.activity || "Sin disciplina";
+    entry.count += 1;
+    entry.activities.set(activity, (entry.activities.get(activity) || 0) + 1);
+  });
+  return Array.from(grouped.values())
+    .map((entry) => ({
+      label: entry.label,
+      count: entry.count,
+      activities: Array.from(entry.activities.entries())
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))
+        .map(([activity]) => activity)
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
 function bookingStatusLabel(value) {
   const clean = String(value || "").toUpperCase();
   if (clean === "APPROVED") return "Aprobadas";
@@ -18623,7 +18644,10 @@ function renderBookingStudentLeaderboard(rows) {
           <li>
             <span class="booking-leaderboard-position">${index + 1}</span>
             <span class="booking-student-avatar" aria-hidden="true">${escapeHtml(String(row.label || "A").slice(-2).toUpperCase())}</span>
-            <strong title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</strong>
+            <div class="booking-student-copy">
+              <strong title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</strong>
+              <small title="${escapeHtml(row.activities.join(" · "))}">${row.activities.map(escapeHtml).join(" · ")}</small>
+            </div>
             <span>${row.count.toLocaleString("es-MX")} <small>reservaciones</small></span>
           </li>
         `).join("")}
@@ -18736,7 +18760,7 @@ function renderClassBookingDashboard() {
   const allRows = classBookingReservations;
   const uniqueStudents = new Set(rows.map((row) => row.student).filter(Boolean)).size;
   const activities = groupBookingActivityRows(rows);
-  const students = groupBookingRows(rows, "student");
+  const students = groupBookingStudentRows(rows);
   const days = groupBookingRows(rows, "day");
   const hours = groupBookingRows(rows, "hour");
   const statuses = groupBookingRows(rows, "status");

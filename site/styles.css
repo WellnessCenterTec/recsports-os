@@ -5432,7 +5432,7 @@ tbody tr:hover td {
   display: grid;
   gap: 9px;
   grid-template-columns: 28px 36px minmax(0, 1fr) auto;
-  min-height: 48px;
+  min-height: 54px;
   padding: 6px 10px 6px 7px;
 }
 
@@ -5459,6 +5459,20 @@ tbody tr:hover td {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.booking-student-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.booking-student-copy small {
+  color: #647789;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .booking-leaderboard-list li > span:last-child {
