@@ -10765,7 +10765,7 @@ function renderExecutiveGymWeeklyReport(rows) {
 }
 
 function renderExecutiveIntramurosTiles(rows) {
-  return `<div class="exec-report-intramuros-grid">${rows.length ? rows.map((row) => `<article><span>${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")}</strong></article>`).join("") : `<div class="exec-empty">Sin registros de Intramuros.</div>`}</div>`;
+  return `<div class="exec-report-intramuros-grid" style="--exec-report-intramuros-columns:${Math.max(rows.length, 1)}">${rows.length ? rows.map((row) => `<article><span>${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")}</strong></article>`).join("") : `<div class="exec-empty">Sin registros de Intramuros.</div>`}</div>`;
 }
 
 function renderExecutiveGenderDonut(summary, total) {
@@ -10781,6 +10781,117 @@ function renderExecutiveGenderDonut(summary, total) {
         <span class="female">Femenino <b>${summary.known ? `${summary.femeninoPct}%` : "—"}</b></span>
       </div>
     </div>`;
+}
+
+function executivePopularitySplit(rows, topLimit, bottomLimit) {
+  const ranked = [...rows].sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "es"));
+  const top = ranked.slice(0, topLimit);
+  const topLabels = new Set(top.map((row) => row.label));
+  const bottom = [...ranked]
+    .sort((a, b) => a.value - b.value || a.label.localeCompare(b.label, "es"))
+    .filter((row) => !topLabels.has(row.label))
+    .slice(0, bottomLimit);
+  return { top, bottom };
+}
+
+function executiveBookingPopularity() {
+  const counts = new Map();
+  classBookingReservations.forEach((row) => {
+    const label = String(row.activity || "").trim();
+    if (!label || normalizeText(label) === "sin actividad") return;
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+  return executivePopularitySplit(
+    Array.from(counts, ([label, value]) => ({ label, value })),
+    3,
+    3
+  );
+}
+
+function executiveClassPopularity() {
+  const counts = new Map();
+  effectiveClassGradeRows().forEach((row) => {
+    const label = String(row.subject_name || "").trim();
+    if (!label || isClassTotalDiscipline(label)) return;
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+  if (!counts.size && activeMasterPeriod === "FJ26") {
+    classDisciplineIndicators
+      .filter((row) => !row.total && row.discipline)
+      .forEach((row) => counts.set(row.discipline, Number(row.banner || 0)));
+  }
+  return executivePopularitySplit(
+    Array.from(counts, ([label, value]) => ({ label, value })),
+    5,
+    5
+  );
+}
+
+function executiveUpcomingVivenciaEvents(referenceDate = new Date()) {
+  const reference = new Date(referenceDate);
+  reference.setHours(0, 0, 0, 0);
+  return vivenciaVisibleEvents()
+    .map((event) => ({ ...event, __date: vivenciaEventDate(event) }))
+    .filter((event) => event.__date && event.__date >= reference)
+    .sort((a, b) => a.__date - b.__date || String(a.event_name || "").localeCompare(String(b.event_name || ""), "es"))
+    .slice(0, 4);
+}
+
+function executiveSemanaTecGroupCounts() {
+  const rows = semanaTecRowsForActivePeriod();
+  const countWeek = (week) => new Set(rows
+    .filter((row) => Number(row.semana) === week)
+    .map((row) => Number(row.numero_grupo) || 0)
+    .filter(Boolean)).size;
+  return { week6: countWeek(6), week12: countWeek(12) };
+}
+
+function renderExecutiveRankingColumn(title, rows, tone, emptyLabel) {
+  return `
+    <div class="exec-insight-ranking ${tone}">
+      <h4>${escapeHtml(title)}</h4>
+      ${rows.length ? `<ol>${rows.map((row, index) => `
+        <li><span><b>${index + 1}</b><em title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</em></span><strong>${row.value.toLocaleString("es-MX")}</strong></li>
+      `).join("")}</ol>` : `<p>${escapeHtml(emptyLabel)}</p>`}
+    </div>`;
+}
+
+function renderExecutiveInsightCards() {
+  const booking = executiveBookingPopularity();
+  const classes = executiveClassPopularity();
+  const upcomingEvents = executiveUpcomingVivenciaEvents();
+  const semanaTecGroups = executiveSemanaTecGroupCounts();
+  const eventDate = (event) => event.__date.toLocaleDateString("es-MX", { day: "2-digit", month: "short" }).replace(".", "").toUpperCase();
+  return `
+    <section class="exec-report-module-grid exec-report-insight-grid">
+      <article class="exec-insight-card">
+        <h3>Booking · demanda</h3>
+        <div class="exec-insight-columns">
+          ${renderExecutiveRankingColumn("Más populares", booking.top, "best", "Sin datos de Booking")}
+          ${renderExecutiveRankingColumn("Menos populares", booking.bottom, "low", "Sin contraste disponible")}
+        </div>
+      </article>
+      <article class="exec-insight-card exec-insight-classes">
+        <h3>Clases · participación</h3>
+        <div class="exec-insight-columns">
+          ${renderExecutiveRankingColumn("Top 5", classes.top, "best", "Sin grupos cargados")}
+          ${renderExecutiveRankingColumn("Menor 5", classes.bottom, "low", "Sin contraste disponible")}
+        </div>
+      </article>
+      <article class="exec-insight-card exec-insight-vivencia">
+        <h3>Vivencia · próximos eventos</h3>
+        <div class="exec-insight-events">
+          ${upcomingEvents.length ? upcomingEvents.map((event) => `<div><time>${eventDate(event)}</time><strong title="${escapeHtml(event.event_name || "Evento")}">${escapeHtml(event.event_name || "Evento")}</strong></div>`).join("") : `<p>Sin próximos eventos con fecha.</p>`}
+        </div>
+      </article>
+      <article class="exec-insight-card exec-insight-semana-tec">
+        <h3>Semana TEC · grupos</h3>
+        <div class="exec-week-group-grid">
+          <div class="week-6"><span>Semana 6</span><strong>${semanaTecGroups.week6.toLocaleString("es-MX")}</strong><em>grupos</em></div>
+          <div class="week-12"><span>Semana 12</span><strong>${semanaTecGroups.week12.toLocaleString("es-MX")}</strong><em>grupos</em></div>
+        </div>
+      </article>
+    </section>`;
 }
 
 function cleanupExecutiveReportPrintView() {
@@ -11040,11 +11151,8 @@ function renderExecutiveGeneralDashboard() {
   const unique = executiveUniqueCount(rows);
   const baseUniverse = 17173;
   const impact = baseUniverse ? Math.round((unique / baseUniverse) * 1000) / 10 : 0;
-  const classes = executiveClassSummary();
   const attentions = executiveAttentionSummary();
-  const bookingUnique = new Set(classBookingReservations.map((row) => normalizeMatricula(row.student)).filter(Boolean)).size;
   const vivenciaEventsCount = vivenciaVisibleEvents().length;
-  const semanaTecUnique = new Set(semanaTecRows.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
   const intramurosRows = executiveIntramurosRows();
   const genderSummary = executiveGenderAttendanceSummary();
   return `
@@ -11081,12 +11189,7 @@ function renderExecutiveGeneralDashboard() {
         </section>
         <h3 class="exec-report-section-title">Comportamiento semanal e impacto real</h3>
         <article class="exec-report-card"><h3>Gimnasio · Atenciones semanales</h3>${renderExecutiveGymWeeklyReport(executiveGymWeekly())}</article>
-        <section class="exec-report-module-grid">
-          <article><h3>Booking</h3><strong>${attentions.booking.toLocaleString("es-MX")}</strong><span>reservaciones</span><b>${bookingUnique.toLocaleString("es-MX")} alumnos únicos</b></article>
-          <article><h3>Clases deportivas</h3><strong>${attentions.clases.toLocaleString("es-MX")}</strong><span>inscritos</span><b>${classes.finished.toLocaleString("es-MX")} acreditados</b></article>
-          <article><h3>Vivencia</h3><strong>${vivenciaEventsCount.toLocaleString("es-MX")}</strong><span>eventos</span><b>${attentions.vivencia.toLocaleString("es-MX")} participaciones reportadas</b></article>
-          <article><h3>Semana TEC</h3><strong>${attentions.semanaTec.toLocaleString("es-MX")}</strong><span>intervenciones</span><b>${semanaTecUnique.toLocaleString("es-MX")} matrículas únicas</b></article>
-        </section>
+        ${renderExecutiveInsightCards()}
         <article class="exec-report-card exec-report-intramuros"><h3>Intramuros · Participación por torneo</h3><p>${attentions.intramuros.toLocaleString("es-MX")} registros en el módulo</p>${renderExecutiveIntramurosTiles(intramurosRows)}</article>
         <footer class="exec-footer-kpis">
           <article><strong>${unique.toLocaleString("es-MX")}</strong><span>Cantidad de matrículas únicas</span></article>

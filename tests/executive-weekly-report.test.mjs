@@ -46,9 +46,32 @@ test("general report PDF uses an isolated one-page landscape export view", () =>
   assert.ok(!handler.includes("window.print()"), "General report handler must not print the normal module view");
   assert.ok(source.includes('class="exec-report-attended-total"'), "Attended total must have its own horizontal hero column");
   assert.ok(source.includes('<li><span>Gimnasio</span><strong>'), "Operational module totals must use separated labels and values");
+  assert.ok(source.includes('style="--exec-report-intramuros-columns:${Math.max(rows.length, 1)}"'), "Intramuros must expose its tournament count to the layout");
   assert.match(styles, /@page executive-report-page\s*{\s*size:\s*A4 landscape;\s*margin:\s*4mm;/);
   assert.match(styles, /\.executive-report-print-page \.exec-report-attended\s*{[^}]*grid-template-columns:\s*repeat\(2,/s);
+  assert.match(styles, /\.executive-report-print-page \.exec-report-intramuros-grid\s*{[^}]*grid-template-columns:\s*repeat\(var\(--exec-report-intramuros-columns,/s);
   assert.ok(styles.includes("print-color-adjust: exact !important"), "PDF export must preserve report colors");
   assert.ok(styles.includes("page-break-inside: avoid"), "PDF cards and charts must avoid internal page breaks");
   assert.ok(styles.includes("--executive-report-print-scale"), "PDF export must scale its dedicated page to fit");
+});
+
+test("repeated module totals are replaced by actionable comparisons", () => {
+  [
+    "executiveBookingPopularity",
+    "executiveClassPopularity",
+    "executiveUpcomingVivenciaEvents",
+    "executiveSemanaTecGroupCounts",
+    "renderExecutiveInsightCards",
+    "Más populares",
+    "Menos populares",
+    "Top 5",
+    "Semana 6",
+    "Semana 12"
+  ].forEach((needle) => assert.ok(source.includes(needle), `Missing insight-card marker: ${needle}`));
+  assert.ok(!source.includes('<article><h3>Booking</h3><strong>${attentions.booking'), "Booking total must not be duplicated below the operational summary");
+  assert.ok(styles.includes(".exec-insight-ranking.low"), "Low-demand entries must have a distinct red treatment");
+  assert.ok(styles.includes(".exec-week-group-grid"), "Semana TEC must compare weeks 6 and 12 side by side");
+  assert.match(source, /function renderExecutiveGeneralDashboard\(\)[\s\S]*?\$\{renderExecutiveInsightCards\(\)\}/, "Insight cards must render in the normal Reporte General screen, not only its PDF clone");
+  assert.match(styles, /\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*repeat\(2,/s, "Normal Reporte General must show the insight cards in a readable two-column vertical layout");
+  assert.match(styles, /@media \(max-width: 520px\)[\s\S]*?\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*1fr/s, "Insight cards must stack on narrow screens");
 });
