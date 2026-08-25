@@ -18467,6 +18467,25 @@ function groupBookingRows(rows, field) {
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
+function groupBookingActivityRows(rows) {
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const label = row.activity || "Sin dato";
+    if (!grouped.has(label)) grouped.set(label, { label, count: 0, dates: new Set() });
+    const entry = grouped.get(label);
+    entry.count += 1;
+    const date = row.dateLabel || bookingDateParts(row.reservationDate).date;
+    if (date) entry.dates.add(date);
+  });
+  return Array.from(grouped.values())
+    .map((entry) => {
+      const distinctDates = entry.dates.size;
+      const dailyPercent = distinctDates ? Math.round((entry.count / distinctDates) * 10) / 10 : 0;
+      return { label: entry.label, count: entry.count, distinctDates, dailyPercent };
+    })
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
 function bookingStatusLabel(value) {
   const clean = String(value || "").toUpperCase();
   if (clean === "APPROVED") return "Aprobadas";
@@ -18579,10 +18598,13 @@ function renderBookingActivityBars(rows) {
       ${visible.length ? `<div class="booking-activity-bars">
         ${visible.map((row, index) => {
           const width = Math.max(5, Math.round((row.count / max) * 100));
-          return `<div class="booking-activity-row" title="${escapeHtml(row.label)}: ${row.count.toLocaleString("es-MX")} reservaciones">
+          const percentage = row.dailyPercent.toLocaleString("es-MX", { maximumFractionDigits: 1 });
+          const dateLabel = row.distinctDates === 1 ? "1 día" : `${row.distinctDates.toLocaleString("es-MX")} días`;
+          return `<div class="booking-activity-row" title="${escapeHtml(row.label)}: ${row.count.toLocaleString("es-MX")} reservaciones / ${dateLabel} = ${percentage}%">
             <span class="booking-rank-badge">${index + 1}</span>
-            <div class="booking-activity-copy"><strong>${escapeHtml(row.label)}</strong><small>${row.count.toLocaleString("es-MX")} reservaciones</small>
+            <div class="booking-activity-copy"><div class="booking-activity-label"><strong>${escapeHtml(row.label)}</strong><small>${row.count.toLocaleString("es-MX")} reservaciones</small></div>
               <em><i style="--booking-width:${width}%"></i></em>
+              <div class="booking-activity-rate"><strong>${percentage}%</strong><small>entre ${dateLabel}</small></div>
             </div>
           </div>`;
         }).join("")}
@@ -18713,7 +18735,7 @@ function renderClassBookingDashboard() {
   const rows = bookingRowsFiltered();
   const allRows = classBookingReservations;
   const uniqueStudents = new Set(rows.map((row) => row.student).filter(Boolean)).size;
-  const activities = groupBookingRows(rows, "activity");
+  const activities = groupBookingActivityRows(rows);
   const students = groupBookingRows(rows, "student");
   const days = groupBookingRows(rows, "day");
   const hours = groupBookingRows(rows, "hour");

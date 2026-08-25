@@ -5353,17 +5353,25 @@ tbody tr:hover td {
 
 .booking-activity-copy {
   display: grid;
-  gap: 5px;
+  column-gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  row-gap: 5px;
   min-width: 0;
 }
 
-.booking-activity-copy strong {
+.booking-activity-label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.booking-activity-label strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.booking-activity-copy small {
+.booking-activity-label small {
   color: var(--muted);
   font-size: 11px;
   font-weight: 800;
@@ -5373,6 +5381,7 @@ tbody tr:hover td {
   background: #e7eef2;
   border-radius: 999px;
   display: block;
+  grid-column: 1;
   height: 7px;
   overflow: hidden;
 }
@@ -5383,6 +5392,28 @@ tbody tr:hover td {
   display: block;
   height: 100%;
   width: var(--booking-width);
+}
+
+.booking-activity-rate {
+  align-content: center;
+  display: grid;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-items: end;
+  min-width: 76px;
+}
+
+.booking-activity-rate strong {
+  color: var(--blue);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.booking-activity-rate small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 850;
+  white-space: nowrap;
 }
 
 .booking-leaderboard-list {
