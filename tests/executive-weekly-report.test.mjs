@@ -31,6 +31,13 @@ test("daily Wellness average is computed from dated Wellness visits only", () =>
   assert.ok(source.includes('"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"'));
 });
 
+test("every gym week with data receives its strong series color", () => {
+  assert.ok(source.includes('class="${row[key] > 0 ? "has-data" : ""}"'), "Gym bars must mark every week with a positive value");
+  assert.ok(styles.includes(".exec-report-gym-lane.wellness .exec-report-gym-columns > div.has-data span { background: #0874df; }"));
+  assert.ok(styles.includes(".exec-report-gym-lane.emis .exec-report-gym-columns > div.has-data span { background: #ff7900; }"));
+  assert.ok(!styles.includes(".exec-report-gym-columns > div:first-child span"), "Series colors must not be restricted to week 1");
+});
+
 test("general report PDF uses an isolated one-page landscape export view", () => {
   [
     "printExecutiveGeneralReport()",

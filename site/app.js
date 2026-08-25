@@ -10749,7 +10749,7 @@ function renderExecutiveGymWeeklyReport(rows) {
     <div class="exec-report-gym-lane ${tone}">
       <strong class="exec-report-gym-label">${label}</strong>
       <div class="exec-report-gym-columns">
-        ${rows.map((row) => `<div><b>${row[key] ? row[key].toLocaleString("es-MX") : ""}</b><span style="height:${Math.max(7, Math.round((row[key] / max) * 108))}px"></span><em>${row.label}</em></div>`).join("")}
+        ${rows.map((row) => `<div class="${row[key] > 0 ? "has-data" : ""}"><b>${row[key] ? row[key].toLocaleString("es-MX") : ""}</b><span style="height:${Math.max(7, Math.round((row[key] / max) * 108))}px"></span><em>${row.label}</em></div>`).join("")}
       </div>
     </div>`;
   const averages = executiveWellnessDailyAverages();

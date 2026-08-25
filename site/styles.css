@@ -6405,8 +6405,8 @@ tbody tr:hover td {
 .exec-report-gym-columns > div { align-items: center; display: grid; gap: 5px; justify-items: center; }
 .exec-report-gym-columns b { color: #08285d; font-size: 10px; min-height: 12px; }
 .exec-report-gym-columns span { background: #eaf2fa; border-radius: 5px 5px 0 0; display: block; min-height: 7px; width: 58%; }
-.exec-report-gym-lane.wellness .exec-report-gym-columns > div:first-child span { background: #0874df; }
-.exec-report-gym-lane.emis .exec-report-gym-columns > div:first-child span { background: #ff7900; }
+.exec-report-gym-lane.wellness .exec-report-gym-columns > div.has-data span { background: #0874df; }
+.exec-report-gym-lane.emis .exec-report-gym-columns > div.has-data span { background: #ff7900; }
 .exec-report-gym-columns em { color: #08285d; font-style: normal; font-weight: 900; }
 .exec-report-daily-average { border-left: 1px solid #d3e2f2; display: grid; gap: 8px; padding-left: 26px; }
 .exec-report-daily-average h4 { color: #08285d; font-size: 19px; margin: 0 0 6px; }
