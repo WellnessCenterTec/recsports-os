@@ -88,3 +88,8 @@ test("enumera las filas visibles del comparativo según el orden y filtro activo
   assert.match(tableSource, /filteredMentors\.map\(\(row, index\)/);
   assert.match(tableSource, /<td class="mentor-row-number">\$\{index \+ 1\}<\/td>/);
 });
+
+test("mantiene visibles los encabezados al desplazarse en el comparativo", async () => {
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  assert.match(styles, /\.mentor-comparison-table thead th\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;[^}]*z-index:\s*2;/s);
+});

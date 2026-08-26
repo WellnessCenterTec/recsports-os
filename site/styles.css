@@ -1879,6 +1879,12 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   text-transform: uppercase;
 }
 
+.mentor-comparison-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
 .mentor-comparison-table tbody tr {
   cursor: pointer;
 }
