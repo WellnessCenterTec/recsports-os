@@ -10903,6 +10903,24 @@ function executiveClassPopularity() {
   );
 }
 
+function executiveClassGroupCount(block = "PMT1") {
+  const groupKeys = new Set();
+  effectiveClassGradeRows().forEach((row) => {
+    if (classGradeBlockLabel(row) !== block) return;
+    const crn = String(row.crn || "").trim();
+    const group = String(row.group_number || "").trim();
+    const subject = String(row.subject_code || classScheduleDisciplineBase(row.subject_name) || "").trim();
+    const key = crn
+      ? `crn:${normalizeText(crn)}`
+      : group && subject
+        ? `group:${normalizeText(subject)}|${normalizeText(group)}`
+        : "";
+    if (key) groupKeys.add(key);
+  });
+  if (groupKeys.size) return groupKeys.size;
+  return classProgramOfferings().filter((row) => row.block === block).length;
+}
+
 function executiveUpcomingVivenciaEvents(referenceDate = new Date()) {
   const reference = new Date(referenceDate);
   reference.setHours(0, 0, 0, 0);
@@ -10957,6 +10975,7 @@ function renderExecutiveRankingColumn(title, rows, tone, emptyLabel) {
 function renderExecutiveInsightCards() {
   const booking = executiveBookingPopularity();
   const classes = executiveClassPopularity();
+  const classGroupCount = executiveClassGroupCount("PMT1");
   const upcomingEvents = executiveUpcomingVivenciaEvents();
   const semanaTecGroups = executiveSemanaTecGroupCounts();
   const mentorCommunities = executiveMentorCommunityRanking();
@@ -10971,7 +10990,7 @@ function renderExecutiveInsightCards() {
         </div>
       </article>
       <article class="exec-insight-card exec-insight-classes">
-        <h3>Clases · participación</h3>
+        <div class="exec-insight-card-heading"><h3>Clases · participación</h3><span>${classGroupCount.toLocaleString("es-MX")} clases</span></div>
         <div class="exec-insight-columns">
           ${renderExecutiveRankingColumn("Top 5", classes.top, "best", "Sin grupos cargados")}
           ${renderExecutiveRankingColumn("Menor 5", classes.bottom, "low", "Sin contraste disponible")}

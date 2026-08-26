@@ -117,3 +117,16 @@ test("class demand ranks complete disciplines instead of separate PMT blocks", (
   assert.ok(popularityFunction.includes("(current?.value || 0) + Number(amount || 0)"), "Enrollment totals must be added across every block");
   assert.ok(popularityFunction.includes("Array.from(counts.values())"), "The ranking must receive one aggregated row per discipline");
 });
+
+test("class insight shows the unique first-block group count without exposing the PMT label", () => {
+  const countFunction = source.slice(
+    source.indexOf("function executiveClassGroupCount"),
+    source.indexOf("function executiveUpcomingVivenciaEvents")
+  );
+  assert.ok(countFunction.includes('classGradeBlockLabel(row) !== block'), "Only rows from the requested block must be counted");
+  assert.ok(countFunction.includes('`crn:${normalizeText(crn)}`'), "Students in the same CRN must count as one group");
+  assert.ok(countFunction.includes("classProgramOfferings().filter"), "Programming must provide a fallback group count");
+  assert.match(source, /exec-insight-card-heading"><h3>Clases · participación<\/h3><span>\$\{classGroupCount\.toLocaleString\("es-MX"\)\} clases<\/span>/);
+  assert.ok(!source.includes("clases PMT1</span>"), "The block code must not appear beside the class total");
+  assert.match(styles, /\.exec-insight-card-heading\s*\{[^}]*display:\s*flex;/s);
+});
