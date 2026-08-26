@@ -10,6 +10,16 @@
     reports: ["Resumen ejecutivo PDF", "Base agregada Excel", "Cruce de participación por área"]
   },
   {
+    id: "mentores",
+    name: "Mentores",
+    tone: "blue",
+    source: "Mentoría AD26 y módulos de participación Wellness",
+    capture: ["Matrícula", "Mentor", "Comunidad"],
+    indicators: ["Alumnos asignados", "Alumnos únicos con actividad", "Alumnos sin actividad", "Participación Wellness"],
+    charts: ["Comparativo por mentor", "Participación por área", "Cobertura por comunidad"],
+    reports: ["Detalle por matrícula", "Resumen por mentor", "Cruce de participación Wellness"]
+  },
+  {
     id: "clases",
     name: "Clases Deportivas",
     tone: "green",
@@ -529,6 +539,7 @@ let activeArea = "general";
 let activeView = "dashboard";
 let globalFilterState = { level: "todos", career: "todos", gender: "todos", search: "" };
 const ACTIVE_AREA_STORAGE_KEY = "wellsync_active_area_v1";
+const MENTORSHIP_STORAGE_KEY = "wellsync_mentorship_assignments_v1";
 let moduleDataCoordinator = null;
 let moduleDataPlan = null;
 const EXECUTIVE_PRESENTATION_STORAGE_KEY = "wellsync_executive_presentation_notes";
@@ -751,6 +762,15 @@ let communicationParticipantImporting = false;
 let communicationParticipantImportResult = null;
 let selectedCommunicationEventForParticipants = "";
 let communicationParticipantsModalOpen = false;
+let mentorshipRows = loadMentorshipAssignments();
+let mentorshipSource = loadMentorshipSource();
+let mentorshipImporting = false;
+let mentorshipCloudAvailable = true;
+let mentorshipSort = "desc";
+let mentorshipCommunityFilter = "todos";
+let mentorshipSearch = "";
+let mentorshipStudentFilter = "todos";
+let selectedMentorKey = "";
 const COMMUNICATION_DIFFUSION_SLOTS = [
   { key: "gym-wellness", title: "Horario de Gimnasio Wellness" },
   { key: "gym-emis", title: "Horario de Gimnasio EMIS" },
@@ -824,6 +844,38 @@ function loadCaptures() {
   } catch {
     return [];
   }
+}
+
+function loadMentorshipAssignments() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(periodStorageKey(MENTORSHIP_STORAGE_KEY)) || "null");
+    return Array.isArray(saved?.rows)
+      ? saved.rows.map((row) => ({
+        matricula: normalizeMatricula(row.matricula),
+        mentor: String(row.mentor || "").trim(),
+        community: String(row.community || "").trim()
+      })).filter((row) => row.matricula && row.mentor && row.community)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadMentorshipSource() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(periodStorageKey(MENTORSHIP_STORAGE_KEY)) || "null");
+    return saved?.source || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveMentorshipAssignments() {
+  localStorage.setItem(periodStorageKey(MENTORSHIP_STORAGE_KEY), JSON.stringify({
+    version: 1,
+    rows: mentorshipRows,
+    source: mentorshipSource
+  }));
 }
 
 function saveCaptures() {
@@ -5559,6 +5611,7 @@ function createProgressiveDataPlan() {
         if (!semanaTecProgramRows.length) await loadSemanaTecProgramSeed();
       },
       representativos: () => loadParticipationUploadsCloud("representativos"),
+      gamer: () => loadParticipationUploadsCloud("gamer"),
       communication: loadCommunicationEvents,
       "communication-images": loadCommunicationDiffusionImages,
       planning: async () => Promise.all([loadPlanningCalendarRows(), loadPlanningEventOverrides()]),
@@ -5566,7 +5619,8 @@ function createProgressiveDataPlan() {
       booking: loadClassBookingReservationsCloud,
       "quick-links": loadConfigQuickLinks,
       budget: loadBudgetData,
-      uniformes: loadUniformesData
+      uniformes: loadUniformesData,
+      mentorship: loadMentorshipCloud
     }
   });
   return moduleDataPlan;
@@ -6851,6 +6905,7 @@ function renderNav() {
   const allowed = visibleAreas();
   const areaIcons = {
     general: "layout-dashboard",
+    mentores: "user-round-check",
     clases: "clipboard-list",
     gimnasio: "dumbbell",
     intramuros: "trophy",
@@ -11094,6 +11149,12 @@ async function switchMasterPeriod(nextPeriod) {
     representativos: { fileName: "", draft: null, imported: null, source: "" }
   };
   restoreParticipationUploadsLocal();
+  mentorshipRows = loadMentorshipAssignments();
+  mentorshipSource = loadMentorshipSource();
+  mentorshipCommunityFilter = "todos";
+  mentorshipSearch = "";
+  mentorshipStudentFilter = "todos";
+  selectedMentorKey = "";
 
   cloudCaptures = [];
   classGrades = [];
@@ -13427,11 +13488,260 @@ function bindExecutivePresentationControls() {
   $('#executivePresentationForm')?.addEventListener("submit", async (event) => { event.preventDefault(); syncPresentationInventoryValue(); syncPresentationFeedbackValue(); syncPresentationActivityStatusesValue(); executivePresentationSaving = true; const form = event.currentTarget; const cloud = await saveExecutivePresentationNotes(form); presentationInventoryPendingUploadKeys.forEach((key) => recordUploadSuccess(key)); presentationInventoryPendingUploadKeys.clear(); executivePresentationSaving = false; executivePresentationEditorOpen = false; presentationInventoryDraft = null; presentationFeedbackDraft = null; presentationMapImageDraft = null; render(); toast(cloud ? "Junta semanal guardada y compartida" : "Guardada en este navegador. Inicia sesión con Supabase para compartirla"); });
 }
 
+function mentorAreaLabel(value) {
+  const key = String(value || "").trim().toLowerCase();
+  const labels = {
+    clases: "Clases Deportivas",
+    gimnasio: "Gimnasio",
+    intramuros: "Intramuros",
+    vivencia: "Vivencia",
+    "semana-tec": "Semana Tec",
+    representativos: "Representativos",
+    gamer: "Gamer",
+    comunicacion: "Comunicación",
+    communication: "Comunicación",
+    booking: "Booking"
+  };
+  return labels[key] || areas.find((area) => area.id === key)?.name || String(value || "Otra actividad").trim();
+}
+
+function mentorActivityRows() {
+  const rows = [];
+  const addRows = (source, area, field = "matricula", predicate = () => true) => {
+    (Array.isArray(source) ? source : []).forEach((row) => {
+      if (!predicate(row)) return;
+      const matricula = normalizeMatricula(row?.[field]);
+      if (matricula) rows.push({ matricula, area });
+    });
+  };
+
+  [...cloudCaptures, ...localCaptures].forEach((row) => {
+    const status = normalizeText(row.estatus || row.status || "activo");
+    if (!row.matricula || /baja|no asist|cancel|rechaz|declin/.test(status)) return;
+    rows.push({ matricula: row.matricula, area: mentorAreaLabel(row.area) });
+  });
+  addRows(allClassGradeRows(), "Clases Deportivas");
+  addRows(classBookingReservations, "Booking", "student", (row) => {
+    const status = String(row.status || "").trim().toUpperCase();
+    return /APPROVED|CONFIRMED|COMPLETED|ATTENDED|ASIST/.test(status);
+  });
+  addRows(gymAsistencias, "Gimnasio");
+  addRows(intramurosParticipants, "Intramuros");
+  addRows(vivenciaParticipants, "Vivencia");
+  addRows(semanaTecRows, "Semana Tec");
+  addRows(participationUploadState.representativos?.imported?.rows, "Representativos", "matricula", (row) => !row.duplicate);
+  addRows(participationUploadState.gamer?.imported?.rows, "Gamer", "matricula", (row) => !row.duplicate);
+  addRows(communicationParticipants, "Comunicación");
+  return window.WellSyncMentors.normalizeActivityRows(rows);
+}
+
+function mentorshipReport() {
+  return window.WellSyncMentors.buildMentorReport(mentorshipRows, mentorActivityRows());
+}
+
+async function loadMentorshipCloud() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const requestedPeriod = activeMasterPeriod;
+  const rows = [];
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabaseClient
+      .from("mentorship_assignments")
+      .select("matricula, mentor, community, source_name, upload_id, updated_at")
+      .eq("period_key", requestedPeriod)
+      .order("mentor", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) {
+      mentorshipCloudAvailable = false;
+      console.warn("Mentoría compartida no disponible", error);
+      return;
+    }
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+  if (requestedPeriod !== activeMasterPeriod) return;
+  mentorshipCloudAvailable = true;
+  if (!rows.length) return;
+  const latestUploadId = rows.find((row) => row.upload_id)?.upload_id || "";
+  const currentRows = latestUploadId ? rows.filter((row) => row.upload_id === latestUploadId) : rows;
+  mentorshipRows = currentRows.map((row) => ({
+    matricula: normalizeMatricula(row.matricula),
+    mentor: String(row.mentor || "").trim(),
+    community: String(row.community || "").trim()
+  })).filter((row) => row.matricula && row.mentor && row.community);
+  mentorshipSource = {
+    fileName: currentRows[0]?.source_name || "Mentoría compartida",
+    importedAt: currentRows[0]?.updated_at || "",
+    total: mentorshipRows.length,
+    source: "cloud"
+  };
+  saveMentorshipAssignments();
+}
+
+async function saveMentorshipCloud(rows, fileName) {
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("mentores")) return false;
+  const uploadId = crypto.randomUUID();
+  const updatedAt = new Date().toISOString();
+  const payload = rows.map((row) => ({
+    period_key: activeMasterPeriod,
+    matricula: normalizeMatricula(row.matricula),
+    mentor: row.mentor,
+    community: row.community,
+    source_name: fileName || "Mentoría",
+    upload_id: uploadId,
+    updated_by: currentUser.id,
+    updated_at: updatedAt
+  }));
+  for (let index = 0; index < payload.length; index += 500) {
+    const { error } = await supabaseClient
+      .from("mentorship_assignments")
+      .upsert(payload.slice(index, index + 500), { onConflict: "period_key,mentor,community,matricula" });
+    if (error) {
+      mentorshipCloudAvailable = false;
+      console.warn("No se pudo guardar Mentoría en Supabase", error);
+      return false;
+    }
+  }
+  const { error: deleteError } = await supabaseClient
+    .from("mentorship_assignments")
+    .delete()
+    .eq("period_key", activeMasterPeriod)
+    .neq("upload_id", uploadId);
+  if (deleteError) {
+    mentorshipCloudAvailable = false;
+    console.warn("La Mentoría nueva quedó guardada, pero no se pudo retirar la carga anterior", deleteError);
+    return false;
+  }
+  mentorshipCloudAvailable = true;
+  return true;
+}
+
+async function importMentorshipWorkbook(file) {
+  if (!file || !window.XLSX || !window.WellSyncMentors) return;
+  mentorshipImporting = true;
+  render();
+  try {
+    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const sourceRows = window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "", raw: false });
+    const parsed = window.WellSyncMentors.normalizeMentorshipRows(sourceRows);
+    if (!parsed.rows.length) throw new Error("No se encontraron columnas válidas de Matrícula, Mentor(a) y Comunidad");
+    mentorshipRows = parsed.rows;
+    const cloudSaved = await saveMentorshipCloud(parsed.rows, file.name);
+    mentorshipSource = {
+      fileName: file.name,
+      importedAt: new Date().toISOString(),
+      total: parsed.rows.length,
+      invalid: parsed.invalid,
+      duplicates: parsed.duplicates,
+      source: cloudSaved ? "cloud" : "local"
+    };
+    saveMentorshipAssignments();
+    selectedMentorKey = "";
+    addAudit("mentores", `${parsed.rows.length} asignaciones de mentoría cargadas sin nombres de alumnos`);
+    toast(cloudSaved
+      ? `${parsed.rows.length.toLocaleString("es-MX")} asignaciones compartidas sin nombres de alumnos`
+      : `${parsed.rows.length.toLocaleString("es-MX")} asignaciones guardadas localmente sin nombres de alumnos`);
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo leer Mentoría: ${error.message || "archivo inválido"}`);
+  } finally {
+    mentorshipImporting = false;
+    render();
+  }
+}
+
+function renderMentorDetail(mentor) {
+  if (!mentor) return "";
+  const filteredStudents = mentor.students.filter((student) => {
+    const participationMatch = mentorshipStudentFilter === "todos"
+      || (mentorshipStudentFilter === "si" && student.participates)
+      || (mentorshipStudentFilter === "no" && !student.participates);
+    const searchMatch = !mentorshipSearch || student.matricula.includes(normalizeMatricula(mentorshipSearch));
+    return participationMatch && searchMatch;
+  });
+  const maxArea = Math.max(1, ...mentor.areaSummary.map((row) => row.count));
+  return `
+    <section class="mentor-detail" aria-label="Detalle del mentor">
+      <header class="mentor-detail-heading">
+        <div><p class="eyebrow">Detalle por matrícula</p><h3>${escapeHtml(mentor.mentor)}</h3><span>${escapeHtml(mentor.community)} · ${mentor.total.toLocaleString("es-MX")} alumnos</span></div>
+        <strong>${mentor.percentage.toFixed(1)}%</strong>
+      </header>
+      <div class="mentor-detail-grid">
+        <article class="mentor-area-summary">
+          <h4>Resumen por tipo de actividad</h4>
+          ${mentor.areaSummary.length ? mentor.areaSummary.map((row) => `<div class="mentor-area-row"><span>${escapeHtml(row.area)}</span><div><i style="width:${Math.round(row.count / maxArea * 100)}%"></i></div><strong>${row.count.toLocaleString("es-MX")}</strong></div>`).join("") : '<p class="mentor-empty-copy">Sin coincidencias Wellness identificables por matrícula.</p>'}
+        </article>
+        <article class="mentor-student-panel">
+          <div class="mentor-student-toolbar">
+            <h4>Alumnos asignados</h4>
+            <label>Participación<select id="mentorStudentFilter"><option value="todos" ${mentorshipStudentFilter === "todos" ? "selected" : ""}>Todos</option><option value="si" ${mentorshipStudentFilter === "si" ? "selected" : ""}>Participa</option><option value="no" ${mentorshipStudentFilter === "no" ? "selected" : ""}>Sin actividad</option></select></label>
+            <label>Buscar matrícula<input id="mentorStudentSearch" type="search" value="${escapeHtml(mentorshipSearch)}" placeholder="A01234567"></label>
+          </div>
+          <div class="mentor-student-table-wrap"><table class="mentor-student-table"><thead><tr><th>Matrícula</th><th>Participa</th><th>Áreas / módulos</th><th>Áreas</th></tr></thead><tbody>
+            ${filteredStudents.map((student) => `<tr><td><strong>${escapeHtml(student.matricula)}</strong></td><td><span class="mentor-status ${student.participates ? "yes" : "no"}">${student.participates ? "Sí" : "No"}</span></td><td>${student.areas.length ? student.areas.map((area) => `<span class="mentor-area-chip">${escapeHtml(area)}</span>`).join("") : '<span class="mentor-no-activity">Sin actividad</span>'}</td><td>${student.areaCount}</td></tr>`).join("") || '<tr><td colspan="4">Sin resultados para este filtro.</td></tr>'}
+          </tbody></table></div>
+        </article>
+      </div>
+    </section>`;
+}
+
+function renderMentorsDashboard() {
+  const report = mentorshipReport();
+  const communities = Array.from(new Set(report.mentors.map((row) => row.community))).sort((a, b) => a.localeCompare(b, "es"));
+  const filteredMentors = window.WellSyncMentors.sortMentors(
+    report.mentors.filter((row) => mentorshipCommunityFilter === "todos" || row.community === mentorshipCommunityFilter),
+    mentorshipSort
+  );
+  if (!selectedMentorKey || !report.mentors.some((row) => row.key === selectedMentorKey)) selectedMentorKey = filteredMentors[0]?.key || "";
+  const selectedMentor = report.mentors.find((row) => row.key === selectedMentorKey) || filteredMentors[0];
+  const sourceDate = mentorshipSource?.importedAt ? new Date(mentorshipSource.importedAt).toLocaleString("es-MX") : "";
+  const hasActivityData = mentorActivityRows().length > 0;
+  return `
+    <section class="mentors-dashboard">
+      <header class="mentors-hero">
+        <div><p class="eyebrow">Cruce integral Wellness</p><h3>Participación por mentor y comunidad</h3><p>Alumnos únicos por matrícula en todos los módulos con participación identificable. Los nombres de alumnos se descartan al importar.</p></div>
+        <div class="mentors-upload">
+          <input id="mentorshipFile" type="file" accept=".xlsx,.xls" hidden>
+          <button class="primary-btn" id="selectMentorshipFile" type="button" ${mentorshipImporting ? "disabled" : ""}>${mentorshipImporting ? "Leyendo archivo…" : mentorshipRows.length ? "Actualizar Mentoría" : "Cargar Mentoría AD26"}</button>
+          <small>${mentorshipSource ? `${escapeHtml(mentorshipSource.fileName)} · ${sourceDate} · ${mentorshipSource.source === "cloud" ? "Compartida" : "Local"}` : mentorshipCloudAvailable ? "Sin carga; no se conservan nombres" : "Supabase pendiente; se guardará localmente"}</small>
+        </div>
+      </header>
+      ${!hasActivityData ? '<div class="permission-strip mentor-data-warning">Aún no hay fuentes individuales de actividad cargadas en esta sesión. La mentoría puede revisarse, pero los porcentajes se completarán al conectar los módulos Wellness.</div>' : ""}
+      <div class="mentor-kpi-grid">
+        <article><span>Alumnos asignados</span><strong>${report.uniqueStudents.toLocaleString("es-MX")}</strong><em>matrículas únicas</em></article>
+        <article><span>Con actividad Wellness</span><strong>${report.participating.toLocaleString("es-MX")}</strong><em>sin duplicar entre módulos</em></article>
+        <article><span>Sin actividad</span><strong>${report.withoutActivity.toLocaleString("es-MX")}</strong><em>oportunidad de seguimiento</em></article>
+        <article class="participation"><span>Participación Wellness</span><strong>${report.percentage.toFixed(1)}%</strong><em>${report.activityAreas.length} áreas identificadas</em></article>
+      </div>
+      <section class="mentor-comparison">
+        <header><div><p class="eyebrow">Vista general</p><h3>Comparativo de mentores</h3></div><div class="mentor-comparison-filters"><label>Comunidad<select id="mentorCommunityFilter"><option value="todos">Todas</option>${communities.map((community) => `<option value="${escapeHtml(community)}" ${mentorshipCommunityFilter === community ? "selected" : ""}>${escapeHtml(community)}</option>`).join("")}</select></label><label>Orden<select id="mentorSort"><option value="desc" ${mentorshipSort === "desc" ? "selected" : ""}>Mayor participación</option><option value="asc" ${mentorshipSort === "asc" ? "selected" : ""}>Menor participación</option></select></label></div></header>
+        ${filteredMentors.length ? `<div class="mentor-comparison-table-wrap"><table class="mentor-comparison-table"><thead><tr><th>Mentor</th><th>Comunidad</th><th>Asignados</th><th>Con actividad</th><th>Sin actividad</th><th>Participación</th></tr></thead><tbody>${filteredMentors.map((row) => `<tr class="${row.key === selectedMentorKey ? "selected" : ""}" data-mentor-key="${encodeURIComponent(row.key)}" tabindex="0"><td><strong>${escapeHtml(row.mentor)}</strong></td><td>${escapeHtml(row.community)}</td><td>${row.total.toLocaleString("es-MX")}</td><td>${row.participating.toLocaleString("es-MX")}</td><td>${row.withoutActivity.toLocaleString("es-MX")}</td><td><div class="mentor-rate"><span><i style="width:${Math.max(0, Math.min(100, row.percentage))}%"></i></span><strong>${row.percentage.toFixed(1)}%</strong></div></td></tr>`).join("")}</tbody></table></div>` : '<div class="mentor-empty-state"><strong>Carga Mentoría AD26.xlsx</strong><p>El módulo usará únicamente matrícula, mentor y comunidad.</p></div>'}
+      </section>
+      ${renderMentorDetail(selectedMentor)}
+    </section>`;
+}
+
+function bindMentorsControls() {
+  $("#selectMentorshipFile")?.addEventListener("click", () => $("#mentorshipFile")?.click());
+  $("#mentorshipFile")?.addEventListener("change", (event) => importMentorshipWorkbook(event.target.files?.[0]));
+  $("#mentorCommunityFilter")?.addEventListener("change", (event) => { mentorshipCommunityFilter = event.target.value; selectedMentorKey = ""; render(); });
+  $("#mentorSort")?.addEventListener("change", (event) => { mentorshipSort = event.target.value; selectedMentorKey = ""; render(); });
+  $("#mentorStudentFilter")?.addEventListener("change", (event) => { mentorshipStudentFilter = event.target.value; render(); });
+  $("#mentorStudentSearch")?.addEventListener("change", (event) => { mentorshipSearch = event.target.value; render(); });
+  $$('[data-mentor-key]').forEach((row) => {
+    const open = () => { selectedMentorKey = decodeURIComponent(row.dataset.mentorKey); mentorshipSearch = ""; mentorshipStudentFilter = "todos"; render(); };
+    row.addEventListener("click", open);
+    row.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) open(); });
+  });
+}
+
 function renderDashboard(area) {
   if (area.id === "presentacion") return renderExecutivePresentationHub();
   if (area.id === "colaboradores") return renderCollaboratorsDashboard();
   if (area.id === "configuracion") return renderConfigurationDashboard();
   if (area.id === "general") return renderExecutiveGeneralDashboard();
+  if (area.id === "mentores") return renderMentorsDashboard();
   if (area.id === "gimnasio") return renderGymDashboard();
   if (area.id === "clases") return renderClassesDashboard();
   if (area.id === "vivencia") return renderVivenciaDashboard();
@@ -18966,6 +19276,7 @@ function render() {
   const isBudget = activeArea === "compras";
   const isIntramuros = activeArea === "intramuros";
   const isGeneral = activeArea === "general";
+  const isMentors = activeArea === "mentores";
   const isCollaborators = activeArea === "colaboradores";
   const isPresentation = activeArea === "presentacion";
   $$(".segmented button").forEach((button) => { button.style.order = ""; });
@@ -18985,13 +19296,13 @@ function render() {
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
   if (dashboardTab) dashboardTab.textContent = isSemanaTec ? "Programación" : "Dashboard";
   if (schedulesTab) {
-    schedulesTab.hidden = isGym || isBudget || isCollaborators || isSemanaTec || isCommunication || isRepresentativos;
+    schedulesTab.hidden = isGym || isBudget || isCollaborators || isSemanaTec || isCommunication || isRepresentativos || isMentors;
     schedulesTab.textContent = isGeneral ? "Calendario" : isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
     if (isGeneral) schedulesTab.style.order = "2";
   }
-  if (reportsTab) reportsTab.hidden = isGym || isSemanaTec || isRepresentativos;
+  if (reportsTab) reportsTab.hidden = isGym || isSemanaTec || isRepresentativos || isMentors;
   if (systemTab) {
-    systemTab.hidden = isGym || isSemanaTec || isRepresentativos || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
+    systemTab.hidden = isGym || isSemanaTec || isRepresentativos || isMentors || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
     systemTab.textContent = isIntramuros ? "Cargar Roles de Juego" : "Sistema";
   }
   if (isCollaborators) {
@@ -19003,7 +19314,7 @@ function render() {
   const filtersBand = $(".filters-band");
   if (filtersBand) filtersBand.hidden = !isGeneral;
   const segmentedNav = $(".segmented");
-  if (segmentedNav) segmentedNav.hidden = isPresentation;
+  if (segmentedNav) segmentedNav.hidden = isPresentation || isMentors;
   if (isSemanaTec && !["dashboard", "semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
   if (!isSemanaTec && ["semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
   if (isRepresentativos && !["dashboard", "representativos-upload"].includes(activeView)) activeView = "dashboard";
@@ -19063,6 +19374,7 @@ function render() {
   });
   renderUploadSuccessLabels();
   if (isPresentation) bindExecutivePresentationControls();
+  if (isMentors) bindMentorsControls();
   $$(".segmented button[data-view]").forEach((button) => {
     button.onclick = () => {
       if (button.hidden) return;

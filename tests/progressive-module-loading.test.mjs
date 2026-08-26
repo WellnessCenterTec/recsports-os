@@ -112,6 +112,22 @@ test("keeps an area loading while another dependency can still provide data", as
   assert.equal(plan.status("gimnasio"), "error");
 });
 
+test("Mentores loads every module that can identify participation by matrícula", async () => {
+  const expected = [
+    "mentorship", "captures", "class-grades", "gym", "booking", "vivencia", "semana-tec",
+    "representativos", "gamer", "communication", "intramuros"
+  ];
+  const calls = [];
+  const coordinator = createModuleDataLoader();
+  const loaders = Object.fromEntries(expected.map((name) => [name, async () => calls.push(name)]));
+  const plan = createModuleDataPlan({ coordinator, loaders, period: "AD26" });
+
+  await plan.ensureArea("mentores");
+
+  assert.deepEqual(calls, expected);
+  assert.equal(plan.status("mentores"), "ready");
+});
+
 test("startup defers large static resources and class grades query cloud first", async () => {
   const appSource = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const startupSource = appSource.slice(appSource.indexOf("renderCareers();"));

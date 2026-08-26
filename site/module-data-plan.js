@@ -13,6 +13,10 @@
     "semana-tec": ["student-master", "semana-tec", "semana-tec-program"],
     comunicacion: ["student-master", "communication", "communication-images", "planning"],
     representativos: ["student-master", "representativos"],
+    mentores: [
+      "mentorship", "captures", "class-grades", "gym", "booking", "vivencia", "semana-tec",
+      "representativos", "gamer", "communication", "intramuros"
+    ],
     colaboradores: ["collaborators", "physical-evaluations", "uniformes"],
     compras: ["budget", "planning"],
     configuracion: ["quick-links", "collaborators"],
