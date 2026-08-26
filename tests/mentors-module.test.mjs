@@ -80,3 +80,11 @@ test("Mentoría compartida usa Supabase sin columnas de nombres de alumnos", asy
   assert.doesNotMatch(migration, /\bestudiante\b|\bnombre_alumno\b|\bcorreo_alumno\b/i);
   assert.match(migration, /enable row level security/);
 });
+
+test("enumera las filas visibles del comparativo según el orden y filtro activos", async () => {
+  const appSource = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const tableSource = appSource.slice(appSource.indexOf("Comparativo de mentores"), appSource.indexOf("function bindMentorsControls"));
+  assert.match(tableSource, /<th class="mentor-row-number">No\.<\/th>/);
+  assert.match(tableSource, /filteredMentors\.map\(\(row, index\)/);
+  assert.match(tableSource, /<td class="mentor-row-number">\$\{index \+ 1\}<\/td>/);
+});

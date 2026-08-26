@@ -1888,6 +1888,13 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   background: #edf8f7;
 }
 
+.mentor-comparison-table .mentor-row-number {
+  color: var(--muted, #64748b);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  width: 52px;
+}
+
 .mentor-rate {
   align-items: center;
   display: grid;
