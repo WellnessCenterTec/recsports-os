@@ -130,3 +130,14 @@ test("class insight shows the unique first-block group count without exposing th
   assert.ok(!source.includes("clases PMT1</span>"), "The block code must not appear beside the class total");
   assert.match(styles, /\.exec-insight-card-heading\s*\{[^}]*display:\s*flex;/s);
 });
+
+test("each class discipline shows its own first-block offered group count", () => {
+  const popularityFunction = source.slice(
+    source.indexOf("function executiveClassPopularity()"),
+    source.indexOf("function executiveUpcomingVivenciaEvents")
+  );
+  assert.ok(popularityFunction.includes('executiveClassGroupCountsByDiscipline("PMT1")'), "The demand ranking must use the first-block group breakdown");
+  assert.ok(popularityFunction.includes("groupCount: groupCounts.get(normalizeText(row.label)) || 0"), "Each aggregated discipline must receive its own group count");
+  assert.ok(popularityFunction.includes("groupKeys.get(disciplineKey).add(key)"), "Repeated students in one CRN must not duplicate the offered class");
+  assert.match(source, /\$\{row\.label\} \(\$\{row\.groupCount\.toLocaleString\("es-MX"\)\} clase/);
+});

@@ -10896,17 +10896,23 @@ function executiveClassPopularity() {
       .filter((row) => !row.total && row.discipline)
       .forEach((row) => addDiscipline(row.discipline, Number(row.banner || 0)));
   }
+  const groupCounts = executiveClassGroupCountsByDiscipline("PMT1");
   return executivePopularitySplit(
-    Array.from(counts.values()),
+    Array.from(counts.values()).map((row) => ({
+      ...row,
+      groupCount: groupCounts.get(normalizeText(row.label)) || 0
+    })),
     5,
     5
   );
 }
 
-function executiveClassGroupCount(block = "PMT1") {
-  const groupKeys = new Set();
+function executiveClassGroupCountsByDiscipline(block = "PMT1") {
+  const groupKeys = new Map();
   effectiveClassGradeRows().forEach((row) => {
     if (classGradeBlockLabel(row) !== block) return;
+    const disciplineKey = normalizeText(classScheduleDisciplineBase(row.subject_name));
+    if (!disciplineKey) return;
     const crn = String(row.crn || "").trim();
     const group = String(row.group_number || "").trim();
     const subject = String(row.subject_code || classScheduleDisciplineBase(row.subject_name) || "").trim();
@@ -10915,10 +10921,24 @@ function executiveClassGroupCount(block = "PMT1") {
       : group && subject
         ? `group:${normalizeText(subject)}|${normalizeText(group)}`
         : "";
-    if (key) groupKeys.add(key);
+    if (!key) return;
+    if (!groupKeys.has(disciplineKey)) groupKeys.set(disciplineKey, new Set());
+    groupKeys.get(disciplineKey).add(key);
   });
-  if (groupKeys.size) return groupKeys.size;
-  return classProgramOfferings().filter((row) => row.block === block).length;
+  if (groupKeys.size) {
+    return new Map(Array.from(groupKeys, ([discipline, keys]) => [discipline, keys.size]));
+  }
+  const offeringCounts = new Map();
+  classProgramOfferings().filter((row) => row.block === block).forEach((row) => {
+    const disciplineKey = normalizeText(row.disciplineBase || row.discipline);
+    if (disciplineKey) offeringCounts.set(disciplineKey, (offeringCounts.get(disciplineKey) || 0) + 1);
+  });
+  return offeringCounts;
+}
+
+function executiveClassGroupCount(block = "PMT1") {
+  return Array.from(executiveClassGroupCountsByDiscipline(block).values())
+    .reduce((total, value) => total + value, 0);
 }
 
 function executiveUpcomingVivenciaEvents(referenceDate = new Date()) {
@@ -10966,9 +10986,12 @@ function renderExecutiveRankingColumn(title, rows, tone, emptyLabel) {
   return `
     <div class="exec-insight-ranking ${tone}">
       <h4>${escapeHtml(title)}</h4>
-      ${rows.length ? `<ol>${rows.map((row, index) => `
-        <li><span><b>${index + 1}</b><em title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</em></span><strong>${row.value.toLocaleString("es-MX")}</strong></li>
-      `).join("")}</ol>` : `<p>${escapeHtml(emptyLabel)}</p>`}
+      ${rows.length ? `<ol>${rows.map((row, index) => {
+        const groupLabel = Number(row.groupCount || 0) > 0
+          ? `${row.label} (${row.groupCount.toLocaleString("es-MX")} clase${row.groupCount === 1 ? "" : "s"})`
+          : row.label;
+        return `<li><span><b>${index + 1}</b><em title="${escapeHtml(groupLabel)}">${escapeHtml(groupLabel)}</em></span><strong>${row.value.toLocaleString("es-MX")}</strong></li>`;
+      }).join("")}</ol>` : `<p>${escapeHtml(emptyLabel)}</p>`}
     </div>`;
 }
 
