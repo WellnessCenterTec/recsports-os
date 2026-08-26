@@ -5,8 +5,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const CACHE_VERSION = 2;
-  const DEFAULT_PREFIX = "wellsync_last_view_v2";
+  const CACHE_VERSION = 3;
+  const DEFAULT_PREFIX = "wellsync_last_view_v3";
 
   function safeToken(value, fallback = "anonymous") {
     const normalized = String(value || "").trim().toLowerCase();

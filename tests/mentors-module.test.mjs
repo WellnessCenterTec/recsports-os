@@ -93,3 +93,16 @@ test("mantiene visibles los encabezados al desplazarse en el comparativo", async
   const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
   assert.match(styles, /\.mentor-comparison-table thead th\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;[^}]*z-index:\s*2;/s);
 });
+
+test("ordena las cinco comunidades con más alumnos únicos activos", () => {
+  const mentors = [
+    { community: "Forta", students: [{ matricula: "A1", participates: true }, { matricula: "A2", participates: true }] },
+    { community: "Forta", students: [{ matricula: "A1", participates: true }, { matricula: "A3", participates: false }] },
+    { community: "Spirita", students: [{ matricula: "B1", participates: true }] },
+    { community: "Pasio", students: [{ matricula: "C1", participates: false }] }
+  ];
+  assert.deepEqual(api.rankCommunities(mentors, 5), [
+    { label: "Forta", value: 2 },
+    { label: "Spirita", value: 1 }
+  ]);
+});

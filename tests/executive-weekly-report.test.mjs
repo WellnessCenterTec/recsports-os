@@ -87,3 +87,17 @@ test("repeated module totals are replaced by actionable comparisons", () => {
   assert.match(styles, /\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*repeat\(2,/s, "Normal Reporte General must show the insight cards in a readable two-column vertical layout");
   assert.match(styles, /@media \(max-width: 520px\)[\s\S]*?\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*1fr/s, "Insight cards must stack on narrow screens");
 });
+
+test("mentor communities appear as a vertical top five in the three-card insight row", () => {
+  [
+    "executiveMentorCommunityRanking",
+    "Mentores · comunidades activas",
+    "rankCommunities(mentorshipReport().mentors, 5)",
+    "exec-insight-mentor-communities"
+  ].forEach((needle) => assert.ok(source.includes(needle), `Missing mentor community marker: ${needle}`));
+  assert.match(source, /mentorCommunities\.map\(\(row, index\)[\s\S]*?\$\{index \+ 1\}[\s\S]*?alumnos/, "Community ranking must render vertically from 1 to 5");
+  assert.match(styles, /\.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
+  assert.match(styles, /\.exec-report-insight-grid > article:nth-last-child\(-n \+ 3\)\s*\{[^}]*grid-column:\s*span 2;/s);
+  assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
+  assert.match(styles, /\.exec-insight-mentor-communities ol\s*\{[^}]*display:\s*grid;/s);
+});

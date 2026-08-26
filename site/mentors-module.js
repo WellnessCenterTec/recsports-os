@@ -130,5 +130,22 @@
     ));
   }
 
-  return { normalizedMatricula, normalizeMentorshipRows, normalizeActivityRows, buildMentorReport, sortMentors };
+  function rankCommunities(mentors, limit = 5) {
+    const communityStudents = new Map();
+    (Array.isArray(mentors) ? mentors : []).forEach((mentor) => {
+      const community = clean(mentor?.community);
+      if (!community) return;
+      if (!communityStudents.has(community)) communityStudents.set(community, new Set());
+      (Array.isArray(mentor?.students) ? mentor.students : []).forEach((student) => {
+        const matricula = normalizedMatricula(student?.matricula);
+        if (matricula && student?.participates) communityStudents.get(community).add(matricula);
+      });
+    });
+    return Array.from(communityStudents, ([label, students]) => ({ label, value: students.size }))
+      .filter((row) => row.value > 0)
+      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "es"))
+      .slice(0, Math.max(0, Number(limit) || 0));
+  }
+
+  return { normalizedMatricula, normalizeMentorshipRows, normalizeActivityRows, buildMentorReport, sortMentors, rankCommunities };
 });

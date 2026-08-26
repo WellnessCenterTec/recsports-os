@@ -39,11 +39,12 @@ test("loads only the active area's dependencies and reuses ready data", async ()
   assert.deepEqual(calls.slice(-2), ["student-master", "gym"]);
 });
 
-test("keeps Reporte General lean and loads planning only for Calendario", async () => {
+test("loads Reporte General participation sources and planning only for Calendario", async () => {
   const calls = [];
   const dashboardDependencies = [
     "student-master", "captures", "class-grades", "gym", "booking",
-    "vivencia", "semana-tec", "intramuros"
+    "vivencia", "semana-tec", "intramuros", "mentorship",
+    "representativos", "gamer", "communication"
   ];
   const loaders = Object.fromEntries([...dashboardDependencies, "planning"].map((name) => [name, async () => {
     calls.push(name);
@@ -56,8 +57,10 @@ test("keeps Reporte General lean and loads planning only for Calendario", async 
   assert.deepEqual(calls, dashboardDependencies);
   assert.equal(plan.dependencies("general", "dashboard").includes("planning"), false);
   assert.equal(plan.dependencies("general", "dashboard").includes("budget"), false);
-  assert.equal(plan.dependencies("general", "dashboard").includes("communication"), false);
-  assert.equal(plan.dependencies("general", "dashboard").includes("representativos"), false);
+  assert.equal(plan.dependencies("general", "dashboard").includes("mentorship"), true);
+  assert.equal(plan.dependencies("general", "dashboard").includes("communication"), true);
+  assert.equal(plan.dependencies("general", "dashboard").includes("representativos"), true);
+  assert.equal(plan.dependencies("general", "dashboard").includes("gamer"), true);
   assert.equal(plan.dependencies("general", "dashboard").includes("class-simulator"), false);
 
   await plan.ensureArea("general", "schedules");

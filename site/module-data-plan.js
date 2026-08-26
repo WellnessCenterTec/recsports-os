@@ -23,7 +23,8 @@
     presentacion: ["captures", "collaborators", "physical-evaluations", "budget", "planning", "uniformes"],
     general: [
       "student-master", "captures", "class-grades", "gym", "booking",
-      "vivencia", "semana-tec", "intramuros"
+      "vivencia", "semana-tec", "intramuros", "mentorship",
+      "representativos", "gamer", "communication"
     ]
   });
 

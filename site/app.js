@@ -10908,6 +10908,11 @@ function executiveSemanaTecGroupCounts() {
   return { week6: countWeek(6), week12: countWeek(12) };
 }
 
+function executiveMentorCommunityRanking() {
+  if (!window.WellSyncMentors || !mentorshipRows.length) return [];
+  return window.WellSyncMentors.rankCommunities(mentorshipReport().mentors, 5);
+}
+
 function renderExecutiveRankingColumn(title, rows, tone, emptyLabel) {
   return `
     <div class="exec-insight-ranking ${tone}">
@@ -10923,6 +10928,7 @@ function renderExecutiveInsightCards() {
   const classes = executiveClassPopularity();
   const upcomingEvents = executiveUpcomingVivenciaEvents();
   const semanaTecGroups = executiveSemanaTecGroupCounts();
+  const mentorCommunities = executiveMentorCommunityRanking();
   const eventDate = (event) => event.__date.toLocaleDateString("es-MX", { day: "2-digit", month: "short" }).replace(".", "").toUpperCase();
   return `
     <section class="exec-report-module-grid exec-report-insight-grid">
@@ -10952,6 +10958,10 @@ function renderExecutiveInsightCards() {
           <div class="week-6"><span>Semana 6</span><strong>${semanaTecGroups.week6.toLocaleString("es-MX")}</strong><em>grupos</em></div>
           <div class="week-12"><span>Semana 12</span><strong>${semanaTecGroups.week12.toLocaleString("es-MX")}</strong><em>grupos</em></div>
         </div>
+      </article>
+      <article class="exec-insight-card exec-insight-mentor-communities">
+        <h3>Mentores · comunidades activas</h3>
+        ${mentorCommunities.length ? `<ol>${mentorCommunities.map((row, index) => `<li><b>${index + 1}</b><span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")} <small>alumnos</small></strong></li>`).join("")}</ol>` : `<p>Sin cruces de mentoría y actividad.</p>`}
       </article>
     </section>`;
 }
