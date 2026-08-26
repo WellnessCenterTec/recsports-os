@@ -10872,18 +10872,32 @@ function executiveBookingPopularity() {
 
 function executiveClassPopularity() {
   const counts = new Map();
+  const addDiscipline = (value, amount = 1) => {
+    const label = classScheduleDisciplineBase(value);
+    const key = normalizeText(label);
+    if (!key || isClassTotalDiscipline(label)) return;
+    const current = counts.get(key);
+    const candidateHasAccents = /[À-ÿ]/.test(label);
+    const currentHasAccents = /[À-ÿ]/.test(current?.label || "");
+    const candidateIsUppercase = label === label.toLocaleUpperCase("es-MX");
+    const currentIsUppercase = current?.label === current?.label.toLocaleUpperCase("es-MX");
+    const preferredLabel = !current
+      || (!candidateIsUppercase && currentIsUppercase)
+      || (candidateHasAccents && !currentHasAccents)
+      ? label
+      : current.label;
+    counts.set(key, { label: preferredLabel, value: (current?.value || 0) + Number(amount || 0) });
+  };
   effectiveClassGradeRows().forEach((row) => {
-    const label = String(row.subject_name || "").trim();
-    if (!label || isClassTotalDiscipline(label)) return;
-    counts.set(label, (counts.get(label) || 0) + 1);
+    addDiscipline(String(row.subject_name || "").trim());
   });
   if (!counts.size && activeMasterPeriod === "FJ26") {
     classDisciplineIndicators
       .filter((row) => !row.total && row.discipline)
-      .forEach((row) => counts.set(row.discipline, Number(row.banner || 0)));
+      .forEach((row) => addDiscipline(row.discipline, Number(row.banner || 0)));
   }
   return executivePopularitySplit(
-    Array.from(counts, ([label, value]) => ({ label, value })),
+    Array.from(counts.values()),
     5,
     5
   );

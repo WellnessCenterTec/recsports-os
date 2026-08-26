@@ -106,3 +106,14 @@ test("mentor communities appear as a vertical top five in the three-card insight
   assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
   assert.match(styles, /\.exec-insight-mentor-communities ol\s*\{[^}]*display:\s*grid;/s);
 });
+
+test("class demand ranks complete disciplines instead of separate PMT blocks", () => {
+  const popularityFunction = source.slice(
+    source.indexOf("function executiveClassPopularity()"),
+    source.indexOf("function executiveUpcomingVivenciaEvents")
+  );
+  assert.ok(popularityFunction.includes("classScheduleDisciplineBase(value)"), "PMT1, PMT2 and PMT3 must share the same discipline base");
+  assert.ok(popularityFunction.includes("const key = normalizeText(label)"), "Case and accent variants must share one normalized discipline key");
+  assert.ok(popularityFunction.includes("(current?.value || 0) + Number(amount || 0)"), "Enrollment totals must be added across every block");
+  assert.ok(popularityFunction.includes("Array.from(counts.values())"), "The ranking must receive one aggregated row per discipline");
+});
