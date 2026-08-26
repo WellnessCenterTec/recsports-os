@@ -43,7 +43,7 @@ test("loads Reporte General participation sources and planning only for Calendar
   const calls = [];
   const dashboardDependencies = [
     "student-master", "captures", "class-grades", "gym", "booking",
-    "vivencia", "semana-tec", "intramuros", "mentorship",
+    "vivencia", "semana-tec", "semana-tec-program", "intramuros", "mentorship",
     "representativos", "gamer", "communication"
   ];
   const loaders = Object.fromEntries([...dashboardDependencies, "planning"].map((name) => [name, async () => {

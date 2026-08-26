@@ -78,11 +78,16 @@ test("repeated module totals are replaced by actionable comparisons", () => {
     "Menos populares",
     "Top 5",
     "Semana 6",
-    "Semana 12"
+    "Semana 12",
+    "Español",
+    "Inglés"
   ].forEach((needle) => assert.ok(source.includes(needle), `Missing insight-card marker: ${needle}`));
   assert.ok(!source.includes('<article><h3>Booking</h3><strong>${attentions.booking'), "Booking total must not be duplicated below the operational summary");
   assert.ok(styles.includes(".exec-insight-ranking.low"), "Low-demand entries must have a distinct red treatment");
   assert.ok(styles.includes(".exec-week-group-grid"), "Semana TEC must compare weeks 6 and 12 side by side");
+  assert.match(source, /function executiveSemanaTecGroupCounts\(\)[\s\S]*?languageByGroup[\s\S]*?spanish[\s\S]*?english[\s\S]*?hasLanguage/);
+  assert.match(source, /exec-week-language-breakdown[\s\S]*?Español[\s\S]*?Inglés/);
+  assert.match(styles, /\.exec-week-language-breakdown\s*\{[^}]*display:\s*grid;/s);
   assert.match(source, /function renderExecutiveGeneralDashboard\(\)[\s\S]*?\$\{renderExecutiveInsightCards\(\)\}/, "Insight cards must render in the normal Reporte General screen, not only its PDF clone");
   assert.match(styles, /\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*repeat\(2,/s, "Normal Reporte General must show the insight cards in a readable two-column vertical layout");
   assert.match(styles, /@media \(max-width: 520px\)[\s\S]*?\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*1fr/s, "Insight cards must stack on narrow screens");

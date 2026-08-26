@@ -10900,12 +10900,29 @@ function executiveUpcomingVivenciaEvents(referenceDate = new Date()) {
 }
 
 function executiveSemanaTecGroupCounts() {
-  const rows = semanaTecRowsForActivePeriod();
-  const countWeek = (week) => new Set(rows
-    .filter((row) => Number(row.semana) === week)
-    .map((row) => Number(row.numero_grupo) || 0)
-    .filter(Boolean)).size;
-  return { week6: countWeek(6), week12: countWeek(12) };
+  const rosterRows = semanaTecRowsForActivePeriod();
+  const programRows = semanaTecProgramRows.filter((row) => masterPeriodMatchesCode(row.periodo));
+  const summarizeWeek = (week) => {
+    const rosterGroups = new Set(rosterRows
+      .filter((row) => Number(row.semana) === week)
+      .map((row) => Number(row.numero_grupo) || 0)
+      .filter(Boolean));
+    const languageByGroup = new Map();
+    programRows.filter((row) => Number(row.semana) === week).forEach((row) => {
+      const group = Number(row.grupo) || 0;
+      if (!group) return;
+      const language = row.idioma === "Inglés" ? "Inglés" : "Español";
+      if (!languageByGroup.has(group) || language === "Inglés") languageByGroup.set(group, language);
+    });
+    const languages = Array.from(languageByGroup.values());
+    return {
+      total: languageByGroup.size || rosterGroups.size,
+      spanish: languages.filter((language) => language === "Español").length,
+      english: languages.filter((language) => language === "Inglés").length,
+      hasLanguage: languageByGroup.size > 0
+    };
+  };
+  return { week6: summarizeWeek(6), week12: summarizeWeek(12) };
 }
 
 function executiveMentorCommunityRanking() {
@@ -10955,8 +10972,14 @@ function renderExecutiveInsightCards() {
       <article class="exec-insight-card exec-insight-semana-tec">
         <h3>Semana TEC · grupos</h3>
         <div class="exec-week-group-grid">
-          <div class="week-6"><span>Semana 6</span><strong>${semanaTecGroups.week6.toLocaleString("es-MX")}</strong><em>grupos</em></div>
-          <div class="week-12"><span>Semana 12</span><strong>${semanaTecGroups.week12.toLocaleString("es-MX")}</strong><em>grupos</em></div>
+          ${[[6, semanaTecGroups.week6], [12, semanaTecGroups.week12]].map(([week, summary]) => `
+            <article class="week-${week}">
+              <div class="exec-week-group-tile"><span>Semana ${week}</span><strong>${summary.total.toLocaleString("es-MX")}</strong><em>grupos</em></div>
+              <div class="exec-week-language-breakdown">
+                <span>Español <b>${summary.hasLanguage ? summary.spanish.toLocaleString("es-MX") : "—"}</b></span>
+                <span>Inglés <b>${summary.hasLanguage ? summary.english.toLocaleString("es-MX") : "—"}</b></span>
+              </div>
+            </article>`).join("")}
         </div>
       </article>
       <article class="exec-insight-card exec-insight-mentor-communities">
