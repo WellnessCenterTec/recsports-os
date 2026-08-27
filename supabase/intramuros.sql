@@ -55,7 +55,7 @@ with check (
   or public.current_area_key() = 'intramuros'
 );
 
-grant select, insert, update on public.intramuros_participantes to authenticated;
+grant select, insert, update, delete on public.intramuros_participantes to authenticated;
 
 create table if not exists public.intramuros_roles_juego (
   id uuid primary key default gen_random_uuid(),
@@ -105,7 +105,7 @@ with check (
   or public.current_area_key() = 'intramuros'
 );
 
-grant select, insert, update on public.intramuros_roles_juego to authenticated;
+grant select, insert, update, delete on public.intramuros_roles_juego to authenticated;
 
 create table if not exists public.intramuros_operacion_torneos (
   id text primary key default gen_random_uuid()::text,

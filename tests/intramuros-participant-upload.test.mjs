@@ -79,6 +79,8 @@ test("Tipo de actividad funciona como torneo y la base no define columnas de nom
   assert.match(sql, /grupo text/);
   assert.match(sql, /sancion text/);
   assert.match(sql, /comentario text/);
+  assert.match(sql, /grant select, insert, update, delete on public\.intramuros_participantes to authenticated;/);
+  assert.match(sql, /grant select, insert, update, delete on public\.intramuros_roles_juego to authenticated;/);
   assert.doesNotMatch(sql, /\bnombre\s+text|\bapellido\w*\s+text/i);
 });
 
