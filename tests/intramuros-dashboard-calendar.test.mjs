@@ -22,7 +22,7 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
   ];
   const createRenderer = Function(...dependencyNames, `"use strict"; ${dashboardSource}; return renderIntramurosDashboard;`);
   const renderDashboard = createRenderer(
-    () => [{ torneo: "Torneo prueba", genero: "Femenino", escuela: "Ingeniería", matricula: "A001", programa: "ITC", modalidad: "Presencial", tipo_actividad: "Fútbol", rama: "Femenil", equipo: "Azul" }],
+    () => [{ torneo: "Torneo prueba", genero: "Femenino", escuela: "Ingeniería", matricula: "A001", programa: "ITC", modalidad: "Presencial", tipo_actividad: "Fútbol", rama: "Femenil", equipo: "Azul", grupo: "A", sancion: "Copa EMCS", comentario: "" }],
     (value) => String(value || "").toLowerCase(),
     () => '<div data-test="intramuros-calendar">Calendario operativo</div>',
     [{ id: "intramuros", name: "Intramuros" }],
@@ -33,7 +33,7 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
     "all",
     (_name, label) => `<label data-test="filter">${label}</label>`,
     () => [],
-    { search: "" },
+    { search: "", sanction: "todos" },
     () => '<div data-test="executive-charts"></div>',
     () => '<div data-test="tournament-cards"></div>',
     () => '<div data-test="tournament-expediente"></div>',
@@ -49,6 +49,10 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
   assert.match(html, /data-test="tournament-cards"/);
   assert.match(html, /data-test="tournament-expediente"/);
   assert.match(html, /Participantes Intramuros/);
+  assert.match(html, /Con sanción/);
+  assert.match(html, />Sanción</);
+  assert.match(html, />Grupo</);
+  assert.match(html, />Comentario</);
 });
 
 test("Intramuros Dashboard removes only the four duplicated charts", async () => {

@@ -13,6 +13,9 @@ create table if not exists public.intramuros_participantes (
   torneo text not null default 'Sin torneo',
   rama text,
   equipo text not null default 'Sin equipo',
+  grupo text,
+  sancion text,
+  comentario text,
   periodo text not null default 'Sin periodo',
   fecha_carga timestamptz not null default now(),
   archivo_origen text,
@@ -20,6 +23,11 @@ create table if not exists public.intramuros_participantes (
   updated_at timestamptz not null default now(),
   unique (matricula, torneo, equipo, periodo)
 );
+
+alter table public.intramuros_participantes
+  add column if not exists grupo text,
+  add column if not exists sancion text,
+  add column if not exists comentario text;
 
 create index if not exists intramuros_participantes_periodo_idx on public.intramuros_participantes(periodo);
 create index if not exists intramuros_participantes_torneo_idx on public.intramuros_participantes(torneo);
