@@ -7388,22 +7388,15 @@ tbody tr:hover td {
 }
 
 .intramuros-exec-grid {
+  align-items: stretch;
   display: grid;
   gap: 12px;
-  grid-template-areas:
-    "school progress gender"
-    "games programs gender"
-    "results courts gender";
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
 }
 
-.intramuros-chart-school { grid-area: school; }
-.intramuros-chart-progress { grid-area: progress; }
-.intramuros-chart-games { grid-area: games; }
-.intramuros-chart-programs { grid-area: programs; }
-.intramuros-chart-results { grid-area: results; }
-.intramuros-chart-courts { grid-area: courts; }
+.intramuros-chart-school,
+.intramuros-chart-progress,
+.intramuros-tournament-gender-card { grid-area: auto; }
 
 .intramuros-exec-card {
   background: #fff;
@@ -7412,6 +7405,8 @@ tbody tr:hover td {
   border-radius: 8px;
   display: grid;
   gap: 12px;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
   min-width: 0;
   padding: 14px;
 }
@@ -7436,6 +7431,14 @@ tbody tr:hover td {
   overflow-y: auto;
   padding-right: 6px;
   scrollbar-gutter: stable;
+}
+
+.intramuros-chart-school .intramuros-exec-bars,
+.intramuros-chart-progress .intramuros-progress-list {
+  align-content: space-between;
+  height: 100%;
+  max-height: none;
+  overflow: visible;
 }
 
 .intramuros-exec-bars > div,
@@ -10107,13 +10110,9 @@ body.planning-modal-open {
   .planning-dashboard-grid { grid-template-columns: 1fr; }
   .planning-calendar-panel { grid-row: auto; }
   .intramuros-exec-grid {
-    grid-template-areas:
-      "school progress"
-      "games programs"
-      "results courts"
-      "gender gender";
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .intramuros-tournament-gender-card { grid-column: 1 / -1; }
   .intramuros-tournament-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .exec-planning-item { grid-template-columns: 72px minmax(160px, 1fr) minmax(90px, .8fr) minmax(80px, .7fr); }
   .exec-planning-item em,
@@ -13007,7 +13006,7 @@ tbody tr:hover td {
 
 .intramuros-tournament-gender-card {
   align-content: start;
-  grid-area: gender;
+  grid-area: auto;
   min-height: 0;
 }
 
@@ -13229,15 +13228,10 @@ tbody tr:hover td {
   }
 
   .intramuros-exec-grid {
-    grid-template-areas:
-      "school"
-      "progress"
-      "games"
-      "programs"
-      "results"
-      "courts"
-      "gender";
+    grid-template-columns: 1fr;
   }
+
+  .intramuros-tournament-gender-card { grid-column: auto; }
 
   .intramuros-tournament-gender-title {
     grid-template-columns: minmax(0, 1fr) auto;

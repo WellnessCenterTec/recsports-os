@@ -53,7 +53,9 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
 
 test("Intramuros Dashboard removes only the four duplicated charts", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
   const chartsSource = extractFunction(app, "renderIntramurosExecutiveCharts", "renderIntramurosFilter");
+  const desktopGrid = styles.slice(styles.indexOf(".intramuros-exec-grid {"), styles.indexOf(".intramuros-exec-card {"));
 
   [
     "Juegos programados",
@@ -67,4 +69,9 @@ test("Intramuros Dashboard removes only the four duplicated charts", async () =>
     "renderIntramurosProgressCard(summaries)",
     "renderIntramurosTournamentGenderCard(rows)"
   ].forEach((marker) => assert.ok(chartsSource.includes(marker), `${marker} debe conservarse en el Dashboard`));
+
+  assert.match(desktopGrid, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/, "Las tres gráficas deben ocupar una sola fila completa");
+  assert.doesNotMatch(desktopGrid, /grid-template-areas/, "La cuadrícula no debe reservar espacios para las gráficas eliminadas");
+  assert.doesNotMatch(styles, /grid-area:\s*gender/, "La gráfica de género no debe conservar su posición antigua");
+  assert.match(styles, /\.intramuros-chart-school \.intramuros-exec-bars,[\s\S]*?align-content:\s*space-between;[\s\S]*?height:\s*100%;/, "Las gráficas cortas deben aprovechar toda la altura disponible");
 });
