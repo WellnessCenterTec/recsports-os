@@ -37,9 +37,12 @@ test("every gym week with data receives its strong series color", () => {
   assert.ok(styles.includes(".exec-report-gym-lane.emis .exec-report-gym-columns > div.has-data span { background: #ff7900; }"));
   assert.ok(!styles.includes(".exec-report-gym-columns > div:first-child span"), "Series colors must not be restricted to week 1");
   assert.match(source, /const laneMax = Math\.max\(\.\.\.rows\.map\(\(row\) => Number\(row\[key\] \|\| 0\)\), 1\)/, "Cada sede debe calcular su propia escala");
-  assert.match(source, /\(row\[key\] \/ laneMax\) \* 170/, "Las columnas deben conservar sus valores y normalizarse dentro de cada sede");
+  assert.match(source, /\(row\[key\] \/ laneMax\) \* 119/, "Las columnas deben conservar sus valores, normalizarse por sede y reducirse 30%");
   assert.match(source, /Escala independiente por sede · valores reales sobre cada columna/);
   assert.match(styles, /\.exec-report-gym-columns \{[^}]*min-height:\s*210px;/);
+  assert.match(source, /exec-report-card exec-report-gym-card/);
+  assert.match(styles, /\.exec-report-gym-card \.exec-report-gym-columns\s*\{[^}]*min-height:\s*147px;/s, "La altura interna debe reducirse exactamente 30%");
+  assert.match(styles, /\.exec-report-gym-card\s*\{[^}]*padding:\s*15px 20px;/s);
 });
 
 test("general report PDF uses an isolated one-page landscape export view", () => {

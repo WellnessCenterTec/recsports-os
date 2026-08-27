@@ -10851,7 +10851,7 @@ function renderExecutiveGymWeeklyReport(rows) {
       <div class="exec-report-gym-lane ${tone}">
         <strong class="exec-report-gym-label">${label}</strong>
         <div class="exec-report-gym-columns">
-          ${rows.map((row) => `<div class="${row[key] > 0 ? "has-data" : ""}"><b>${row[key] ? row[key].toLocaleString("es-MX") : ""}</b><span style="height:${Math.max(7, Math.round((row[key] / laneMax) * 170))}px"></span><em>${row.label}</em></div>`).join("")}
+          ${rows.map((row) => `<div class="${row[key] > 0 ? "has-data" : ""}"><b>${row[key] ? row[key].toLocaleString("es-MX") : ""}</b><span style="height:${Math.max(5, Math.round((row[key] / laneMax) * 119))}px"></span><em>${row.label}</em></div>`).join("")}
         </div>
       </div>`;
   };
@@ -11393,7 +11393,7 @@ function renderExecutiveGeneralDashboard() {
           </div>
         </section>
         <h3 class="exec-report-section-title">Comportamiento semanal e impacto real</h3>
-        <article class="exec-report-card"><h3>Gimnasio · Atenciones semanales</h3>${renderExecutiveGymWeeklyReport(executiveGymWeekly())}</article>
+        <article class="exec-report-card exec-report-gym-card"><h3>Gimnasio · Atenciones semanales</h3>${renderExecutiveGymWeeklyReport(executiveGymWeekly())}</article>
         ${renderExecutiveInsightCards()}
         <article class="exec-report-card exec-report-intramuros"><h3>Intramuros · Participación por torneo</h3><p>${attentions.intramuros.toLocaleString("es-MX")} registros en el módulo</p>${renderExecutiveIntramurosTiles(intramurosRows)}</article>
         <footer class="exec-footer-kpis">

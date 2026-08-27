@@ -6756,6 +6756,23 @@ tbody tr:hover td {
 .exec-report-daily-average div { display: flex; justify-content: space-between; }
 .exec-report-daily-average div span, .exec-report-daily-average div strong { color: #08285d; font-size: 16px; }
 .exec-report-daily-average small { align-self: end; color: #2866b0; font-weight: 800; }
+.exec-report-gym-card { padding: 15px 20px; }
+.exec-report-gym-card > h3 { font-size: 16px; margin-bottom: 8px; }
+.exec-report-gym-card .exec-report-gym-chart { gap: 13px; padding-right: 18px; }
+.exec-report-gym-card .exec-report-gym-scale-note { font-size: 8px; margin-bottom: -6px; padding: 4px 7px; }
+.exec-report-gym-card .exec-report-gym-lane { gap: 6px; }
+.exec-report-gym-card .exec-report-gym-label { font-size: 13px; }
+.exec-report-gym-card .exec-report-gym-label::before { height: 10px; margin-right: 6px; width: 10px; }
+.exec-report-gym-card .exec-report-gym-columns { gap: 10px; min-height: 147px; }
+.exec-report-gym-card .exec-report-gym-columns > div { gap: 4px; }
+.exec-report-gym-card .exec-report-gym-columns b { font-size: 8px; min-height: 8px; }
+.exec-report-gym-card .exec-report-gym-columns span { min-height: 5px; }
+.exec-report-gym-card .exec-report-gym-columns em { font-size: 11px; }
+.exec-report-gym-card .exec-report-daily-average { gap: 6px; padding-left: 18px; }
+.exec-report-gym-card .exec-report-daily-average h4 { font-size: 13px; margin-bottom: 4px; }
+.exec-report-gym-card .exec-report-daily-average div span,
+.exec-report-gym-card .exec-report-daily-average div strong { font-size: 11px; }
+.exec-report-gym-card .exec-report-daily-average small { font-size: 8px; }
 .exec-report-module-grid { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .exec-report-module-grid article { border: 1px solid #d3e2f2; border-radius: 18px; display: grid; gap: 5px; padding: 20px; }
 .exec-report-module-grid h3 { color: #08285d; margin: 0; }
