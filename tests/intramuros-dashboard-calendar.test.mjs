@@ -183,9 +183,14 @@ test("Reportes incluye una auditoría de matrículas repetidas sin nombres", asy
   assert.match(auditSource, /group\.records > 1/);
   assert.match(auditSource, /canonicalIntramurosTournament\(row\.torneo\)/);
   assert.match(auditSource, /group\.teams\.set/);
+  assert.match(auditSource, /teamsByTournament/);
+  assert.match(auditSource, /entry\.teams\.size > 1/);
+  assert.match(auditSource, /sameSportConflicts/);
   assert.match(auditRendererSource, /Matrículas repetidas en deportes o equipos/);
   assert.match(auditRendererSource, /Matrícula[\s\S]*?Apariciones[\s\S]*?Deportes[\s\S]*?Equipos[\s\S]*?Seguimiento/);
-  assert.match(auditRendererSource, /Los casos con más de un equipo aparecen primero/);
+  assert.match(auditRendererSource, /En rojo aparecen primero quienes están en dos o más equipos del mismo deporte/);
+  assert.match(auditRendererSource, /ALERTA: \$\{row\.sameSportConflicts\.join/);
+  assert.match(auditRendererSource, /intramuros-audit-status \$\{sameSportConflict \? "danger"/);
   assert.match(reportSource, /renderIntramurosDuplicateParticipantAudit\(duplicateAuditRows\)/);
   assert.doesNotMatch(auditRendererSource, /Nombre|Apellido/);
 });

@@ -12037,23 +12037,34 @@ function intramurosDuplicateParticipantAudit() {
   intramurosParticipants.forEach((row) => {
     const matricula = normalizeMatricula(row.matricula);
     if (!matricula) return;
-    if (!groups.has(matricula)) groups.set(matricula, { matricula, records: 0, tournaments: new Map(), teams: new Map() });
+    if (!groups.has(matricula)) groups.set(matricula, { matricula, records: 0, tournaments: new Map(), teams: new Map(), teamsByTournament: new Map() });
     const group = groups.get(matricula);
     const tournament = canonicalIntramurosTournament(row.torneo);
     const team = String(row.equipo || "").trim();
     group.records += 1;
     if (tournament !== "Sin torneo") group.tournaments.set(headerKey(tournament), tournament);
-    if (team && normalizeText(team) !== "sin equipo") group.teams.set(`${headerKey(tournament)}|${headerKey(team)}`, `${tournament}: ${team}`);
+    if (team && normalizeText(team) !== "sin equipo") {
+      const tournamentKey = headerKey(tournament);
+      group.teams.set(`${tournamentKey}|${headerKey(team)}`, `${tournament}: ${team}`);
+      if (!group.teamsByTournament.has(tournamentKey)) group.teamsByTournament.set(tournamentKey, { tournament, teams: new Map() });
+      group.teamsByTournament.get(tournamentKey).teams.set(headerKey(team), team);
+    }
   });
   return Array.from(groups.values())
     .filter((group) => group.records > 1)
-    .map((group) => ({
-      matricula: group.matricula,
-      records: group.records,
-      tournaments: Array.from(group.tournaments.values()).sort((a, b) => a.localeCompare(b, "es-MX")),
-      teams: Array.from(group.teams.values()).sort((a, b) => a.localeCompare(b, "es-MX"))
-    }))
-    .sort((a, b) => b.teams.length - a.teams.length || b.records - a.records || a.matricula.localeCompare(b.matricula));
+    .map((group) => {
+      const sameSportConflicts = Array.from(group.teamsByTournament.values())
+        .filter((entry) => entry.teams.size > 1)
+        .map((entry) => `${entry.tournament}: ${Array.from(entry.teams.values()).sort((a, b) => a.localeCompare(b, "es-MX")).join(" / ")}`);
+      return {
+        matricula: group.matricula,
+        records: group.records,
+        tournaments: Array.from(group.tournaments.values()).sort((a, b) => a.localeCompare(b, "es-MX")),
+        teams: Array.from(group.teams.values()).sort((a, b) => a.localeCompare(b, "es-MX")),
+        sameSportConflicts
+      };
+    })
+    .sort((a, b) => Number(b.sameSportConflicts.length > 0) - Number(a.sameSportConflicts.length > 0) || b.teams.length - a.teams.length || b.records - a.records || a.matricula.localeCompare(b.matricula));
 }
 
 function renderIntramurosDuplicateParticipantAudit(rows) {
@@ -12063,18 +12074,21 @@ function renderIntramurosDuplicateParticipantAudit(rows) {
         <div><p class="eyebrow">Auditoría de participantes</p><h3>Matrículas repetidas en deportes o equipos</h3></div>
         <span>${rows.length.toLocaleString("es-MX")} matrículas para revisar</span>
       </div>
-      <p class="intramuros-duplicate-audit-note">Se muestran únicamente matrículas; no se usan ni se guardan nombres de alumnos. Los casos con más de un equipo aparecen primero.</p>
+      <p class="intramuros-duplicate-audit-note">Se muestran únicamente matrículas; no se usan ni se guardan nombres de alumnos. En rojo aparecen primero quienes están en dos o más equipos del mismo deporte.</p>
       <div class="table-wrap intramuros-duplicate-audit-table">
         <table>
           <thead><tr><th>Matrícula</th><th>Apariciones</th><th>Deportes</th><th>Equipos</th><th>Seguimiento</th></tr></thead>
           <tbody>${rows.length ? rows.map((row) => {
+            const sameSportConflict = row.sameSportConflicts.length > 0;
             const needsTeamReview = row.teams.length > 1;
-            const followUp = needsTeamReview
+            const followUp = sameSportConflict
+              ? `ALERTA: ${row.sameSportConflicts.join(" · ")}`
+              : needsTeamReview
               ? `Revisar: aparece en ${row.teams.length} equipos`
               : row.tournaments.length > 1
                 ? `Participa en ${row.tournaments.length} deportes`
                 : "Registro repetido";
-            return `<tr><td><strong>${escapeHtml(row.matricula)}</strong></td><td>${row.records.toLocaleString("es-MX")}</td><td>${escapeHtml(row.tournaments.join(" · ") || "Sin torneo")}</td><td>${escapeHtml(row.teams.join(" · ") || "Sin equipo")}</td><td><span class="intramuros-audit-status ${needsTeamReview ? "warning" : "info"}">${escapeHtml(followUp)}</span></td></tr>`;
+            return `<tr class="${sameSportConflict ? "same-sport-conflict" : ""}"><td><strong>${escapeHtml(row.matricula)}</strong></td><td>${row.records.toLocaleString("es-MX")}</td><td>${escapeHtml(row.tournaments.join(" · ") || "Sin torneo")}</td><td>${escapeHtml(row.teams.join(" · ") || "Sin equipo")}</td><td><span class="intramuros-audit-status ${sameSportConflict ? "danger" : needsTeamReview ? "warning" : "info"}">${escapeHtml(followUp)}</span></td></tr>`;
           }).join("") : `<tr><td colspan="5" class="intramuros-report-empty">No hay matrículas repetidas en la carga actual.</td></tr>`}</tbody>
         </table>
       </div>

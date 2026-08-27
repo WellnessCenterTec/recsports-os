@@ -7947,6 +7947,9 @@ tbody tr:hover td {
 
 .intramuros-audit-status.warning { background: #fff0d8; color: #9a4d00; }
 .intramuros-audit-status.info { background: #e9f4ff; color: #075fae; }
+.intramuros-audit-status.danger { background: #b42318; color: #fff; }
+.intramuros-duplicate-audit-table tr.same-sport-conflict td { background: #fff1f0; }
+.intramuros-duplicate-audit-table tr.same-sport-conflict td:first-child { border-left: 4px solid #b42318; color: #8f1710; }
 
 .intramuros-load-summary {
   display: grid;
