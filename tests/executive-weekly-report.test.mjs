@@ -73,7 +73,7 @@ test("repeated module totals are replaced by actionable comparisons", () => {
   [
     "executiveBookingPopularity",
     "executiveClassPopularity",
-    "executiveUpcomingVivenciaEvents",
+    "executiveVivenciaUploadHistory",
     "executiveSemanaTecGroupCounts",
     "renderExecutiveInsightCards",
     "Más populares",
@@ -95,6 +95,18 @@ test("repeated module totals are replaced by actionable comparisons", () => {
   assert.match(styles, /@media \(max-width: 520px\)[\s\S]*?\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*1fr/s, "Insight cards must stack on narrow screens");
 });
 
+test("Vivencia shows the five latest participant uploads instead of upcoming events", () => {
+  const historyFunction = source.slice(
+    source.indexOf("function executiveVivenciaUploadHistory"),
+    source.indexOf("function executiveSemanaTecGroupCounts")
+  );
+  assert.match(historyFunction, /vivenciaParticipantUploads[\s\S]*?second - first[\s\S]*?\.slice\(0, 5\)/);
+  assert.match(source, /Vivencia · últimas cargas/);
+  assert.match(source, /upload\.eventName[\s\S]*?upload\.uploadDate[\s\S]*?upload\.totalLoaded/);
+  assert.doesNotMatch(source, /Vivencia · próximos eventos|Sin próximos eventos con fecha/);
+  assert.match(styles, /\.exec-insight-vivencia-history > div\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto auto;/s);
+});
+
 test("mentor communities appear as a vertical top five in the three-card insight row", () => {
   [
     "executiveMentorCommunityRanking",
@@ -112,7 +124,7 @@ test("mentor communities appear as a vertical top five in the three-card insight
 test("class demand ranks complete disciplines instead of separate PMT blocks", () => {
   const popularityFunction = source.slice(
     source.indexOf("function executiveClassPopularity()"),
-    source.indexOf("function executiveUpcomingVivenciaEvents")
+    source.indexOf("function executiveVivenciaUploadHistory")
   );
   assert.ok(popularityFunction.includes("classScheduleDisciplineBase(value)"), "PMT1, PMT2 and PMT3 must share the same discipline base");
   assert.ok(popularityFunction.includes("const key = normalizeText(label)"), "Case and accent variants must share one normalized discipline key");
@@ -123,7 +135,7 @@ test("class demand ranks complete disciplines instead of separate PMT blocks", (
 test("class insight shows the unique first-block group count without exposing the PMT label", () => {
   const countFunction = source.slice(
     source.indexOf("function executiveClassGroupCount"),
-    source.indexOf("function executiveUpcomingVivenciaEvents")
+    source.indexOf("function executiveVivenciaUploadHistory")
   );
   assert.ok(countFunction.includes('classGradeBlockLabel(row) !== block'), "Only rows from the requested block must be counted");
   assert.ok(countFunction.includes('`crn:${normalizeText(crn)}`'), "Students in the same CRN must count as one group");
@@ -136,7 +148,7 @@ test("class insight shows the unique first-block group count without exposing th
 test("each class discipline shows its own first-block offered group count", () => {
   const popularityFunction = source.slice(
     source.indexOf("function executiveClassPopularity()"),
-    source.indexOf("function executiveUpcomingVivenciaEvents")
+    source.indexOf("function executiveVivenciaUploadHistory")
   );
   assert.ok(popularityFunction.includes('executiveClassGroupCountsByDiscipline("PMT1")'), "The demand ranking must use the first-block group breakdown");
   assert.ok(popularityFunction.includes("groupCount: groupCounts.get(normalizeText(row.label)) || 0"), "Each aggregated discipline must receive its own group count");

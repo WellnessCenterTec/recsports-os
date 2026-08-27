@@ -10980,14 +10980,22 @@ function executiveClassGroupCount(block = "PMT1") {
     .reduce((total, value) => total + value, 0);
 }
 
-function executiveUpcomingVivenciaEvents(referenceDate = new Date()) {
-  const reference = new Date(referenceDate);
-  reference.setHours(0, 0, 0, 0);
-  return vivenciaVisibleEvents()
-    .map((event) => ({ ...event, __date: vivenciaEventDate(event) }))
-    .filter((event) => event.__date && event.__date >= reference)
-    .sort((a, b) => a.__date - b.__date || String(a.event_name || "").localeCompare(String(b.event_name || ""), "es"))
-    .slice(0, 4);
+function executiveVivenciaUploadHistory() {
+  const eventsById = new Map(vivenciaEvents.map((event) => [event.id, event]));
+  return vivenciaParticipantUploads
+    .slice()
+    .sort((a, b) => {
+      const first = new Date(a.upload_date || a.created_at || 0).getTime() || 0;
+      const second = new Date(b.upload_date || b.created_at || 0).getTime() || 0;
+      return second - first;
+    })
+    .slice(0, 5)
+    .map((row) => ({
+      ...row,
+      eventName: eventsById.get(row.event_id)?.event_name || "Evento no encontrado",
+      uploadDate: formatVivenciaUploadDate(row.upload_date || row.created_at),
+      totalLoaded: Number(row.total_inserted || 0)
+    }));
 }
 
 function executiveSemanaTecGroupCounts() {
@@ -11038,10 +11046,9 @@ function renderExecutiveInsightCards() {
   const booking = executiveBookingPopularity();
   const classes = executiveClassPopularity();
   const classGroupCount = executiveClassGroupCount("PMT1");
-  const upcomingEvents = executiveUpcomingVivenciaEvents();
+  const vivenciaUploads = executiveVivenciaUploadHistory();
   const semanaTecGroups = executiveSemanaTecGroupCounts();
   const mentorCommunities = executiveMentorCommunityRanking();
-  const eventDate = (event) => event.__date.toLocaleDateString("es-MX", { day: "2-digit", month: "short" }).replace(".", "").toUpperCase();
   return `
     <section class="exec-report-module-grid exec-report-insight-grid">
       <article class="exec-insight-card">
@@ -11059,9 +11066,9 @@ function renderExecutiveInsightCards() {
         </div>
       </article>
       <article class="exec-insight-card exec-insight-vivencia">
-        <h3>Vivencia · próximos eventos</h3>
-        <div class="exec-insight-events">
-          ${upcomingEvents.length ? upcomingEvents.map((event) => `<div><time>${eventDate(event)}</time><strong title="${escapeHtml(event.event_name || "Evento")}">${escapeHtml(event.event_name || "Evento")}</strong></div>`).join("") : `<p>Sin próximos eventos con fecha.</p>`}
+        <h3>Vivencia · últimas cargas</h3>
+        <div class="exec-insight-events exec-insight-vivencia-history">
+          ${vivenciaUploads.length ? vivenciaUploads.map((upload) => `<div><strong title="${escapeHtml(upload.eventName)}">${escapeHtml(upload.eventName)}</strong><time>${escapeHtml(upload.uploadDate)}</time><b>${upload.totalLoaded.toLocaleString("es-MX")}</b></div>`).join("") : `<p>Sin cargas históricas de participantes.</p>`}
         </div>
       </article>
       <article class="exec-insight-card exec-insight-semana-tec">
