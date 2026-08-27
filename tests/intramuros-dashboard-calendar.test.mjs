@@ -134,3 +134,17 @@ test("Próximos juegos y resultados muestran información sin barras", async () 
   assert.match(expedienteSource, /renderIntramurosGameInfoList\(withResult, "result"\)/);
   assert.doesNotMatch(expedienteSource, /renderUploadBars\("Pendientes"|renderUploadBars\("Resultados"/);
 });
+
+test("las seis gráficas de Roles forman dos filas de tres en escritorio", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  const rolesStart = app.indexOf("function renderIntramurosRolesDashboard(");
+  const rolesEnd = app.indexOf("\nfunction intramurosOperationMetrics(", rolesStart);
+  const rolesSource = app.slice(rolesStart, rolesEnd);
+
+  assert.match(rolesSource, /upload-chart-grid intramuros-role-chart-grid/);
+  assert.equal((rolesSource.match(/renderUploadBars\(/g) || []).length, 6);
+  assert.match(styles, /\.intramuros-role-chart-grid\s*\{\s*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/);
+  assert.match(styles, /@media \(max-width: 1120px\)[\s\S]*?\.intramuros-role-chart-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/);
+  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*?\.intramuros-role-chart-grid \{ grid-template-columns: 1fr; \}/);
+});

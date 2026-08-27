@@ -7047,6 +7047,10 @@ tbody tr:hover td {
   gap: 12px;
 }
 
+.intramuros-role-chart-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .semana-tec-dashboard {
   display: grid;
   gap: 14px;
@@ -10185,6 +10189,7 @@ body.planning-modal-open {
   }
   .intramuros-tournament-gender-card { grid-column: 1 / -1; }
   .intramuros-tournament-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .intramuros-role-chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .exec-planning-item { grid-template-columns: 72px minmax(160px, 1fr) minmax(90px, .8fr) minmax(80px, .7fr); }
   .exec-planning-item em,
   .exec-planning-item small { display: none; }
@@ -13303,6 +13308,8 @@ tbody tr:hover td {
   .intramuros-exec-grid {
     grid-template-columns: 1fr;
   }
+
+  .intramuros-role-chart-grid { grid-template-columns: 1fr; }
 
   .intramuros-tournament-gender-card { grid-column: auto; }
 

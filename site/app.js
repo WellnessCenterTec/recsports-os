@@ -11840,7 +11840,7 @@ function renderIntramurosRolesDashboard() {
         <article><span>Con resultado</span><strong>${withResult.toLocaleString("es-MX")}</strong><em>${pending.toLocaleString("es-MX")} pendientes</em></article>
         <article><span>Reservaciones / eventos</span><strong>${reservations.length.toLocaleString("es-MX")}</strong><em>no cuentan como juego</em></article>
       </div>
-      <div class="upload-chart-grid">
+      <div class="upload-chart-grid intramuros-role-chart-grid">
         ${renderUploadBars("Juegos por torneo", intramurosGroupCounts(games, "torneo"))}
         ${renderUploadBars("Juegos por semana", intramurosGroupCounts(games, "semana"))}
         ${renderUploadBars("Juegos por día de la semana", intramurosGroupCounts(games.map((row) => ({ day: intramurosRoleDay(row) })), "day"))}
