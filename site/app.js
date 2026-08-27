@@ -9024,12 +9024,15 @@ function canonicalIntramurosTournament(value) {
     futbolsoccer: "Fútbol soccer",
     futbolrapidoparticipante: "Fútbol rápido participante",
     futbolrapido: "Fútbol rápido",
+    frapido: "Fútbol rápido",
     futbolrapidodelegado: "Fútbol rápido delegado",
     tochito: "Tochito",
+    tocho: "Tochito",
     basquetbol: "Básquetbol",
     padel: "Pádel",
     voleiboldesala: "Voleibol de sala",
     voleiboldeplaya: "Voleibol de playa",
+    voleibolplaya: "Voleibol de playa",
     tenissingles: "Tenis singles",
     tenisdoblesmixto: "Tenis dobles mixto",
     futtenis: "Fut tenis",
@@ -10847,7 +10850,7 @@ function renderExecutiveGymWeeklyReport(rows) {
     <div class="exec-report-gym-lane ${tone}">
       <strong class="exec-report-gym-label">${label}</strong>
       <div class="exec-report-gym-columns">
-        ${rows.map((row) => `<div class="${row[key] > 0 ? "has-data" : ""}"><b>${row[key] ? row[key].toLocaleString("es-MX") : ""}</b><span style="height:${Math.max(7, Math.round((row[key] / max) * 108))}px"></span><em>${row.label}</em></div>`).join("")}
+        ${rows.map((row) => `<div class="${row[key] > 0 ? "has-data" : ""}"><b>${row[key] ? row[key].toLocaleString("es-MX") : ""}</b><span style="height:${Math.max(7, Math.round((row[key] / max) * 170))}px"></span><em>${row.label}</em></div>`).join("")}
       </div>
     </div>`;
   const averages = executiveWellnessDailyAverages();
@@ -11765,16 +11768,25 @@ function intramurosRoleDay(row) {
 function intramurosTournamentSummaries() {
   const participantRows = intramurosParticipantAnalyticsRows().filter(intramurosHasNamedTournament);
   const tournamentNames = Array.from(new Set([
-    ...participantRows.map((row) => row.torneo),
-    ...intramurosGameRoles.map((row) => row.torneo).filter((torneo) => canonicalIntramurosTournament(torneo) !== "Sin torneo")
+    ...participantRows.map((row) => canonicalIntramurosTournament(row.torneo)),
+    ...intramurosGameRoles.map((row) => canonicalIntramurosTournament(row.torneo)).filter((torneo) => torneo !== "Sin torneo")
   ].filter(Boolean))).sort((a, b) => a.localeCompare(b, "es-MX"));
   return tournamentNames.map((torneo) => {
-    const participants = participantRows.filter((row) => row.torneo === torneo);
-    const games = intramurosGameRoles.filter((row) => row.torneo === torneo && intramurosRoleIsGame(row));
+    const participants = participantRows.filter((row) => canonicalIntramurosTournament(row.torneo) === torneo);
+    const games = intramurosGameRoles.filter((row) => canonicalIntramurosTournament(row.torneo) === torneo && intramurosRoleIsGame(row));
     const withResult = games.filter(intramurosRoleHasResult).length;
     const branches = Array.from(new Set([...participants.map((row) => row.rama), ...games.map((row) => row.rama)].filter(Boolean)));
     const teams = new Set([...participants.map((row) => row.equipo), ...games.flatMap((row) => [row.equipo_local, row.equipo_visitante])].filter(Boolean));
     const uniqueParticipants = new Set(participants.map((row) => row.matricula).filter(Boolean));
+    const branchParticipants = { varonil: new Set(), femenil: new Set(), mixto: new Set() };
+    participants.forEach((row) => {
+      const matricula = normalizeMatricula(row.matricula);
+      if (!matricula) return;
+      const branch = normalizeText(row.rama || row.genero);
+      if (branch.includes("mixt")) branchParticipants.mixto.add(matricula);
+      else if (branch.includes("fem") || branch.includes("mujer")) branchParticipants.femenil.add(matricula);
+      else if (branch.includes("var") || branch.includes("masc") || branch.includes("hombre")) branchParticipants.varonil.add(matricula);
+    });
     const progress = games.length ? Math.round((withResult / games.length) * 100) : 0;
     return {
       torneo,
@@ -11784,6 +11796,9 @@ function intramurosTournamentSummaries() {
       teams: teams.size,
       games: games.length,
       withResult,
+      varonil: branchParticipants.varonil.size,
+      femenil: branchParticipants.femenil.size,
+      mixto: branchParticipants.mixto.size,
       pending: Math.max(0, games.length - withResult),
       progress,
       status: games.length ? (progress >= 100 ? "Cerrado" : progress ? "En curso" : "Programado") : "Sin rol"
@@ -12080,6 +12095,12 @@ function renderTournamentCards() {
               <div><dt>Juegos</dt><dd>${row.games}</dd></div>
               <div><dt>Con resultado</dt><dd>${row.withResult}</dd></div>
             </dl>
+            <small class="intramuros-tournament-branches-title">Participantes por rama</small>
+            <div class="intramuros-tournament-branches" aria-label="Participantes por rama">
+              <span>Varonil <b>${row.varonil}</b></span>
+              <span>Femenil <b>${row.femenil}</b></span>
+              <span>Mixto <b>${row.mixto}</b></span>
+            </div>
             <div class="budget-area-track"><span style="width:${row.progress}%"></span></div>
             <strong>${row.progress}% avance</strong>
             <button class="primary-btn compact-action" type="button" data-open-intramuros-tournament="${escapeHtml(row.torneo)}">Abrir expediente</button>

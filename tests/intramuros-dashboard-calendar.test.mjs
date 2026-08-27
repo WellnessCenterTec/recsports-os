@@ -160,3 +160,14 @@ test("los siete indicadores de Roles permanecen en una sola línea", async () =>
   assert.equal((rolesSource.match(/<article><span>/g) || []).length, 7);
   assert.match(styles, /\.intramuros-role-kpi-grid\s*\{\s*grid-template-columns:\s*repeat\(7,\s*minmax\(0,\s*1fr\)\);/);
 });
+
+test("las tarjetas de torneo muestran totales y participantes por rama", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const cardsSource = extractFunction(app, "renderTournamentCards", "renderIntramurosGameInfoList");
+
+  ["Participantes", "Equipos", "Juegos", "Participantes por rama", "Varonil", "Femenil", "Mixto"].forEach((label) => {
+    assert.ok(cardsSource.includes(label), `${label} debe mostrarse en cada tarjeta`);
+  });
+  assert.match(cardsSource, /budget-area-track/);
+  assert.match(cardsSource, /\$\{row\.progress\}% avance/);
+});

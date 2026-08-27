@@ -36,6 +36,8 @@ test("every gym week with data receives its strong series color", () => {
   assert.ok(styles.includes(".exec-report-gym-lane.wellness .exec-report-gym-columns > div.has-data span { background: #0874df; }"));
   assert.ok(styles.includes(".exec-report-gym-lane.emis .exec-report-gym-columns > div.has-data span { background: #ff7900; }"));
   assert.ok(!styles.includes(".exec-report-gym-columns > div:first-child span"), "Series colors must not be restricted to week 1");
+  assert.match(source, /\(row\[key\] \/ max\) \* 170/, "Las columnas deben usar una escala visual más alta sin cambiar los datos");
+  assert.match(styles, /\.exec-report-gym-columns \{[^}]*min-height:\s*210px;/);
 });
 
 test("general report PDF uses an isolated one-page landscape export view", () => {

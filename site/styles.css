@@ -6743,7 +6743,7 @@ tbody tr:hover td {
 .exec-report-gym-label { color: #08285d; font-size: 18px; }
 .exec-report-gym-label::before { background: #0874df; border-radius: 999px; content: ""; display: inline-block; height: 14px; margin-right: 8px; width: 14px; }
 .exec-report-gym-lane.emis .exec-report-gym-label::before { background: #ff7900; }
-.exec-report-gym-columns { align-items: end; display: grid; gap: 14px; grid-template-columns: repeat(10, minmax(0, 1fr)); min-height: 145px; }
+.exec-report-gym-columns { align-items: end; display: grid; gap: 14px; grid-template-columns: repeat(10, minmax(0, 1fr)); min-height: 210px; }
 .exec-report-gym-columns > div { align-items: center; display: grid; gap: 5px; justify-items: center; }
 .exec-report-gym-columns b { color: #08285d; font-size: 10px; min-height: 12px; }
 .exec-report-gym-columns span { background: #eaf2fa; border-radius: 5px 5px 0 0; display: block; min-height: 7px; width: 58%; }
@@ -8084,6 +8084,36 @@ tbody tr:hover td {
   font-size: 16px;
   font-weight: 900;
   margin: 0;
+}
+
+.intramuros-tournament-branches {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.intramuros-tournament-branches-title {
+  color: #617287;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: -4px;
+}
+
+.intramuros-tournament-branches span {
+  background: #edf5fc;
+  border-radius: 8px;
+  color: #617287;
+  display: grid;
+  font-size: 11px;
+  font-weight: 800;
+  gap: 2px;
+  padding: 6px;
+  text-align: center;
+}
+
+.intramuros-tournament-branches b {
+  color: #10243d;
+  font-size: 15px;
 }
 
 .schedule-filter-row {

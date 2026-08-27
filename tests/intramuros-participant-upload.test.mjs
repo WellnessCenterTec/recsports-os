@@ -107,3 +107,20 @@ test("las filas duplicadas combinan Grupo, Sanción y Comentario sin duplicar la
   assert.equal(result.rows[0].sancion, "Copa EMCS");
   assert.equal(result.rows[0].comentario, "Primero · Segundo");
 });
+
+test("las variantes de Omar se agrupan bajo un solo nombre de torneo", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const canonicalSource = extractFunction(app, "canonicalIntramurosTournament", "normalizeIntramurosGender");
+  const createCanonical = Function("normalizeText", "headerKey", `"use strict"; ${canonicalSource}; return canonicalIntramurosTournament;`);
+  const canonical = createCanonical(
+    (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(),
+    normalizeHeader
+  );
+
+  assert.equal(canonical("Tocho"), "Tochito");
+  assert.equal(canonical("Tochito"), "Tochito");
+  assert.equal(canonical("Voleibol Playa"), "Voleibol de playa");
+  assert.equal(canonical("Voleibol de playa"), "Voleibol de playa");
+  assert.equal(canonical("F. Rápido"), "Fútbol rápido");
+  assert.equal(canonical("Futbol rapido"), "Fútbol rápido");
+});
