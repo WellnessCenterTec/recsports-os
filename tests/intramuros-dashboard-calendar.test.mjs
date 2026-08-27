@@ -174,6 +174,7 @@ test("las tarjetas de torneo muestran totales y participantes por rama", async (
 
 test("Reportes incluye una auditoría de matrículas repetidas sin nombres", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
   const auditSource = extractFunction(app, "intramurosDuplicateParticipantAudit", "renderIntramurosDuplicateParticipantAudit");
   const auditRendererSource = extractFunction(app, "renderIntramurosDuplicateParticipantAudit", "renderIntramurosOmarWorkspace");
   const reportStart = app.indexOf("function renderIntramurosOmarWorkspace(");
@@ -193,4 +194,6 @@ test("Reportes incluye una auditoría de matrículas repetidas sin nombres", asy
   assert.match(auditRendererSource, /intramuros-audit-status \$\{sameSportConflict \? "danger"/);
   assert.match(reportSource, /renderIntramurosDuplicateParticipantAudit\(duplicateAuditRows\)/);
   assert.doesNotMatch(auditRendererSource, /Nombre|Apellido/);
+  assert.match(styles, /\.intramuros-duplicate-audit-table\s*\{[^}]*max-height:\s*1084px;/s, "La tabla debe mostrar 20 matrículas antes del scroll interno");
+  assert.match(styles, /\.intramuros-duplicate-audit-table tbody tr\s*\{[^}]*height:\s*52px;/s);
 });

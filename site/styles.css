@@ -7917,7 +7917,7 @@ tbody tr:hover td {
 
 .intramuros-duplicate-audit-table {
   margin: 0;
-  max-height: 420px;
+  max-height: 1084px;
 }
 
 .intramuros-duplicate-audit-table table {
@@ -7935,6 +7935,10 @@ tbody tr:hover td {
 .intramuros-duplicate-audit-table td:nth-child(2) {
   font-weight: 900;
   text-align: center;
+}
+
+.intramuros-duplicate-audit-table tbody tr {
+  height: 52px;
 }
 
 .intramuros-audit-status {
