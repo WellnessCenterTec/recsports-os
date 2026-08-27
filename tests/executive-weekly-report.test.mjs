@@ -116,6 +116,8 @@ test("Vivencia shows the five latest participant uploads instead of upcoming eve
   assert.match(source, /upload\.eventName[\s\S]*?upload\.uploadDate[\s\S]*?upload\.totalLoaded/);
   assert.doesNotMatch(source, /Vivencia · próximos eventos|Sin próximos eventos con fecha/);
   assert.match(styles, /\.exec-insight-vivencia-history > div\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto auto;/s);
+  assert.match(styles, /\.exec-insight-vivencia\s*\{[^}]*padding:\s*15px 17px !important;/s, "Vivencia debe ocupar menos altura en la fila de tres tarjetas");
+  assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events > div\s*\{[^}]*padding:\s*3px 0;/s);
 });
 
 test("mentor communities appear as a vertical top five in the three-card insight row", () => {

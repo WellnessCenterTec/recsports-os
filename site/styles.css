@@ -6808,6 +6808,13 @@ tbody tr:hover td {
 .exec-insight-vivencia-history > div { grid-template-columns: minmax(0, 1fr) auto auto; }
 .exec-insight-vivencia-history time { white-space: nowrap; }
 .exec-insight-vivencia-history b { color: #08285d; font-size: 12px; min-width: 28px; text-align: right; }
+.exec-insight-vivencia { padding: 15px 17px !important; }
+.exec-insight-vivencia > h3 { font-size: 14px; margin-bottom: 5px; }
+.exec-insight-vivencia .exec-insight-events { gap: 2px; }
+.exec-insight-vivencia .exec-insight-events > div { gap: 5px; padding: 3px 0; }
+.exec-insight-vivencia .exec-insight-events strong { font-size: 9px; }
+.exec-insight-vivencia .exec-insight-events time { font-size: 8px; padding: 3px 5px; }
+.exec-insight-vivencia .exec-insight-events b { font-size: 10px; }
 .exec-week-group-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .exec-week-group-grid > article { display: grid; gap: 6px; min-width: 0; }
 .exec-week-group-tile { background: #eaf4ff; border-radius: 12px; display: grid; gap: 3px; padding: 11px 10px; text-align: center; }
