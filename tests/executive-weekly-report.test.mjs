@@ -120,14 +120,14 @@ test("Vivencia shows the five latest participant uploads instead of upcoming eve
   assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events > div\s*\{[^}]*padding:\s*3px 0;/s);
 });
 
-test("mentor communities appear as a vertical top five in the three-card insight row", () => {
+test("mentor communities appear as a vertical top seven in the three-card insight row", () => {
   [
     "executiveMentorCommunityRanking",
     "Mentores · comunidades activas",
-    "rankCommunities(mentorshipReport().mentors, 5)",
+    "rankCommunities(mentorshipReport().mentors, 7)",
     "exec-insight-mentor-communities"
   ].forEach((needle) => assert.ok(source.includes(needle), `Missing mentor community marker: ${needle}`));
-  assert.match(source, /mentorCommunities\.map\(\(row, index\)[\s\S]*?\$\{index \+ 1\}[\s\S]*?alumnos/, "Community ranking must render vertically from 1 to 5");
+  assert.match(source, /mentorCommunities\.map\(\(row, index\)[\s\S]*?\$\{index \+ 1\}[\s\S]*?alumnos/, "Community ranking must render vertically from 1 to 7");
   assert.match(styles, /\.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
   assert.match(styles, /\.exec-report-insight-grid > article:nth-last-child\(-n \+ 3\)\s*\{[^}]*grid-column:\s*span 2;/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);

@@ -11038,7 +11038,7 @@ function executiveSemanaTecGroupCounts() {
 
 function executiveMentorCommunityRanking() {
   if (!window.WellSyncMentors || !mentorshipRows.length) return [];
-  return window.WellSyncMentors.rankCommunities(mentorshipReport().mentors, 5);
+  return window.WellSyncMentors.rankCommunities(mentorshipReport().mentors, 7);
 }
 
 function renderExecutiveRankingColumn(title, rows, tone, emptyLabel) {
