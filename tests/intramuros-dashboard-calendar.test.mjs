@@ -112,3 +112,25 @@ test("el buscador de Intramuros permite escribir seguido y conserva el cursor", 
   assert.match(listener, /\}, 250\)/);
   assert.doesNotMatch(listener, /intramurosFilters\.search = event\.target\.value;\s*render\(\);/);
 });
+
+test("Próximos juegos y resultados muestran información sin barras", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const helperSource = extractFunction(app, "renderIntramurosGameInfoList", "renderTournamentExpediente");
+  const createRenderer = Function("escapeHtml", `"use strict"; ${helperSource}; return renderIntramurosGameInfoList;`);
+  const renderGames = createRenderer((value) => String(value ?? ""));
+  const resultHtml = renderGames([{ fecha: "2026-09-23", hora: "18:00", cancha: "Cancha 1", equipo_local: "REGIAS", equipo_visitante: "PANTERAS", resultado: "50 - 10", estatus_partido: "Finalizado" }], "result");
+
+  assert.match(resultHtml, /2026-09-23/);
+  assert.match(resultHtml, /18:00 · Cancha 1/);
+  assert.match(resultHtml, /REGIAS/);
+  assert.match(resultHtml, /PANTERAS/);
+  assert.match(resultHtml, /Resultado: 50 - 10/);
+  assert.doesNotMatch(resultHtml, /upload-bar-row|<i>|value: 1/);
+
+  const expedienteStart = app.indexOf("function renderTournamentExpediente(");
+  const expedienteEnd = app.indexOf("\nfunction renderIntramurosDashboard(", expedienteStart);
+  const expedienteSource = app.slice(expedienteStart, expedienteEnd);
+  assert.match(expedienteSource, /renderIntramurosGameInfoList\(pending, "pending"\)/);
+  assert.match(expedienteSource, /renderIntramurosGameInfoList\(withResult, "result"\)/);
+  assert.doesNotMatch(expedienteSource, /renderUploadBars\("Pendientes"|renderUploadBars\("Resultados"/);
+});

@@ -12090,6 +12090,28 @@ function renderTournamentCards() {
   `;
 }
 
+function renderIntramurosGameInfoList(rows, type = "pending") {
+  const orderedRows = [...rows].sort((a, b) => {
+    const first = `${a.fecha || ""} ${a.hora || ""}`;
+    const second = `${b.fecha || ""} ${b.hora || ""}`;
+    return type === "result" ? second.localeCompare(first) : first.localeCompare(second);
+  });
+  return `
+    <div class="intramuros-game-info-list">
+      ${orderedRows.length ? orderedRows.slice(0, 8).map((row) => `
+        <article>
+          <div>
+            <time>${escapeHtml(row.fecha || "Sin fecha")}</time>
+            <span>${escapeHtml([row.hora, row.cancha].filter(Boolean).join(" · ") || "Horario por confirmar")}</span>
+          </div>
+          <strong>${escapeHtml(row.equipo_local || "Equipo pendiente")} <em>vs</em> ${escapeHtml(row.equipo_visitante || "Equipo pendiente")}</strong>
+          <b>${type === "result" ? `Resultado: ${escapeHtml(row.resultado || row.estatus_partido || "Sin resultado")}` : escapeHtml(row.estatus_partido || "Programado")}</b>
+        </article>
+      `).join("") : `<p class="upload-empty">${type === "result" ? "Sin resultados registrados." : "Sin juegos pendientes."}</p>`}
+    </div>
+  `;
+}
+
 function renderTournamentExpediente() {
   if (!selectedIntramurosTournament) return "";
   const torneo = selectedIntramurosTournament;
@@ -12121,8 +12143,8 @@ function renderTournamentExpediente() {
         <article><span>Juegos pendientes</span><strong>${pending.length.toLocaleString("es-MX")}</strong></article>
       </div>
       <div class="exec-grid two">
-        <article class="exec-panel"><h3>Próximos juegos</h3>${renderUploadBars("Pendientes", pending.slice(0, 8).map((row) => ({ label: `${row.fecha || "Sin fecha"} ${row.equipo_local || ""} vs ${row.equipo_visitante || ""}`, value: 1 })))}</article>
-        <article class="exec-panel"><h3>Últimos resultados</h3>${renderUploadBars("Resultados", withResult.slice(0, 8).map((row) => ({ label: `${row.equipo_local || ""} vs ${row.equipo_visitante || ""}: ${row.resultado || row.estatus_partido}`, value: 1 })))}</article>
+        <article class="exec-panel"><h3>Próximos juegos</h3>${renderIntramurosGameInfoList(pending, "pending")}</article>
+        <article class="exec-panel"><h3>Últimos resultados</h3>${renderIntramurosGameInfoList(withResult, "result")}</article>
       </div>
       <div class="exec-grid two">
         <article class="exec-panel"><h3>Finanzas / Operación</h3><div class="upload-empty">Pendiente de conectar con costos / orden de compra.</div></article>
