@@ -11831,7 +11831,7 @@ function renderIntramurosRolesDashboard() {
           ${renderIntramurosRolesUploadSummary()}
         </article>
       </div>
-      <div class="upload-kpi-grid">
+      <div class="upload-kpi-grid intramuros-role-kpi-grid">
         <article><span>Total juegos programados</span><strong>${games.length.toLocaleString("es-MX")}</strong><em>con ambos equipos</em></article>
         <article><span>Juegos por semana</span><strong>${intramurosGroupCounts(games, "semana").length.toLocaleString("es-MX")}</strong><em>semanas</em></article>
         <article><span>Juegos por día</span><strong>${intramurosGroupCounts(games.map((row) => ({ day: intramurosRoleDay(row) })), "day").length.toLocaleString("es-MX")}</strong><em>días</em></article>

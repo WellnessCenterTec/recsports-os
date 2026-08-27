@@ -148,3 +148,15 @@ test("las seis gráficas de Roles forman dos filas de tres en escritorio", async
   assert.match(styles, /@media \(max-width: 1120px\)[\s\S]*?\.intramuros-role-chart-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/);
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*?\.intramuros-role-chart-grid \{ grid-template-columns: 1fr; \}/);
 });
+
+test("los siete indicadores de Roles permanecen en una sola línea", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  const rolesStart = app.indexOf("function renderIntramurosRolesDashboard(");
+  const rolesEnd = app.indexOf("\nfunction intramurosOperationMetrics(", rolesStart);
+  const rolesSource = app.slice(rolesStart, rolesEnd);
+
+  assert.match(rolesSource, /upload-kpi-grid intramuros-role-kpi-grid/);
+  assert.equal((rolesSource.match(/<article><span>/g) || []).length, 7);
+  assert.match(styles, /\.intramuros-role-kpi-grid\s*\{\s*grid-template-columns:\s*repeat\(7,\s*minmax\(0,\s*1fr\)\);/);
+});
