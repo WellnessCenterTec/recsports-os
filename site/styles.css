@@ -7921,7 +7921,7 @@ tbody tr:hover td {
 }
 
 .intramuros-duplicate-audit-table table {
-  min-width: 980px;
+  min-width: 1500px;
 }
 
 .intramuros-duplicate-audit-table th {
@@ -7939,6 +7939,14 @@ tbody tr:hover td {
 
 .intramuros-duplicate-audit-table tbody tr {
   height: 52px;
+}
+
+.intramuros-duplicate-audit-table tbody td {
+  height: 52px;
+  max-height: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .intramuros-audit-status {

@@ -196,4 +196,5 @@ test("Reportes incluye una auditoría de matrículas repetidas sin nombres", asy
   assert.doesNotMatch(auditRendererSource, /Nombre|Apellido/);
   assert.match(styles, /\.intramuros-duplicate-audit-table\s*\{[^}]*max-height:\s*1084px;/s, "La tabla debe mostrar 20 matrículas antes del scroll interno");
   assert.match(styles, /\.intramuros-duplicate-audit-table tbody tr\s*\{[^}]*height:\s*52px;/s);
+  assert.match(styles, /\.intramuros-duplicate-audit-table tbody td\s*\{[^}]*height:\s*52px;[^}]*white-space:\s*nowrap;/s, "Los textos largos no deben aumentar el alto de las 20 filas");
 });
