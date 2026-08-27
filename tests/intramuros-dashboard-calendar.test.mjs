@@ -50,3 +50,21 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
   assert.match(html, /data-test="tournament-expediente"/);
   assert.match(html, /Participantes Intramuros/);
 });
+
+test("Intramuros Dashboard removes only the four duplicated charts", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const chartsSource = extractFunction(app, "renderIntramurosExecutiveCharts", "renderIntramurosFilter");
+
+  [
+    "Juegos programados",
+    "Top 10 programas académicos",
+    "Resultados vs pendientes",
+    "Juegos por cancha"
+  ].forEach((title) => assert.doesNotMatch(chartsSource, new RegExp(title), `${title} ya no debe aparecer en el Dashboard`));
+
+  [
+    "Participación por escuela",
+    "renderIntramurosProgressCard(summaries)",
+    "renderIntramurosTournamentGenderCard(rows)"
+  ].forEach((marker) => assert.ok(chartsSource.includes(marker), `${marker} debe conservarse en el Dashboard`));
+});
