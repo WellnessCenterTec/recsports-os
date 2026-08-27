@@ -11041,6 +11041,12 @@ function executiveMentorCommunityRanking() {
   return window.WellSyncMentors.rankCommunities(mentorshipReport().mentors, 7);
 }
 
+function executiveMentorCommunityLogo(label) {
+  const community = normalizeText(label);
+  const logos = new Set(["forta", "kresko", "reflekto", "spirita", "talenta", "ekvilibro", "energio", "krei", "pasio", "revo"]);
+  return logos.has(community) ? `./assets/community-logos/${community}.png` : "";
+}
+
 function renderExecutiveRankingColumn(title, rows, tone, emptyLabel) {
   return `
     <div class="exec-insight-ranking ${tone}">
@@ -11098,7 +11104,10 @@ function renderExecutiveInsightCards() {
       </article>
       <article class="exec-insight-card exec-insight-mentor-communities">
         <h3>Mentores · comunidades activas</h3>
-        ${mentorCommunities.length ? `<ol>${mentorCommunities.map((row, index) => `<li><b>${index + 1}</b><span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")} <small>alumnos</small></strong></li>`).join("")}</ol>` : `<p>Sin cruces de mentoría y actividad.</p>`}
+        ${mentorCommunities.length ? `<ol>${mentorCommunities.map((row, index) => {
+          const logo = executiveMentorCommunityLogo(row.label);
+          return `<li><b>${index + 1}</b>${logo ? `<img class="exec-mentor-community-logo" src="${logo}" alt="Logo ${escapeHtml(row.label)}" />` : `<span class="exec-mentor-community-logo-fallback" aria-hidden="true"></span>`}<span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")} <small>alumnos</small></strong></li>`;
+        }).join("")}</ol>` : `<p>Sin cruces de mentoría y actividad.</p>`}
       </article>
     </section>`;
 }

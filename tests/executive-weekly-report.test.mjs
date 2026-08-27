@@ -132,6 +132,9 @@ test("mentor communities appear as a vertical top seven in the three-card insigh
   assert.match(styles, /\.exec-report-insight-grid > article:nth-last-child\(-n \+ 3\)\s*\{[^}]*grid-column:\s*span 2;/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
   assert.match(styles, /\.exec-insight-mentor-communities ol\s*\{[^}]*display:\s*grid;/s);
+  assert.match(source, /function executiveMentorCommunityLogo[\s\S]*?assets\/community-logos/);
+  assert.match(source, /<img class="exec-mentor-community-logo"[\s\S]*?alt="Logo \$\{escapeHtml\(row\.label\)\}"/);
+  assert.match(styles, /\.exec-mentor-community-logo\s*\{[^}]*object-fit:\s*contain;/s);
 });
 
 test("class demand ranks complete disciplines instead of separate PMT blocks", () => {
