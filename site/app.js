@@ -10867,8 +10867,18 @@ function renderExecutiveGymWeeklyReport(rows) {
     </div>`;
 }
 
+function executiveIntramurosSportIcon(label) {
+  const normalized = normalizeText(label);
+  if (normalized.includes("basquet")) return "🏀";
+  if (normalized.includes("voleibol")) return "🏐";
+  if (normalized.includes("tenis") || normalized.includes("padel")) return "🎾";
+  if (normalized.includes("tochito") || normalized === "tocho") return "🏈";
+  if (normalized.includes("futbol")) return "⚽";
+  return "🏆";
+}
+
 function renderExecutiveIntramurosTiles(rows) {
-  return `<div class="exec-report-intramuros-grid" style="--exec-report-intramuros-columns:${Math.max(rows.length, 1)}">${rows.length ? rows.map((row) => `<article><span>${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")}</strong></article>`).join("") : `<div class="exec-empty">Sin registros de Intramuros.</div>`}</div>`;
+  return `<div class="exec-report-intramuros-grid" style="--exec-report-intramuros-columns:${Math.max(rows.length, 1)}">${rows.length ? rows.map((row) => `<article><span class="exec-report-sport-icon" aria-hidden="true">${executiveIntramurosSportIcon(row.label)}</span><span class="exec-report-intramuros-label">${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")}</strong></article>`).join("") : `<div class="exec-empty">Sin registros de Intramuros.</div>`}</div>`;
 }
 
 function renderExecutiveGenderDonut(summary, total) {

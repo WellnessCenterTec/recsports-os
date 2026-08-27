@@ -6828,9 +6828,10 @@ tbody tr:hover td {
 .exec-insight-mentor-communities > p { color: #6a7d8f; font-size: 10px; margin: 0; }
 .exec-report-intramuros p { color: #42638d; margin: -8px 0 14px; }
 .exec-report-intramuros-grid { display: grid; gap: 8px 12px; grid-template-columns: repeat(var(--exec-report-intramuros-columns, 1), minmax(0, 1fr)); }
-.exec-report-intramuros-grid article { align-content: center; border: 1px solid #d3e2f2; border-radius: 12px; display: grid; gap: 5px; justify-items: center; min-width: 0; padding: 10px 6px; text-align: center; }
-.exec-report-intramuros-grid span { color: #163c71; font-weight: 850; line-height: 1.1; overflow-wrap: anywhere; }
-.exec-report-intramuros-grid strong { color: #08285d; font-size: 30px; line-height: 1; white-space: nowrap; }
+.exec-report-intramuros-grid article { align-content: center; border: 1px solid #d3e2f2; border-radius: 12px; display: grid; gap: 4px; justify-items: center; min-width: 0; padding: 8px 6px; text-align: center; }
+.exec-report-intramuros-label { color: #163c71; font-size: 12px; font-weight: 700; line-height: 1.08; overflow-wrap: anywhere; }
+.exec-report-intramuros-grid strong { color: #08285d; font-size: 21px; font-weight: 700; line-height: 1; white-space: nowrap; }
+.exec-report-sport-icon { align-items: center; background: #eef6ff; border-radius: 50%; display: flex; font-size: 18px; height: 34px; justify-content: center; line-height: 1; width: 34px; }
 .exec-report-gender { align-items: center; display: grid; gap: 5px; justify-items: center; }
 .exec-report-gender h4 { font-size: 17px; margin: 2px 0 0; }
 .exec-report-gender-donut { align-items: center; background: conic-gradient(#c4dfff 0 var(--male-stop), #b89df4 var(--male-stop) 100%); border-radius: 50%; display: flex; height: 118px; justify-content: center; width: 118px; }
@@ -10743,8 +10744,9 @@ body.executive-report-print {
   .executive-report-print-page .exec-report-intramuros p { font-size: 8px; margin: -2px 0 4px; }
   .executive-report-print-page .exec-report-intramuros-grid { gap: 4px 6px; grid-template-columns: repeat(var(--exec-report-intramuros-columns, 1), minmax(0, 1fr)); overflow: visible; }
   .executive-report-print-page .exec-report-intramuros-grid article { border-radius: 7px; padding: 4px 7px; }
-  .executive-report-print-page .exec-report-intramuros-grid span { font-size: 8px; }
+  .executive-report-print-page .exec-report-intramuros-label { font-size: 8px; }
   .executive-report-print-page .exec-report-intramuros-grid strong { font-size: 14px; }
+  .executive-report-print-page .exec-report-sport-icon { font-size: 10px; height: 18px; width: 18px; }
 
   .executive-report-print-page .exec-footer-kpis { border-radius: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
   .executive-report-print-page .exec-footer-kpis article { gap: 1px; padding: 6px; }

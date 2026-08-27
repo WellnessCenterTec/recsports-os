@@ -135,7 +135,7 @@ test("WellSync loads the grade-card helper before the app and delegates summarie
   const appSource = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
 
   assert.match(indexHtml, /semana-tec-grade-cards\.js\?v=20260815-grade-source-v1/);
-  assert.match(indexHtml, /app\.js\?v=20260827-intramuros-v16/);
+  assert.match(indexHtml, /app\.js\?v=20260827-intramuros-v17/);
   assert.ok(indexHtml.indexOf("semana-tec-grade-cards.js") < indexHtml.indexOf("app.js"));
   assert.match(appSource, /buildSemanaTecGroupSummaries\(rows, semanaTecProgramRows\)/);
   assert.match(appSource, /normalizeSemanaTecGradeValue\(value\)/);

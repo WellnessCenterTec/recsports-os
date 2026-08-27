@@ -66,6 +66,12 @@ test("general report PDF uses an isolated one-page landscape export view", () =>
   assert.match(styles, /\.executive-report-print-page \.exec-report-intramuros-grid\s*{[^}]*grid-template-columns:\s*repeat\(var\(--exec-report-intramuros-columns,/s);
   assert.match(styles, /\.exec-report-intramuros-grid article\s*{[^}]*display:\s*grid;[^}]*justify-items:\s*center/s, "Intramuros labels and totals must stack without overlapping");
   assert.match(styles, /\.exec-report-intramuros-grid strong\s*{[^}]*white-space:\s*nowrap/s, "Intramuros totals must remain intact on their own row");
+  assert.match(source, /function executiveIntramurosSportIcon\(label\)/);
+  ["🏀", "🏐", "🎾", "🏈", "⚽"].forEach((icon) => assert.ok(source.includes(icon), `Missing sport icon ${icon}`));
+  assert.match(source, /exec-report-sport-icon[\s\S]*?exec-report-intramuros-label[\s\S]*?row\.value/);
+  assert.match(styles, /\.exec-report-intramuros-grid strong\s*{[^}]*font-size:\s*21px;[^}]*font-weight:\s*700;/s, "Tournament figures must be smaller and lighter");
+  assert.match(styles, /\.exec-report-intramuros-label\s*{[^}]*font-size:\s*12px;[^}]*font-weight:\s*700;/s, "Tournament labels must be smaller and lighter");
+  assert.match(styles, /\.exec-report-sport-icon\s*{[^}]*border-radius:\s*50%;[^}]*height:\s*34px;/s);
   assert.ok(styles.includes("print-color-adjust: exact !important"), "PDF export must preserve report colors");
   assert.ok(styles.includes("page-break-inside: avoid"), "PDF cards and charts must avoid internal page breaks");
   assert.ok(styles.includes("--executive-report-print-scale"), "PDF export must scale its dedicated page to fit");
