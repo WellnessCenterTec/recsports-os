@@ -11571,11 +11571,16 @@ function renderIntramurosExecutiveBars(title, rows, options = {}) {
 }
 
 function renderIntramurosProgressCard(summaries) {
+  const orderedSummaries = [...summaries].sort((a, b) => (
+    Number(b.progress || 0) - Number(a.progress || 0)
+    || Number(b.totalParticipants || 0) - Number(a.totalParticipants || 0)
+    || String(a.torneo || "").localeCompare(String(b.torneo || ""), "es-MX")
+  ));
   return `
     <article class="intramuros-exec-card intramuros-chart-progress">
       <h3>Avance por torneo</h3>
       <div class="intramuros-progress-list">
-        ${summaries.length ? summaries.map((row) => `
+        ${orderedSummaries.length ? orderedSummaries.map((row) => `
           <div>
             <span>${escapeHtml(row.torneo)}</span>
             <i><b style="width:${Math.max(4, Number(row.progress || 0))}%"></b></i>

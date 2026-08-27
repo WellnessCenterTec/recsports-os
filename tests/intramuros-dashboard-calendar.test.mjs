@@ -79,3 +79,20 @@ test("Intramuros Dashboard removes only the four duplicated charts", async () =>
   assert.doesNotMatch(styles, /grid-area:\s*gender/, "La gráfica de género no debe conservar su posición antigua");
   assert.match(styles, /\.intramuros-chart-school \.intramuros-exec-bars,[\s\S]*?align-content:\s*space-between;[\s\S]*?height:\s*100%;/, "Las gráficas cortas deben aprovechar toda la altura disponible");
 });
+
+test("Avance por torneo siempre ordena de mayor a menor porcentaje", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const progressSource = extractFunction(app, "renderIntramurosProgressCard", "renderIntramurosExecutiveCharts");
+  const createRenderer = Function("escapeHtml", `"use strict"; ${progressSource}; return renderIntramurosProgressCard;`);
+  const renderProgress = createRenderer((value) => String(value ?? ""));
+  const html = renderProgress([
+    { torneo: "Fútbol soccer", progress: 0, totalParticipants: 536, status: "Programado" },
+    { torneo: "Básquetbol", progress: 17, totalParticipants: 34, status: "En curso" },
+    { torneo: "Fútbol rápido", progress: 25, totalParticipants: 221, status: "En curso" },
+    { torneo: "Voleibol de playa", progress: 21, totalParticipants: 41, status: "En curso" }
+  ]);
+
+  const positions = ["Fútbol rápido", "Voleibol de playa", "Básquetbol", "Fútbol soccer"].map((label) => html.indexOf(label));
+  assert.ok(positions.every((position) => position >= 0), "todos los torneos deben renderizarse");
+  assert.deepEqual([...positions].sort((a, b) => a - b), positions, "el mayor avance debe quedar arriba y el menor abajo");
+});
