@@ -6739,6 +6739,7 @@ tbody tr:hover td {
 .exec-report-card > h3 { color: #08285d; font-size: 23px; margin: 0 0 12px; }
 .exec-report-gym-layout { display: grid; grid-template-columns: minmax(0, 72%) minmax(230px, 28%); }
 .exec-report-gym-chart { display: grid; gap: 18px; padding-right: 26px; }
+.exec-report-gym-scale-note { background: #eef5fa; border-radius: 999px; color: #41627e; font-size: 11px; font-weight: 850; justify-self: start; margin: 0 0 -8px; padding: 5px 10px; }
 .exec-report-gym-lane { display: grid; gap: 8px; }
 .exec-report-gym-label { color: #08285d; font-size: 18px; }
 .exec-report-gym-label::before { background: #0874df; border-radius: 999px; content: ""; display: inline-block; height: 14px; margin-right: 8px; width: 14px; }

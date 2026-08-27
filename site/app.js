@@ -10845,18 +10845,20 @@ function renderExecutiveWeeklyBars(rows, tone = "blue") {
 }
 
 function renderExecutiveGymWeeklyReport(rows) {
-  const max = Math.max(...rows.flatMap((row) => [row.wellness, row.emis]), 1);
-  const lane = (key, label, tone) => `
-    <div class="exec-report-gym-lane ${tone}">
-      <strong class="exec-report-gym-label">${label}</strong>
-      <div class="exec-report-gym-columns">
-        ${rows.map((row) => `<div class="${row[key] > 0 ? "has-data" : ""}"><b>${row[key] ? row[key].toLocaleString("es-MX") : ""}</b><span style="height:${Math.max(7, Math.round((row[key] / max) * 170))}px"></span><em>${row.label}</em></div>`).join("")}
-      </div>
-    </div>`;
+  const lane = (key, label, tone) => {
+    const laneMax = Math.max(...rows.map((row) => Number(row[key] || 0)), 1);
+    return `
+      <div class="exec-report-gym-lane ${tone}">
+        <strong class="exec-report-gym-label">${label}</strong>
+        <div class="exec-report-gym-columns">
+          ${rows.map((row) => `<div class="${row[key] > 0 ? "has-data" : ""}"><b>${row[key] ? row[key].toLocaleString("es-MX") : ""}</b><span style="height:${Math.max(7, Math.round((row[key] / laneMax) * 170))}px"></span><em>${row.label}</em></div>`).join("")}
+        </div>
+      </div>`;
+  };
   const averages = executiveWellnessDailyAverages();
   return `
     <div class="exec-report-gym-layout">
-      <div class="exec-report-gym-chart">${lane("wellness", "Wellness", "wellness")}${lane("emis", "EMIS", "emis")}</div>
+      <div class="exec-report-gym-chart"><p class="exec-report-gym-scale-note">Escala independiente por sede · valores reales sobre cada columna</p>${lane("wellness", "Wellness", "wellness")}${lane("emis", "EMIS", "emis")}</div>
       <aside class="exec-report-daily-average">
         <h4>Promedio de asistencias en Wellness</h4>
         ${averages.map((row) => `<div><span>${row.day}</span><strong>${row.average === null ? "—" : row.average.toLocaleString("es-MX")}</strong></div>`).join("")}
