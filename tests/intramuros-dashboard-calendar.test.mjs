@@ -171,3 +171,21 @@ test("las tarjetas de torneo muestran totales y participantes por rama", async (
   assert.match(cardsSource, /budget-area-track/);
   assert.match(cardsSource, /\$\{row\.progress\}% avance/);
 });
+
+test("Reportes incluye una auditoría de matrículas repetidas sin nombres", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const auditSource = extractFunction(app, "intramurosDuplicateParticipantAudit", "renderIntramurosDuplicateParticipantAudit");
+  const auditRendererSource = extractFunction(app, "renderIntramurosDuplicateParticipantAudit", "renderIntramurosOmarWorkspace");
+  const reportStart = app.indexOf("function renderIntramurosOmarWorkspace(");
+  const reportEnd = app.indexOf("\nfunction renderTournamentCards(", reportStart);
+  const reportSource = app.slice(reportStart, reportEnd);
+
+  assert.match(auditSource, /group\.records > 1/);
+  assert.match(auditSource, /canonicalIntramurosTournament\(row\.torneo\)/);
+  assert.match(auditSource, /group\.teams\.set/);
+  assert.match(auditRendererSource, /Matrículas repetidas en deportes o equipos/);
+  assert.match(auditRendererSource, /Matrícula[\s\S]*?Apariciones[\s\S]*?Deportes[\s\S]*?Equipos[\s\S]*?Seguimiento/);
+  assert.match(auditRendererSource, /Los casos con más de un equipo aparecen primero/);
+  assert.match(reportSource, /renderIntramurosDuplicateParticipantAudit\(duplicateAuditRows\)/);
+  assert.doesNotMatch(auditRendererSource, /Nombre|Apellido/);
+});

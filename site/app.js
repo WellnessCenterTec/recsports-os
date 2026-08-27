@@ -12032,8 +12032,58 @@ function renderIntramurosOperationCell(row, field, type = "text") {
   return `<input ${common} type="${type}" ${numeric ? 'min="0" step="0.01"' : ""} value="${escapeHtml(value)}" />`;
 }
 
+function intramurosDuplicateParticipantAudit() {
+  const groups = new Map();
+  intramurosParticipants.forEach((row) => {
+    const matricula = normalizeMatricula(row.matricula);
+    if (!matricula) return;
+    if (!groups.has(matricula)) groups.set(matricula, { matricula, records: 0, tournaments: new Map(), teams: new Map() });
+    const group = groups.get(matricula);
+    const tournament = canonicalIntramurosTournament(row.torneo);
+    const team = String(row.equipo || "").trim();
+    group.records += 1;
+    if (tournament !== "Sin torneo") group.tournaments.set(headerKey(tournament), tournament);
+    if (team && normalizeText(team) !== "sin equipo") group.teams.set(`${headerKey(tournament)}|${headerKey(team)}`, `${tournament}: ${team}`);
+  });
+  return Array.from(groups.values())
+    .filter((group) => group.records > 1)
+    .map((group) => ({
+      matricula: group.matricula,
+      records: group.records,
+      tournaments: Array.from(group.tournaments.values()).sort((a, b) => a.localeCompare(b, "es-MX")),
+      teams: Array.from(group.teams.values()).sort((a, b) => a.localeCompare(b, "es-MX"))
+    }))
+    .sort((a, b) => b.teams.length - a.teams.length || b.records - a.records || a.matricula.localeCompare(b.matricula));
+}
+
+function renderIntramurosDuplicateParticipantAudit(rows) {
+  return `
+    <section class="intramuros-duplicate-audit">
+      <div class="budget-table-heading">
+        <div><p class="eyebrow">Auditoría de participantes</p><h3>Matrículas repetidas en deportes o equipos</h3></div>
+        <span>${rows.length.toLocaleString("es-MX")} matrículas para revisar</span>
+      </div>
+      <p class="intramuros-duplicate-audit-note">Se muestran únicamente matrículas; no se usan ni se guardan nombres de alumnos. Los casos con más de un equipo aparecen primero.</p>
+      <div class="table-wrap intramuros-duplicate-audit-table">
+        <table>
+          <thead><tr><th>Matrícula</th><th>Apariciones</th><th>Deportes</th><th>Equipos</th><th>Seguimiento</th></tr></thead>
+          <tbody>${rows.length ? rows.map((row) => {
+            const needsTeamReview = row.teams.length > 1;
+            const followUp = needsTeamReview
+              ? `Revisar: aparece en ${row.teams.length} equipos`
+              : row.tournaments.length > 1
+                ? `Participa en ${row.tournaments.length} deportes`
+                : "Registro repetido";
+            return `<tr><td><strong>${escapeHtml(row.matricula)}</strong></td><td>${row.records.toLocaleString("es-MX")}</td><td>${escapeHtml(row.tournaments.join(" · ") || "Sin torneo")}</td><td>${escapeHtml(row.teams.join(" · ") || "Sin equipo")}</td><td><span class="intramuros-audit-status ${needsTeamReview ? "warning" : "info"}">${escapeHtml(followUp)}</span></td></tr>`;
+          }).join("") : `<tr><td colspan="5" class="intramuros-report-empty">No hay matrículas repetidas en la carga actual.</td></tr>`}</tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
 function renderIntramurosOmarWorkspace() {
   const rows = intramurosOmarReportRows();
+  const duplicateAuditRows = intramurosDuplicateParticipantAudit();
   const totals = rows.reduce((acc, row) => {
     acc.teams += row.total_equipos;
     acc.students += row.total_alumnos;
@@ -12079,6 +12129,7 @@ function renderIntramurosOmarWorkspace() {
           ${rows.length ? `<tfoot><tr><th colspan="5">Total ${escapeHtml(activeMasterPeriod)}</th><th>${formatCount(totals.teams)}</th><th colspan="2"></th><th>${formatCount(totals.students)}</th><th>${formatCount(totals.games)}</th><th>${formatCount(totals.done)}</th><th>${effectiveness}%</th><th>${formatCount(totals.bajas)}</th><th>${retention}%</th><th colspan="8"></th><th>${money(totals.cost)}</th></tr></tfoot>` : ""}
         </table>
       </div>
+      ${renderIntramurosDuplicateParticipantAudit(duplicateAuditRows)}
     </section>
   `;
 }

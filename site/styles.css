@@ -7893,6 +7893,61 @@ tbody tr:hover td {
   text-align: center;
 }
 
+.intramuros-duplicate-audit {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+
+.intramuros-duplicate-audit > .budget-table-heading {
+  margin: 0;
+}
+
+.intramuros-duplicate-audit-note {
+  background: #eef5fa;
+  border-left: 4px solid var(--blue);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  margin: 0;
+  padding: 9px 11px;
+}
+
+.intramuros-duplicate-audit-table {
+  margin: 0;
+  max-height: 420px;
+}
+
+.intramuros-duplicate-audit-table table {
+  min-width: 980px;
+}
+
+.intramuros-duplicate-audit-table th {
+  background: #153f5b;
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.intramuros-duplicate-audit-table td:nth-child(2) {
+  font-weight: 900;
+  text-align: center;
+}
+
+.intramuros-audit-status {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.intramuros-audit-status.warning { background: #fff0d8; color: #9a4d00; }
+.intramuros-audit-status.info { background: #e9f4ff; color: #075fae; }
+
 .intramuros-load-summary {
   display: grid;
   gap: 10px;
