@@ -80,6 +80,15 @@ test("general report PDF uses an isolated one-page landscape export view", () =>
   assert.match(styles, /\.exec-report-attended-total > strong\s*{[^}]*font-size:\s*clamp\(26px,\s*22cqw,\s*72px\)[^}]*white-space:\s*nowrap/s, "Large attended totals must stay inside their own column");
 });
 
+test("executive PDF unifies card typography and preserves both information bands", () => {
+  assert.match(styles, /\.executive-report-print-page\s*\{[^}]*--exec-print-card-title:\s*11px;[^}]*--exec-print-label:\s*7px;[^}]*--exec-print-value:\s*8\.5px;/s);
+  assert.match(styles, /\.executive-report-print-page \.exec-report-card > h3\s*\{[^}]*font-size:\s*var\(--exec-print-card-title\)/s);
+  assert.match(styles, /\.executive-report-print-page \.exec-insight-card > h3\s*\{[^}]*font-size:\s*var\(--exec-print-card-title\)/s);
+  assert.match(styles, /\.executive-report-print-page \.exec-report-intramuros-label\s*\{[^}]*font-size:\s*var\(--exec-print-value\)/s);
+  assert.match(styles, /\.exec-report-hero\s*\{[^}]*background:\s*linear-gradient\(/s, "The upper blue information band must remain");
+  assert.match(styles, /\.exec-footer-kpis\s*\{[^}]*background:\s*var\(--teal\);[^}]*color:\s*#fff;/s, "The lower information band must remain");
+});
+
 test("repeated module totals are replaced by actionable comparisons", () => {
   [
     "executiveBookingPopularity",
