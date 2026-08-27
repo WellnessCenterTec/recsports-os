@@ -96,3 +96,19 @@ test("Avance por torneo siempre ordena de mayor a menor porcentaje", async () =>
   assert.ok(positions.every((position) => position >= 0), "todos los torneos deben renderizarse");
   assert.deepEqual([...positions].sort((a, b) => a - b), positions, "el mayor avance debe quedar arriba y el menor abajo");
 });
+
+test("el buscador de Intramuros permite escribir seguido y conserva el cursor", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const listenerStart = app.indexOf('$("#intramurosSearch")?.addEventListener("input"');
+  const listenerEnd = app.indexOf('\n  $("#addIntramurosOperationRow")', listenerStart);
+  assert.notEqual(listenerStart, -1, "el buscador debe tener un controlador de entrada");
+  assert.notEqual(listenerEnd, -1, "el controlador debe terminar antes del siguiente control");
+  const listener = app.slice(listenerStart, listenerEnd);
+
+  assert.match(listener, /clearTimeout\(intramurosSearchRenderTimer\)/);
+  assert.match(listener, /setTimeout\(\(\) => \{/);
+  assert.match(listener, /\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(listener, /\.setSelectionRange\(/);
+  assert.match(listener, /\}, 250\)/);
+  assert.doesNotMatch(listener, /intramurosFilters\.search = event\.target\.value;\s*render\(\);/);
+});

@@ -630,6 +630,7 @@ let intramurosRolesPendingUpload = null;
 let selectedIntramurosTournament = "";
 let intramurosCalendarLayer = "all";
 let intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", sanction: "todos", search: "" };
+let intramurosSearchRenderTimer = null;
 let intramurosOperationRows = loadIntramurosOperationRows();
 let intramurosOperationCloudAvailable = true;
 const INTRAMUROS_REPORT_BASE_TOURNAMENTS = [
@@ -19811,8 +19812,17 @@ function render() {
     render();
   }));
   $("#intramurosSearch")?.addEventListener("input", (event) => {
-    intramurosFilters.search = event.target.value;
-    render();
+    const value = event.target.value;
+    const cursor = event.target.selectionStart ?? value.length;
+    intramurosFilters.search = value;
+    clearTimeout(intramurosSearchRenderTimer);
+    intramurosSearchRenderTimer = setTimeout(() => {
+      render();
+      const nextSearch = $("#intramurosSearch");
+      if (!nextSearch) return;
+      nextSearch.focus({ preventScroll: true });
+      nextSearch.setSelectionRange(Math.min(cursor, value.length), Math.min(cursor, value.length));
+    }, 250);
   });
   $("#addIntramurosOperationRow")?.addEventListener("click", async () => {
     const row = normalizeIntramurosOperationRow({
