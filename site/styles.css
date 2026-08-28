@@ -7163,12 +7163,84 @@ tbody tr:hover td {
 }
 
 .intramuros-role-chart-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .intramuros-role-kpi-grid {
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
+
+.intramuros-role-viz {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 13px;
+}
+
+.intramuros-role-viz h3,
+.intramuros-role-viz p,
+.intramuros-role-viz ol { margin: 0; }
+.intramuros-role-viz h3 { color: #102b50; font-size: 13px; line-height: 1.2; }
+.intramuros-role-viz .empty { color: var(--muted); font-size: 11px; list-style: none; }
+
+.intramuros-role-ranking { border-top: 4px solid #2769b5; }
+.intramuros-role-ranking ol { display: grid; gap: 7px; list-style: none; padding: 0; }
+.intramuros-role-ranking li { align-items: center; display: grid; gap: 5px; grid-template-columns: 18px minmax(0, 1fr) auto; }
+.intramuros-role-ranking li > b { align-items: center; background: #e9f2fc; border-radius: 50%; color: #14579d; display: flex; font-size: 10px; height: 18px; justify-content: center; }
+.intramuros-role-ranking li > span { color: #53687e; font-size: 11px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intramuros-role-ranking li > strong { color: #102b50; font-size: 12px; }
+.intramuros-role-ranking li > i { background: #e5edf5; border-radius: 999px; grid-column: 2 / -1; height: 5px; overflow: hidden; }
+.intramuros-role-ranking li > i em { background: linear-gradient(90deg, #1d65b3, #28a37c); border-radius: inherit; display: block; height: 100%; }
+
+.intramuros-role-weekly { border-top: 4px solid #7b4bbd; }
+.intramuros-role-columns { align-items: end; display: flex; gap: 7px; height: 154px; justify-content: space-between; }
+.intramuros-role-columns > div { align-items: center; display: grid; flex: 1; gap: 4px; grid-template-rows: auto 1fr auto; justify-items: center; min-width: 0; }
+.intramuros-role-columns strong { color: #4d287b; font-size: 11px; }
+.intramuros-role-columns i { align-items: end; background: #f0eafb; border-radius: 6px 6px 2px 2px; display: flex; height: 110px; overflow: hidden; width: 100%; }
+.intramuros-role-columns em { background: linear-gradient(#b18ae5, #64349d); border-radius: inherit; display: block; width: 100%; }
+.intramuros-role-columns span { color: #6b5b82; font-size: 10px; font-weight: 900; }
+
+.intramuros-role-days { border-top: 4px solid #179b83; }
+.intramuros-role-days > div { align-content: start; display: flex; flex-wrap: wrap; gap: 9px 11px; }
+.intramuros-role-days > div > span { align-items: center; display: flex; gap: 5px; min-width: calc(50% - 6px); }
+.intramuros-role-days b { align-items: center; background: #e2f6ef; border: 2px solid #80d5bf; border-radius: 50%; color: #08725e; display: flex; font-size: 10px; height: var(--day-size); justify-content: center; width: var(--day-size); }
+.intramuros-role-days small { color: #4c6970; font-size: 10px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.intramuros-role-courts { border-top: 4px solid #e29622; }
+.intramuros-role-courts > div { display: grid; gap: 7px; }
+.intramuros-role-courts p { align-items: center; display: grid; gap: 6px; grid-template-columns: 23px minmax(0, 1fr) auto; }
+.intramuros-role-courts p > b { color: #bd6c00; font-size: 10px; }
+.intramuros-role-courts p > span { color: #596b80; font-size: 11px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intramuros-role-courts p > strong { background: #fff0d7; border-radius: 999px; color: #9a5600; font-size: 10px; padding: 3px 6px; }
+
+.intramuros-role-results { border-top: 4px solid #d3507e; }
+.intramuros-role-result-main { align-items: center; display: grid; gap: 12px; grid-template-columns: 92px minmax(0, 1fr); }
+.intramuros-role-result-donut { align-content: center; background: conic-gradient(#ce4f82 0 var(--result-progress), #e8edf3 var(--result-progress) 100%); border-radius: 50%; display: grid; height: 92px; justify-items: center; width: 92px; }
+.intramuros-role-result-donut::before { background: #fff; border-radius: 50%; content: ""; grid-area: 1 / 1; height: 68px; width: 68px; }
+.intramuros-role-result-donut strong, .intramuros-role-result-donut span { grid-area: 1 / 1; z-index: 1; }
+.intramuros-role-result-donut strong { color: #9d315b; font-size: 17px; }
+.intramuros-role-result-donut span { align-self: center; color: #806170; font-size: 8px; font-weight: 900; margin-top: 29px; }
+.intramuros-role-result-main > div:last-child { display: grid; gap: 3px; }
+.intramuros-role-result-main > div:last-child strong { color: #8c244e; font-size: 28px; line-height: 1; }
+.intramuros-role-result-main > div:last-child span { color: #53687e; font-size: 10px; font-weight: 900; }
+.intramuros-role-result-main > div:last-child small { color: #ad5a76; font-size: 10px; font-weight: 800; }
+.intramuros-role-results > p { align-items: center; border-top: 1px solid #f1dbe4; display: flex; gap: 5px; padding-top: 8px; }
+.intramuros-role-results > p span { color: #6c6170; font-size: 9px; font-weight: 800; }
+.intramuros-role-results > p b { color: #9d315b; font-size: 10px; margin-right: 4px; }
+
+.intramuros-role-featured { border-top: 4px solid #0f558a; }
+.intramuros-role-featured-leader { background: linear-gradient(135deg, #0e4f86, #218b9b); border-radius: 8px; color: #fff; display: grid; gap: 2px; padding: 11px; }
+.intramuros-role-featured-leader span { color: #d4f1f4; font-size: 9px; font-weight: 900; text-transform: uppercase; }
+.intramuros-role-featured-leader strong { font-size: 28px; line-height: 1; }
+.intramuros-role-featured-leader b { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intramuros-role-featured ol { display: grid; gap: 6px; list-style: none; padding: 0; }
+.intramuros-role-featured li { align-items: center; display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) auto; }
+.intramuros-role-featured li span { color: #53687e; font-size: 10px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intramuros-role-featured li b { color: #12598a; font-size: 11px; }
 
 .semana-tec-dashboard {
   display: grid;
