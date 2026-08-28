@@ -12,6 +12,7 @@ function extractFunction(source, name, nextName) {
 
 test("la agenda de Roles filtra por equipo, rango de fechas, torneo y estatus de forma combinada", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
   const filterSource = extractFunction(app, "intramurosRoleAgendaFilteredRows", "intramurosRoleAgendaTournaments");
   const rendererSource = extractFunction(app, "renderIntramurosRolesDashboard", "intramurosOperationMetrics");
   const normalizeText = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -32,4 +33,5 @@ test("la agenda de Roles filtra por equipo, rango de fechas, torneo y estatus de
   ["intramurosRoleAgendaTeam", "intramurosRoleAgendaStartDate", "intramurosRoleAgendaEndDate", "intramurosRoleAgendaTournament", "intramurosRoleAgendaStatus"].forEach((id) => {
     assert.match(rendererSource, new RegExp(id), `la tabla debe mostrar el filtro ${id}`);
   });
+  assert.match(styles, /\.intramuros-role-agenda-filters\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/, "los cinco filtros deben permanecer en una sola línea en escritorio");
 });
