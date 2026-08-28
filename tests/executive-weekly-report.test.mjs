@@ -94,6 +94,7 @@ test("executive PDF unifies card typography and preserves both information bands
   assert.match(styles, /\.executive-report-print-page \.exec-insight-card > h3\s*\{[^}]*font-size:\s*var\(--exec-print-card-title\)/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-intramuros-label\s*\{[^}]*font-size:\s*var\(--exec-print-value\)/s);
   assert.match(styles, /\.exec-report-hero\s*\{[^}]*background:\s*linear-gradient\(/s, "The upper blue information band must remain");
+  assert.match(styles, /\.exec-report-hero\s*\{[^}]*min-height:\s*240px;/s, "The upper blue band must not leave unused space below the module cards");
   assert.match(styles, /\.exec-footer-kpis\s*\{[^}]*background:\s*var\(--teal\);[^}]*color:\s*#fff;/s, "The lower information band must remain");
 });
 
