@@ -12,6 +12,7 @@ function extractFunction(source, name, nextName) {
 
 test("Escuelas por género cuenta participantes únicos por escuela", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
   const source = extractFunction(app, "intramurosSchoolGenderRows", "renderIntramurosSchoolGenderCard");
   const normalizeMatricula = (value) => String(value || "").trim().toUpperCase();
   const genderBucket = (value) => {
@@ -32,4 +33,6 @@ test("Escuelas por género cuenta participantes únicos por escuela", async () =
     { label: "Ingeniería", Mujer: 1, Hombre: 1, "Sin dato": 0, total: 2 },
     { label: "Negocios", Mujer: 1, Hombre: 0, "Sin dato": 0, total: 1 }
   ]);
+  assert.match(styles, /\.intramuros-school-gender-card \.segment\.women \{ background: #7c3aed; \}/);
+  assert.match(styles, /\.intramuros-school-gender-card \.segment\.men \{ background: #123a8a; \}/);
 });

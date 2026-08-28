@@ -11613,7 +11613,7 @@ function renderIntramurosSchoolGenderCard(rows) {
           <h3>Participación por escuela y género</h3>
           <p>Participantes únicos por escuela</p>
         </div>
-        ${genderLegend("intramuros")}
+        ${genderLegend("school")}
       </div>
       <div class="intramuros-tournament-gender-list">
         ${schoolRows.length ? schoolRows.map((row) => `

@@ -13391,6 +13391,13 @@ tbody tr:hover td {
 .intramuros-tournament-gender-counts .men i { background: #16866e; }
 .intramuros-tournament-gender-counts .unknown i { background: #94a3b8; }
 
+.school-palette .legend-dot.women,
+.intramuros-school-gender-card .segment.women { background: #7c3aed; }
+.school-palette .legend-dot.men,
+.intramuros-school-gender-card .segment.men { background: #123a8a; }
+.intramuros-school-gender-card .intramuros-tournament-gender-counts .women i { background: #7c3aed; }
+.intramuros-school-gender-card .intramuros-tournament-gender-counts .men i { background: #123a8a; }
+
 .upload-last-success {
   display: block;
   width: 100%;
