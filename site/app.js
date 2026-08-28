@@ -627,7 +627,7 @@ let intramurosRolesImporting = false;
 let intramurosUploadSummary = null;
 let intramurosRolesUploadSummary = null;
 let intramurosRolesPendingUpload = null;
-let intramurosRoleAgendaFilters = { team: "", startDate: "", endDate: "", tournament: "todos" };
+let intramurosRoleAgendaFilters = { team: "", startDate: "", endDate: "", tournament: "todos", status: "todos" };
 let intramurosRoleAgendaSearchTimer = null;
 let selectedIntramurosTournament = "";
 let intramurosCalendarLayer = "all";
@@ -9525,6 +9525,8 @@ function intramurosPeriodFromRoleDate(dateValue) {
 function intramurosRoleTournamentFromBlock(title, group, court) {
   const block = normalizeText(title);
   const detail = normalizeText(`${group || ""} ${court || ""}`);
+  if (/(^|\s)fr(\s|$)/.test(detail)) return "Fútbol rápido";
+  if (/(^|\s)vb\s*playa(\s|$)/.test(detail)) return "Voleibol de playa";
   if (block.includes("tochito")) return "Tochito";
   if (block.includes("voleibol") && block.includes("basquet")) {
     if (/(^|\s)(bb|basquet|basket)(\s|$)/.test(detail)) return "Básquetbol";
@@ -9541,7 +9543,7 @@ function intramurosRoleTournamentFromBlock(title, group, court) {
     if (/(^|\s)(bb|basquet|basket)(\s|$)/.test(detail)) return "Básquetbol";
     if (/(^|\s)(vb|voleibol|volei)(\s|$)/.test(detail)) return "Voleibol de sala";
   }
-  return String(title || "Sin torneo").trim() || "Sin torneo";
+  return "";
 }
 
 function intramurosRoleWorkbookSheets(workbook) {
@@ -9629,7 +9631,7 @@ function intramurosTemplateRoleRowsFromGrid(grid, sheetName, fileName) {
       const visitorScore = String(cells?.[start + 10] ?? "").trim();
       const visitor = String(cells?.[start + 11] ?? "").trim();
       const usageType = String(cells?.[start + 13] ?? "").trim() || "Sin tipo";
-      const tournament = intramurosRoleTournamentFromBlock(title, group, court);
+      const tournament = intramurosRoleTournamentFromBlock(title, group, court) || canonicalIntramurosTournament(title);
       const hasResult = Boolean(localScore || visitorScore);
       const isGame = Boolean(local && visitor);
       const isReservation = Boolean(!isGame && (local || visitor));
@@ -11336,7 +11338,7 @@ async function switchMasterPeriod(nextPeriod) {
   intramurosUploadSummary = null;
   intramurosRolesUploadSummary = null;
   intramurosRolesPendingUpload = null;
-  intramurosRoleAgendaFilters = { team: "", startDate: "", endDate: "", tournament: "todos" };
+  intramurosRoleAgendaFilters = { team: "", startDate: "", endDate: "", tournament: "todos", status: "todos" };
   intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", sanction: "todos", search: "" };
   selectedIntramurosTournament = "";
 
@@ -11866,7 +11868,8 @@ function intramurosRoleAgendaFilteredRows(rows, filters = intramurosRoleAgendaFi
     const startDateMatch = !filters.startDate || (date && date >= filters.startDate);
     const endDateMatch = !filters.endDate || (date && date <= filters.endDate);
     const tournamentMatch = filters.tournament === "todos" || row.torneo === filters.tournament;
-    return teamMatch && startDateMatch && endDateMatch && tournamentMatch;
+    const statusMatch = filters.status === "todos" || row.estatus_partido === filters.status;
+    return teamMatch && startDateMatch && endDateMatch && tournamentMatch && statusMatch;
   });
 }
 
@@ -11875,10 +11878,35 @@ function intramurosRoleAgendaTournaments(rows) {
     .sort((a, b) => a.localeCompare(b, "es-MX"));
 }
 
+function intramurosRoleAgendaStatus(row) {
+  if (intramurosRoleHasResult(row)) return "Con resultado";
+  const status = String(row.estatus_partido || "").trim();
+  if (normalizeText(status).includes("reserv")) return "Reservado";
+  return status || (intramurosRoleIsGame(row) ? "Programado" : "Reservado");
+}
+
+function intramurosRoleAgendaTournament(row) {
+  const sourceBlock = String(row.observaciones || "").match(/bloque\s*:\s*([^|;]+)/i)?.[1] || "";
+  return intramurosRoleTournamentFromBlock(sourceBlock, row.grupo, row.cancha) || canonicalIntramurosTournament(row.torneo);
+}
+
+function intramurosRoleAgendaStatuses(rows) {
+  const preferred = ["Programado", "Con resultado", "Reservado"];
+  const values = Array.from(new Set(rows.map((row) => String(row.estatus_partido || "").trim()).filter(Boolean)));
+  return values.sort((a, b) => {
+    const aIndex = preferred.indexOf(a);
+    const bIndex = preferred.indexOf(b);
+    if (aIndex >= 0 || bIndex >= 0) return (aIndex >= 0 ? aIndex : preferred.length) - (bIndex >= 0 ? bIndex : preferred.length);
+    return a.localeCompare(b, "es-MX");
+  });
+}
+
 function renderIntramurosRolesDashboard() {
   const roles = intramurosRolesPendingUpload?.parsed?.rows || intramurosGameRoles;
-  const agendaRoles = intramurosRoleAgendaFilteredRows(roles);
-  const agendaTournaments = intramurosRoleAgendaTournaments(roles);
+  const agendaSourceRoles = roles.map((row) => ({ ...row, torneo: intramurosRoleAgendaTournament(row), estatus_partido: intramurosRoleAgendaStatus(row) }));
+  const agendaRoles = intramurosRoleAgendaFilteredRows(agendaSourceRoles);
+  const agendaTournaments = intramurosRoleAgendaTournaments(agendaSourceRoles);
+  const agendaStatuses = intramurosRoleAgendaStatuses(agendaSourceRoles);
   const games = roles.filter(intramurosRoleIsGame);
   const reservations = roles.filter((row) => !intramurosRoleIsGame(row) && String(row.equipo_local || row.equipo_visitante || "").trim());
   const withResult = games.filter(intramurosRoleHasResult).length;
@@ -11941,6 +11969,7 @@ function renderIntramurosRolesDashboard() {
           <label>Desde<input id="intramurosRoleAgendaStartDate" type="date" value="${escapeHtml(intramurosRoleAgendaFilters.startDate)}" /></label>
           <label>Hasta<input id="intramurosRoleAgendaEndDate" type="date" value="${escapeHtml(intramurosRoleAgendaFilters.endDate)}" /></label>
           <label>Torneo<select id="intramurosRoleAgendaTournament"><option value="todos" ${intramurosRoleAgendaFilters.tournament === "todos" ? "selected" : ""}>Todos</option>${agendaTournaments.map((tournament) => `<option value="${escapeHtml(tournament)}" ${intramurosRoleAgendaFilters.tournament === tournament ? "selected" : ""}>${escapeHtml(tournament)}</option>`).join("")}</select></label>
+          <label>Estatus<select id="intramurosRoleAgendaStatus"><option value="todos" ${intramurosRoleAgendaFilters.status === "todos" ? "selected" : ""}>Todos</option>${agendaStatuses.map((status) => `<option value="${escapeHtml(status)}" ${intramurosRoleAgendaFilters.status === status ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></label>
         </div>
         <table><thead><tr><th>Fecha</th><th>Hora</th><th>Deporte</th><th>Cancha</th><th>Local / actividad</th><th>Visitante</th><th>Resultado</th><th>Estatus</th></tr></thead>
         <tbody>${intramurosRoleAgendaRows(agendaRoles).slice(0, 160).map((row) => `<tr><td>${escapeHtml(row.fecha)}</td><td>${escapeHtml(row.hora)}</td><td>${escapeHtml(row.torneo)}</td><td>${escapeHtml(row.cancha)}</td><td>${escapeHtml(row.equipo_local)}</td><td>${escapeHtml(row.equipo_visitante)}</td><td>${escapeHtml(row.resultado || "-")}</td><td><span class="role-status ${intramurosRoleIsGame(row) ? "game" : "reservation"}">${escapeHtml(row.estatus_partido)}</span></td></tr>`).join("") || `<tr><td colspan="8">No hay juegos ni reservaciones con esos filtros.</td></tr>`}</tbody></table>
@@ -20032,6 +20061,10 @@ function render() {
   });
   $("#intramurosRoleAgendaTournament")?.addEventListener("change", (event) => {
     intramurosRoleAgendaFilters.tournament = event.target.value;
+    render();
+  });
+  $("#intramurosRoleAgendaStatus")?.addEventListener("change", (event) => {
+    intramurosRoleAgendaFilters.status = event.target.value;
     render();
   });
   $("#addIntramurosOperationRow")?.addEventListener("click", async () => {
