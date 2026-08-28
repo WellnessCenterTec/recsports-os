@@ -9528,6 +9528,8 @@ function intramurosRoleTournamentFromBlock(title, group, court) {
   const detail = normalizeText(`${group || ""} ${court || ""}`);
   if (/(^|\s)fr(\s|$)/.test(detail)) return "Fútbol rápido";
   if (/(^|\s)vb\s*playa(\s|$)/.test(detail)) return "Voleibol de playa";
+  if (/(^|\s)fut\s*7(\s|$)/.test(detail)) return "Fútbol 7";
+  if (/(^|\s)soccer(\s|$)/.test(detail)) return "Fútbol soccer";
   if (block.includes("tochito")) return "Tochito";
   if (block.includes("voleibol") && block.includes("basquet")) {
     if (/(^|\s)(bb|basquet|basket)(\s|$)/.test(detail)) return "Básquetbol";

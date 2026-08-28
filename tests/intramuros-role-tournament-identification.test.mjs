@@ -18,5 +18,7 @@ test("los roles identifican Fútbol rápido, Voleibol de playa y Pádel desde el
 
   assert.equal(identifyTournament("CDB 1 Fútbol Rápido", "", "C# 1 FR"), "Fútbol rápido");
   assert.equal(identifyTournament("", "Varonil", "VB Playa"), "Voleibol de playa");
+  assert.equal(identifyTournament("CDB 1 Fútbol", "", "C# 1 Fut 7"), "Fútbol 7");
+  assert.equal(identifyTournament("CDB 1 Fútbol", "", "Cancha Soccer"), "Fútbol soccer");
   assert.equal(identifyTournament("CDB 2 PÁDEL", "", "C# 3"), "Pádel");
 });
