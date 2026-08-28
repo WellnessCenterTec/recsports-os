@@ -11424,7 +11424,6 @@ function renderExecutiveGeneralDashboard() {
           <article><strong>${baseUniverse.toLocaleString("es-MX")}</strong><span>Alumnos en la base TEC</span></article>
           <article><strong>${impact}%</strong><span>Impacto general en el Tec de Monterrey</span></article>
         </footer>
-        <p class="exec-privacy">Fuente: módulos vigentes de WellSync · Sin datos personales.</p>
       </div>
     </section>
   `;

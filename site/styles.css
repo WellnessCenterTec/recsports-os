@@ -6707,14 +6707,6 @@ tbody tr:hover td {
   font-weight: 900;
 }
 
-.exec-privacy {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 900;
-  margin: 0;
-  text-align: center;
-}
-
 .exec-report .exec-page { max-width: 1344px; padding: 22px; }
 .exec-report-titlebar { align-items: center; display: grid; gap: 16px; grid-template-columns: auto 1fr auto; padding: 4px 2px 12px; }
 .exec-report-titlebar h2 { color: #08285d; font-size: 32px; margin: 0 0 4px; }
@@ -10788,9 +10780,6 @@ body.executive-report-print {
   .executive-report-print-page .exec-footer-kpis article { gap: 1px; padding: 6px; }
   .executive-report-print-page .exec-footer-kpis strong { font-size: 18px; }
   .executive-report-print-page .exec-footer-kpis span { font-size: 8px; }
-  .executive-report-print-page .exec-privacy { font-size: 7px; }
-
-
 .class-executive-hero,
 .class-risk-board,
 .class-alert-panel,

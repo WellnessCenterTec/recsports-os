@@ -31,6 +31,7 @@ test("weekly report uses the approved ten-week full-width dashboard", () => {
   assert.ok(styles.includes("grid-template-columns: repeat(4"), "Intramuros must use four columns on desktop");
   assert.ok(!source.includes("Alumnos únicos en Gimnasio"), "Legacy gym-only unique KPI must stay removed");
   assert.ok(!source.includes("Datos reales consultados directamente en los módulos de WellSync"), "Removed report legend must stay absent");
+  assert.ok(!source.includes("Fuente: módulos vigentes de WellSync"), "The report source legend must stay absent");
 });
 
 test("daily Wellness average is computed from dated Wellness visits only", () => {
