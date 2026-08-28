@@ -11833,6 +11833,28 @@ function intramurosTournamentSummaries() {
   });
 }
 
+function intramurosRoleAgendaRows(rows, now = new Date()) {
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const dateKey = (row) => {
+    const value = String(row?.fecha || "").slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
+  };
+  const group = (row) => {
+    const date = dateKey(row);
+    if (!date) return 3;
+    if (date === today) return 0;
+    return date > today ? 1 : 2;
+  };
+  const dateTimeKey = (row) => `${dateKey(row)}|${String(row?.hora || "")}`;
+  return rows.slice().sort((a, b) => {
+    const groupDifference = group(a) - group(b);
+    if (groupDifference) return groupDifference;
+    return group(a) === 2
+      ? dateTimeKey(b).localeCompare(dateTimeKey(a))
+      : dateTimeKey(a).localeCompare(dateTimeKey(b));
+  });
+}
+
 function renderIntramurosRolesDashboard() {
   const roles = intramurosRolesPendingUpload?.parsed?.rows || intramurosGameRoles;
   const games = roles.filter(intramurosRoleIsGame);
@@ -11893,7 +11915,7 @@ function renderIntramurosRolesDashboard() {
       <div class="table-wrap intramuros-role-agenda">
         <div class="budget-table-heading"><div><p class="eyebrow">Agenda operativa</p><h3>Juegos y reservaciones detectadas</h3></div><span>${roles.length.toLocaleString("es-MX")} registros</span></div>
         <table><thead><tr><th>Fecha</th><th>Hora</th><th>Deporte</th><th>Cancha</th><th>Local / actividad</th><th>Visitante</th><th>Resultado</th><th>Estatus</th></tr></thead>
-        <tbody>${roles.slice().sort((a, b) => `${a.fecha}|${a.hora}`.localeCompare(`${b.fecha}|${b.hora}`)).slice(0, 160).map((row) => `<tr><td>${escapeHtml(row.fecha)}</td><td>${escapeHtml(row.hora)}</td><td>${escapeHtml(row.torneo)}</td><td>${escapeHtml(row.cancha)}</td><td>${escapeHtml(row.equipo_local)}</td><td>${escapeHtml(row.equipo_visitante)}</td><td>${escapeHtml(row.resultado || "-")}</td><td><span class="role-status ${intramurosRoleIsGame(row) ? "game" : "reservation"}">${escapeHtml(row.estatus_partido)}</span></td></tr>`).join("") || `<tr><td colspan="8">El formato está listo. Cuando Omar capture equipos o reservaciones, aparecerán aquí.</td></tr>`}</tbody></table>
+        <tbody>${intramurosRoleAgendaRows(roles).slice(0, 160).map((row) => `<tr><td>${escapeHtml(row.fecha)}</td><td>${escapeHtml(row.hora)}</td><td>${escapeHtml(row.torneo)}</td><td>${escapeHtml(row.cancha)}</td><td>${escapeHtml(row.equipo_local)}</td><td>${escapeHtml(row.equipo_visitante)}</td><td>${escapeHtml(row.resultado || "-")}</td><td><span class="role-status ${intramurosRoleIsGame(row) ? "game" : "reservation"}">${escapeHtml(row.estatus_partido)}</span></td></tr>`).join("") || `<tr><td colspan="8">El formato está listo. Cuando Omar capture equipos o reservaciones, aparecerán aquí.</td></tr>`}</tbody></table>
       </div>
     </section>
   `;
