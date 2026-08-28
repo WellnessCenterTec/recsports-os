@@ -145,6 +145,12 @@ test("mentor communities appear as a vertical top seven in the three-card insigh
   assert.match(source, /<img class="exec-mentor-community-logo"[\s\S]*?alt="\$\{escapeHtml\(row\.label\)\}"/);
   assert.doesNotMatch(source, /exec-mentor-community-logo[^\n]*?<\/img>[^\n]*?<span[^>]*>\$\{escapeHtml\(row\.label\)\}/, "The wordmark must not repeat the community name as adjacent text");
   assert.match(styles, /\.exec-mentor-community-logo\s*\{[^}]*object-fit:\s*contain;/s);
+  assert.match(styles, /\.exec-mentor-community-logo\s*\{[^}]*height:\s*20px;[^}]*width:\s*90px;/s, "Every community wordmark must use the same visible box");
+  ["forta", "kresko", "reflekto", "spirita", "talenta", "ekvilibro", "energio", "krei", "pasio", "revo"].forEach((community) => {
+    const png = fs.readFileSync(new URL(`../site/assets/community-logos/${community}.png`, import.meta.url));
+    assert.equal(png.readUInt32BE(16), 360, `${community} logo must use the common width`);
+    assert.equal(png.readUInt32BE(20), 80, `${community} logo must use the common height`);
+  });
 });
 
 test("class demand ranks complete disciplines instead of separate PMT blocks", () => {
