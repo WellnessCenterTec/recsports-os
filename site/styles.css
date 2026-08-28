@@ -7431,7 +7431,8 @@ tbody tr:hover td {
 
 .intramuros-chart-school,
 .intramuros-chart-progress,
-.intramuros-tournament-gender-card { grid-area: auto; }
+.intramuros-tournament-gender-card,
+.intramuros-school-gender-card { grid-area: auto; }
 
 .intramuros-exec-card {
   background: #fff;
@@ -13235,7 +13236,8 @@ tbody tr:hover td {
   flex: 1 1 190px;
 }
 
-.intramuros-tournament-gender-card {
+.intramuros-tournament-gender-card,
+.intramuros-school-gender-card {
   align-content: start;
   grid-area: auto;
   min-height: 0;

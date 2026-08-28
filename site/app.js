@@ -11555,6 +11555,66 @@ function renderIntramurosTournamentGenderCard(rows) {
   `;
 }
 
+function intramurosSchoolGenderRows(rows) {
+  const groups = new Map();
+  rows.forEach((row) => {
+    const matricula = normalizeMatricula(row.matricula);
+    if (!matricula) return;
+    const school = String(row.escuela || "Sin escuela").trim() || "Sin escuela";
+    if (!groups.has(school)) groups.set(school, new Map());
+    const participants = groups.get(school);
+    const gender = intramurosGenderBucket(row.genero);
+    const currentGender = participants.get(matricula);
+    if (!currentGender || currentGender === "Sin dato") participants.set(matricula, gender);
+  });
+  return Array.from(groups.entries()).map(([label, participants]) => {
+    const values = Array.from(participants.values());
+    const Mujer = values.filter((gender) => gender === "Mujer").length;
+    const Hombre = values.filter((gender) => gender === "Hombre").length;
+    const withoutGender = values.filter((gender) => gender === "Sin dato").length;
+    return { label, Mujer, Hombre, "Sin dato": withoutGender, total: values.length };
+  }).sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, "es-MX"));
+}
+
+function renderIntramurosSchoolGenderCard(rows) {
+  const schoolRows = intramurosSchoolGenderRows(rows).slice(0, 10);
+  const max = Math.max(...schoolRows.map((row) => row.total), 1);
+  return `
+    <article class="intramuros-exec-card intramuros-school-gender-card teal">
+      <div class="intramuros-tournament-gender-heading">
+        <div>
+          <h3>Participación por escuela y género</h3>
+          <p>Participantes únicos por escuela</p>
+        </div>
+        ${genderLegend("intramuros")}
+      </div>
+      <div class="intramuros-tournament-gender-list">
+        ${schoolRows.length ? schoolRows.map((row) => `
+          <div class="intramuros-tournament-gender-row">
+            <div class="intramuros-tournament-gender-title">
+              <span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span>
+              <strong>${row.total.toLocaleString("es-MX")}</strong>
+            </div>
+            <div class="gender-track intramuros-tournament-track">
+              <div class="segmented-fill" style="width:${Math.max(4, Math.round((row.total / max) * 100))}%">
+                ${row.Mujer ? `<span class="segment women" style="width:${Math.round((row.Mujer / row.total) * 100)}%" title="Mujeres: ${row.Mujer}"></span>` : ""}
+                ${row.Hombre ? `<span class="segment men" style="width:${Math.round((row.Hombre / row.total) * 100)}%" title="Hombres: ${row.Hombre}"></span>` : ""}
+                ${row["Sin dato"] ? `<span class="segment unknown" style="width:${Math.round((row["Sin dato"] / row.total) * 100)}%" title="Sin dato: ${row["Sin dato"]}"></span>` : ""}
+              </div>
+            </div>
+            <div class="intramuros-tournament-gender-counts">
+              <span class="women"><i></i>Mujeres <b>${row.Mujer.toLocaleString("es-MX")}</b></span>
+              <span class="men"><i></i>Hombres <b>${row.Hombre.toLocaleString("es-MX")}</b></span>
+              ${row["Sin dato"] ? `<span class="unknown"><i></i>Sin dato <b>${row["Sin dato"].toLocaleString("es-MX")}</b></span>` : ""}
+              <span class="total">Total <b>${row.total.toLocaleString("es-MX")}</b></span>
+            </div>
+          </div>
+        `).join("") : `<p class="upload-empty">Sin participantes cargados.</p>`}
+      </div>
+    </article>
+  `;
+}
+
 function intramurosTeamsByTournament(rows) {
   const groups = new Map();
   rows.forEach((row) => {
@@ -11634,7 +11694,7 @@ function renderIntramurosExecutiveCharts(rows) {
     .sort((a, b) => b.totalParticipants - a.totalParticipants);
   return `
     <div class="intramuros-exec-grid">
-      ${renderIntramurosExecutiveBars("Participación por escuela", intramurosGroupCounts(rows, "escuela"), { accent: "gold", limit: 10, className: "intramuros-chart-school" })}
+      ${renderIntramurosSchoolGenderCard(rows)}
       ${renderIntramurosProgressCard(summaries)}
       ${renderIntramurosTournamentGenderCard(rows)}
     </div>

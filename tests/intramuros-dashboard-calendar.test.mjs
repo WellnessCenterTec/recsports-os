@@ -69,7 +69,7 @@ test("Intramuros Dashboard removes only the four duplicated charts", async () =>
   ].forEach((title) => assert.doesNotMatch(chartsSource, new RegExp(title), `${title} ya no debe aparecer en el Dashboard`));
 
   [
-    "Participación por escuela",
+    "renderIntramurosSchoolGenderCard(rows)",
     "renderIntramurosProgressCard(summaries)",
     "renderIntramurosTournamentGenderCard(rows)"
   ].forEach((marker) => assert.ok(chartsSource.includes(marker), `${marker} debe conservarse en el Dashboard`));
