@@ -7072,6 +7072,15 @@ tbody tr:hover td {
   overflow: hidden;
 }
 
+.intramuros-tournament-grid > .intramuros-eligibility-alerts {
+  grid-column: span 3;
+}
+
+.intramuros-eligibility-alerts.compact {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .intramuros-eligibility-alerts-heading {
   align-items: center;
   display: flex;
@@ -7136,6 +7145,16 @@ tbody tr:hover td {
 .intramuros-eligibility-alert-table tbody tr:not(.intramuros-eligibility-ok) { background: rgba(255, 255, 255, .72); }
 .intramuros-eligibility-alert-table tbody td:first-child { color: #9a3412; font-weight: 900; }
 .intramuros-eligibility-ok td { color: #166534; font-weight: 800; text-align: center; }
+
+.intramuros-eligibility-empty {
+  align-self: center;
+  color: #166534;
+  font-size: 14px;
+  font-weight: 900;
+  margin: 0;
+  padding: 18px;
+  text-align: center;
+}
 
 .upload-chart-grid {
   display: grid;
@@ -10467,6 +10486,7 @@ body.planning-modal-open {
   }
   .intramuros-tournament-gender-card { grid-column: 1 / -1; }
   .intramuros-tournament-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .intramuros-tournament-grid > .intramuros-eligibility-alerts { grid-column: 1 / -1; }
   .intramuros-role-chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .intramuros-role-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .exec-planning-item { grid-template-columns: 72px minmax(160px, 1fr) minmax(90px, .8fr) minmax(80px, .7fr); }
@@ -10565,6 +10585,8 @@ body.planning-modal-open {
     grid-template-columns: 88px 126px 88px 108px 88px 126px 180px;
   }
   .intramuros-role-agenda-filters { grid-template-columns: 1fr; }
+  .intramuros-eligibility-alerts-heading { align-items: stretch; flex-direction: column; }
+  .intramuros-eligibility-alert-count { align-self: flex-start; }
   .intramuros-progress-row { grid-template-columns: 1fr; gap: 8px; }
   .booking-visual-row,
   .gym-dashboard-main-row { grid-template-columns: 1fr; }

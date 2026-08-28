@@ -48,3 +48,16 @@ test("El panel de alertas muestra sólo los datos operativos solicitados", async
   assert.match(html, /Equipo Intramuros/);
   assert.doesNotMatch(html, /Nombre|Apellido/);
 });
+
+test("La alerta ocupa el espacio libre junto a las tarjetas de torneo", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  const cardsSource = extractFunction(app, "renderTournamentCards", "renderIntramurosGameInfoList");
+  const alertSource = extractFunction(app, "renderIntramurosRepresentativeEligibilityAlerts", "renderIntramurosDashboard");
+
+  assert.match(cardsSource, /renderIntramurosRepresentativeEligibilityAlerts\(eligibilityAlerts, \{ compact: true \}\)/);
+  assert.match(alertSource, /compact && !alerts\.length/);
+  assert.match(alertSource, /Sin alertas detectadas con los filtros actuales/);
+  assert.match(styles, /\.intramuros-tournament-grid > \.intramuros-eligibility-alerts\s*\{\s*grid-column: span 3;/);
+  assert.match(styles, /@media \(max-width: 1120px\)[\s\S]*?\.intramuros-tournament-grid > \.intramuros-eligibility-alerts \{ grid-column: 1 \/ -1; \}/);
+});

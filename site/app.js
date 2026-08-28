@@ -12360,7 +12360,7 @@ function renderIntramurosOmarWorkspace() {
   `;
 }
 
-function renderTournamentCards() {
+function renderTournamentCards(eligibilityAlerts = []) {
   const summaries = intramurosTournamentSummaries();
   return `
     <section class="intramuros-tournament-section">
@@ -12390,6 +12390,7 @@ function renderTournamentCards() {
             <button class="primary-btn compact-action" type="button" data-open-intramuros-tournament="${escapeHtml(row.torneo)}">Abrir expediente</button>
           </article>
         `).join("") : `<div class="upload-empty">Carga participantes o roles para ver expedientes.</div>`}
+        ${renderIntramurosRepresentativeEligibilityAlerts(eligibilityAlerts, { compact: true })}
       </div>
     </section>
   `;
@@ -12498,10 +12499,11 @@ function intramurosRepresentativeEligibilityAlerts(intramurosRows = [], represen
   ));
 }
 
-function renderIntramurosRepresentativeEligibilityAlerts(alerts = []) {
+function renderIntramurosRepresentativeEligibilityAlerts(alerts = [], options = {}) {
+  const compact = Boolean(options.compact);
   const students = new Set(alerts.map((row) => row.matricula)).size;
   return `
-    <section class="intramuros-eligibility-alerts" aria-label="Alertas de elegibilidad de Intramuros">
+    <section class="intramuros-eligibility-alerts ${compact ? "compact" : ""}" aria-label="Alertas de elegibilidad de Intramuros">
       <div class="intramuros-eligibility-alerts-heading">
         <div>
           <p class="eyebrow">Alertas de elegibilidad</p>
@@ -12510,12 +12512,12 @@ function renderIntramurosRepresentativeEligibilityAlerts(alerts = []) {
         </div>
         <div class="intramuros-eligibility-alert-count"><strong>${alerts.length.toLocaleString("es-MX")}</strong><span>${alerts.length === 1 ? "coincidencia" : "coincidencias"}<small>${students.toLocaleString("es-MX")} ${students === 1 ? "matrícula" : "matrículas"}</small></span></div>
       </div>
-      <div class="intramuros-eligibility-alert-table table-wrap">
+      ${compact && !alerts.length ? `<p class="intramuros-eligibility-empty">Sin alertas detectadas con los filtros actuales.</p>` : `<div class="intramuros-eligibility-alert-table table-wrap">
         <table>
           <thead><tr><th>Matrícula</th><th>Deporte representativo</th><th>Torneo / deporte Intramuros</th><th>Equipo Intramuros</th></tr></thead>
           <tbody>${alerts.length ? alerts.map((row) => `<tr><td>${escapeHtml(row.matricula)}</td><td>${escapeHtml(row.representativo)}</td><td>${escapeHtml(row.torneo)}</td><td>${escapeHtml(row.equipo)}</td></tr>`).join("") : `<tr class="intramuros-eligibility-ok"><td colspan="4">Sin alertas: no hay matrículas coincidentes entre Representativos e Intramuros con los filtros actuales.</td></tr>`}</tbody>
         </table>
-      </div>
+      </div>`}
     </section>
   `;
 }
@@ -12555,10 +12557,8 @@ function renderIntramurosDashboard() {
 
       ${renderIntramurosExecutiveCharts(rows)}
 
-      ${renderTournamentCards()}
+      ${renderTournamentCards(eligibilityAlerts)}
       ${renderTournamentExpediente()}
-
-      ${renderIntramurosRepresentativeEligibilityAlerts(eligibilityAlerts)}
 
       <div class="table-wrap">
         <div class="budget-table-heading">

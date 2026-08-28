@@ -36,7 +36,7 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
     () => [],
     { search: "", sanction: "todos" },
     () => '<div data-test="executive-charts"></div>',
-    () => '<div data-test="tournament-cards"></div>',
+    (alerts = []) => `<div data-test="tournament-cards"><div data-test="eligibility-alerts">${alerts.length}</div></div>`,
     () => '<div data-test="tournament-expediente"></div>',
     { representativos: { imported: { rows: [{ matricula: "A001", representativo: "Voleibol" }] } } },
     (intramurosRows, representativeRows) => intramurosRows.length && representativeRows.length ? [{ matricula: "A001" }] : [],
