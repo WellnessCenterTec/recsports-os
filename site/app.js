@@ -1,7 +1,7 @@
 ﻿const areas = [
   {
     id: "general",
-    name: "Reporte General",
+    name: "Reporte Wellness",
     tone: "blue",
     source: "Reporte final, Reporte Automatizado, Sofi 2",
     capture: ["Periodo", "Matrícula", "Género", "Carrera", "Semestre", "Nivel escolar", "Área de participación"],
@@ -11396,8 +11396,7 @@ function renderExecutiveGeneralDashboard() {
           <div><strong>Semana ${executiveReportState.week}</strong><span>Semana ${executiveReportState.week} de 20</span></div>
         </header>
         <section class="exec-report-hero">
-          <div><p>CORTE OPERATIVO · SEMANA ${executiveReportState.week}</p>
-            <ul>
+          <div><ul>
               <li><span>Gimnasio</span><strong>${attentions.gym.toLocaleString("es-MX")}</strong><em>asistencias</em></li>
               <li><span>Intramuros</span><strong>${attentions.intramuros.toLocaleString("es-MX")}</strong><em>registros</em></li>
               <li><span>Booking</span><strong>${attentions.booking.toLocaleString("es-MX")}</strong><em>reservaciones</em></li>

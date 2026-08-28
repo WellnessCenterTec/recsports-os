@@ -5,6 +5,11 @@ import test from "node:test";
 const source = fs.readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
 const styles = fs.readFileSync(new URL("../site/styles.css", import.meta.url), "utf8");
 
+test("the general module is named Reporte Wellness", () => {
+  assert.match(source, /id:\s*"general",\s*name:\s*"Reporte Wellness"/s);
+  assert.doesNotMatch(source, /name:\s*"Reporte General"/);
+});
+
 test("weekly report uses the approved ten-week full-width dashboard", () => {
   [
     "Reporte Wellness",
@@ -20,6 +25,7 @@ test("weekly report uses the approved ten-week full-width dashboard", () => {
   ].forEach((needle) => assert.ok(source.includes(needle), `Missing approved report marker: ${needle}`));
   assert.doesNotMatch(source, /Reporte Ejecutivo(?: Semanal| Semana)/, "The report title must use the Wellness name");
   assert.match(source, /Reporte Wellness Semana \$\{executiveReportState\.week\}/, "Changing the week must preserve the Wellness report name");
+  assert.doesNotMatch(source, /CORTE OPERATIVO · SEMANA/, "The week must not be repeated inside the blue summary band");
   assert.ok(styles.includes("max-width: 1344px"), "Report must be 20% wider than the former 1120px layout");
   assert.ok(styles.includes("grid-template-columns: repeat(10"), "Gym chart must reserve ten weekly columns");
   assert.ok(styles.includes("grid-template-columns: repeat(4"), "Intramuros must use four columns on desktop");
