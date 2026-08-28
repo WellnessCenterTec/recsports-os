@@ -10114,6 +10114,7 @@ tbody tr:hover td {
 
 .role-status.game { background: #e7f3ff; color: #07548f; }
 .role-status.reservation { background: #fff5d6; color: #6b4c00; }
+.intramuros-role-agenda td.role-winner { background: #e4f7e8; color: #146c35; font-weight: 900; }
 .intramuros-role-agenda table { min-width: 980px; }
 
 .intramuros-role-agenda-filters {

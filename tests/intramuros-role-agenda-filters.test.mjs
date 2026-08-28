@@ -34,5 +34,6 @@ test("la agenda de Roles filtra por equipo, rango de fechas, torneo y estatus de
     assert.match(rendererSource, new RegExp(id), `la tabla debe mostrar el filtro ${id}`);
   });
   assert.match(rendererSource, /<th>Local \/ actividad<\/th><th>Resultado<\/th><th>Visitante<\/th>/, "la agenda debe mostrar el resultado entre local y visitante");
+  assert.match(rendererSource, /role-winner/, "la agenda debe identificar visualmente al equipo ganador");
   assert.match(styles, /\.intramuros-role-agenda-filters\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/, "los cinco filtros deben permanecer en una sola línea en escritorio");
 });

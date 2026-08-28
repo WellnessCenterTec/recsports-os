@@ -11750,6 +11750,23 @@ function intramurosRoleHasResult(row) {
       .some((value) => status.includes(value));
 }
 
+function intramurosRoleWinner(row) {
+  const result = String(row.resultado || "").trim();
+  const numericScore = result.match(/^(\d+)\s*[-:]\s*(\d+)$/);
+  if (numericScore) {
+    const localScore = Number(numericScore[1]);
+    const visitorScore = Number(numericScore[2]);
+    if (localScore === visitorScore) return "";
+    return localScore > visitorScore ? "local" : "visitor";
+  }
+  const [localResult = "", visitorResult = ""] = normalizeText(result).split(/\s*-\s*/);
+  const winValues = new Set(["g", "ganado", "ganada", "win"]);
+  const lossValues = new Set(["baja", "forfeit", "np"]);
+  if (winValues.has(localResult) && lossValues.has(visitorResult)) return "local";
+  if (lossValues.has(localResult) && winValues.has(visitorResult)) return "visitor";
+  return "";
+}
+
 function intramurosRoleCalendarActivities() {
   const visibleRoles = intramurosGameRoles.filter((row) => {
     const hasTeamOrLabel = Boolean(String(row.equipo_local || row.equipo_visitante || "").trim());
@@ -11972,7 +11989,7 @@ function renderIntramurosRolesDashboard() {
           <label>Estatus<select id="intramurosRoleAgendaStatus"><option value="todos" ${intramurosRoleAgendaFilters.status === "todos" ? "selected" : ""}>Todos</option>${agendaStatuses.map((status) => `<option value="${escapeHtml(status)}" ${intramurosRoleAgendaFilters.status === status ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></label>
         </div>
         <table><thead><tr><th>Fecha</th><th>Hora</th><th>Deporte</th><th>Cancha</th><th>Local / actividad</th><th>Resultado</th><th>Visitante</th><th>Estatus</th></tr></thead>
-        <tbody>${intramurosRoleAgendaRows(agendaRoles).slice(0, 160).map((row) => `<tr><td>${escapeHtml(row.fecha)}</td><td>${escapeHtml(row.hora)}</td><td>${escapeHtml(row.torneo)}</td><td>${escapeHtml(row.cancha)}</td><td>${escapeHtml(row.equipo_local)}</td><td>${escapeHtml(row.resultado || "-")}</td><td>${escapeHtml(row.equipo_visitante)}</td><td><span class="role-status ${intramurosRoleIsGame(row) ? "game" : "reservation"}">${escapeHtml(row.estatus_partido)}</span></td></tr>`).join("") || `<tr><td colspan="8">No hay juegos ni reservaciones con esos filtros.</td></tr>`}</tbody></table>
+        <tbody>${intramurosRoleAgendaRows(agendaRoles).slice(0, 160).map((row) => { const winner = intramurosRoleWinner(row); return `<tr><td>${escapeHtml(row.fecha)}</td><td>${escapeHtml(row.hora)}</td><td>${escapeHtml(row.torneo)}</td><td>${escapeHtml(row.cancha)}</td><td class="${winner === "local" ? "role-winner" : ""}">${escapeHtml(row.equipo_local)}</td><td>${escapeHtml(row.resultado || "-")}</td><td class="${winner === "visitor" ? "role-winner" : ""}">${escapeHtml(row.equipo_visitante)}</td><td><span class="role-status ${intramurosRoleIsGame(row) ? "game" : "reservation"}">${escapeHtml(row.estatus_partido)}</span></td></tr>`; }).join("") || `<tr><td colspan="8">No hay juegos ni reservaciones con esos filtros.</td></tr>`}</tbody></table>
       </div>
     </section>
   `;
