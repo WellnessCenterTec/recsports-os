@@ -46,5 +46,5 @@ test("la agenda de Intramuros muestra hoy, próximos y al final los pasados", as
     "future-near",
     "today-early"
   ], "el orden original de los datos no debe modificarse");
-  assert.match(rendererSource, /intramurosRoleAgendaRows\(roles\)/, "la tabla debe usar el orden operativo");
+  assert.match(rendererSource, /intramurosRoleAgendaRows\(agendaRoles\)/, "la tabla debe usar el orden operativo después de filtrar");
 });

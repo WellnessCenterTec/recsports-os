@@ -10116,6 +10116,26 @@ tbody tr:hover td {
 .role-status.reservation { background: #fff5d6; color: #6b4c00; }
 .intramuros-role-agenda table { min-width: 980px; }
 
+.intramuros-role-agenda-filters {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 12px;
+}
+
+.intramuros-role-agenda-filters label {
+  color: var(--muted);
+  display: grid;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 5px;
+}
+
+.intramuros-role-agenda-filters input,
+.intramuros-role-agenda-filters select {
+  width: 100%;
+}
+
 .planning-calendar-day em {
   color: var(--muted);
   font-size: 11px;
@@ -10421,6 +10441,7 @@ body.planning-modal-open {
   .intramuros-filter-grid {
     grid-template-columns: 88px 126px 88px 108px 88px 126px 180px;
   }
+  .intramuros-role-agenda-filters { grid-template-columns: 1fr; }
   .booking-visual-row,
   .gym-dashboard-main-row { grid-template-columns: 1fr; }
   .exec-pie { justify-self: center; }
