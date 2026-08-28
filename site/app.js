@@ -9022,6 +9022,7 @@ function canonicalIntramurosTournament(value) {
   const normalized = normalizeText(value).replace(/\s+/g, " ").trim();
   if (!normalized || normalized === "sin torneo") return "Sin torneo";
   const labels = {
+    futbol: "Fútbol soccer",
     futbol7: "Fútbol 7",
     futbolsoccer: "Fútbol soccer",
     futbolrapidoparticipante: "Fútbol rápido participante",
@@ -9534,7 +9535,7 @@ function intramurosRoleTournamentFromBlock(title, group, court) {
     return "Voleibol de sala / Básquetbol";
   }
   if (block.includes("futbol rapido")) return "Fútbol rápido";
-  if (block.includes("futbol")) return detail.includes("fut 7") ? "Fútbol 7" : "Fútbol";
+  if (block.includes("futbol")) return detail.includes("fut 7") ? "Fútbol 7" : "Fútbol soccer";
   if (block.includes("padel")) return "Pádel";
   if (block.includes("tenis")) return "Tenis singles";
   if (block.includes("cdb")) {

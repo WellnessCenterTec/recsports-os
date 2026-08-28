@@ -121,6 +121,7 @@ test("las variantes de Omar se agrupan bajo un solo nombre de torneo", async () 
   assert.equal(canonical("Tochito"), "Tochito");
   assert.equal(canonical("Voleibol Playa"), "Voleibol de playa");
   assert.equal(canonical("Voleibol de playa"), "Voleibol de playa");
+  assert.equal(canonical("Fútbol"), "Fútbol soccer");
   assert.equal(canonical("F. Rápido"), "Fútbol rápido");
   assert.equal(canonical("Futbol rapido"), "Fútbol rápido");
 });
