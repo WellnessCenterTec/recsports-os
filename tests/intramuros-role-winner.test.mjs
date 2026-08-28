@@ -20,4 +20,6 @@ test("la agenda resalta únicamente al ganador por marcador", async () => {
   assert.equal(winner({ resultado: "2:9" }), "visitor");
   assert.equal(winner({ resultado: "0 - 0" }), "");
   assert.equal(winner({ resultado: "G - BAJA" }), "local");
+  assert.equal(winner({ resultado: "GD - PD" }), "local");
+  assert.equal(winner({ resultado: "PD - GD" }), "visitor");
 });

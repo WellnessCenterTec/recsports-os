@@ -11760,8 +11760,8 @@ function intramurosRoleWinner(row) {
     return localScore > visitorScore ? "local" : "visitor";
   }
   const [localResult = "", visitorResult = ""] = normalizeText(result).split(/\s*-\s*/);
-  const winValues = new Set(["g", "ganado", "ganada", "win"]);
-  const lossValues = new Set(["baja", "forfeit", "np"]);
+  const winValues = new Set(["g", "gd", "ganado", "ganada", "ganado por default", "ganada por default", "win"]);
+  const lossValues = new Set(["pd", "perdido", "perdida", "perdido por default", "perdida por default", "baja", "forfeit", "np"]);
   if (winValues.has(localResult) && lossValues.has(visitorResult)) return "local";
   if (lossValues.has(localResult) && winValues.has(visitorResult)) return "visitor";
   return "";
