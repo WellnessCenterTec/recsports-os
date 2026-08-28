@@ -9579,6 +9579,29 @@ function intramurosRoleType(row) {
   return match?.[1]?.trim() || (intramurosRoleIsGame(row) ? "Intramuros" : "Sin tipo");
 }
 
+function intramurosPadelResult(cells, start) {
+  const valueAt = (offset) => String(cells?.[start + offset] ?? "").trim();
+  if (normalizeText(valueAt(11)) !== "vs" || !valueAt(15)) return null;
+  const localSets = [valueAt(8), valueAt(9), valueAt(10)];
+  const visitorSets = [valueAt(12), valueAt(13), valueAt(14)];
+  const localDefault = localSets.join("").toUpperCase();
+  const visitorDefault = visitorSets.join("").toUpperCase();
+  const defaultWinner = localDefault === "GD" && visitorDefault === "PD"
+    ? "local"
+    : localDefault === "PD" && visitorDefault === "GD" ? "visitor" : "";
+  const localWonSets = localSets.filter((score) => [6, 7].includes(Number(score))).length;
+  const visitorWonSets = visitorSets.filter((score) => [6, 7].includes(Number(score))).length;
+  const winner = defaultWinner || (localWonSets >= 2 && visitorWonSets < 2 ? "local" : visitorWonSets >= 2 && localWonSets < 2 ? "visitor" : "");
+  const setScores = localSets.map((localScore, index) => {
+    const visitorScore = visitorSets[index];
+    return localScore && visitorScore ? `${localScore} - ${visitorScore}` : "";
+  }).filter(Boolean);
+  const result = defaultWinner
+    ? `${localDefault} - ${visitorDefault}`
+    : winner ? setScores.join(" · ") : "";
+  return { visitor: valueAt(15), result, hasResult: Boolean(winner) };
+}
+
 function intramurosTemplateRoleRowsFromGrid(grid, sheetName, fileName) {
   const blockStarts = new Set();
   (grid || []).forEach((cells) => {
@@ -9629,15 +9652,16 @@ function intramurosTemplateRoleRowsFromGrid(grid, sheetName, fileName) {
       const local = String(cells?.[start + 7] ?? "").trim();
       const localScore = String(cells?.[start + 8] ?? "").trim();
       const visitorScore = String(cells?.[start + 10] ?? "").trim();
-      const visitor = String(cells?.[start + 11] ?? "").trim();
-      const usageType = String(cells?.[start + 13] ?? "").trim() || "Sin tipo";
       const tournament = intramurosRoleTournamentFromBlock(title, group, court) || canonicalIntramurosTournament(title);
-      const hasResult = Boolean(localScore || visitorScore);
+      const padelResult = tournament === "Pádel" ? intramurosPadelResult(cells, start) : null;
+      const visitor = padelResult?.visitor || String(cells?.[start + 11] ?? "").trim();
+      const usageType = String(cells?.[start + 13] ?? "").trim() || "Sin tipo";
+      const hasResult = padelResult?.hasResult ?? Boolean(localScore || visitorScore);
       const isGame = Boolean(local && visitor);
       const isReservation = Boolean(!isGame && (local || visitor));
-      const result = hasResult
+      const result = padelResult?.result || (hasResult
         ? (localScore && visitorScore ? `${localScore} - ${visitorScore}` : localScore || visitorScore)
-        : "";
+        : "");
       const status = hasResult
         ? "Con resultado"
         : isGame ? "Programado"
@@ -11811,6 +11835,14 @@ function intramurosRoleHasResult(row) {
 
 function intramurosRoleWinner(row) {
   const result = String(row.resultado || "").trim();
+  const setScores = [...result.matchAll(/(\d+)\s*[-:]\s*(\d+)/g)];
+  if (setScores.length > 1) {
+    const localWonSets = setScores.filter(([, localScore]) => [6, 7].includes(Number(localScore))).length;
+    const visitorWonSets = setScores.filter(([, , visitorScore]) => [6, 7].includes(Number(visitorScore))).length;
+    if (localWonSets >= 2 && visitorWonSets < 2) return "local";
+    if (visitorWonSets >= 2 && localWonSets < 2) return "visitor";
+    return "";
+  }
   const numericScore = result.match(/^(\d+)\s*[-:]\s*(\d+)$/);
   if (numericScore) {
     const localScore = Number(numericScore[1]);
