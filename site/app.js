@@ -11106,7 +11106,7 @@ function renderExecutiveInsightCards() {
         <h3>Mentores · comunidades activas</h3>
         ${mentorCommunities.length ? `<ol>${mentorCommunities.map((row, index) => {
           const logo = executiveMentorCommunityLogo(row.label);
-          return `<li><b>${index + 1}</b>${logo ? `<img class="exec-mentor-community-logo" src="${logo}" alt="Logo ${escapeHtml(row.label)}" />` : `<span class="exec-mentor-community-logo-fallback" aria-hidden="true"></span>`}<span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")} <small>alumnos</small></strong></li>`;
+          return `<li><b>${index + 1}</b>${logo ? `<img class="exec-mentor-community-logo" src="${logo}" alt="${escapeHtml(row.label)}" />` : `<span class="exec-mentor-community-name" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span>`}<strong>${row.value.toLocaleString("es-MX")} <small>alumnos</small></strong></li>`;
         }).join("")}</ol>` : `<p>Sin cruces de mentoría y actividad.</p>`}
       </article>
     </section>`;
