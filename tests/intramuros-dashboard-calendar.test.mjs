@@ -83,8 +83,8 @@ test("Intramuros Dashboard removes only the four duplicated charts", async () =>
 test("Avance por torneo siempre ordena de mayor a menor porcentaje", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const progressSource = extractFunction(app, "renderIntramurosProgressCard", "renderIntramurosExecutiveCharts");
-  const createRenderer = Function("escapeHtml", `"use strict"; ${progressSource}; return renderIntramurosProgressCard;`);
-  const renderProgress = createRenderer((value) => String(value ?? ""));
+  const createRenderer = Function("escapeHtml", "executiveIntramurosSportIcon", `"use strict"; ${progressSource}; return renderIntramurosProgressCard;`);
+  const renderProgress = createRenderer((value) => String(value ?? ""), (label) => String(label).includes("Fútbol") ? "⚽" : "🏆");
   const html = renderProgress([
     { torneo: "Fútbol soccer", progress: 0, totalParticipants: 536, status: "Programado" },
     { torneo: "Básquetbol", progress: 17, totalParticipants: 34, status: "En curso" },
@@ -95,6 +95,7 @@ test("Avance por torneo siempre ordena de mayor a menor porcentaje", async () =>
   const positions = ["Fútbol rápido", "Voleibol de playa", "Básquetbol", "Fútbol soccer"].map((label) => html.indexOf(label));
   assert.ok(positions.every((position) => position >= 0), "todos los torneos deben renderizarse");
   assert.deepEqual([...positions].sort((a, b) => a - b), positions, "el mayor avance debe quedar arriba y el menor abajo");
+  assert.match(html, /exec-report-sport-icon/, "cada torneo debe usar el icono deportivo del Reporte Wellness");
 });
 
 test("el buscador de Intramuros permite escribir seguido y conserva el cursor", async () => {

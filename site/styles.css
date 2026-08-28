@@ -7499,6 +7499,26 @@ tbody tr:hover td {
   white-space: nowrap;
 }
 
+.intramuros-progress-tournament {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.intramuros-progress-tournament .intramuros-progress-sport-icon {
+  flex: 0 0 22px;
+  font-size: 12px;
+  height: 22px;
+  width: 22px;
+}
+
+.intramuros-progress-tournament > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .intramuros-exec-bars i,
 .intramuros-progress-list i {
   background: #e7eef3;

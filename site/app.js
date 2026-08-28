@@ -11704,7 +11704,7 @@ function renderIntramurosProgressCard(summaries) {
       <div class="intramuros-progress-list">
         ${orderedSummaries.length ? orderedSummaries.map((row) => `
           <div>
-            <span>${escapeHtml(row.torneo)}</span>
+            <span class="intramuros-progress-tournament"><span class="exec-report-sport-icon intramuros-progress-sport-icon" aria-hidden="true">${executiveIntramurosSportIcon(row.torneo)}</span><span>${escapeHtml(row.torneo)}</span></span>
             <i><b style="width:${Math.max(4, Number(row.progress || 0))}%"></b></i>
             <strong>${Number(row.progress || 0)}%</strong>
             <em>${escapeHtml(row.status || "Sin estado")}</em>
