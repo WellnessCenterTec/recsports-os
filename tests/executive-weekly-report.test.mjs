@@ -7,7 +7,7 @@ const styles = fs.readFileSync(new URL("../site/styles.css", import.meta.url), "
 
 test("weekly report uses the approved ten-week full-width dashboard", () => {
   [
-    "Reporte Ejecutivo Semanal",
+    "Reporte Wellness",
     "ALUMNOS ATENDIDOS",
     "<span>Semana TEC</span><strong>",
     "Promedio de asistencias en Wellness",
@@ -18,6 +18,8 @@ test("weekly report uses the approved ten-week full-width dashboard", () => {
     "Array.from({ length: 10 }",
     "Array.from({ length: 20 }"
   ].forEach((needle) => assert.ok(source.includes(needle), `Missing approved report marker: ${needle}`));
+  assert.doesNotMatch(source, /Reporte Ejecutivo(?: Semanal| Semana)/, "The report title must use the Wellness name");
+  assert.match(source, /Reporte Wellness Semana \$\{executiveReportState\.week\}/, "Changing the week must preserve the Wellness report name");
   assert.ok(styles.includes("max-width: 1344px"), "Report must be 20% wider than the former 1120px layout");
   assert.ok(styles.includes("grid-template-columns: repeat(10"), "Gym chart must reserve ten weekly columns");
   assert.ok(styles.includes("grid-template-columns: repeat(4"), "Intramuros must use four columns on desktop");

@@ -674,7 +674,7 @@ let semanaTecProgramLoading = false;
 let semanaTecProgramSaving = false;
 let semanaTecProgramCloudAvailable = true;
 let semanaTecProgramFilters = { week: "todas", professor: "todos", schedule: "todos", search: "" };
-let executiveReportState = { week: 1, period: activeMasterPeriod, title: "Reporte Ejecutivo Semanal" };
+let executiveReportState = { week: 1, period: activeMasterPeriod, title: "Reporte Wellness" };
 let executivePlanningFilters = { area: "todos", status: "todos", days: "30" };
 let simulatorState = loadSimulator();
 let simulatorFilters = { selectedId: "", day: "todos", professor: "todos", installation: "todos", availabilityDay: "Lunes", availabilityTime: "09:00", installationView: "todos" };
@@ -11392,7 +11392,7 @@ function renderExecutiveGeneralDashboard() {
       <div class="exec-page">
         <header class="exec-report-titlebar">
           <div class="exec-logo">WS</div>
-          <div><h2>${escapeHtml(executiveReportState.title || "Reporte Ejecutivo Semanal")}</h2><span>WellSync · RecSports &amp; Wellness · ${escapeHtml(executiveReportState.period)}</span></div>
+          <div><h2>${escapeHtml(executiveReportState.title || "Reporte Wellness")}</h2><span>WellSync · RecSports &amp; Wellness · ${escapeHtml(executiveReportState.period)}</span></div>
           <div><strong>Semana ${executiveReportState.week}</strong><span>Semana ${executiveReportState.week} de 20</span></div>
         </header>
         <section class="exec-report-hero">
@@ -19830,14 +19830,14 @@ function render() {
   });
   $("#executiveWeek")?.addEventListener("input", (event) => {
     executiveReportState.week = Number(event.target.value) || 1;
-    executiveReportState.title = `Reporte Ejecutivo Semana ${executiveReportState.week}`;
+    executiveReportState.title = `Reporte Wellness Semana ${executiveReportState.week}`;
     render();
   });
   $("#executiveTitle")?.addEventListener("input", (event) => {
     executiveReportState.title = event.target.value;
   });
   $("#downloadExecutivePdf")?.addEventListener("click", () => {
-    addAudit("exportacion", `PDF ejecutivo general semana ${executiveReportState.week}`);
+    addAudit("exportacion", `PDF Wellness general semana ${executiveReportState.week}`);
     toast("Abriendo impresión para guardar como PDF");
     printExecutiveGeneralReport();
   });
