@@ -11703,11 +11703,13 @@ function renderIntramurosProgressCard(summaries) {
       <h3>Avance por torneo</h3>
       <div class="intramuros-progress-list">
         ${orderedSummaries.length ? orderedSummaries.map((row) => `
-          <div>
-            <span class="intramuros-progress-tournament"><span class="exec-report-sport-icon intramuros-progress-sport-icon" aria-hidden="true">${executiveIntramurosSportIcon(row.torneo)}</span><span>${escapeHtml(row.torneo)}</span></span>
-            <i><b style="width:${Math.max(4, Number(row.progress || 0))}%"></b></i>
-            <strong>${Number(row.progress || 0)}%</strong>
-            <em>${escapeHtml(row.status || "Sin estado")}</em>
+          <div class="intramuros-progress-row">
+            <span class="intramuros-progress-tournament"><span class="exec-report-sport-icon intramuros-progress-sport-icon" aria-hidden="true">${executiveIntramurosSportIcon(row.torneo)}</span><span title="${escapeHtml(row.torneo)}">${escapeHtml(row.torneo)}</span></span>
+            <div class="intramuros-progress-detail">
+              <div><strong>${Number(row.progress || 0)}%</strong><em>${escapeHtml(row.status || "Sin estado")}</em></div>
+              <i><b style="width:${Math.max(4, Number(row.progress || 0))}%"></b></i>
+              <small>${Number(row.withResult || 0).toLocaleString("es-MX")} de ${Number(row.games || 0).toLocaleString("es-MX")} juegos con resultado</small>
+            </div>
           </div>
         `).join("") : `<p class="upload-empty">Carga roles para medir avance.</p>`}
       </div>

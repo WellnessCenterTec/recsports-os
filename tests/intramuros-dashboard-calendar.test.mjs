@@ -91,16 +91,18 @@ test("Avance por torneo siempre ordena de mayor a menor porcentaje", async () =>
   const createRenderer = Function("escapeHtml", "executiveIntramurosSportIcon", `"use strict"; ${progressSource}; return renderIntramurosProgressCard;`);
   const renderProgress = createRenderer((value) => String(value ?? ""), (label) => String(label).includes("Fútbol") ? "⚽" : "🏆");
   const html = renderProgress([
-    { torneo: "Fútbol soccer", progress: 0, totalParticipants: 536, status: "Programado" },
-    { torneo: "Básquetbol", progress: 17, totalParticipants: 34, status: "En curso" },
-    { torneo: "Fútbol rápido", progress: 25, totalParticipants: 221, status: "En curso" },
-    { torneo: "Voleibol de playa", progress: 21, totalParticipants: 41, status: "En curso" }
+    { torneo: "Fútbol soccer", progress: 0, totalParticipants: 536, status: "Programado", games: 20, withResult: 0 },
+    { torneo: "Básquetbol", progress: 17, totalParticipants: 34, status: "En curso", games: 6, withResult: 1 },
+    { torneo: "Fútbol rápido", progress: 25, totalParticipants: 221, status: "En curso", games: 8, withResult: 2 },
+    { torneo: "Voleibol de playa", progress: 21, totalParticipants: 41, status: "En curso", games: 14, withResult: 3 }
   ]);
 
   const positions = ["Fútbol rápido", "Voleibol de playa", "Básquetbol", "Fútbol soccer"].map((label) => html.indexOf(label));
   assert.ok(positions.every((position) => position >= 0), "todos los torneos deben renderizarse");
   assert.deepEqual([...positions].sort((a, b) => a - b), positions, "el mayor avance debe quedar arriba y el menor abajo");
   assert.match(html, /exec-report-sport-icon/, "cada torneo debe usar el icono deportivo del Reporte Wellness");
+  assert.match(html, /2 de 8 juegos con resultado/, "el avance debe explicar juegos terminados frente al total");
+  assert.match(html, /intramuros-progress-detail/, "porcentaje y estado deben permanecer agrupados");
 });
 
 test("el buscador de Intramuros permite escribir seguido y conserva el cursor", async () => {

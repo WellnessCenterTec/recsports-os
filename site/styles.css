@@ -7550,20 +7550,26 @@ tbody tr:hover td {
   overflow: visible;
 }
 
-.intramuros-exec-bars > div,
-.intramuros-progress-list > div {
+.intramuros-exec-bars > div {
   align-items: center;
   display: grid;
   gap: 8px;
   grid-template-columns: minmax(92px, 1fr) minmax(90px, 1.2fr) auto;
 }
 
-.intramuros-progress-list > div {
-  grid-template-columns: minmax(92px, 1fr) minmax(90px, 1.2fr) auto auto;
+.intramuros-progress-row {
+  align-items: center;
+  background: #f8fbff;
+  border: 1px solid #dce8f4;
+  border-radius: 10px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(120px, .92fr) minmax(190px, 1.35fr);
+  padding: 9px 10px;
 }
 
 .intramuros-exec-bars span,
-.intramuros-progress-list span {
+.intramuros-progress-list > span {
   color: var(--muted);
   font-size: 12px;
   font-weight: 900;
@@ -7574,16 +7580,22 @@ tbody tr:hover td {
 
 .intramuros-progress-tournament {
   align-items: center;
+  color: #123a70;
   display: flex;
-  gap: 6px;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 9px;
   min-width: 0;
 }
 
 .intramuros-progress-tournament .intramuros-progress-sport-icon {
-  flex: 0 0 22px;
-  font-size: 12px;
-  height: 22px;
-  width: 22px;
+  background: #fff;
+  border: 1px solid #c9ddef;
+  box-shadow: 0 2px 5px rgba(10, 61, 116, .12);
+  flex: 0 0 34px;
+  font-size: 20px;
+  height: 34px;
+  width: 34px;
 }
 
 .intramuros-progress-tournament > span:last-child {
@@ -7593,7 +7605,7 @@ tbody tr:hover td {
 }
 
 .intramuros-exec-bars i,
-.intramuros-progress-list i {
+.intramuros-progress-detail i {
   background: #e7eef3;
   border-radius: 999px;
   display: block;
@@ -7602,24 +7614,48 @@ tbody tr:hover td {
 }
 
 .intramuros-exec-bars b,
-.intramuros-progress-list b {
+.intramuros-progress-detail b {
   background: linear-gradient(90deg, var(--blue), var(--teal));
   border-radius: inherit;
   display: block;
   height: 100%;
 }
 
-.intramuros-exec-bars strong,
-.intramuros-progress-list strong {
+.intramuros-exec-bars strong {
   font-size: 13px;
   text-align: right;
 }
 
-.intramuros-progress-list em {
+.intramuros-progress-detail {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.intramuros-progress-detail > div {
+  align-items: baseline;
+  display: flex;
+  gap: 7px;
+  justify-content: space-between;
+}
+
+.intramuros-progress-detail strong {
+  color: #08285d;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.intramuros-progress-detail em {
   color: var(--muted);
   font-size: 11px;
   font-style: normal;
   font-weight: 900;
+}
+
+.intramuros-progress-detail small {
+  color: #5d7188;
+  font-size: 10px;
+  font-weight: 800;
 }
 
 .upload-chart-card h3 {
@@ -10529,6 +10565,7 @@ body.planning-modal-open {
     grid-template-columns: 88px 126px 88px 108px 88px 126px 180px;
   }
   .intramuros-role-agenda-filters { grid-template-columns: 1fr; }
+  .intramuros-progress-row { grid-template-columns: 1fr; gap: 8px; }
   .booking-visual-row,
   .gym-dashboard-main-row { grid-template-columns: 1fr; }
   .exec-pie { justify-self: center; }
