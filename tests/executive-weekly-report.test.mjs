@@ -95,6 +95,9 @@ test("executive PDF unifies card typography and preserves both information bands
   assert.match(styles, /\.executive-report-print-page \.exec-report-intramuros-label\s*\{[^}]*font-size:\s*var\(--exec-print-value\)/s);
   assert.match(styles, /\.exec-report-hero\s*\{[^}]*background:\s*linear-gradient\(/s, "The upper blue information band must remain");
   assert.match(styles, /\.exec-report-hero\s*\{[^}]*min-height:\s*240px;/s, "The upper blue band must not leave unused space below the module cards");
+  assert.match(styles, /\.exec-report-gym-card \.exec-report-gym-columns b\s*\{[^}]*font-size:\s*10px;/s, "Gym chart values must be legible on screen");
+  assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events strong\s*\{[^}]*font-size:\s*11px;/s, "Vivencia items must be legible on screen");
+  assert.match(styles, /\.exec-insight-mentor-communities li > strong\s*\{[^}]*font-size:\s*14px;/s, "Mentor totals must be legible on screen");
   assert.match(styles, /\.exec-footer-kpis\s*\{[^}]*background:\s*var\(--teal\);[^}]*color:\s*#fff;/s, "The lower information band must remain");
 });
 
@@ -134,8 +137,8 @@ test("Vivencia shows the five latest participant uploads instead of upcoming eve
   assert.match(source, /upload\.eventName[\s\S]*?upload\.uploadDate[\s\S]*?upload\.totalLoaded/);
   assert.doesNotMatch(source, /Vivencia · próximos eventos|Sin próximos eventos con fecha/);
   assert.match(styles, /\.exec-insight-vivencia-history > div\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto auto;/s);
-  assert.match(styles, /\.exec-insight-vivencia\s*\{[^}]*padding:\s*15px 17px !important;/s, "Vivencia debe ocupar menos altura en la fila de tres tarjetas");
-  assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events > div\s*\{[^}]*padding:\s*3px 0;/s);
+  assert.match(styles, /\.exec-insight-vivencia\s*\{[^}]*padding:\s*18px 19px !important;/s, "Vivencia debe conservar espacio para texto legible en la fila de tres tarjetas");
+  assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events > div\s*\{[^}]*padding:\s*4px 0;/s);
 });
 
 test("mentor communities appear as a vertical top seven in the three-card insight row", () => {
@@ -154,7 +157,7 @@ test("mentor communities appear as a vertical top seven in the three-card insigh
   assert.match(source, /<img class="exec-mentor-community-logo"[\s\S]*?alt="\$\{escapeHtml\(row\.label\)\}"/);
   assert.doesNotMatch(source, /exec-mentor-community-logo[^\n]*?<\/img>[^\n]*?<span[^>]*>\$\{escapeHtml\(row\.label\)\}/, "The wordmark must not repeat the community name as adjacent text");
   assert.match(styles, /\.exec-mentor-community-logo\s*\{[^}]*object-fit:\s*contain;/s);
-  assert.match(styles, /\.exec-mentor-community-logo\s*\{[^}]*height:\s*20px;[^}]*width:\s*90px;/s, "Every community wordmark must use the same visible box");
+  assert.match(styles, /\.exec-mentor-community-logo\s*\{[^}]*height:\s*23px;[^}]*width:\s*100px;/s, "Every community wordmark must use the same readable visible box");
   ["forta", "kresko", "reflekto", "spirita", "talenta", "ekvilibro", "energio", "krei", "pasio", "revo"].forEach((community) => {
     const png = fs.readFileSync(new URL(`../site/assets/community-logos/${community}.png`, import.meta.url));
     assert.equal(png.readUInt32BE(16), 360, `${community} logo must use the common width`);
