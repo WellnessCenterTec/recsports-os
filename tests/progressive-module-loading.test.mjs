@@ -39,6 +39,21 @@ test("loads only the active area's dependencies and reuses ready data", async ()
   assert.deepEqual(calls.slice(-2), ["student-master", "gym"]);
 });
 
+test("Intramuros carga Representativos para detectar matrículas no elegibles", async () => {
+  const calls = [];
+  const expected = ["student-master", "intramuros", "representativos", "planning"];
+  const coordinator = createModuleDataLoader();
+  const plan = createModuleDataPlan({
+    coordinator,
+    period: "AD26",
+    loaders: Object.fromEntries(expected.map((name) => [name, async () => calls.push(name)]))
+  });
+
+  await plan.ensureArea("intramuros");
+  assert.deepEqual(calls, expected);
+  assert.deepEqual(plan.dependencies("intramuros"), expected);
+});
+
 test("loads Reporte General participation sources and planning only for Calendario", async () => {
   const calls = [];
   const dashboardDependencies = [

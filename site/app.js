@@ -12462,8 +12462,66 @@ function renderTournamentExpediente() {
   `;
 }
 
+function intramurosRepresentativeEligibilityAlerts(intramurosRows = [], representativeRows = []) {
+  const representativesByMatricula = new Map();
+  representativeRows.forEach((row) => {
+    const matricula = normalizeMatricula(row.matricula);
+    const representativo = String(row.representativo || "").trim();
+    if (!matricula || !representativo || row.duplicate) return;
+    const entries = representativesByMatricula.get(matricula) || [];
+    if (!entries.some((entry) => normalizeText(entry.representativo) === normalizeText(representativo))) {
+      entries.push({ representativo });
+      representativesByMatricula.set(matricula, entries);
+    }
+  });
+
+  const alerts = new Map();
+  intramurosRows.forEach((row) => {
+    const matricula = normalizeMatricula(row.matricula);
+    const representatives = representativesByMatricula.get(matricula) || [];
+    if (!matricula || !representatives.length) return;
+    const torneo = String(row.torneo || row.tipo_actividad || "Sin torneo").trim() || "Sin torneo";
+    const equipo = String(row.equipo || "Sin equipo asignado").trim() || "Sin equipo asignado";
+    representatives.forEach(({ representativo }) => {
+      const key = [matricula, representativo, torneo, equipo].map(normalizeText).join("|");
+      if (!alerts.has(key)) alerts.set(key, { matricula, representativo, torneo, equipo });
+    });
+  });
+
+  return Array.from(alerts.values()).sort((first, second) => (
+    first.matricula.localeCompare(second.matricula, "es")
+    || first.representativo.localeCompare(second.representativo, "es")
+    || first.torneo.localeCompare(second.torneo, "es")
+    || first.equipo.localeCompare(second.equipo, "es")
+  ));
+}
+
+function renderIntramurosRepresentativeEligibilityAlerts(alerts = []) {
+  const students = new Set(alerts.map((row) => row.matricula)).size;
+  return `
+    <section class="intramuros-eligibility-alerts" aria-label="Alertas de elegibilidad de Intramuros">
+      <div class="intramuros-eligibility-alerts-heading">
+        <div>
+          <p class="eyebrow">Alertas de elegibilidad</p>
+          <h3>Representativos e Intramuros</h3>
+          <p>Regla: los alumnos de equipos representativos no pueden participar en torneos Intramuros.</p>
+        </div>
+        <div class="intramuros-eligibility-alert-count"><strong>${alerts.length.toLocaleString("es-MX")}</strong><span>${alerts.length === 1 ? "coincidencia" : "coincidencias"}<small>${students.toLocaleString("es-MX")} ${students === 1 ? "matrícula" : "matrículas"}</small></span></div>
+      </div>
+      <div class="intramuros-eligibility-alert-table table-wrap">
+        <table>
+          <thead><tr><th>Matrícula</th><th>Deporte representativo</th><th>Torneo / deporte Intramuros</th><th>Equipo Intramuros</th></tr></thead>
+          <tbody>${alerts.length ? alerts.map((row) => `<tr><td>${escapeHtml(row.matricula)}</td><td>${escapeHtml(row.representativo)}</td><td>${escapeHtml(row.torneo)}</td><td>${escapeHtml(row.equipo)}</td></tr>`).join("") : `<tr class="intramuros-eligibility-ok"><td colspan="4">Sin alertas: no hay matrículas coincidentes entre Representativos e Intramuros con los filtros actuales.</td></tr>`}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
 function renderIntramurosDashboard() {
   const rows = filteredIntramurosParticipants();
+  const representativeRows = participationUploadState.representativos?.imported?.rows || [];
+  const eligibilityAlerts = intramurosRepresentativeEligibilityAlerts(rows, representativeRows);
   const tournaments = new Set(rows.map((row) => row.torneo).filter(Boolean)).size;
   const men = rows.filter((row) => normalizeText(row.genero).includes("masculino") || normalizeText(row.genero) === "hombre").length;
   const women = rows.filter((row) => normalizeText(row.genero).includes("femenino") || normalizeText(row.genero) === "mujer").length;
@@ -12497,6 +12555,8 @@ function renderIntramurosDashboard() {
 
       ${renderTournamentCards()}
       ${renderTournamentExpediente()}
+
+      ${renderIntramurosRepresentativeEligibilityAlerts(eligibilityAlerts)}
 
       <div class="table-wrap">
         <div class="budget-table-heading">

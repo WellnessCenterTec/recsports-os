@@ -18,7 +18,8 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
     "planningCalendarRows", "planningCalendarLoaded", "planningCalendarError",
     "intramurosRoleCalendarActivities", "intramurosCalendarLayer", "renderIntramurosFilter",
     "intramurosFilterOptions", "intramurosFilters", "renderIntramurosExecutiveCharts",
-    "renderTournamentCards", "renderTournamentExpediente", "escapeHtml"
+    "renderTournamentCards", "renderTournamentExpediente", "participationUploadState",
+    "intramurosRepresentativeEligibilityAlerts", "renderIntramurosRepresentativeEligibilityAlerts", "escapeHtml"
   ];
   const createRenderer = Function(...dependencyNames, `"use strict"; ${dashboardSource}; return renderIntramurosDashboard;`);
   const renderDashboard = createRenderer(
@@ -37,6 +38,9 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
     () => '<div data-test="executive-charts"></div>',
     () => '<div data-test="tournament-cards"></div>',
     () => '<div data-test="tournament-expediente"></div>',
+    { representativos: { imported: { rows: [{ matricula: "A001", representativo: "Voleibol" }] } } },
+    (intramurosRows, representativeRows) => intramurosRows.length && representativeRows.length ? [{ matricula: "A001" }] : [],
+    (alerts) => `<div data-test="eligibility-alerts">${alerts.length}</div>`,
     (value) => String(value ?? "")
   );
 
@@ -48,6 +52,7 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
   assert.match(html, /data-test="executive-charts"/);
   assert.match(html, /data-test="tournament-cards"/);
   assert.match(html, /data-test="tournament-expediente"/);
+  assert.match(html, /data-test="eligibility-alerts">1/);
   assert.match(html, /Participantes Intramuros/);
   assert.match(html, /Con sanción/);
   assert.match(html, />Sanción</);

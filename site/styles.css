@@ -7064,6 +7064,79 @@ tbody tr:hover td {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.intramuros-eligibility-alerts {
+  background: #fff8f3;
+  border: 1px solid #f0c7af;
+  border-left: 5px solid #c2410c;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.intramuros-eligibility-alerts-heading {
+  align-items: center;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 15px 16px 12px;
+}
+
+.intramuros-eligibility-alerts-heading h3,
+.intramuros-eligibility-alerts-heading p {
+  margin: 0;
+}
+
+.intramuros-eligibility-alerts-heading > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.intramuros-eligibility-alerts-heading > div:first-child > p:last-child {
+  color: #7c2d12;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.intramuros-eligibility-alert-count {
+  align-items: center;
+  background: #ffedd5;
+  border-radius: 9px;
+  color: #9a3412;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 9px;
+  padding: 10px 13px;
+}
+
+.intramuros-eligibility-alert-count strong {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.intramuros-eligibility-alert-count span,
+.intramuros-eligibility-alert-count small {
+  display: block;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.intramuros-eligibility-alert-count small {
+  color: #c2410c;
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.intramuros-eligibility-alert-table {
+  border: 0;
+  border-radius: 0;
+  border-top: 1px solid #f0c7af;
+}
+
+.intramuros-eligibility-alert-table table { min-width: 760px; }
+.intramuros-eligibility-alert-table thead { background: #fff1e7; }
+.intramuros-eligibility-alert-table tbody tr:not(.intramuros-eligibility-ok) { background: rgba(255, 255, 255, .72); }
+.intramuros-eligibility-alert-table tbody td:first-child { color: #9a3412; font-weight: 900; }
+.intramuros-eligibility-ok td { color: #166534; font-weight: 800; text-align: center; }
+
 .upload-chart-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
