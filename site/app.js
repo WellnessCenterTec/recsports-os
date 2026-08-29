@@ -19539,7 +19539,7 @@ function renderBookingStudentLeaderboard(rows) {
             <span class="booking-leaderboard-position">${index + 1}</span>
             <span class="booking-student-avatar" aria-hidden="true">${escapeHtml(String(row.label || "A").slice(-2).toUpperCase())}</span>
             <div class="booking-student-copy">
-              <strong title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</strong>
+              <strong title="${escapeHtml(row.label)}">${escapeHtml(row.label)} <span class="booking-student-gender">· ${escapeHtml(bookingStudentGenderLabel(row.label))}</span></strong>
               <small title="${escapeHtml(row.activities.join(" · "))}">${row.activities.map(escapeHtml).join(" · ")}</small>
             </div>
             <span>${row.count.toLocaleString("es-MX")} <small>reservaciones</small></span>
@@ -19548,6 +19548,13 @@ function renderBookingStudentLeaderboard(rows) {
       </ol>` : bookingEmptyState()}
     </article>
   `;
+}
+
+function bookingStudentGenderLabel(matricula) {
+  const gender = normalizeStudentGender(studentFromDatabase(matricula)?.genero);
+  if (gender === "Femenino") return "Mujer";
+  if (gender === "Masculino") return "Hombre";
+  return "Sin dato";
 }
 
 function bookingDayRow(rows, label) {

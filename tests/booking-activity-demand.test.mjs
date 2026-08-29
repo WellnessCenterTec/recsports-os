@@ -74,3 +74,11 @@ test("Booking student ranking includes each student's distinct disciplines", () 
   assert.ok(appSource.includes('row.activities.map(escapeHtml).join(" · ")'));
   assert.ok(styles.includes(".booking-student-copy small"));
 });
+
+test("Booking student ranking muestra el género junto a cada matrícula", () => {
+  assert.ok(appSource.includes('class="booking-student-gender"'));
+  assert.ok(appSource.includes('bookingStudentGenderLabel(row.label)'));
+  assert.match(appSource, /if \(gender === "Femenino"\) return "Mujer"/);
+  assert.match(appSource, /if \(gender === "Masculino"\) return "Hombre"/);
+  assert.ok(styles.includes(".booking-student-gender"));
+});

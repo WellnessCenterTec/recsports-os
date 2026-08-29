@@ -5781,6 +5781,12 @@ tbody tr:hover td {
   white-space: nowrap;
 }
 
+.booking-student-gender {
+  color: #527187;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .booking-student-copy {
   display: grid;
   gap: 2px;
