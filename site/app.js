@@ -12052,7 +12052,7 @@ const INTRAMUROS_FACILITY_COURTS = [
     label: "CDB2",
     courts: [
       ["CP # 1", ["cp1"], "Pádel", "padel"], ["CP # 2", ["cp2"], "Pádel", "padel"], ["CP # 3", ["cp3"], "Pádel", "padel"], ["CP # 4", ["cp4"], "Pádel", "padel"],
-      ["CT # 1", ["ct1"], "Tenis", "tenis"], ["CT # 2", ["ct2"], "Tenis", "tenis"], ["CT # 3", ["ct3"], "Tenis", "tenis"], ["CT # 4", ["ct4"], "Tenis", "tenis"], ["CT # 5", ["ct5"], "Tenis", "tenis"],
+      ["CT # 1", ["ct1"], "Tenis", "tenis"], ["CT # 2", ["ct2"], "Tenis", "tenis"], ["CT # 4", ["ct4"], "Tenis", "tenis"], ["CT # 5", ["ct5"], "Tenis", "tenis"],
       ["CT # 6", ["ct6"], "Tenis", "tenis"], ["CT # 7", ["ct7"], "Tenis", "tenis"], ["CT # 8", ["ct8"], "Tenis", "tenis"], ["CT # 9", ["ct9"], "Tenis", "tenis"], ["CT # 10", ["ct10"], "Tenis", "tenis"],
       ["VB Playa", ["vbplaya"], "Voleibol de playa", "voleibolplaya"], ["CDB 2 # 1", ["cdb21"], "Voleibol", "voleibol"], ["CDB 2 # 2", ["cdb22"], "Básquetbol", "basquetbol"]
     ]
