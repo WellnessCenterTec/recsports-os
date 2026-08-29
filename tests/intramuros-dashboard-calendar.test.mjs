@@ -143,7 +143,7 @@ test("Próximos juegos y resultados muestran información sin barras", async () 
   assert.doesNotMatch(expedienteSource, /renderUploadBars\("Pendientes"|renderUploadBars\("Resultados"/);
 });
 
-test("las seis gráficas de Roles comparten una línea horizontal y usan diseños distintos", async () => {
+test("las cinco gráficas resumidas de Roles comparten una línea horizontal y el mapa queda abajo", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
   const rolesStart = app.indexOf("function renderIntramurosRolesDashboard(");
@@ -155,10 +155,10 @@ test("las seis gráficas de Roles comparten una línea horizontal y usan diseño
     "renderIntramurosRoleRankingChart",
     "renderIntramurosRoleWeeklyChart",
     "renderIntramurosRoleDayChart",
-    "renderIntramurosRoleCourtChart",
     "renderIntramurosRoleResultChart",
     "renderIntramurosRoleFeaturedChart"
   ].forEach((renderer) => assert.match(rolesSource, new RegExp(renderer), `${renderer} debe usarse en Roles`));
+  assert.match(rolesSource, /intramuros-role-court-map-section[\s\S]*renderIntramurosRoleCourtChart\("Mapa de disponibilidad de canchas", roles\)/);
   assert.equal((rolesSource.match(/renderUploadBars\(/g) || []).length, 0);
   assert.match(styles, /\.intramuros-role-chart-grid\s*\{\s*grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*1fr\)\);/);
   assert.match(styles, /\.intramuros-role-ranking/);

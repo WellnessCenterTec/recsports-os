@@ -7369,6 +7369,13 @@ tbody tr:hover td {
 .intramuros-role-days small { color: #4c6970; font-size: 10px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .intramuros-role-courts { border-top: 4px solid #e29622; }
+.intramuros-role-court-map-section > .intramuros-role-courts { gap: 14px; padding: 16px; }
+.intramuros-role-court-map-section > .intramuros-role-courts h3 { font-size: 16px; }
+.intramuros-role-court-map-section .intramuros-court-map-controls { grid-template-columns: 150px minmax(150px, 200px) 120px; max-width: 500px; }
+.intramuros-role-court-map-section .intramuros-court-map-grid { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); max-height: none; }
+.intramuros-role-court-map-section .intramuros-court-tile { min-height: 50px; padding: 7px; }
+.intramuros-role-court-map-section .intramuros-court-tile strong { font-size: 11px; }
+.intramuros-role-court-map-section .intramuros-court-tile span { font-size: 9px; }
 .intramuros-court-map-controls { display: grid; gap: 5px; grid-template-columns: 72px minmax(98px, 1fr) 74px; }
 .intramuros-court-map-controls select,
 .intramuros-court-map-controls input { border: 1px solid #d8e1e9; border-radius: 6px; color: #435d70; font-size: 10px; font-weight: 800; min-width: 0; padding: 5px; }
@@ -7385,6 +7392,11 @@ tbody tr:hover td {
 .intramuros-court-tile span { font-size: 8px; font-weight: 800; grid-column: 2; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .intramuros-court-tile.available { background: #e8f7ed; border-color: #a8dfb8; color: #187a43; }
 .intramuros-court-tile.occupied { background: #ffebeb; border-color: #f1aaaa; color: #ae3030; }
+
+@media (max-width: 760px) {
+  .intramuros-role-court-map-section .intramuros-court-map-controls { grid-template-columns: 1fr; max-width: none; }
+  .intramuros-role-court-map-section .intramuros-court-map-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 .intramuros-role-results { border-top: 4px solid #d3507e; }
 .intramuros-role-result-main { align-items: center; display: grid; gap: 12px; grid-template-columns: 92px minmax(0, 1fr); }

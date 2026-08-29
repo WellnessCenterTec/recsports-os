@@ -12177,10 +12177,12 @@ function renderIntramurosRolesDashboard() {
         ${renderIntramurosRoleRankingChart("Juegos por torneo", intramurosGroupCounts(games, "torneo"))}
         ${renderIntramurosRoleWeeklyChart("Juegos por semana", intramurosGroupCounts(games, "semana"))}
         ${renderIntramurosRoleDayChart("Juegos por día", intramurosGroupCounts(games.map((row) => ({ day: intramurosRoleDay(row) })), "day"))}
-        ${renderIntramurosRoleCourtChart("Mapa de canchas", roles)}
         ${renderIntramurosRoleResultChart("Resultados pendientes por subir", resultFollowUp)}
         ${renderIntramurosRoleFeaturedChart("Torneos destacados", intramurosGroupCounts(games, "torneo"))}
       </div>
+      <section class="intramuros-role-court-map-section">
+        ${renderIntramurosRoleCourtChart("Mapa de disponibilidad de canchas", roles)}
+      </section>
       <div class="table-wrap intramuros-role-agenda">
         <div class="budget-table-heading"><div><p class="eyebrow">Agenda operativa</p><h3>Juegos y reservaciones detectadas</h3></div><span>${agendaRoles.length === roles.length ? `${roles.length.toLocaleString("es-MX")} registros` : `${agendaRoles.length.toLocaleString("es-MX")} de ${roles.length.toLocaleString("es-MX")} registros`}</span></div>
         <div class="intramuros-role-agenda-filters">
