@@ -7387,6 +7387,7 @@ tbody tr:hover td {
 .intramuros-court-map-legend span { align-items: center; color: #607386; display: inline-flex; font-size: 9px; font-weight: 800; gap: 4px; }
 .intramuros-court-map-legend span::before { border-radius: 50%; content: ""; height: 7px; width: 7px; }
 .intramuros-court-map-legend .occupied::before { background: #dc4d4d; }
+.intramuros-court-map-legend .pending::before { background: #d99b00; }
 .intramuros-court-map-legend .available::before { background: #35a766; }
 .intramuros-court-map-grid { display: grid; gap: 6px; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 222px; overflow: auto; padding-right: 2px; }
 .intramuros-court-map-facilities { display: grid; gap: 13px; }
@@ -7428,6 +7429,7 @@ tbody tr:hover td {
 .intramuros-court-tile.basquetbol i::after { border: 1px solid currentColor; border-radius: 0 0 10px 10px; border-top: 0; height: 16px; left: 4px; top: 0; width: 12px; box-shadow: 30px 16px 0 -1px color-mix(in srgb, currentColor 0%, transparent), 30px 16px 0 0 currentColor; }
 .intramuros-court-tile.basquetbol i::before { border: 1px solid currentColor; border-radius: 50%; height: 5px; left: 1px; top: 13px; width: 5px; box-shadow: 44px 0 0 -1px color-mix(in srgb, currentColor 0%, transparent), 44px 0 0 0 currentColor; }
 .intramuros-court-tile.available { background: #e8f7ed; border-color: #a8dfb8; color: #187a43; }
+.intramuros-court-tile.pending { background: #fff7cc; border-color: #ebcf63; color: #8a6100; }
 .intramuros-court-tile.occupied { background: #ffebeb; border-color: #f1aaaa; color: #ae3030; }
 
 @media (max-width: 760px) {

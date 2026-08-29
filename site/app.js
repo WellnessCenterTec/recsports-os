@@ -9160,7 +9160,7 @@ function intramurosRoleCloudRow(row) {
     id: row.id || "",
     torneo: canonicalIntramurosTournament(row.torneo),
     semana: row.semana || "",
-    fecha: row.fecha || "",
+    fecha: intramurosRoleDateValue(row.fecha) || row.fecha || "",
     hora: row.hora || "",
     cancha: row.cancha || "",
     grupo: row.grupo || "",
@@ -9483,15 +9483,25 @@ function intramurosRoleColumnIndex(headers, aliases) {
   return aliases.map(headerKey).map((alias) => normalized.indexOf(alias)).find((index) => index >= 0) ?? -1;
 }
 
-function intramurosRoleDateValue(value) {
+function intramurosRoleDateValue(value, defaultYear = 2026) {
   if (value instanceof Date && !Number.isNaN(value.getTime()) && value.getFullYear() >= 2000) {
-    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+    const year = value.getFullYear() === 2001 ? defaultYear : value.getFullYear();
+    return `${year}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
   }
   if (typeof value === "number" && value > 20000 && window.XLSX?.SSF?.parse_date_code) {
     const parsed = window.XLSX.SSF.parse_date_code(value);
     if (parsed?.y) return `${parsed.y}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
   }
-  return normalizePlanningCalendarDate(value);
+  const raw = String(value ?? "").trim();
+  const textual = raw.match(/^(\d{1,2})\s*[-/]\s*([a-záéíóúñ]+)$/i);
+  if (textual) {
+    const months = { ene: 1, jan: 1, enero: 1, january: 1, feb: 2, febrero: 2, mar: 3, marzo: 3, apr: 4, abr: 4, abril: 4, may: 5, mayo: 5, jun: 6, junio: 6, jul: 7, julio: 7, ago: 8, aug: 8, agosto: 8, august: 8, sep: 9, sept: 9, septiembre: 9, september: 9, oct: 10, octubre: 10, nov: 11, noviembre: 11, dec: 12, dic: 12, diciembre: 12, december: 12 };
+    const day = Number(textual[1]);
+    const month = months[normalizeText(textual[2])];
+    if (month && day >= 1 && day <= new Date(Date.UTC(defaultYear, month, 0)).getUTCDate()) return `${defaultYear}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+  const normalized = normalizePlanningCalendarDate(value);
+  return normalized.replace(/^2001-/, `${defaultYear}-`);
 }
 
 function intramurosRoleTimeValue(value) {
@@ -9661,6 +9671,7 @@ function intramurosTemplateRoleRowsFromGrid(grid, sheetName, fileName) {
       const visitor = padelResult?.visitor || String(cells?.[start + 11] ?? "").trim();
       const usageType = String(cells?.[start + 13] ?? "").trim() || "Sin tipo";
       const hasResult = padelResult?.hasResult ?? Boolean(localScore || visitorScore);
+      const hasVersus = normalizeText(cells?.[start + 10]) === "vs" || normalizeText(cells?.[start + 11]) === "vs";
       const isGame = Boolean(local && visitor);
       const isReservation = Boolean(!isGame && (local || visitor));
       const result = padelResult?.result || (hasResult
@@ -9669,6 +9680,7 @@ function intramurosTemplateRoleRowsFromGrid(grid, sheetName, fileName) {
       const status = hasResult
         ? "Con resultado"
         : isGame ? "Programado"
+          : !isReservation && hasVersus && normalizeText(usageType).includes("intramuros") ? "Pendiente de rival"
           : isReservation && normalizeText(usageType).includes("intramuros") ? "Pendiente de rival"
             : isReservation ? "Reservado" : "Disponible";
       const role = {
@@ -9786,8 +9798,8 @@ function intramurosGridRowsFromSheet(grid, sheetName, fileName) {
     const row = {
       torneo: pick("torneo") || currentTournament || "",
       semana: pick("semana"),
-      fecha: pick("fecha"),
-      hora: pick("hora"),
+      fecha: intramurosRoleDateValue(pick("fecha")) || pick("fecha"),
+      hora: intramurosRoleTimeValue(pick("hora")) || pick("hora"),
       cancha: pick("cancha"),
       grupo: pick("grupo"),
       rama: pick("rama"),
@@ -12091,7 +12103,7 @@ function intramurosRoleCourtMapState(rows, filters = intramurosRoleCourtMapFilte
   const hours = Array.from(new Set(rows.filter((row) => String(row.fecha || "").slice(0, 10) === date).map((row) => String(row.hora || "").trim()).filter(Boolean))).sort();
   const fallbackHour = hours[0] || "";
   const time = hours.includes(filters.time) ? filters.time : fallbackHour;
-  const activeRows = rows.filter((row) => String(row.fecha || "").slice(0, 10) === date && String(row.hora || "").trim() === time && String(row.equipo_local || row.equipo_visitante || "").trim());
+  const activeRows = rows.filter((row) => String(row.fecha || "").slice(0, 10) === date && String(row.hora || "").trim() === time);
   const requestedFacilities = Array.isArray(filters.facilities) ? filters.facilities : filters.facility ? [filters.facility] : INTRAMUROS_FACILITY_COURTS.map((facility) => facility.id);
   const selectedIds = requestedFacilities.filter((id) => INTRAMUROS_FACILITY_COURTS.some((facility) => facility.id === id));
   const facilities = INTRAMUROS_FACILITY_COURTS.filter((facility) => selectedIds.includes(facility.id)).map((facility) => ({
@@ -12100,9 +12112,12 @@ function intramurosRoleCourtMapState(rows, filters = intramurosRoleCourtMapFilte
       const occupiedBy = activeRows.filter((row) => intramurosRoleCourtMapMatches(row, facility, court));
       const detail = occupiedBy.map((row) => intramurosRoleIsGame(row)
         ? `${row.equipo_local} vs ${row.equipo_visitante}`
-        : row.equipo_local || row.equipo_visitante || row.torneo || "Reservación"
+        : String(row.estatus_partido || "").toLowerCase().includes("pendiente") ? "Pendiente de rival"
+          : row.equipo_local || row.equipo_visitante || row.torneo || "Disponible"
       ).join(" · ");
-      return { ...court, ball: intramurosRoleCourtBall(court.sportClass), occupiedBy, detail };
+      const occupied = occupiedBy.some((row) => intramurosRoleIsGame(row) || String(row.equipo_local || row.equipo_visitante || "").trim() || /programado|resultado|reservado/i.test(String(row.estatus_partido || "")));
+      const pending = !occupied && occupiedBy.some((row) => /pendiente/i.test(String(row.estatus_partido || "")));
+      return { ...court, ball: intramurosRoleCourtBall(court.sportClass), occupiedBy, occupied, pending, detail };
     })
   }));
   return { date, time, hours, facilities, selectedIds };
@@ -12111,8 +12126,8 @@ function intramurosRoleCourtMapState(rows, filters = intramurosRoleCourtMapFilte
 function renderIntramurosRoleCourtChart(title, rows) {
   const state = intramurosRoleCourtMapState(rows);
   const facilityControls = INTRAMUROS_FACILITY_COURTS.map((facility) => `<label><input type="checkbox" data-intramuros-court-facility value="${facility.id}" ${state.selectedIds.includes(facility.id) ? "checked" : ""} /> ${facility.label}</label>`).join("");
-  const facilityMaps = state.facilities.length ? state.facilities.map((facility) => `<section class="intramuros-court-facility"><h4>${escapeHtml(facility.label)}</h4><div class="intramuros-court-map-grid">${facility.courts.map((court) => { const occupied = court.occupiedBy.length > 0; return `<div class="intramuros-court-tile ${escapeHtml(court.sportClass)} ${occupied ? "occupied" : "available"}" title="${escapeHtml(occupied ? court.detail : `${court.label}: libre`)}"><i aria-hidden="true"><b>${court.ball}</b></i><strong>${escapeHtml(court.label)}</strong><em>${escapeHtml(court.sport)}</em><span>${escapeHtml(occupied ? court.detail : "Libre")}</span></div>`; }).join("")}</div></section>`).join("") : `<p class="intramuros-court-map-empty">Selecciona al menos una instalación.</p>`;
-  return `<article class="intramuros-role-viz intramuros-role-courts"><h3>${escapeHtml(title)}</h3><div class="intramuros-court-map-controls"><fieldset><legend>Instalaciones</legend>${facilityControls}</fieldset><input id="intramurosCourtMapDate" type="date" aria-label="Fecha del mapa de canchas" value="${escapeHtml(state.date)}" /><select id="intramurosCourtMapTime" aria-label="Horario del mapa de canchas" ${state.hours.length ? "" : "disabled"}><option value="">${state.hours.length ? "Horario" : "Sin horarios"}</option>${state.hours.map((hour) => `<option value="${escapeHtml(hour)}" ${hour === state.time ? "selected" : ""}>${escapeHtml(hour)}</option>`).join("")}</select></div><p class="intramuros-court-map-legend"><span class="occupied">Ocupada</span><span class="available">Libre</span></p><div class="intramuros-court-map-facilities">${facilityMaps}</div></article>`;
+  const facilityMaps = state.facilities.length ? state.facilities.map((facility) => `<section class="intramuros-court-facility"><h4>${escapeHtml(facility.label)}</h4><div class="intramuros-court-map-grid">${facility.courts.map((court) => { const stateClass = court.occupied ? "occupied" : court.pending ? "pending" : "available"; const stateLabel = court.occupied || court.pending ? court.detail : "Libre"; return `<div class="intramuros-court-tile ${escapeHtml(court.sportClass)} ${stateClass}" title="${escapeHtml(court.occupied || court.pending ? court.detail : `${court.label}: libre`)}"><i aria-hidden="true"><b>${court.ball}</b></i><strong>${escapeHtml(court.label)}</strong><em>${escapeHtml(court.sport)}</em><span>${escapeHtml(stateLabel)}</span></div>`; }).join("")}</div></section>`).join("") : `<p class="intramuros-court-map-empty">Selecciona al menos una instalación.</p>`;
+  return `<article class="intramuros-role-viz intramuros-role-courts"><h3>${escapeHtml(title)}</h3><div class="intramuros-court-map-controls"><fieldset><legend>Instalaciones</legend>${facilityControls}</fieldset><input id="intramurosCourtMapDate" type="date" aria-label="Fecha del mapa de canchas" value="${escapeHtml(state.date)}" /><select id="intramurosCourtMapTime" aria-label="Horario del mapa de canchas" ${state.hours.length ? "" : "disabled"}><option value="">${state.hours.length ? "Horario" : "Sin horarios"}</option>${state.hours.map((hour) => `<option value="${escapeHtml(hour)}" ${hour === state.time ? "selected" : ""}>${escapeHtml(hour)}</option>`).join("")}</select></div><p class="intramuros-court-map-legend"><span class="occupied">Ocupada</span><span class="pending">Pendiente de rival</span><span class="available">Libre</span></p><div class="intramuros-court-map-facilities">${facilityMaps}</div></article>`;
 }
 
 function intramurosRoleResultFollowUp(rows, now = new Date()) {

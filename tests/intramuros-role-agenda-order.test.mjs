@@ -74,6 +74,19 @@ test("la alerta de resultados vencidos cuenta sólo juegos anteriores sin result
   });
 });
 
+test("las fechas abreviadas del rol se interpretan en 2026", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const source = extractFunction(app, "intramurosRoleDateValue", "intramurosRoleTimeValue");
+  const normalize = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const parseDate = Function("normalizePlanningCalendarDate", "normalizeText", `"use strict"; ${source}; return intramurosRoleDateValue;`)(
+    () => "",
+    normalize
+  );
+  assert.equal(parseDate("31-Aug"), "2026-08-31");
+  assert.equal(parseDate("01-sep"), "2026-09-01");
+  assert.equal(parseDate("27-ago"), "2026-08-27");
+});
+
 test("la alerta muestra cada torneo con sus partidos vencidos pendientes", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const source = extractFunction(app, "intramurosRoleResultFollowUp", "renderIntramurosRoleResultChart");
@@ -111,6 +124,7 @@ test("el mapa de canchas usa recinto, fecha y horario para marcar ocupación", a
     { fecha: "2026-08-29", hora: "18:00", cancha: "C # 3", torneo: "Fútbol soccer", equipo_local: "Azules", equipo_visitante: "Rojos" },
     { fecha: "2026-08-29", hora: "18:00", cancha: "C # 3", torneo: "Pádel", equipo_local: "Pádel A", equipo_visitante: "Pádel B" },
     { fecha: "2026-08-29", hora: "18:00", cancha: "Tocho", torneo: "Tochito", equipo_local: "Tochos", equipo_visitante: "Borregos" },
+    { fecha: "2026-08-29", hora: "18:00", cancha: "Soft 1", torneo: "Fútbol 7", estatus_partido: "Pendiente de rival" },
     { fecha: "2026-08-29", hora: "19:00", cancha: "WELL 1 / VB", torneo: "Voleibol de sala", equipo_local: "A", equipo_visitante: "B" }
   ];
   const cdb1 = courtMap(rows, { facilities: ["CDB1"], date: "2026-08-29", time: "18:00" });
@@ -120,6 +134,7 @@ test("el mapa de canchas usa recinto, fecha y horario para marcar ocupación", a
   assert.deepEqual(courtMap(rows, { date: "2026-08-29", time: "18:00" }).selectedIds, ["CDB1", "CDB2", "WELLNESS"]);
   assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "C # 3").occupiedBy.length, 1);
   assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "Tocho").occupiedBy.length, 1);
+  assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "Soft 1").pending, true);
   assert.equal(cdb2.facilities[0].courts.find((court) => court.label === "CP # 3").occupiedBy.length, 1);
   assert.equal(cdb2.facilities[0].courts.some((court) => court.label === "CT # 3"), false);
   assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "Tocho").sport, "Tochito");
