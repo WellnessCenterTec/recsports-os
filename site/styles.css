@@ -1942,6 +1942,8 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 
 .mentor-area-summary {
   border-right: 1px solid var(--line, #dce4ec);
+  display: flex;
+  flex-direction: column;
   padding: 18px;
 }
 
@@ -1957,6 +1959,27 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   font-size: 12px;
   font-weight: 750;
 }
+
+.mentor-sport-collaboration {
+  background: linear-gradient(135deg, #edf8ff, #effcf8);
+  border: 1px solid #cce5e7;
+  border-left: 4px solid #0b9190;
+  border-radius: 12px;
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding: 14px;
+}
+
+.mentor-sport-collaboration p,
+.mentor-sport-collaboration small { margin: 0; }
+.mentor-sport-collaboration p { color: #0b5b73; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+.mentor-sport-collaboration > div { align-items: baseline; display: flex; gap: 7px; }
+.mentor-sport-collaboration strong { color: #056b72; font-size: 31px; line-height: 1; }
+.mentor-sport-collaboration span { color: #4d6a78; font-size: 11px; font-weight: 800; }
+.mentor-sport-collaboration > i { background: #cfe3e8; border-radius: 999px; display: block; height: 8px; overflow: hidden; }
+.mentor-sport-collaboration > i b { background: linear-gradient(90deg, #0fa6a7, #0e73a8); border-radius: inherit; display: block; height: 100%; }
+.mentor-sport-collaboration small { color: #527181; font-size: 10px; font-weight: 700; line-height: 1.35; }
 
 .mentor-student-panel {
   min-width: 0;

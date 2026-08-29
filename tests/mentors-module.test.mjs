@@ -65,6 +65,28 @@ test("WellSync cruza todas las fuentes identificables y el detalle no renderiza 
   assert.doesNotMatch(detailSource, /Estudiante|Nombre del alumno|Nombre completo/i);
   assert.match(detailSource, /Matrícula/);
   assert.match(detailSource, /Áreas \/ módulos/);
+  assert.match(detailSource, /Participación deportiva WellSync/);
+});
+
+test("La colaboración deportiva cuenta sólo las actividades solicitadas dentro de la mentoría", async () => {
+  const source = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const start = source.indexOf("function mentorSportsCollaborationSummary(");
+  const end = source.indexOf("\nfunction renderMentorDetail(", start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const helperSource = source.slice(start, end);
+  const summarize = Function(`"use strict"; ${helperSource}; return mentorSportsCollaborationSummary;`)();
+  const summary = summarize({
+    total: 4,
+    students: [
+      { areas: ["Clases Deportivas"] },
+      { areas: ["Gimnasio", "Booking"] },
+      { areas: ["Representativos", "Comunicación"] },
+      { areas: [] }
+    ]
+  });
+
+  assert.deepEqual(summary, { collaborating: 2, total: 4, percentage: 50 });
 });
 
 test("Mentoría compartida usa Supabase sin columnas de nombres de alumnos", async () => {

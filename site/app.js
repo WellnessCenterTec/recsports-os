@@ -14206,6 +14206,28 @@ async function importMentorshipWorkbook(file) {
   }
 }
 
+function mentorSportsCollaborationSummary(mentor = {}) {
+  const sportsAreas = new Set([
+    "Clases Deportivas",
+    "Intramuros",
+    "Representativos",
+    "Vivencia",
+    "Comunicación",
+    "Semana Tec",
+    "Gamer"
+  ]);
+  const students = Array.isArray(mentor.students) ? mentor.students : [];
+  const collaborating = students.filter((student) => (
+    Array.isArray(student.areas) && student.areas.some((area) => sportsAreas.has(String(area || "").trim()))
+  )).length;
+  const total = Number(mentor.total ?? students.length) || 0;
+  return {
+    collaborating,
+    total,
+    percentage: total ? Math.round((collaborating / total) * 1000) / 10 : 0
+  };
+}
+
 function renderMentorDetail(mentor) {
   if (!mentor) return "";
   const filteredStudents = mentor.students.filter((student) => {
@@ -14216,6 +14238,7 @@ function renderMentorDetail(mentor) {
     return participationMatch && searchMatch;
   });
   const maxArea = Math.max(1, ...mentor.areaSummary.map((row) => row.count));
+  const sportsCollaboration = mentorSportsCollaborationSummary(mentor);
   return `
     <section class="mentor-detail" aria-label="Detalle del mentor">
       <header class="mentor-detail-heading">
@@ -14226,6 +14249,12 @@ function renderMentorDetail(mentor) {
         <article class="mentor-area-summary">
           <h4>Resumen por tipo de actividad</h4>
           ${mentor.areaSummary.length ? mentor.areaSummary.map((row) => `<div class="mentor-area-row"><span>${escapeHtml(row.area)}</span><div><i style="width:${Math.round(row.count / maxArea * 100)}%"></i></div><strong>${row.count.toLocaleString("es-MX")}</strong></div>`).join("") : '<p class="mentor-empty-copy">Sin coincidencias Wellness identificables por matrícula.</p>'}
+          <section class="mentor-sport-collaboration" aria-label="Alumnos de mentoría con actividad deportiva">
+            <p>Participación deportiva WellSync</p>
+            <div><strong>${sportsCollaboration.collaborating.toLocaleString("es-MX")}</strong><span>de ${sportsCollaboration.total.toLocaleString("es-MX")} alumnos asignados</span></div>
+            <i><b style="width:${sportsCollaboration.percentage}%"></b></i>
+            <small>${sportsCollaboration.percentage.toFixed(1)}% participa en Clases, Torneos, Representativos, Vivencia, Comunicación, Semana Tec o Gamer.</small>
+          </section>
         </article>
         <article class="mentor-student-panel">
           <div class="mentor-student-toolbar">
