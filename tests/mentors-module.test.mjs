@@ -66,6 +66,7 @@ test("WellSync cruza todas las fuentes identificables y el detalle no renderiza 
   assert.match(detailSource, /Matrícula/);
   assert.match(detailSource, /Áreas \/ módulos/);
   assert.match(detailSource, /Participación deportiva WellSync/);
+  assert.match(detailSource, /second\.areaCount[\s\S]*first\.areaCount/);
 });
 
 test("La colaboración deportiva cuenta sólo las actividades solicitadas dentro de la mentoría", async () => {

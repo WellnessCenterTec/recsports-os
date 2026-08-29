@@ -14346,7 +14346,10 @@ function renderMentorDetail(mentor) {
       || (mentorshipStudentFilter === "no" && !student.participates);
     const searchMatch = !mentorshipSearch || student.matricula.includes(normalizeMatricula(mentorshipSearch));
     return participationMatch && searchMatch;
-  });
+  }).sort((first, second) => (
+    Number(second.areaCount || second.areas?.length || 0) - Number(first.areaCount || first.areas?.length || 0)
+    || String(first.matricula || "").localeCompare(String(second.matricula || ""), "es")
+  ));
   const maxArea = Math.max(1, ...mentor.areaSummary.map((row) => row.count));
   const sportsCollaboration = mentorSportsCollaborationSummary(mentor);
   return `
