@@ -12041,10 +12041,26 @@ function renderIntramurosRoleCourtChart(title, rows) {
   return `<article class="intramuros-role-viz intramuros-role-courts"><h3>${escapeHtml(title)}</h3><div>${values.map((row, index) => `<p><b>${String(index + 1).padStart(2, "0")}</b><span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><strong>${row.value}</strong></p>`).join("") || `<p>Sin juegos registrados.</p>`}</div></article>`;
 }
 
-function renderIntramurosRoleResultChart(title, completed, pending) {
-  const total = completed + pending;
-  const progress = total ? Math.round((completed / total) * 100) : 0;
-  return `<article class="intramuros-role-viz intramuros-role-results"><h3>${escapeHtml(title)}</h3><div class="intramuros-role-result-main"><div class="intramuros-role-result-donut" style="--result-progress:${progress}%"><strong>${progress}%</strong><span>finalizado</span></div><div><strong>${completed}</strong><span>con resultado</span><small>${pending} pendientes</small></div></div><p><span>Resultados</span><b>${completed}</b><span>Pendientes</span><b>${pending}</b></p></article>`;
+function intramurosRoleResultFollowUp(rows, now = new Date()) {
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const gamesWithPastDate = rows.filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(String(row.fecha || "").slice(0, 10)) && String(row.fecha).slice(0, 10) < today);
+  const completed = gamesWithPastDate.filter(intramurosRoleHasResult).length;
+  const overdue = gamesWithPastDate.length - completed;
+  const overdueByTournament = new Map();
+  gamesWithPastDate.filter((row) => !intramurosRoleHasResult(row)).forEach((row) => {
+    const tournament = String(row.torneo || "Sin torneo").trim() || "Sin torneo";
+    overdueByTournament.set(tournament, (overdueByTournament.get(tournament) || 0) + 1);
+  });
+  const [topTournament = "Sin pendientes", topTournamentOverdue = 0] = [...overdueByTournament.entries()]
+    .sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0], "es"))[0] || [];
+  const upcoming = rows.filter((row) => String(row.fecha || "").slice(0, 10) >= today && !intramurosRoleHasResult(row)).length;
+  const onTimePercent = gamesWithPastDate.length ? Math.round((completed / gamesWithPastDate.length) * 100) : 100;
+  return { completed, overdue, upcoming, dueGames: gamesWithPastDate.length, onTimePercent, topTournament, topTournamentOverdue };
+}
+
+function renderIntramurosRoleResultChart(title, summary) {
+  const { overdue = 0, onTimePercent = 0, topTournament = "Sin pendientes", topTournamentOverdue = 0 } = summary || {};
+  return `<article class="intramuros-role-viz intramuros-role-results"><h3>${escapeHtml(title)}</h3><div class="intramuros-role-result-main"><div class="intramuros-role-result-donut" style="--result-progress:${onTimePercent}%"><strong>${overdue}</strong><span>vencidos</span></div><div><strong>${topTournamentOverdue}</strong><span title="${escapeHtml(topTournament)}">${escapeHtml(topTournament)}</span><small>resultados pendientes por subir</small></div></div><p><span>Vencidos</span><b>${overdue}</b><span>Avance al corte</span><b>${onTimePercent}%</b></p></article>`;
 }
 
 function renderIntramurosRoleFeaturedChart(title, rows) {
@@ -12062,7 +12078,7 @@ function renderIntramurosRolesDashboard() {
   const games = roles.filter(intramurosRoleIsGame);
   const reservations = roles.filter((row) => !intramurosRoleIsGame(row) && String(row.equipo_local || row.equipo_visitante || "").trim());
   const withResult = games.filter(intramurosRoleHasResult).length;
-  const pending = Math.max(0, games.length - withResult);
+  const resultFollowUp = intramurosRoleResultFollowUp(games);
   const activeTournaments = new Set(games.map((row) => row.torneo).filter(Boolean)).size;
   return `
     <section class="intramuros-roles-section">
@@ -12103,7 +12119,7 @@ function renderIntramurosRolesDashboard() {
         <article><span>Juegos por día</span><strong>${intramurosGroupCounts(games.map((row) => ({ day: intramurosRoleDay(row) })), "day").length.toLocaleString("es-MX")}</strong><em>días</em></article>
         <article><span>Juegos por cancha</span><strong>${new Set(games.map((row) => row.cancha).filter(Boolean)).size.toLocaleString("es-MX")}</strong><em>canchas</em></article>
         <article><span>Torneos activos con rol</span><strong>${activeTournaments.toLocaleString("es-MX")}</strong><em>torneos</em></article>
-        <article><span>Con resultado</span><strong>${withResult.toLocaleString("es-MX")}</strong><em>${pending.toLocaleString("es-MX")} pendientes</em></article>
+        <article><span>Con resultado</span><strong>${withResult.toLocaleString("es-MX")}</strong><em>${resultFollowUp.overdue.toLocaleString("es-MX")} resultados vencidos</em></article>
         <article><span>Reservaciones / eventos</span><strong>${reservations.length.toLocaleString("es-MX")}</strong><em>no cuentan como juego</em></article>
       </div>
       <div class="upload-chart-grid intramuros-role-chart-grid">
@@ -12111,7 +12127,7 @@ function renderIntramurosRolesDashboard() {
         ${renderIntramurosRoleWeeklyChart("Juegos por semana", intramurosGroupCounts(games, "semana"))}
         ${renderIntramurosRoleDayChart("Juegos por día", intramurosGroupCounts(games.map((row) => ({ day: intramurosRoleDay(row) })), "day"))}
         ${renderIntramurosRoleCourtChart("Uso de canchas", intramurosGroupCounts(games, "cancha"))}
-        ${renderIntramurosRoleResultChart("Resultado vs pendientes", withResult, pending)}
+        ${renderIntramurosRoleResultChart("Resultados pendientes por subir", resultFollowUp)}
         ${renderIntramurosRoleFeaturedChart("Torneos destacados", intramurosGroupCounts(games, "torneo"))}
       </div>
       <div class="table-wrap intramuros-role-agenda">

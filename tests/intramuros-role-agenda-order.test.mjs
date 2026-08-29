@@ -48,3 +48,27 @@ test("la agenda de Intramuros muestra hoy, próximos y al final los pasados", as
   ], "el orden original de los datos no debe modificarse");
   assert.match(rendererSource, /intramurosRoleAgendaRows\(agendaRoles\)/, "la tabla debe usar el orden operativo después de filtrar");
 });
+
+test("la alerta de resultados vencidos cuenta sólo juegos anteriores sin resultado", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const source = extractFunction(app, "intramurosRoleResultFollowUp", "renderIntramurosRoleResultChart");
+  const makeSummary = Function("intramurosRoleHasResult", `"use strict"; ${source}; return intramurosRoleResultFollowUp;`)(
+    (row) => Boolean(row.resultado)
+  );
+  const summary = makeSummary([
+    { fecha: "2026-08-25", resultado: "2 - 1" },
+    { fecha: "2026-08-26", resultado: "" },
+    { fecha: "2026-08-28", resultado: "" },
+    { fecha: "2026-08-29", resultado: "" },
+    { fecha: "2026-08-30", resultado: "" }
+  ], new Date(2026, 7, 29));
+  assert.deepEqual(summary, {
+    completed: 1,
+    overdue: 2,
+    upcoming: 2,
+    dueGames: 3,
+    onTimePercent: 33,
+    topTournament: "Sin torneo",
+    topTournamentOverdue: 2
+  });
+});
