@@ -12086,33 +12086,21 @@ function renderIntramurosRolesDashboard() {
         <div><p class="eyebrow">Fase 3</p><h3>Roles de Juego</h3></div>
         <span>${games.length.toLocaleString("es-MX")} juegos · ${reservations.length.toLocaleString("es-MX")} reservaciones</span>
       </div>
-      <div class="upload-center-grid">
-        <article class="upload-info-panel">
-          <h3>📤 Cargar Roles de Juego</h3>
-          <p>Lee roles semanales aunque vengan por bloques. Si un campo no se detecta, queda vacío y se reporta.</p>
-          <div class="upload-required-list">
-            <strong>Campos que intenta extraer</strong>
-            ${["torneo", "semana", "fecha", "hora", "cancha", "grupo", "rama", "equipo_local", "equipo_visitante", "resultado", "observaciones", "estatus_partido"].map((field) => `<span>${field}</span>`).join("")}
-          </div>
-          <div class="upload-template-preview">
-            <strong>Vista esperada</strong>
-            <table>
-              <thead><tr><th>Torneo</th><th>Fecha</th><th>Hora</th><th>Cancha</th><th>Local</th><th>Visitante</th></tr></thead>
-              <tbody><tr><td>Fútbol 7</td><td>2026-08-17</td><td>18:00</td><td>Cancha 1</td><td>Equipo Azul</td><td>Equipo Blanco</td></tr></tbody>
-            </table>
-          </div>
-          <button class="ghost-btn" type="button" data-download-intramuros-template="roles">Descargar plantilla de roles</button>
-        </article>
-        <article class="upload-drop-panel">
-          <label class="upload-drop-zone" id="intramurosRolesUploadDrop">
+      <section class="intramuros-role-upload-compact">
+        <div class="intramuros-role-upload-copy">
+          <div><p class="eyebrow">Carga semanal</p><h3>Roles de Juego</h3></div>
+          <p>Excel o CSV de Omar. Detecta torneo, fecha, hora, cancha, equipos, resultado y estatus.</p>
+          <button class="ghost-btn compact-action" type="button" data-download-intramuros-template="roles">Descargar plantilla</button>
+        </div>
+        <div class="intramuros-role-upload-action">
+          <label class="upload-drop-zone intramuros-role-upload-drop" id="intramurosRolesUploadDrop">
             <input id="intramurosRolesFile" type="file" accept=".csv,.xlsx,.xls" hidden />
             <strong>${intramurosRolesImporting ? "Cargando roles..." : "Seleccionar Roles de Juego"}</strong>
-            <span>Excel/CSV semanal de Omar</span>
-            <em>Primero revisa; después sustituye la carga anterior</em>
+            <span>Excel / CSV semanal · revisión antes de sustituir</span>
           </label>
-          ${renderIntramurosRolesUploadSummary()}
-        </article>
-      </div>
+          ${intramurosRolesUploadSummary ? renderIntramurosRolesUploadSummary() : ""}
+        </div>
+      </section>
       <div class="upload-kpi-grid intramuros-role-kpi-grid">
         <article><span>Total juegos programados</span><strong>${games.length.toLocaleString("es-MX")}</strong><em>con ambos equipos</em></article>
         <article><span>Juegos por semana</span><strong>${intramurosGroupCounts(games, "semana").length.toLocaleString("es-MX")}</strong><em>semanas</em></article>

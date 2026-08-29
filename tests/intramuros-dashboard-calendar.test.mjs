@@ -168,6 +168,22 @@ test("las seis gráficas de Roles comparten una línea horizontal y usan diseño
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*?\.intramuros-role-chart-grid \{ grid-template-columns: 1fr; \}/);
 });
 
+test("la carga de Roles usa una franja compacta sin previsualización repetitiva", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  const rolesStart = app.indexOf("function renderIntramurosRolesDashboard(");
+  const rolesEnd = app.indexOf("\nfunction intramurosOperationMetrics(", rolesStart);
+  const rolesSource = app.slice(rolesStart, rolesEnd);
+
+  assert.match(rolesSource, /intramuros-role-upload-compact/);
+  assert.match(rolesSource, /Descargar plantilla/);
+  assert.doesNotMatch(rolesSource, /upload-template-preview/);
+  assert.doesNotMatch(rolesSource, /upload-required-list/);
+  assert.doesNotMatch(rolesSource, /Sin roles cargados en esta sesión/);
+  assert.match(styles, /\.intramuros-role-upload-compact\s*\{[\s\S]*grid-template-columns:/);
+  assert.match(styles, /\.upload-drop-zone\.intramuros-role-upload-drop\s*\{[\s\S]*min-height:\s*104px/);
+});
+
 test("los siete indicadores de Roles permanecen en una sola línea", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
