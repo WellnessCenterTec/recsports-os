@@ -35,8 +35,22 @@ test("Booking activity demand uses each activity's own distinct dates", () => {
   assert.deepEqual(grouped[1], { label: "Ciclismo", count: 3, distinctDates: 2, dailyPercent: 1.5 });
 });
 
+test("Booking activity demand orders highest daily demand first", () => {
+  const grouped = group([
+    { activity: "Muchos registros", dateLabel: "01/08/2026" },
+    { activity: "Muchos registros", dateLabel: "02/08/2026" },
+    { activity: "Muchos registros", dateLabel: "03/08/2026" },
+    { activity: "Demanda alta", dateLabel: "04/08/2026" },
+    { activity: "Demanda alta", dateLabel: "04/08/2026" }
+  ]);
+  assert.deepEqual(grouped.map((row) => row.label), ["Demanda alta", "Muchos registros"]);
+  assert.deepEqual(grouped.map((row) => row.dailyPercent), [2, 1]);
+});
+
 test("Booking activity card shows count, divisor days, and calculated percentage", () => {
   assert.ok(appSource.includes('renderBookingActivityBars(activities)'));
+  assert.ok(appSource.includes('bookingVisualHeader("Demanda promedio diaria", "Actividades con mayor demanda"'));
+  assert.ok(appSource.includes('(row.dailyPercent / max) * 100'));
   assert.ok(appSource.includes('<div class="booking-activity-rate"><strong>${percentage}%</strong><small>entre ${dateLabel}</small></div>'));
   assert.ok(styles.includes(".booking-activity-rate"));
   assert.match(styles, /\.booking-activity-copy\s*{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*auto/s);

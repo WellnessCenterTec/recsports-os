@@ -19377,7 +19377,7 @@ function groupBookingActivityRows(rows) {
       const dailyPercent = distinctDates ? Math.round((entry.count / distinctDates) * 10) / 10 : 0;
       return { label: entry.label, count: entry.count, distinctDates, dailyPercent };
     })
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+    .sort((a, b) => b.dailyPercent - a.dailyPercent || b.count - a.count || a.label.localeCompare(b.label));
 }
 
 function groupBookingStudentRows(rows) {
@@ -19506,13 +19506,13 @@ const BOOKING_DAY_ORDER = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes",
 
 function renderBookingActivityBars(rows) {
   const visible = rows.slice(0, 7);
-  const max = Math.max(...visible.map((row) => row.count), 1);
+  const max = Math.max(...visible.map((row) => row.dailyPercent), 1);
   return `
     <article class="booking-card booking-visual-card booking-visual-bars">
-      ${bookingVisualHeader("Demanda por servicio", "Actividades con más Booking", "chart-no-axes-column-increasing")}
+      ${bookingVisualHeader("Demanda promedio diaria", "Actividades con mayor demanda", "chart-no-axes-column-increasing")}
       ${visible.length ? `<div class="booking-activity-bars">
         ${visible.map((row, index) => {
-          const width = Math.max(5, Math.round((row.count / max) * 100));
+          const width = Math.max(5, Math.round((row.dailyPercent / max) * 100));
           const percentage = row.dailyPercent.toLocaleString("es-MX", { maximumFractionDigits: 1 });
           const dateLabel = row.distinctDates === 1 ? "1 día" : `${row.distinctDates.toLocaleString("es-MX")} días`;
           return `<div class="booking-activity-row" title="${escapeHtml(row.label)}: ${row.count.toLocaleString("es-MX")} reservaciones / ${dateLabel} = ${percentage}%">
