@@ -12116,14 +12116,20 @@ function intramurosRoleResultFollowUp(rows, now = new Date()) {
   });
   const [topTournament = "Sin pendientes", topTournamentOverdue = 0] = [...overdueByTournament.entries()]
     .sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0], "es"))[0] || [];
+  const overdueTournaments = [...overdueByTournament.entries()]
+    .sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0], "es"))
+    .map(([tournament, pending]) => ({ tournament, pending }));
   const upcoming = rows.filter((row) => String(row.fecha || "").slice(0, 10) >= today && !intramurosRoleHasResult(row)).length;
   const onTimePercent = gamesWithPastDate.length ? Math.round((completed / gamesWithPastDate.length) * 100) : 100;
-  return { completed, overdue, upcoming, dueGames: gamesWithPastDate.length, onTimePercent, topTournament, topTournamentOverdue };
+  return { completed, overdue, upcoming, dueGames: gamesWithPastDate.length, onTimePercent, topTournament, topTournamentOverdue, overdueTournaments };
 }
 
 function renderIntramurosRoleResultChart(title, summary) {
-  const { overdue = 0, onTimePercent = 0, topTournament = "Sin pendientes", topTournamentOverdue = 0 } = summary || {};
-  return `<article class="intramuros-role-viz intramuros-role-results"><h3>${escapeHtml(title)}</h3><div class="intramuros-role-result-main"><div class="intramuros-role-result-donut" style="--result-progress:${onTimePercent}%"><strong>${overdue}</strong><span>vencidos</span></div><div><strong>${topTournamentOverdue}</strong><span title="${escapeHtml(topTournament)}">${escapeHtml(topTournament)}</span><small>resultados pendientes por subir</small></div></div><p><span>Vencidos</span><b>${overdue}</b><span>Avance al corte</span><b>${onTimePercent}%</b></p></article>`;
+  const { overdue = 0, onTimePercent = 0, overdueTournaments = [] } = summary || {};
+  const tournamentList = overdueTournaments.length
+    ? `<ol class="intramuros-role-overdue-tournaments">${overdueTournaments.slice(0, 4).map(({ tournament, pending }) => `<li><span title="${escapeHtml(tournament)}">${escapeHtml(tournament)}</span><b>${pending}</b><small>${pending === 1 ? "partido pendiente" : "partidos pendientes"}</small></li>`).join("")}</ol>`
+    : `<p class="intramuros-role-no-overdue">No hay resultados vencidos por subir.</p>`;
+  return `<article class="intramuros-role-viz intramuros-role-results"><h3>${escapeHtml(title)}</h3><div class="intramuros-role-result-main"><div class="intramuros-role-result-donut" style="--result-progress:${onTimePercent}%"><strong>${overdue}</strong><span>vencidos</span></div><div><strong>${overdue}</strong><span>partidos vencidos sin resultado</span><small>al corte de hoy</small></div></div><div class="intramuros-role-overdue-heading"><span>Pendientes por torneo</span><small>partidos sin resultado</small></div>${tournamentList}<p><span>Vencidos</span><b>${overdue}</b><span>Avance al corte</span><b>${onTimePercent}%</b></p></article>`;
 }
 
 function renderIntramurosRoleFeaturedChart(title, rows) {

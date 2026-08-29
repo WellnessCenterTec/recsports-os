@@ -7409,6 +7409,15 @@ tbody tr:hover td {
 .intramuros-role-result-main > div:last-child strong { color: #8c244e; font-size: 28px; line-height: 1; }
 .intramuros-role-result-main > div:last-child span { color: #53687e; font-size: 10px; font-weight: 900; }
 .intramuros-role-result-main > div:last-child small { color: #ad5a76; font-size: 10px; font-weight: 800; }
+.intramuros-role-overdue-heading { align-items: baseline; border-top: 1px solid #f1dbe4; display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px; }
+.intramuros-role-overdue-heading span { color: #5b3446; font-size: 10px; font-weight: 900; }
+.intramuros-role-overdue-heading small { color: #8a7080; font-size: 8px; font-weight: 800; }
+.intramuros-role-overdue-tournaments { display: grid; gap: 4px; list-style: none; margin: 6px 0 0; padding: 0; }
+.intramuros-role-overdue-tournaments li { align-items: baseline; display: grid; gap: 4px; grid-template-columns: minmax(0, 1fr) auto; }
+.intramuros-role-overdue-tournaments li span { color: #53687e; font-size: 10px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intramuros-role-overdue-tournaments li b { color: #9d315b; font-size: 12px; grid-column: 2; grid-row: 1 / span 2; }
+.intramuros-role-overdue-tournaments li small { color: #8a7080; font-size: 8px; font-weight: 800; }
+.intramuros-role-no-overdue { color: #60768b; font-size: 10px; font-weight: 800; margin: 8px 0 0; }
 .intramuros-role-results > p { align-items: center; border-top: 1px solid #f1dbe4; display: flex; gap: 5px; padding-top: 8px; }
 .intramuros-role-results > p span { color: #6c6170; font-size: 9px; font-weight: 800; }
 .intramuros-role-results > p b { color: #9d315b; font-size: 10px; margin-right: 4px; }

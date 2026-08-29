@@ -69,8 +69,29 @@ test("la alerta de resultados vencidos cuenta sólo juegos anteriores sin result
     dueGames: 3,
     onTimePercent: 33,
     topTournament: "Sin torneo",
-    topTournamentOverdue: 2
+    topTournamentOverdue: 2,
+    overdueTournaments: [{ tournament: "Sin torneo", pending: 2 }]
   });
+});
+
+test("la alerta muestra cada torneo con sus partidos vencidos pendientes", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const source = extractFunction(app, "intramurosRoleResultFollowUp", "renderIntramurosRoleResultChart");
+  const makeSummary = Function("intramurosRoleHasResult", `"use strict"; ${source}; return intramurosRoleResultFollowUp;`)(
+    (row) => Boolean(row.resultado)
+  );
+  const summary = makeSummary([
+    { fecha: "2026-08-25", torneo: "Pádel" },
+    { fecha: "2026-08-26", torneo: "Fútbol 7" },
+    { fecha: "2026-08-27", torneo: "Pádel" }
+  ], new Date(2026, 7, 29));
+  assert.deepEqual(summary.overdueTournaments, [
+    { tournament: "Pádel", pending: 2 },
+    { tournament: "Fútbol 7", pending: 1 }
+  ]);
+  const renderer = extractFunction(app, "renderIntramurosRoleResultChart", "renderIntramurosRoleFeaturedChart");
+  assert.match(renderer, /Pendientes por torneo/);
+  assert.match(renderer, /partidos pendientes/);
 });
 
 test("el mapa de canchas usa recinto, fecha y horario para marcar ocupación", async () => {
