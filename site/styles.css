@@ -7369,11 +7369,22 @@ tbody tr:hover td {
 .intramuros-role-days small { color: #4c6970; font-size: 10px; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .intramuros-role-courts { border-top: 4px solid #e29622; }
-.intramuros-role-courts > div { display: grid; gap: 7px; }
-.intramuros-role-courts p { align-items: center; display: grid; gap: 6px; grid-template-columns: 23px minmax(0, 1fr) auto; }
-.intramuros-role-courts p > b { color: #bd6c00; font-size: 10px; }
-.intramuros-role-courts p > span { color: #596b80; font-size: 11px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.intramuros-role-courts p > strong { background: #fff0d7; border-radius: 999px; color: #9a5600; font-size: 10px; padding: 3px 6px; }
+.intramuros-court-map-controls { display: grid; gap: 5px; grid-template-columns: 72px minmax(98px, 1fr) 74px; }
+.intramuros-court-map-controls select,
+.intramuros-court-map-controls input { border: 1px solid #d8e1e9; border-radius: 6px; color: #435d70; font-size: 10px; font-weight: 800; min-width: 0; padding: 5px; }
+.intramuros-court-map-legend { display: flex; gap: 8px; }
+.intramuros-court-map-legend span { align-items: center; color: #607386; display: inline-flex; font-size: 9px; font-weight: 800; gap: 4px; }
+.intramuros-court-map-legend span::before { border-radius: 50%; content: ""; height: 7px; width: 7px; }
+.intramuros-court-map-legend .occupied::before { background: #dc4d4d; }
+.intramuros-court-map-legend .available::before { background: #35a766; }
+.intramuros-court-map-grid { display: grid; gap: 6px; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 222px; overflow: auto; padding-right: 2px; }
+.intramuros-court-tile { align-items: center; border: 1px solid; border-radius: 7px; display: grid; gap: 4px; grid-template-columns: 22px minmax(0, 1fr); min-height: 43px; padding: 5px; }
+.intramuros-court-tile i { border: 2px solid currentColor; border-radius: 3px; height: 14px; position: relative; width: 20px; }
+.intramuros-court-tile i::after { background: currentColor; content: ""; height: 2px; left: 0; position: absolute; right: 0; top: 5px; }
+.intramuros-court-tile strong { font-size: 10px; line-height: 1.05; }
+.intramuros-court-tile span { font-size: 8px; font-weight: 800; grid-column: 2; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intramuros-court-tile.available { background: #e8f7ed; border-color: #a8dfb8; color: #187a43; }
+.intramuros-court-tile.occupied { background: #ffebeb; border-color: #f1aaaa; color: #ae3030; }
 
 .intramuros-role-results { border-top: 4px solid #d3507e; }
 .intramuros-role-result-main { align-items: center; display: grid; gap: 12px; grid-template-columns: 92px minmax(0, 1fr); }

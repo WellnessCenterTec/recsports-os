@@ -72,3 +72,31 @@ test("la alerta de resultados vencidos cuenta sólo juegos anteriores sin result
     topTournamentOverdue: 2
   });
 });
+
+test("el mapa de canchas usa recinto, fecha y horario para marcar ocupación", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const start = app.indexOf("const INTRAMUROS_FACILITY_COURTS");
+  const end = app.indexOf("\nfunction intramurosRoleResultFollowUp", start);
+  const source = app.slice(start, end);
+  const normalize = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const headerKey = (value) => normalize(value).replace(/[^a-z0-9]+/g, "");
+  const courtMap = Function("headerKey", "normalizeText", "intramurosRoleIsGame", "intramurosRoleCourtMapFilters", `"use strict"; ${source}; return intramurosRoleCourtMapState;`)(
+    headerKey,
+    normalize,
+    (row) => Boolean(row.equipo_local && row.equipo_visitante),
+    { facility: "CDB1", date: "", time: "" }
+  );
+  const rows = [
+    { fecha: "2026-08-29", hora: "18:00", cancha: "C # 3", torneo: "Fútbol soccer", equipo_local: "Azules", equipo_visitante: "Rojos" },
+    { fecha: "2026-08-29", hora: "18:00", cancha: "C # 3", torneo: "Pádel", equipo_local: "Pádel A", equipo_visitante: "Pádel B" },
+    { fecha: "2026-08-29", hora: "19:00", cancha: "WELL 1 / VB", torneo: "Voleibol de sala", equipo_local: "A", equipo_visitante: "B" }
+  ];
+  const cdb1 = courtMap(rows, { facility: "CDB1", date: "2026-08-29", time: "18:00" });
+  const cdb2 = courtMap(rows, { facility: "CDB2", date: "2026-08-29", time: "18:00" });
+  const wellness = courtMap(rows, { facility: "WELLNESS", date: "2026-08-29", time: "19:00" });
+
+  assert.equal(cdb1.courts.find((court) => court.label === "C # 3").occupiedBy.length, 1);
+  assert.equal(cdb2.courts.find((court) => court.label === "CP # 3").occupiedBy.length, 1);
+  assert.equal(wellness.courts.find((court) => court.label === "WELL # 1").occupiedBy.length, 1);
+  assert.equal(wellness.courts.find((court) => court.label === "WELL # 2").occupiedBy.length, 0);
+});

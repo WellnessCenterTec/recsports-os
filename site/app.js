@@ -628,6 +628,7 @@ let intramurosUploadSummary = null;
 let intramurosRolesUploadSummary = null;
 let intramurosRolesPendingUpload = null;
 let intramurosRoleAgendaFilters = { team: "", startDate: "", endDate: "", tournament: "todos", status: "todos" };
+let intramurosRoleCourtMapFilters = { facility: "CDB1", date: "", time: "" };
 let intramurosRoleAgendaSearchTimer = null;
 let selectedIntramurosTournament = "";
 let intramurosCalendarLayer = "all";
@@ -12036,9 +12037,71 @@ function renderIntramurosRoleDayChart(title, rows) {
   return `<article class="intramuros-role-viz intramuros-role-days"><h3>${escapeHtml(title)}</h3><div>${values.map((row) => `<span><b style="--day-size:${Math.max(24, Math.round(24 + (row.value / max) * 18))}px">${row.value}</b><small>${escapeHtml(row.label)}</small></span>`).join("") || `<p>Sin juegos registrados.</p>`}</div></article>`;
 }
 
+const INTRAMUROS_FACILITY_COURTS = [
+  {
+    id: "CDB1",
+    label: "CDB1",
+    courts: [
+      ["Tocho", ["tocho"]], ["Soft 1", ["soft1"]], ["Soft 2", ["soft2"]], ["C # 4", ["c4"]], ["C # 3", ["c3"]],
+      ["C # 1 FR", ["c1fr"]], ["C # 2 FR", ["c2fr"]]
+    ]
+  },
+  {
+    id: "CDB2",
+    label: "CDB2",
+    courts: [
+      ["CP # 1", ["cp1"]], ["CP # 2", ["cp2"]], ["CP # 3", ["cp3"]], ["CP # 4", ["cp4"]],
+      ["CT # 1", ["ct1"]], ["CT # 2", ["ct2"]], ["CT # 4", ["ct4"]], ["CT # 5", ["ct5"]],
+      ["CT # 6", ["ct6"]], ["CT # 7", ["ct7"]], ["CT # 8", ["ct8"]], ["CT # 9", ["ct9"]],
+      ["CT # 10", ["ct10"]], ["VB Playa", ["vbplaya"]], ["CDB 2 # 1", ["cdb21"]], ["CDB 2 # 2", ["cdb22"]]
+    ]
+  },
+  {
+    id: "WELLNESS",
+    label: "Wellness",
+    courts: [["WELL # 1", ["well1vb"]], ["WELL # 2", ["well1bb"]]]
+  }
+].map((facility) => ({ ...facility, courts: facility.courts.map(([label, aliases]) => ({ label, aliases })) }));
+
+function intramurosRoleMapDate(now = new Date()) {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function intramurosRoleCourtMapMatches(row, facility, court) {
+  const courtName = headerKey(row.cancha);
+  const tournament = normalizeText(row.torneo);
+  const looseCourt = courtName.match(/^c(\d+)$/)?.[1] || "";
+  if (looseCourt) {
+    if (facility.id === "CDB1") return court.label === `C # ${looseCourt}` && !/padel|tenis/.test(tournament);
+    if (facility.id !== "CDB2") return false;
+    if (/padel/.test(tournament)) return court.label === `CP # ${looseCourt}`;
+    if (/tenis/.test(tournament)) return court.label === `CT # ${looseCourt}`;
+    return false;
+  }
+  return court.aliases.includes(courtName);
+}
+
+function intramurosRoleCourtMapState(rows, filters = intramurosRoleCourtMapFilters, now = new Date()) {
+  const date = filters.date || intramurosRoleMapDate(now);
+  const hours = Array.from(new Set(rows.filter((row) => String(row.fecha || "").slice(0, 10) === date).map((row) => String(row.hora || "").trim()).filter(Boolean))).sort();
+  const fallbackHour = hours[0] || "";
+  const time = hours.includes(filters.time) ? filters.time : fallbackHour;
+  const facility = INTRAMUROS_FACILITY_COURTS.find((item) => item.id === filters.facility) || INTRAMUROS_FACILITY_COURTS[0];
+  const activeRows = rows.filter((row) => String(row.fecha || "").slice(0, 10) === date && String(row.hora || "").trim() === time && String(row.equipo_local || row.equipo_visitante || "").trim());
+  const courts = facility.courts.map((court) => {
+    const occupiedBy = activeRows.filter((row) => intramurosRoleCourtMapMatches(row, facility, court));
+    const detail = occupiedBy.map((row) => intramurosRoleIsGame(row)
+      ? `${row.equipo_local} vs ${row.equipo_visitante}`
+      : row.equipo_local || row.equipo_visitante || row.torneo || "Reservación"
+    ).join(" · ");
+    return { ...court, occupiedBy, detail };
+  });
+  return { date, time, hours, facility, courts };
+}
+
 function renderIntramurosRoleCourtChart(title, rows) {
-  const values = intramurosRoleVisualRows(rows, 8);
-  return `<article class="intramuros-role-viz intramuros-role-courts"><h3>${escapeHtml(title)}</h3><div>${values.map((row, index) => `<p><b>${String(index + 1).padStart(2, "0")}</b><span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><strong>${row.value}</strong></p>`).join("") || `<p>Sin juegos registrados.</p>`}</div></article>`;
+  const state = intramurosRoleCourtMapState(rows);
+  return `<article class="intramuros-role-viz intramuros-role-courts"><h3>${escapeHtml(title)}</h3><div class="intramuros-court-map-controls"><select id="intramurosCourtMapFacility" aria-label="Recinto deportivo">${INTRAMUROS_FACILITY_COURTS.map((facility) => `<option value="${facility.id}" ${state.facility.id === facility.id ? "selected" : ""}>${facility.label}</option>`).join("")}</select><input id="intramurosCourtMapDate" type="date" aria-label="Fecha del mapa de canchas" value="${escapeHtml(state.date)}" /><select id="intramurosCourtMapTime" aria-label="Horario del mapa de canchas" ${state.hours.length ? "" : "disabled"}><option value="">${state.hours.length ? "Horario" : "Sin horarios"}</option>${state.hours.map((hour) => `<option value="${escapeHtml(hour)}" ${hour === state.time ? "selected" : ""}>${escapeHtml(hour)}</option>`).join("")}</select></div><p class="intramuros-court-map-legend"><span class="occupied">Ocupada</span><span class="available">Libre</span></p><div class="intramuros-court-map-grid">${state.courts.map((court) => { const occupied = court.occupiedBy.length > 0; return `<div class="intramuros-court-tile ${occupied ? "occupied" : "available"}" title="${escapeHtml(occupied ? court.detail : `${court.label}: libre`)}"><i aria-hidden="true"></i><strong>${escapeHtml(court.label)}</strong><span>${escapeHtml(occupied ? court.detail : "Libre")}</span></div>`; }).join("")}</div></article>`;
 }
 
 function intramurosRoleResultFollowUp(rows, now = new Date()) {
@@ -12114,7 +12177,7 @@ function renderIntramurosRolesDashboard() {
         ${renderIntramurosRoleRankingChart("Juegos por torneo", intramurosGroupCounts(games, "torneo"))}
         ${renderIntramurosRoleWeeklyChart("Juegos por semana", intramurosGroupCounts(games, "semana"))}
         ${renderIntramurosRoleDayChart("Juegos por día", intramurosGroupCounts(games.map((row) => ({ day: intramurosRoleDay(row) })), "day"))}
-        ${renderIntramurosRoleCourtChart("Uso de canchas", intramurosGroupCounts(games, "cancha"))}
+        ${renderIntramurosRoleCourtChart("Mapa de canchas", roles)}
         ${renderIntramurosRoleResultChart("Resultados pendientes por subir", resultFollowUp)}
         ${renderIntramurosRoleFeaturedChart("Torneos destacados", intramurosGroupCounts(games, "torneo"))}
       </div>
@@ -20353,6 +20416,19 @@ function render() {
   });
   $("#intramurosRoleAgendaStatus")?.addEventListener("change", (event) => {
     intramurosRoleAgendaFilters.status = event.target.value;
+    render();
+  });
+  $("#intramurosCourtMapFacility")?.addEventListener("change", (event) => {
+    intramurosRoleCourtMapFilters.facility = event.target.value;
+    render();
+  });
+  $("#intramurosCourtMapDate")?.addEventListener("change", (event) => {
+    intramurosRoleCourtMapFilters.date = event.target.value;
+    intramurosRoleCourtMapFilters.time = "";
+    render();
+  });
+  $("#intramurosCourtMapTime")?.addEventListener("change", (event) => {
+    intramurosRoleCourtMapFilters.time = event.target.value;
     render();
   });
   $("#addIntramurosOperationRow")?.addEventListener("click", async () => {
