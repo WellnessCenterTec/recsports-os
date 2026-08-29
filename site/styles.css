@@ -7393,11 +7393,34 @@ tbody tr:hover td {
 .intramuros-court-facility { display: grid; gap: 6px; }
 .intramuros-court-facility h4 { color: #36556b; font-size: 11px; margin: 0; }
 .intramuros-court-map-empty { color: #60768b; font-size: 11px; font-weight: 800; margin: 0; }
-.intramuros-court-tile { align-items: center; border: 1px solid; border-radius: 7px; display: grid; gap: 4px; grid-template-columns: 22px minmax(0, 1fr); min-height: 43px; padding: 5px; }
-.intramuros-court-tile i { border: 2px solid currentColor; border-radius: 3px; height: 14px; position: relative; width: 20px; }
-.intramuros-court-tile i::after { background: currentColor; content: ""; height: 2px; left: 0; position: absolute; right: 0; top: 5px; }
-.intramuros-court-tile strong { font-size: 10px; line-height: 1.05; }
-.intramuros-court-tile span { font-size: 8px; font-weight: 800; grid-column: 2; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intramuros-court-tile { align-items: center; border: 1px solid; border-radius: 7px; display: grid; gap: 3px 7px; grid-template-columns: 42px minmax(0, 1fr); min-height: 57px; padding: 6px; }
+.intramuros-court-tile i { border: 2px solid currentColor; border-radius: 3px; grid-row: 1 / span 3; height: 26px; position: relative; width: 38px; }
+.intramuros-court-tile i::after { background: currentColor; content: ""; height: 2px; left: 0; position: absolute; right: 0; top: 10px; }
+.intramuros-court-tile i::before { border: 1.5px solid currentColor; border-radius: 50%; content: ""; height: 8px; left: 13px; position: absolute; top: 7px; width: 8px; }
+.intramuros-court-tile strong { font-size: 11px; line-height: 1.05; }
+.intramuros-court-tile em { color: currentColor; font-size: 8px; font-style: normal; font-weight: 900; line-height: 1.1; opacity: .82; }
+.intramuros-court-tile span { font-size: 8px; font-weight: 800; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intramuros-court-tile.tochito i { border-radius: 5px 5px 50% 50%; }
+.intramuros-court-tile.tochito i::before { border-radius: 1px; height: 7px; left: 13px; top: 7px; transform: rotate(45deg); width: 7px; }
+.intramuros-court-tile.futbol7 i { border-radius: 8px; }
+.intramuros-court-tile.soccer i { border-radius: 50% 50% 8px 8px; }
+.intramuros-court-tile.futbolrapido i { border-radius: 50%; height: 30px; width: 30px; }
+.intramuros-court-tile.futbolrapido i::after { left: 13px; bottom: 0; height: auto; right: auto; top: 0; width: 2px; }
+.intramuros-court-tile.futbolrapido i::before { left: 9px; top: 9px; }
+.intramuros-court-tile.padel i { border-radius: 8px; }
+.intramuros-court-tile.padel i::before { border-radius: 0; border-width: 0 1px; height: 22px; left: 17px; top: 0; width: 3px; }
+.intramuros-court-tile.tenis i { border-radius: 12px; }
+.intramuros-court-tile.tenis i::after { left: 18px; bottom: 0; height: auto; right: auto; top: 0; width: 2px; }
+.intramuros-court-tile.tenis i::before { border-radius: 50% 50% 0 0; border-width: 1.5px 1.5px 0; height: 10px; left: 11px; top: 7px; width: 13px; }
+.intramuros-court-tile.voleibol i { border-radius: 9px; }
+.intramuros-court-tile.voleibol i::after { left: 18px; bottom: -2px; height: 30px; right: auto; top: -2px; width: 2px; }
+.intramuros-court-tile.voleibol i::before { border: 0; border-top: 1px dashed currentColor; height: 1px; left: 2px; top: 12px; width: 32px; }
+.intramuros-court-tile.voleibolplaya i { border-radius: 50% 50% 5px 5px; }
+.intramuros-court-tile.voleibolplaya i::after { background: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 4px); height: 2px; top: 11px; }
+.intramuros-court-tile.voleibolplaya i::before { border: 0; border-bottom: 2px solid currentColor; border-radius: 50%; height: 9px; left: 8px; top: 5px; width: 20px; }
+.intramuros-court-tile.basquetbol i { border-radius: 50%; height: 30px; width: 30px; }
+.intramuros-court-tile.basquetbol i::after { left: 13px; bottom: 0; height: auto; right: auto; top: 0; transform: rotate(45deg); width: 2px; }
+.intramuros-court-tile.basquetbol i::before { border-radius: 50%; border-width: 1.5px 0; height: 12px; left: 6px; top: 7px; width: 15px; }
 .intramuros-court-tile.available { background: #e8f7ed; border-color: #a8dfb8; color: #187a43; }
 .intramuros-court-tile.occupied { background: #ffebeb; border-color: #f1aaaa; color: #ae3030; }
 

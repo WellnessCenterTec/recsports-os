@@ -12042,26 +12042,27 @@ const INTRAMUROS_FACILITY_COURTS = [
     id: "CDB1",
     label: "CDB1",
     courts: [
-      ["Tocho", ["tocho"]], ["Soft 1", ["soft1"]], ["Soft 2", ["soft2"]], ["C # 4", ["c4"]], ["C # 3", ["c3"]],
-      ["C # 1 FR", ["c1fr"]], ["C # 2 FR", ["c2fr"]]
+      ["Tocho", ["tocho"], "Tochito", "tochito"], ["Soft 1", ["soft1"], "Fútbol 7", "futbol7"], ["Soft 2", ["soft2"], "Fútbol 7", "futbol7"],
+      ["C # 4", ["c4"], "Fútbol soccer", "soccer"], ["C # 3", ["c3"], "Fútbol soccer", "soccer"],
+      ["C # 1 FR", ["c1fr"], "Fútbol rápido", "futbolrapido"], ["C # 2 FR", ["c2fr"], "Fútbol rápido", "futbolrapido"]
     ]
   },
   {
     id: "CDB2",
     label: "CDB2",
     courts: [
-      ["CP # 1", ["cp1"]], ["CP # 2", ["cp2"]], ["CP # 3", ["cp3"]], ["CP # 4", ["cp4"]],
-      ["CT # 1", ["ct1"]], ["CT # 2", ["ct2"]], ["CT # 4", ["ct4"]], ["CT # 5", ["ct5"]],
-      ["CT # 6", ["ct6"]], ["CT # 7", ["ct7"]], ["CT # 8", ["ct8"]], ["CT # 9", ["ct9"]],
-      ["CT # 10", ["ct10"]], ["VB Playa", ["vbplaya"]], ["CDB 2 # 1", ["cdb21"]], ["CDB 2 # 2", ["cdb22"]]
+      ["CP # 1", ["cp1"], "Pádel", "padel"], ["CP # 2", ["cp2"], "Pádel", "padel"], ["CP # 3", ["cp3"], "Pádel", "padel"], ["CP # 4", ["cp4"], "Pádel", "padel"],
+      ["CT # 1", ["ct1"], "Tenis", "tenis"], ["CT # 2", ["ct2"], "Tenis", "tenis"], ["CT # 3", ["ct3"], "Tenis", "tenis"], ["CT # 4", ["ct4"], "Tenis", "tenis"], ["CT # 5", ["ct5"], "Tenis", "tenis"],
+      ["CT # 6", ["ct6"], "Tenis", "tenis"], ["CT # 7", ["ct7"], "Tenis", "tenis"], ["CT # 8", ["ct8"], "Tenis", "tenis"], ["CT # 9", ["ct9"], "Tenis", "tenis"], ["CT # 10", ["ct10"], "Tenis", "tenis"],
+      ["VB Playa", ["vbplaya"], "Voleibol de playa", "voleibolplaya"], ["CDB 2 # 1", ["cdb21"], "Voleibol", "voleibol"], ["CDB 2 # 2", ["cdb22"], "Básquetbol", "basquetbol"]
     ]
   },
   {
     id: "WELLNESS",
     label: "Wellness",
-    courts: [["WELL # 1", ["well1vb"]], ["WELL # 2", ["well1bb"]]]
+    courts: [["WELL # 1", ["well1vb"], "Voleibol", "voleibol"], ["WELL # 2", ["well1bb"], "Básquetbol", "basquetbol"]]
   }
-].map((facility) => ({ ...facility, courts: facility.courts.map(([label, aliases]) => ({ label, aliases })) }));
+].map((facility) => ({ ...facility, courts: facility.courts.map(([label, aliases, sport, sportClass]) => ({ label, aliases, sport, sportClass })) }));
 
 function intramurosRoleMapDate(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -12106,7 +12107,7 @@ function intramurosRoleCourtMapState(rows, filters = intramurosRoleCourtMapFilte
 function renderIntramurosRoleCourtChart(title, rows) {
   const state = intramurosRoleCourtMapState(rows);
   const facilityControls = INTRAMUROS_FACILITY_COURTS.map((facility) => `<label><input type="checkbox" data-intramuros-court-facility value="${facility.id}" ${state.selectedIds.includes(facility.id) ? "checked" : ""} /> ${facility.label}</label>`).join("");
-  const facilityMaps = state.facilities.length ? state.facilities.map((facility) => `<section class="intramuros-court-facility"><h4>${escapeHtml(facility.label)}</h4><div class="intramuros-court-map-grid">${facility.courts.map((court) => { const occupied = court.occupiedBy.length > 0; return `<div class="intramuros-court-tile ${occupied ? "occupied" : "available"}" title="${escapeHtml(occupied ? court.detail : `${court.label}: libre`)}"><i aria-hidden="true"></i><strong>${escapeHtml(court.label)}</strong><span>${escapeHtml(occupied ? court.detail : "Libre")}</span></div>`; }).join("")}</div></section>`).join("") : `<p class="intramuros-court-map-empty">Selecciona al menos una instalación.</p>`;
+  const facilityMaps = state.facilities.length ? state.facilities.map((facility) => `<section class="intramuros-court-facility"><h4>${escapeHtml(facility.label)}</h4><div class="intramuros-court-map-grid">${facility.courts.map((court) => { const occupied = court.occupiedBy.length > 0; return `<div class="intramuros-court-tile ${escapeHtml(court.sportClass)} ${occupied ? "occupied" : "available"}" title="${escapeHtml(occupied ? court.detail : `${court.label}: libre`)}"><i aria-hidden="true"></i><strong>${escapeHtml(court.label)}</strong><em>${escapeHtml(court.sport)}</em><span>${escapeHtml(occupied ? court.detail : "Libre")}</span></div>`; }).join("")}</div></section>`).join("") : `<p class="intramuros-court-map-empty">Selecciona al menos una instalación.</p>`;
   return `<article class="intramuros-role-viz intramuros-role-courts"><h3>${escapeHtml(title)}</h3><div class="intramuros-court-map-controls"><fieldset><legend>Instalaciones</legend>${facilityControls}</fieldset><input id="intramurosCourtMapDate" type="date" aria-label="Fecha del mapa de canchas" value="${escapeHtml(state.date)}" /><select id="intramurosCourtMapTime" aria-label="Horario del mapa de canchas" ${state.hours.length ? "" : "disabled"}><option value="">${state.hours.length ? "Horario" : "Sin horarios"}</option>${state.hours.map((hour) => `<option value="${escapeHtml(hour)}" ${hour === state.time ? "selected" : ""}>${escapeHtml(hour)}</option>`).join("")}</select></div><p class="intramuros-court-map-legend"><span class="occupied">Ocupada</span><span class="available">Libre</span></p><div class="intramuros-court-map-facilities">${facilityMaps}</div></article>`;
 }
 
