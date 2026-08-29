@@ -19454,30 +19454,66 @@ function classBookingProgramOfferings() {
   );
 }
 
+function bookingReservationIsConfirmed(row) {
+  return /APPROVED|CONFIRMED|COMPLETED|ATTENDED|ASIST/.test(String(row?.status || "").trim().toUpperCase());
+}
+
+function bookingProgramEfficiencyByActivity(rows = classBookingReservations) {
+  const metrics = new Map();
+  rows.forEach((row) => {
+    const activity = cleanBookingActivity(row.activity);
+    const key = normalizeText(activity);
+    if (!key) return;
+    const metric = metrics.get(key) || { total: 0, confirmed: 0 };
+    metric.total += 1;
+    if (bookingReservationIsConfirmed(row)) metric.confirmed += 1;
+    metrics.set(key, metric);
+  });
+
+  const scored = [...metrics.values()].filter((metric) => metric.total > 0);
+  const lowest = Math.min(...scored.map((metric) => metric.confirmed / metric.total));
+  const highest = Math.max(...scored.map((metric) => metric.confirmed / metric.total));
+  metrics.forEach((metric) => {
+    metric.efficiency = metric.total ? metric.confirmed / metric.total : 0;
+    metric.percent = Math.round(metric.efficiency * 100);
+    metric.tone = highest === lowest ? 4 : Math.round(((metric.efficiency - lowest) / (highest - lowest)) * 4);
+  });
+  return metrics;
+}
+
 function renderBookingProgramPanel() {
   const offerings = classBookingProgramOfferings();
+  const efficiencyByActivity = bookingProgramEfficiencyByActivity();
   return `
     <details class="booking-program-panel" open>
       <summary>
         <span class="booking-program-icon" aria-hidden="true"><i data-lucide="calendar-clock"></i></span>
-        <span><strong>Programacion Booking</strong><small>Grupos, horarios, frecuencia y profesores del Archivo Maestro</small></span>
+        <span><strong>Programacion Booking</strong><small>Verde: eficiencia de reservas confirmadas por actividad</small></span>
         <em>${offerings.length} servicios ofertados</em>
         <span class="booking-program-toggle" aria-hidden="true"><i data-lucide="chevron-down"></i></span>
       </summary>
       ${offerings.length ? `
         <div class="booking-program-table-wrap">
           <table class="booking-program-table">
-            <thead><tr><th>Actividad</th><th>Frecuencia</th><th>Horario</th><th>Profesor</th><th>Instalacion</th><th>Aforo</th></tr></thead>
-            <tbody>${offerings.map((row) => `
-              <tr>
+            <thead><tr><th>Actividad</th><th>Frecuencia</th><th>Horario</th><th>Profesor</th><th>Instalacion</th><th>Aforo</th><th>Eficiencia</th></tr></thead>
+            <tbody>${offerings.map((row) => {
+              const metric = efficiencyByActivity.get(normalizeText(row.activity));
+              const efficiencyLabel = metric
+                ? `${metric.percent}% · ${metric.confirmed.toLocaleString("es-MX")} de ${metric.total.toLocaleString("es-MX")} reservas confirmadas`
+                : "Sin reservaciones para medir";
+              return `
+              <tr class="${metric ? `booking-program-efficiency tone-${metric.tone}` : ""}" title="${escapeHtml(`${row.activity}: ${efficiencyLabel}`)}">
                 <td><strong>${escapeHtml(row.activity)}</strong></td>
                 <td>${escapeHtml(formatClassScheduleFrequency(row.frequency))}</td>
                 <td>${escapeHtml(row.start)}-${escapeHtml(row.end)}</td>
                 <td>${escapeHtml(row.professor)}</td>
                 <td>${escapeHtml(row.installation)}</td>
                 <td>${row.capacity ? row.capacity.toLocaleString("es-MX") : "-"}</td>
-              </tr>
-            `).join("")}</tbody>
+                <td class="booking-program-efficiency-cell">${metric
+                  ? `<strong>${metric.percent}%</strong><small>${metric.confirmed.toLocaleString("es-MX")} / ${metric.total.toLocaleString("es-MX")} confirmadas</small>`
+                  : `<span>Sin datos</span>`}</td>
+              </tr>`;
+            }).join("")}</tbody>
           </table>
         </div>
       ` : `<div class="booking-program-empty">Carga el Archivo Maestro desde <strong>Horarios</strong> para ver aqui la oferta de Booking.</div>`}

@@ -82,3 +82,28 @@ test("Booking student ranking muestra el género junto a cada matrícula", () =>
   assert.match(appSource, /if \(gender === "Masculino"\) return "Hombre"/);
   assert.ok(styles.includes(".booking-student-gender"));
 });
+
+test("Programación Booking mide eficiencia con reservas confirmadas y asigna verde relativo", () => {
+  const start = appSource.indexOf("function bookingReservationIsConfirmed");
+  const end = appSource.indexOf("function renderBookingProgramPanel");
+  const efficiencySource = appSource.slice(start, end);
+  const sandbox = {
+    rows: [
+      { activity: "Yoga", status: "APPROVED" },
+      { activity: "Yoga", status: "PENDING" },
+      { activity: "Ciclismo", status: "COMPLETED" },
+      { activity: "Ciclismo", status: "ATTENDED" }
+    ],
+    result: null,
+    cleanBookingActivity: (value) => String(value || "").trim(),
+    normalizeText: (value) => String(value || "").trim().toLowerCase(),
+    classBookingReservations: []
+  };
+  vm.runInNewContext(`${efficiencySource}\nresult = [...bookingProgramEfficiencyByActivity(rows).entries()];`, sandbox);
+  const metrics = Object.fromEntries(JSON.parse(JSON.stringify(sandbox.result)));
+  assert.deepEqual(metrics.yoga, { total: 2, confirmed: 1, efficiency: .5, percent: 50, tone: 0 });
+  assert.deepEqual(metrics.ciclismo, { total: 2, confirmed: 2, efficiency: 1, percent: 100, tone: 4 });
+  assert.ok(appSource.includes('booking-program-efficiency tone-${metric.tone}'));
+  assert.ok(appSource.includes("reservas confirmadas"));
+  assert.ok(styles.includes(".booking-program-efficiency.tone-4"));
+});
