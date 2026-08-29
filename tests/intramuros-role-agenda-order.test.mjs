@@ -121,6 +121,7 @@ test("el mapa de canchas usa recinto, fecha y horario para marcar ocupación", a
   assert.equal(cdb2.facilities[0].courts.find((court) => court.label === "CP # 3").occupiedBy.length, 1);
   assert.equal(cdb2.facilities[0].courts.some((court) => court.label === "CT # 3"), false);
   assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "Tocho").sport, "Tochito");
+  assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "Tocho").ball, "🏈");
   assert.equal(wellness.facilities[0].courts.find((court) => court.label === "WELL # 1").occupiedBy.length, 1);
   assert.equal(wellness.facilities[0].courts.find((court) => court.label === "WELL # 2").occupiedBy.length, 0);
 });

@@ -12064,6 +12064,10 @@ const INTRAMUROS_FACILITY_COURTS = [
   }
 ].map((facility) => ({ ...facility, courts: facility.courts.map(([label, aliases, sport, sportClass]) => ({ label, aliases, sport, sportClass })) }));
 
+function intramurosRoleCourtBall(sportClass) {
+  return ({ tochito: "🏈", futbol7: "⚽", soccer: "⚽", futbolrapido: "⚽", padel: "🎾", tenis: "🎾", voleibol: "🏐", voleibolplaya: "🏐", basquetbol: "🏀" })[sportClass] || "•";
+}
+
 function intramurosRoleMapDate(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
@@ -12098,7 +12102,7 @@ function intramurosRoleCourtMapState(rows, filters = intramurosRoleCourtMapFilte
         ? `${row.equipo_local} vs ${row.equipo_visitante}`
         : row.equipo_local || row.equipo_visitante || row.torneo || "Reservación"
       ).join(" · ");
-      return { ...court, occupiedBy, detail };
+      return { ...court, ball: intramurosRoleCourtBall(court.sportClass), occupiedBy, detail };
     })
   }));
   return { date, time, hours, facilities, selectedIds };
@@ -12107,7 +12111,7 @@ function intramurosRoleCourtMapState(rows, filters = intramurosRoleCourtMapFilte
 function renderIntramurosRoleCourtChart(title, rows) {
   const state = intramurosRoleCourtMapState(rows);
   const facilityControls = INTRAMUROS_FACILITY_COURTS.map((facility) => `<label><input type="checkbox" data-intramuros-court-facility value="${facility.id}" ${state.selectedIds.includes(facility.id) ? "checked" : ""} /> ${facility.label}</label>`).join("");
-  const facilityMaps = state.facilities.length ? state.facilities.map((facility) => `<section class="intramuros-court-facility"><h4>${escapeHtml(facility.label)}</h4><div class="intramuros-court-map-grid">${facility.courts.map((court) => { const occupied = court.occupiedBy.length > 0; return `<div class="intramuros-court-tile ${escapeHtml(court.sportClass)} ${occupied ? "occupied" : "available"}" title="${escapeHtml(occupied ? court.detail : `${court.label}: libre`)}"><i aria-hidden="true"></i><strong>${escapeHtml(court.label)}</strong><em>${escapeHtml(court.sport)}</em><span>${escapeHtml(occupied ? court.detail : "Libre")}</span></div>`; }).join("")}</div></section>`).join("") : `<p class="intramuros-court-map-empty">Selecciona al menos una instalación.</p>`;
+  const facilityMaps = state.facilities.length ? state.facilities.map((facility) => `<section class="intramuros-court-facility"><h4>${escapeHtml(facility.label)}</h4><div class="intramuros-court-map-grid">${facility.courts.map((court) => { const occupied = court.occupiedBy.length > 0; return `<div class="intramuros-court-tile ${escapeHtml(court.sportClass)} ${occupied ? "occupied" : "available"}" title="${escapeHtml(occupied ? court.detail : `${court.label}: libre`)}"><i aria-hidden="true"><b>${court.ball}</b></i><strong>${escapeHtml(court.label)}</strong><em>${escapeHtml(court.sport)}</em><span>${escapeHtml(occupied ? court.detail : "Libre")}</span></div>`; }).join("")}</div></section>`).join("") : `<p class="intramuros-court-map-empty">Selecciona al menos una instalación.</p>`;
   return `<article class="intramuros-role-viz intramuros-role-courts"><h3>${escapeHtml(title)}</h3><div class="intramuros-court-map-controls"><fieldset><legend>Instalaciones</legend>${facilityControls}</fieldset><input id="intramurosCourtMapDate" type="date" aria-label="Fecha del mapa de canchas" value="${escapeHtml(state.date)}" /><select id="intramurosCourtMapTime" aria-label="Horario del mapa de canchas" ${state.hours.length ? "" : "disabled"}><option value="">${state.hours.length ? "Horario" : "Sin horarios"}</option>${state.hours.map((hour) => `<option value="${escapeHtml(hour)}" ${hour === state.time ? "selected" : ""}>${escapeHtml(hour)}</option>`).join("")}</select></div><p class="intramuros-court-map-legend"><span class="occupied">Ocupada</span><span class="available">Libre</span></p><div class="intramuros-court-map-facilities">${facilityMaps}</div></article>`;
 }
 
