@@ -7393,34 +7393,36 @@ tbody tr:hover td {
 .intramuros-court-facility { display: grid; gap: 6px; }
 .intramuros-court-facility h4 { color: #36556b; font-size: 11px; margin: 0; }
 .intramuros-court-map-empty { color: #60768b; font-size: 11px; font-weight: 800; margin: 0; }
-.intramuros-court-tile { align-items: center; border: 1px solid; border-radius: 7px; display: grid; gap: 3px 7px; grid-template-columns: 42px minmax(0, 1fr); min-height: 57px; padding: 6px; }
-.intramuros-court-tile i { border: 2px solid currentColor; border-radius: 3px; grid-row: 1 / span 3; height: 26px; position: relative; width: 38px; }
-.intramuros-court-tile i::after { background: currentColor; content: ""; height: 2px; left: 0; position: absolute; right: 0; top: 10px; }
-.intramuros-court-tile i::before { border: 1.5px solid currentColor; border-radius: 50%; content: ""; height: 8px; left: 13px; position: absolute; top: 7px; width: 8px; }
+.intramuros-court-tile { align-items: center; border: 1px solid; border-radius: 7px; display: grid; gap: 3px 8px; grid-template-columns: 56px minmax(0, 1fr); min-height: 62px; padding: 6px; }
+.intramuros-court-tile i { background: color-mix(in srgb, currentColor 7%, transparent); border: 2px solid currentColor; border-radius: 4px; grid-row: 1 / span 3; height: 34px; overflow: hidden; position: relative; width: 52px; }
+.intramuros-court-tile i::after, .intramuros-court-tile i::before { box-sizing: border-box; content: ""; position: absolute; }
 .intramuros-court-tile strong { font-size: 11px; line-height: 1.05; }
 .intramuros-court-tile em { color: currentColor; font-size: 8px; font-style: normal; font-weight: 900; line-height: 1.1; opacity: .82; }
 .intramuros-court-tile span { font-size: 8px; font-weight: 800; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.intramuros-court-tile.tochito i { border-radius: 5px 5px 50% 50%; }
-.intramuros-court-tile.tochito i::before { border-radius: 1px; height: 7px; left: 13px; top: 7px; transform: rotate(45deg); width: 7px; }
-.intramuros-court-tile.futbol7 i { border-radius: 8px; }
-.intramuros-court-tile.soccer i { border-radius: 50% 50% 8px 8px; }
-.intramuros-court-tile.futbolrapido i { border-radius: 50%; height: 30px; width: 30px; }
-.intramuros-court-tile.futbolrapido i::after { left: 13px; bottom: 0; height: auto; right: auto; top: 0; width: 2px; }
-.intramuros-court-tile.futbolrapido i::before { left: 9px; top: 9px; }
-.intramuros-court-tile.padel i { border-radius: 8px; }
-.intramuros-court-tile.padel i::before { border-radius: 0; border-width: 0 1px; height: 22px; left: 17px; top: 0; width: 3px; }
-.intramuros-court-tile.tenis i { border-radius: 12px; }
-.intramuros-court-tile.tenis i::after { left: 18px; bottom: 0; height: auto; right: auto; top: 0; width: 2px; }
-.intramuros-court-tile.tenis i::before { border-radius: 50% 50% 0 0; border-width: 1.5px 1.5px 0; height: 10px; left: 11px; top: 7px; width: 13px; }
-.intramuros-court-tile.voleibol i { border-radius: 9px; }
-.intramuros-court-tile.voleibol i::after { left: 18px; bottom: -2px; height: 30px; right: auto; top: -2px; width: 2px; }
-.intramuros-court-tile.voleibol i::before { border: 0; border-top: 1px dashed currentColor; height: 1px; left: 2px; top: 12px; width: 32px; }
-.intramuros-court-tile.voleibolplaya i { border-radius: 50% 50% 5px 5px; }
-.intramuros-court-tile.voleibolplaya i::after { background: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 4px); height: 2px; top: 11px; }
-.intramuros-court-tile.voleibolplaya i::before { border: 0; border-bottom: 2px solid currentColor; border-radius: 50%; height: 9px; left: 8px; top: 5px; width: 20px; }
-.intramuros-court-tile.basquetbol i { border-radius: 50%; height: 30px; width: 30px; }
-.intramuros-court-tile.basquetbol i::after { left: 13px; bottom: 0; height: auto; right: auto; top: 0; transform: rotate(45deg); width: 2px; }
-.intramuros-court-tile.basquetbol i::before { border-radius: 50%; border-width: 1.5px 0; height: 12px; left: 6px; top: 7px; width: 15px; }
+.intramuros-court-tile.tochito i { background: repeating-linear-gradient(90deg, transparent 0 10px, color-mix(in srgb, currentColor 42%, transparent) 10px 11px), color-mix(in srgb, currentColor 7%, transparent); border-radius: 7px; }
+.intramuros-court-tile.tochito i::after { border: 1px solid currentColor; border-radius: 2px; height: 12px; left: 18px; top: 9px; width: 14px; }
+.intramuros-court-tile.tochito i::before { border: 1px solid currentColor; border-radius: 50%; height: 6px; left: 22px; top: 12px; width: 6px; }
+.intramuros-court-tile.futbol7 i, .intramuros-court-tile.soccer i { background: linear-gradient(90deg, transparent 48%, currentColor 48% 52%, transparent 52%), color-mix(in srgb, currentColor 7%, transparent); }
+.intramuros-court-tile.futbol7 i::after, .intramuros-court-tile.soccer i::after { border: 1px solid currentColor; border-radius: 50%; height: 12px; left: 18px; top: 9px; width: 12px; }
+.intramuros-court-tile.futbol7 i::before, .intramuros-court-tile.soccer i::before { border: 1px solid currentColor; border-left: 0; border-radius: 0 8px 8px 0; height: 18px; left: -1px; top: 6px; width: 9px; box-shadow: 43px 0 0 -1px color-mix(in srgb, currentColor 0%, transparent), 43px 0 0 0 currentColor; }
+.intramuros-court-tile.soccer i { border-radius: 3px; }
+.intramuros-court-tile.soccer i::before { height: 24px; top: 3px; width: 13px; }
+.intramuros-court-tile.futbolrapido i { background: radial-gradient(circle at 50% 50%, transparent 0 7px, currentColor 7px 8px, transparent 8px), linear-gradient(90deg, transparent 48%, currentColor 48% 52%, transparent 52%), color-mix(in srgb, currentColor 7%, transparent); border-radius: 12px; }
+.intramuros-court-tile.futbolrapido i::after { border: 1px solid currentColor; border-left: 0; border-radius: 0 12px 12px 0; height: 20px; left: -1px; top: 5px; width: 12px; box-shadow: 41px 0 0 -1px color-mix(in srgb, currentColor 0%, transparent), 41px 0 0 0 currentColor; }
+.intramuros-court-tile.padel i { background: linear-gradient(90deg, transparent 48%, currentColor 48% 52%, transparent 52%), linear-gradient(0deg, transparent 48%, currentColor 48% 52%, transparent 52%), color-mix(in srgb, currentColor 7%, transparent); border-radius: 6px; }
+.intramuros-court-tile.padel i::after { border: 1px solid currentColor; border-width: 0 1px; height: 30px; left: 12px; top: 0; width: 26px; }
+.intramuros-court-tile.tenis i { background: linear-gradient(90deg, transparent 48%, currentColor 48% 52%, transparent 52%), color-mix(in srgb, currentColor 7%, transparent); border-radius: 15px; }
+.intramuros-court-tile.tenis i::after { border: 1px solid currentColor; border-radius: 50% 50% 0 0; border-bottom: 0; height: 15px; left: 10px; top: 8px; width: 28px; }
+.intramuros-court-tile.tenis i::before { border-left: 1px solid currentColor; border-right: 1px solid currentColor; height: 30px; left: 12px; top: 0; width: 24px; }
+.intramuros-court-tile.voleibol i { background: linear-gradient(90deg, transparent 48%, currentColor 48% 52%, transparent 52%), color-mix(in srgb, currentColor 7%, transparent); border-radius: 5px; }
+.intramuros-court-tile.voleibol i::after { border-left: 2px solid currentColor; border-right: 2px solid currentColor; height: 38px; left: 23px; top: -4px; width: 4px; }
+.intramuros-court-tile.voleibol i::before { border-top: 1px dashed currentColor; left: 1px; top: 16px; width: 46px; }
+.intramuros-court-tile.voleibolplaya i { background: repeating-linear-gradient(135deg, color-mix(in srgb, currentColor 9%, transparent) 0 3px, transparent 3px 7px), color-mix(in srgb, currentColor 5%, transparent); border-radius: 5px; }
+.intramuros-court-tile.voleibolplaya i::after { background: repeating-linear-gradient(90deg, currentColor 0 2px, transparent 2px 4px); height: 2px; left: 1px; right: 1px; top: 16px; }
+.intramuros-court-tile.voleibolplaya i::before { border-left: 2px solid currentColor; border-right: 2px solid currentColor; height: 38px; left: 23px; top: -4px; width: 4px; }
+.intramuros-court-tile.basquetbol i { background: radial-gradient(circle at 50% 50%, transparent 0 7px, currentColor 7px 8px, transparent 8px), linear-gradient(90deg, transparent 48%, currentColor 48% 52%, transparent 52%), color-mix(in srgb, currentColor 7%, transparent); border-radius: 4px; }
+.intramuros-court-tile.basquetbol i::after { border: 1px solid currentColor; border-radius: 0 0 10px 10px; border-top: 0; height: 16px; left: 4px; top: 0; width: 12px; box-shadow: 30px 16px 0 -1px color-mix(in srgb, currentColor 0%, transparent), 30px 16px 0 0 currentColor; }
+.intramuros-court-tile.basquetbol i::before { border: 1px solid currentColor; border-radius: 50%; height: 5px; left: 1px; top: 13px; width: 5px; box-shadow: 44px 0 0 -1px color-mix(in srgb, currentColor 0%, transparent), 44px 0 0 0 currentColor; }
 .intramuros-court-tile.available { background: #e8f7ed; border-color: #a8dfb8; color: #187a43; }
 .intramuros-court-tile.occupied { background: #ffebeb; border-color: #f1aaaa; color: #ae3030; }
 
