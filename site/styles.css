@@ -7457,11 +7457,11 @@ tbody tr:hover td {
 .intramuros-role-results > p b { color: #9d315b; font-size: 10px; margin-right: 4px; }
 
 .intramuros-role-featured { border-top: 4px solid #0f558a; }
-.intramuros-role-featured-leader { background: linear-gradient(135deg, #0e4f86, #218b9b); border-radius: 8px; color: #fff; display: grid; gap: 2px; padding: 11px; }
-.intramuros-role-featured-leader span { color: #d4f1f4; font-size: 9px; font-weight: 900; text-transform: uppercase; }
-.intramuros-role-featured-leader strong { font-size: 28px; line-height: 1; }
-.intramuros-role-featured-leader b { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.intramuros-role-featured ol { display: grid; gap: 6px; list-style: none; padding: 0; }
+.intramuros-role-featured-leader { align-items: center; background: linear-gradient(135deg, #0e4f86, #218b9b); border-radius: 8px; color: #fff; display: grid; gap: 2px 8px; grid-template-columns: auto minmax(0, 1fr); min-height: 72px; padding: 8px 10px; }
+.intramuros-role-featured-leader span { color: #d4f1f4; font-size: 8px; font-weight: 900; grid-column: 1 / -1; text-transform: uppercase; }
+.intramuros-role-featured-leader strong { font-size: 23px; line-height: 1; }
+.intramuros-role-featured-leader b { align-self: center; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intramuros-role-featured ol { display: grid; gap: 5px; list-style: none; padding: 0; }
 .intramuros-role-featured li { align-items: center; display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) auto; }
 .intramuros-role-featured li span { color: #53687e; font-size: 10px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .intramuros-role-featured li b { color: #12598a; font-size: 11px; }

@@ -12144,7 +12144,7 @@ function renderIntramurosRoleResultChart(title, summary) {
 }
 
 function renderIntramurosRoleFeaturedChart(title, rows) {
-  const values = intramurosRoleVisualRows(rows, 5);
+  const values = intramurosRoleVisualRows(rows, 9);
   const leader = values[0];
   return `<article class="intramuros-role-viz intramuros-role-featured"><h3>${escapeHtml(title)}</h3>${leader ? `<div class="intramuros-role-featured-leader"><span>Más actividad</span><strong>${leader.value}</strong><b title="${escapeHtml(leader.label)}">${escapeHtml(leader.label)}</b></div><ol>${values.slice(1).map((row) => `<li><span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><b>${row.value}</b></li>`).join("")}</ol>` : `<p>Sin juegos registrados.</p>`}</article>`;
 }
