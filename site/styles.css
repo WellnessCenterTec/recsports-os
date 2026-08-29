@@ -7371,7 +7371,7 @@ tbody tr:hover td {
 .intramuros-role-courts { border-top: 4px solid #e29622; }
 .intramuros-role-court-map-section > .intramuros-role-courts { gap: 14px; padding: 16px; }
 .intramuros-role-court-map-section > .intramuros-role-courts h3 { font-size: 16px; }
-.intramuros-role-court-map-section .intramuros-court-map-controls { grid-template-columns: 150px minmax(150px, 200px) 120px; max-width: 500px; }
+.intramuros-role-court-map-section .intramuros-court-map-controls { grid-template-columns: minmax(230px, 1fr) minmax(150px, 200px) 120px; max-width: 640px; }
 .intramuros-role-court-map-section .intramuros-court-map-grid { grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); max-height: none; }
 .intramuros-role-court-map-section .intramuros-court-tile { min-height: 50px; padding: 7px; }
 .intramuros-role-court-map-section .intramuros-court-tile strong { font-size: 11px; }
@@ -7379,12 +7379,20 @@ tbody tr:hover td {
 .intramuros-court-map-controls { display: grid; gap: 5px; grid-template-columns: 72px minmax(98px, 1fr) 74px; }
 .intramuros-court-map-controls select,
 .intramuros-court-map-controls input { border: 1px solid #d8e1e9; border-radius: 6px; color: #435d70; font-size: 10px; font-weight: 800; min-width: 0; padding: 5px; }
+.intramuros-court-map-controls fieldset { align-items: center; border: 1px solid #d8e1e9; border-radius: 6px; display: flex; gap: 10px; margin: 0; min-width: 0; padding: 5px 8px 7px; }
+.intramuros-court-map-controls legend { color: #5a7085; font-size: 9px; font-weight: 900; padding: 0 3px; }
+.intramuros-court-map-controls fieldset label { align-items: center; color: #36556b; display: inline-flex; font-size: 10px; font-weight: 900; gap: 3px; white-space: nowrap; }
+.intramuros-court-map-controls fieldset input { accent-color: #0f6a9d; margin: 0; padding: 0; }
 .intramuros-court-map-legend { display: flex; gap: 8px; }
 .intramuros-court-map-legend span { align-items: center; color: #607386; display: inline-flex; font-size: 9px; font-weight: 800; gap: 4px; }
 .intramuros-court-map-legend span::before { border-radius: 50%; content: ""; height: 7px; width: 7px; }
 .intramuros-court-map-legend .occupied::before { background: #dc4d4d; }
 .intramuros-court-map-legend .available::before { background: #35a766; }
 .intramuros-court-map-grid { display: grid; gap: 6px; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 222px; overflow: auto; padding-right: 2px; }
+.intramuros-court-map-facilities { display: grid; gap: 13px; }
+.intramuros-court-facility { display: grid; gap: 6px; }
+.intramuros-court-facility h4 { color: #36556b; font-size: 11px; margin: 0; }
+.intramuros-court-map-empty { color: #60768b; font-size: 11px; font-weight: 800; margin: 0; }
 .intramuros-court-tile { align-items: center; border: 1px solid; border-radius: 7px; display: grid; gap: 4px; grid-template-columns: 22px minmax(0, 1fr); min-height: 43px; padding: 5px; }
 .intramuros-court-tile i { border: 2px solid currentColor; border-radius: 3px; height: 14px; position: relative; width: 20px; }
 .intramuros-court-tile i::after { background: currentColor; content: ""; height: 2px; left: 0; position: absolute; right: 0; top: 5px; }

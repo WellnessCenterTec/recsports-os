@@ -628,7 +628,7 @@ let intramurosUploadSummary = null;
 let intramurosRolesUploadSummary = null;
 let intramurosRolesPendingUpload = null;
 let intramurosRoleAgendaFilters = { team: "", startDate: "", endDate: "", tournament: "todos", status: "todos" };
-let intramurosRoleCourtMapFilters = { facility: "CDB1", date: "", time: "" };
+let intramurosRoleCourtMapFilters = { facilities: ["CDB1", "CDB2", "WELLNESS"], date: "", time: "" };
 let intramurosRoleAgendaSearchTimer = null;
 let selectedIntramurosTournament = "";
 let intramurosCalendarLayer = "all";
@@ -12086,22 +12086,28 @@ function intramurosRoleCourtMapState(rows, filters = intramurosRoleCourtMapFilte
   const hours = Array.from(new Set(rows.filter((row) => String(row.fecha || "").slice(0, 10) === date).map((row) => String(row.hora || "").trim()).filter(Boolean))).sort();
   const fallbackHour = hours[0] || "";
   const time = hours.includes(filters.time) ? filters.time : fallbackHour;
-  const facility = INTRAMUROS_FACILITY_COURTS.find((item) => item.id === filters.facility) || INTRAMUROS_FACILITY_COURTS[0];
   const activeRows = rows.filter((row) => String(row.fecha || "").slice(0, 10) === date && String(row.hora || "").trim() === time && String(row.equipo_local || row.equipo_visitante || "").trim());
-  const courts = facility.courts.map((court) => {
-    const occupiedBy = activeRows.filter((row) => intramurosRoleCourtMapMatches(row, facility, court));
-    const detail = occupiedBy.map((row) => intramurosRoleIsGame(row)
-      ? `${row.equipo_local} vs ${row.equipo_visitante}`
-      : row.equipo_local || row.equipo_visitante || row.torneo || "Reservación"
-    ).join(" · ");
-    return { ...court, occupiedBy, detail };
-  });
-  return { date, time, hours, facility, courts };
+  const requestedFacilities = Array.isArray(filters.facilities) ? filters.facilities : filters.facility ? [filters.facility] : INTRAMUROS_FACILITY_COURTS.map((facility) => facility.id);
+  const selectedIds = requestedFacilities.filter((id) => INTRAMUROS_FACILITY_COURTS.some((facility) => facility.id === id));
+  const facilities = INTRAMUROS_FACILITY_COURTS.filter((facility) => selectedIds.includes(facility.id)).map((facility) => ({
+    ...facility,
+    courts: facility.courts.map((court) => {
+      const occupiedBy = activeRows.filter((row) => intramurosRoleCourtMapMatches(row, facility, court));
+      const detail = occupiedBy.map((row) => intramurosRoleIsGame(row)
+        ? `${row.equipo_local} vs ${row.equipo_visitante}`
+        : row.equipo_local || row.equipo_visitante || row.torneo || "Reservación"
+      ).join(" · ");
+      return { ...court, occupiedBy, detail };
+    })
+  }));
+  return { date, time, hours, facilities, selectedIds };
 }
 
 function renderIntramurosRoleCourtChart(title, rows) {
   const state = intramurosRoleCourtMapState(rows);
-  return `<article class="intramuros-role-viz intramuros-role-courts"><h3>${escapeHtml(title)}</h3><div class="intramuros-court-map-controls"><select id="intramurosCourtMapFacility" aria-label="Recinto deportivo">${INTRAMUROS_FACILITY_COURTS.map((facility) => `<option value="${facility.id}" ${state.facility.id === facility.id ? "selected" : ""}>${facility.label}</option>`).join("")}</select><input id="intramurosCourtMapDate" type="date" aria-label="Fecha del mapa de canchas" value="${escapeHtml(state.date)}" /><select id="intramurosCourtMapTime" aria-label="Horario del mapa de canchas" ${state.hours.length ? "" : "disabled"}><option value="">${state.hours.length ? "Horario" : "Sin horarios"}</option>${state.hours.map((hour) => `<option value="${escapeHtml(hour)}" ${hour === state.time ? "selected" : ""}>${escapeHtml(hour)}</option>`).join("")}</select></div><p class="intramuros-court-map-legend"><span class="occupied">Ocupada</span><span class="available">Libre</span></p><div class="intramuros-court-map-grid">${state.courts.map((court) => { const occupied = court.occupiedBy.length > 0; return `<div class="intramuros-court-tile ${occupied ? "occupied" : "available"}" title="${escapeHtml(occupied ? court.detail : `${court.label}: libre`)}"><i aria-hidden="true"></i><strong>${escapeHtml(court.label)}</strong><span>${escapeHtml(occupied ? court.detail : "Libre")}</span></div>`; }).join("")}</div></article>`;
+  const facilityControls = INTRAMUROS_FACILITY_COURTS.map((facility) => `<label><input type="checkbox" data-intramuros-court-facility value="${facility.id}" ${state.selectedIds.includes(facility.id) ? "checked" : ""} /> ${facility.label}</label>`).join("");
+  const facilityMaps = state.facilities.length ? state.facilities.map((facility) => `<section class="intramuros-court-facility"><h4>${escapeHtml(facility.label)}</h4><div class="intramuros-court-map-grid">${facility.courts.map((court) => { const occupied = court.occupiedBy.length > 0; return `<div class="intramuros-court-tile ${occupied ? "occupied" : "available"}" title="${escapeHtml(occupied ? court.detail : `${court.label}: libre`)}"><i aria-hidden="true"></i><strong>${escapeHtml(court.label)}</strong><span>${escapeHtml(occupied ? court.detail : "Libre")}</span></div>`; }).join("")}</div></section>`).join("") : `<p class="intramuros-court-map-empty">Selecciona al menos una instalación.</p>`;
+  return `<article class="intramuros-role-viz intramuros-role-courts"><h3>${escapeHtml(title)}</h3><div class="intramuros-court-map-controls"><fieldset><legend>Instalaciones</legend>${facilityControls}</fieldset><input id="intramurosCourtMapDate" type="date" aria-label="Fecha del mapa de canchas" value="${escapeHtml(state.date)}" /><select id="intramurosCourtMapTime" aria-label="Horario del mapa de canchas" ${state.hours.length ? "" : "disabled"}><option value="">${state.hours.length ? "Horario" : "Sin horarios"}</option>${state.hours.map((hour) => `<option value="${escapeHtml(hour)}" ${hour === state.time ? "selected" : ""}>${escapeHtml(hour)}</option>`).join("")}</select></div><p class="intramuros-court-map-legend"><span class="occupied">Ocupada</span><span class="available">Libre</span></p><div class="intramuros-court-map-facilities">${facilityMaps}</div></article>`;
 }
 
 function intramurosRoleResultFollowUp(rows, now = new Date()) {
@@ -20426,10 +20432,10 @@ function render() {
     intramurosRoleAgendaFilters.status = event.target.value;
     render();
   });
-  $("#intramurosCourtMapFacility")?.addEventListener("change", (event) => {
-    intramurosRoleCourtMapFilters.facility = event.target.value;
+  document.querySelectorAll("[data-intramuros-court-facility]").forEach((input) => input.addEventListener("change", () => {
+    intramurosRoleCourtMapFilters.facilities = Array.from(document.querySelectorAll("[data-intramuros-court-facility]:checked"), (item) => item.value);
     render();
-  });
+  }));
   $("#intramurosCourtMapDate")?.addEventListener("change", (event) => {
     intramurosRoleCourtMapFilters.date = event.target.value;
     intramurosRoleCourtMapFilters.time = "";
