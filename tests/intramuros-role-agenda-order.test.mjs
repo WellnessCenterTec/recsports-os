@@ -130,8 +130,11 @@ test("el mapa de canchas usa recinto, fecha y horario para marcar ocupación", a
   const cdb1 = courtMap(rows, { facilities: ["CDB1"], date: "2026-08-29", time: "18:00" });
   const cdb2 = courtMap(rows, { facilities: ["CDB2"], date: "2026-08-29", time: "18:00" });
   const wellness = courtMap(rows, { facilities: ["WELLNESS"], date: "2026-08-29", time: "19:00" });
+  const currentSlot = courtMap(rows, { facilities: ["CDB1"], date: "", time: "" }, new Date(2026, 7, 29, 18, 7));
 
   assert.deepEqual(courtMap(rows, { date: "2026-08-29", time: "18:00" }).selectedIds, ["CDB1", "CDB2", "WELLNESS"]);
+  assert.equal(currentSlot.date, "2026-08-29");
+  assert.equal(currentSlot.time, "18:00");
   assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "C # 3").occupiedBy.length, 1);
   assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "Tocho").occupiedBy.length, 1);
   assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "Soft 1").pending, true);

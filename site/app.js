@@ -12084,6 +12084,15 @@ function intramurosRoleMapDate(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+function intramurosRoleMapDefaultHour(hours, now = new Date()) {
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const minutesFor = (hour) => {
+    const match = String(hour).match(/^(\d{1,2}):(\d{2})$/);
+    return match ? Number(match[1]) * 60 + Number(match[2]) : Number.POSITIVE_INFINITY;
+  };
+  return [...hours].sort((first, second) => Math.abs(minutesFor(first) - currentMinutes) - Math.abs(minutesFor(second) - currentMinutes) || minutesFor(first) - minutesFor(second))[0] || "";
+}
+
 function intramurosRoleCourtMapMatches(row, facility, court) {
   const courtName = headerKey(row.cancha);
   const tournament = normalizeText(row.torneo);
@@ -12101,7 +12110,7 @@ function intramurosRoleCourtMapMatches(row, facility, court) {
 function intramurosRoleCourtMapState(rows, filters = intramurosRoleCourtMapFilters, now = new Date()) {
   const date = filters.date || intramurosRoleMapDate(now);
   const hours = Array.from(new Set(rows.filter((row) => String(row.fecha || "").slice(0, 10) === date).map((row) => String(row.hora || "").trim()).filter(Boolean))).sort();
-  const fallbackHour = hours[0] || "";
+  const fallbackHour = !filters.date ? intramurosRoleMapDefaultHour(hours, now) : hours[0] || "";
   const time = hours.includes(filters.time) ? filters.time : fallbackHour;
   const activeRows = rows.filter((row) => String(row.fecha || "").slice(0, 10) === date && String(row.hora || "").trim() === time);
   const requestedFacilities = Array.isArray(filters.facilities) ? filters.facilities : filters.facility ? [filters.facility] : INTRAMUROS_FACILITY_COURTS.map((facility) => facility.id);
