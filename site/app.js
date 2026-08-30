@@ -17190,6 +17190,10 @@ function renderVivenciaDashboard() {
   const participantTotal = metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
   const impactCount = participantTotal;
   const impactBasis = "participaciones reportadas";
+  const completedEvents = events.filter((event) => ["realizado", "completado"].includes(normalizeText(event.status))).length;
+  const genderTotals = vivenciaGenderRows(events, metricsByEvent);
+  const womenTotal = genderTotals.find((row) => row.label === "Mujeres")?.value || 0;
+  const menTotal = genderTotals.find((row) => row.label === "Hombres")?.value || 0;
   const calendarDate = vivenciaCalendarBaseDate(events);
   const editable = canEditArea("vivencia");
   return `
@@ -17199,6 +17203,11 @@ function renderVivenciaDashboard() {
         <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
         <div class="kpi"><span>${uniqueMatriculas.size ? "Matrículas únicas identificadas" : "Participantes identificados"}</span><strong>${identifiedParticipantCount.toLocaleString("es-MX")}</strong></div>
         <div class="kpi"><span>Avance de meta</span><strong>${Math.round((impactCount / Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1)) * 100)}%</strong><em>sobre ${escapeHtml(impactBasis)}</em></div>
+      </div>
+      <div class="vivencia-completion-summary" aria-label="Resumen de resultados de Vivencia">
+        <div><span>Eventos realizados</span><strong>${completedEvents.toLocaleString("es-MX")}</strong><em>con estado realizado o completado</em></div>
+        <div><span>Mujeres participantes</span><strong>${womenTotal.toLocaleString("es-MX")}</strong><em>en los eventos registrados</em></div>
+        <div><span>Hombres participantes</span><strong>${menTotal.toLocaleString("es-MX")}</strong><em>en los eventos registrados</em></div>
       </div>
 
       <div class="vivencia-dashboard-grid">
