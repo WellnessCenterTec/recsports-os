@@ -2778,7 +2778,6 @@ async function loadVivenciaEvents() {
   const { data, error } = await supabaseClient
     .from("vivencia_events")
     .select("*")
-    .is("archived_at", null)
     .order("event_date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(1500);
@@ -2824,7 +2823,7 @@ async function loadVivenciaEvents() {
   }
   vivenciaEventsAvailable = true;
   vivenciaEvents = (data || []).filter((event) => masterPeriodMatchesDate(event.event_date));
-  const activeEventIds = new Set(vivenciaEvents.map((event) => event.id));
+  const activeEventIds = new Set(vivenciaEvents.filter(isVisibleVivenciaEvent).map((event) => event.id));
   vivenciaEventMetrics = metricsResult.error
     ? []
     : (metricsResult.data || []).filter((row) => activeEventIds.has(row.event_id) || masterPeriodMatchesDate(row.event_date));
@@ -4599,10 +4598,11 @@ async function deleteVivenciaEvent(eventId) {
   const eventRow = vivenciaEvents.find((row) => row.id === eventId);
   const eventName = eventRow?.event_name || "este evento";
   if (!window.confirm(`Eliminar ${eventName} del historial de Vivencia?`)) return;
+  const archivedAt = new Date().toISOString();
   const { error } = await supabaseClient
     .from("vivencia_events")
     .update({
-      archived_at: new Date().toISOString(),
+      archived_at: archivedAt,
       sync_status: eventRow?.sync_status === "planning_deleted" ? "planning_deleted" : "detached",
       updated_at: new Date().toISOString()
     })
@@ -4612,7 +4612,7 @@ async function deleteVivenciaEvent(eventId) {
     toast(`No se pudo eliminar el evento: ${supabaseErrorDetail(error) || error.message}`);
     return;
   }
-  vivenciaEvents = vivenciaEvents.filter((row) => row.id !== eventId);
+  vivenciaEvents = vivenciaEvents.map((row) => row.id === eventId ? { ...row, archived_at: archivedAt } : row);
   vivenciaEventMetrics = vivenciaEventMetrics.filter((row) => row.event_id !== eventId);
   vivenciaParticipants = vivenciaParticipants.filter((row) => row.event_id !== eventId);
   if (selectedVivenciaEventForDetail === eventId) selectedVivenciaEventForDetail = "";
