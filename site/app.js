@@ -17197,20 +17197,6 @@ function renderCommunicationDashboard() {
     .reduce((sum, event) => sum + Math.max(0, Number(event.reported_total_participants || 0)), 0);
   const planningYear = dated.map((event) => vivenciaEventDate(event)?.getFullYear()).find(Boolean) || new Date().getFullYear();
   const activeMonths = new Set(activities.map((event) => communicationMonthLabel(event, planningYear)).filter((label) => label !== "Sin fecha")).size;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const inFifteen = new Date(today);
-  inFifteen.setDate(today.getDate() + 15);
-  const upcoming = dated.filter((event) => {
-    const date = vivenciaEventDate(event);
-    return date && date >= today && date <= inFifteen;
-  }).sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)));
-  const monthRowsMap = new Map();
-  activities.forEach((event) => {
-    const label = communicationMonthLabel(event, planningYear);
-    monthRowsMap.set(label, (monthRowsMap.get(label) || 0) + 1);
-  });
-  const monthRows = [...monthRowsMap.entries()].map(([label, value]) => ({ label, value }));
   const calendarDate = communicationCalendarBaseDate(activities);
   const selected = activities.find((activity) => activity.id === selectedPlanningActivityId);
   return `
@@ -17226,28 +17212,6 @@ function renderCommunicationDashboard() {
         ${renderCommunicationImpactGoal(participantTotal)}
         ${renderCommunicationStatusBreakdown(activities)}
         ${renderCommunicationRegisteredEventGallery(activities)}
-        <div class="vivencia-insights-grid">
-          <div class="vivencia-insights-column">
-            <article class="chart-panel vivencia-month-panel">
-              <div class="chart-title-row"><div><p class="eyebrow">Impacto mensual</p><h3>Actividades por mes</h3></div></div>
-              ${renderVivenciaBars(monthRows, { compact: true })}
-            </article>
-            <article class="chart-panel vivencia-recent-panel">
-              <div class="chart-title-row"><div><p class="eyebrow">Registro actualizado</p><h3>Eventos históricos del periodo</h3></div><span>${activities.length.toLocaleString("es-MX")} eventos</span></div>
-              ${renderCommunicationRecentActivities(activities)}
-            </article>
-          </div>
-          <div class="vivencia-insights-column">
-            <article class="chart-panel vivencia-upcoming-panel">
-              <div class="chart-title-row"><div><p class="eyebrow">Agenda</p><h3>Próximas actividades</h3></div><span>15 días</span></div>
-              ${renderCommunicationEventCards(upcoming)}
-            </article>
-            <article class="chart-panel vivencia-top-panel">
-              <div class="chart-title-row"><div><p class="eyebrow">Top actividades</p><h3>Top 15 registros de Comunicación</h3></div></div>
-              ${renderCommunicationTopActivities(activities)}
-            </article>
-          </div>
-        </div>
       </div>
       ${renderPlanningActivityDetail(selected)}
     </section>
