@@ -14,3 +14,13 @@ test("Eliminar un evento de Vivencia lo conserva como referencia archivada para 
   assert.match(deletion, /vivenciaEvents = vivenciaEvents\.map/);
   assert.match(dashboard, /const existingKeys = new Set\(connectedEvents/);
 });
+
+test("Vivencia muestra eventos con matrículas en cuatro tarjetas y permite cargar su evidencia", () => {
+  assert.match(source, /function renderVivenciaRegisteredEventGallery/);
+  assert.match(source, /vivenciaEventParticipants\(event\.id\)\.length > 0/);
+  assert.match(source, /data-vivencia-card-image-upload/);
+  assert.match(source, /vivenciaDashboardImageFile/);
+  assert.match(source, /renderVivenciaRegisteredEventGallery\(events, metricsByEvent, editable\)/);
+  assert.match(source, /\$\$\('\[data-vivencia-card-image-upload\]'\)/);
+  assert.match(source, /uploadVivenciaEventImages\(files, eventId\)/);
+});

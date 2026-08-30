@@ -9687,6 +9687,22 @@ tbody tr:hover td {
   min-height: 0;
 }
 
+.vivencia-registered-gallery { grid-column: 1 / -1; }
+.vivencia-registered-grid { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.vivencia-registered-card { background: #fff; border: 1px solid #d9e6ed; border-radius: 14px; box-shadow: 0 7px 18px rgba(16, 47, 75, .05); min-width: 0; overflow: hidden; }
+.vivencia-registered-image { align-items: center; background: linear-gradient(135deg, #e9f5f3, #e8f1ff); display: flex; height: 142px; justify-content: center; overflow: hidden; }
+.vivencia-registered-image img { height: 100%; object-fit: cover; width: 100%; }
+.vivencia-registered-image > span { align-items: center; background: rgba(255, 255, 255, .72); border-radius: 99px; color: #267a83; display: flex; height: 42px; justify-content: center; width: 42px; }
+.vivencia-registered-image svg { height: 22px; width: 22px; }
+.vivencia-registered-content { display: grid; gap: 8px; padding: 12px; }
+.vivencia-registered-content time { color: #267a83; font-size: 11px; font-weight: 850; text-transform: capitalize; }
+.vivencia-registered-content h4 { color: var(--ink); font-size: 14px; line-height: 1.2; margin: 0; min-height: 34px; overflow: hidden; }
+.vivencia-registered-stats { border-top: 1px solid #e6eef2; display: grid; gap: 4px; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 8px; }
+.vivencia-registered-stats span { color: var(--muted); font-size: 9px; line-height: 1.15; }
+.vivencia-registered-stats b { color: #075d7a; display: block; font-size: 14px; }
+.vivencia-registered-content .ghost-btn { align-items: center; display: inline-flex; font-size: 11px; gap: 5px; justify-content: center; min-height: 31px; width: 100%; }
+.vivencia-registered-content .ghost-btn svg { height: 14px; width: 14px; }
+
 .vivencia-insights-column {
   display: grid;
   align-content: start;
@@ -10891,6 +10907,7 @@ body.planning-modal-open {
   .class-simulator-maps { grid-template-columns: 1fr; }
   .vivencia-event-layout { grid-template-columns: 1fr; }
   .vivencia-dashboard-grid { grid-template-columns: 1fr; }
+  .vivencia-registered-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .vivencia-bar-row { grid-template-columns: 1fr; }
   .vivencia-bar-row strong { text-align: left; }
   .vivencia-upcoming-list article { grid-template-columns: 58px minmax(0, 1fr); gap: 10px; }
@@ -10985,6 +11002,7 @@ body.planning-modal-open {
   .budget-columns { height: 150px; }
   .budget-table-heading { flex-direction: column; align-items: flex-start; }
   .vivencia-kpi-strip { grid-template-columns: 1fr; }
+  .vivencia-registered-grid { grid-template-columns: 1fr; }
   .vivencia-hero,
   .vivencia-next-event { flex-direction: column; }
   .vivencia-calendar { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -16744,6 +16744,46 @@ function renderVivenciaTopEvents(events, metricsByEvent) {
   `;
 }
 
+function renderVivenciaRegisteredEventGallery(events, metricsByEvent, editable) {
+  const registered = events
+    .filter((event) => vivenciaEventParticipants(event.id).length > 0)
+    .slice()
+    .sort((first, second) => String(second.event_date || "").localeCompare(String(first.event_date || "")));
+  return `
+    <section class="chart-panel vivencia-registered-gallery">
+      <div class="chart-title-row">
+        <div><p class="eyebrow">Evidencia de eventos</p><h3>Eventos con matrículas registradas</h3></div>
+        <span>${registered.length.toLocaleString("es-MX")} con registros</span>
+      </div>
+      ${registered.length ? `<div class="vivencia-registered-grid">
+        ${registered.map((event) => {
+          const metrics = metricsByEvent.get(event.id) || event;
+          const records = vivenciaEventParticipants(event.id).length;
+          const gender = vivenciaGenderRows([event], new Map([[event.id, metrics]]));
+          const women = gender.find((row) => row.label === "Mujeres")?.value || 0;
+          const men = gender.find((row) => row.label === "Hombres")?.value || 0;
+          const image = vivenciaImagesForEvent(event.id)[0];
+          const stored = vivenciaEvents.some((row) => row.id === event.id);
+          const date = vivenciaEventDate(event);
+          const dateLabel = date ? date.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "Sin fecha";
+          return `<article class="vivencia-registered-card">
+            <div class="vivencia-registered-image">${image?.public_url
+              ? `<img src="${escapeHtml(image.public_url)}" alt="Evidencia de ${escapeHtml(event.event_name || "evento")}" />`
+              : `<span aria-hidden="true"><i data-lucide="image-plus"></i></span>`}</div>
+            <div class="vivencia-registered-content">
+              <time>${escapeHtml(dateLabel)}</time>
+              <h4 title="${escapeHtml(event.event_name || "Evento")}">${escapeHtml(event.event_name || "Evento")}</h4>
+              <div class="vivencia-registered-stats"><span><b>${records.toLocaleString("es-MX")}</b> registros</span><span><b>${women.toLocaleString("es-MX")}</b> mujeres</span><span><b>${men.toLocaleString("es-MX")}</b> hombres</span></div>
+              <button type="button" class="ghost-btn compact-action" data-vivencia-card-image-upload="${escapeHtml(event.id)}" ${editable && stored ? "" : "disabled"}><i data-lucide="image-up" aria-hidden="true"></i>${image ? "Cambiar imagen" : "Cargar imagen"}</button>
+            </div>
+          </article>`;
+        }).join("")}
+      </div><input id="vivenciaDashboardImageFile" type="file" accept="image/jpeg,image/png,image/webp" hidden />`
+        : `<div class="vivencia-empty-mini">Los eventos aparecerán aquí al contar con matrículas registradas.</div>`}
+    </section>
+  `;
+}
+
 function renderVivenciaImpactGoal(impactCount, editable, impactBasis = "matrículas únicas") {
   const goal = Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1);
   const progress = Math.round((impactCount / goal) * 100);
@@ -17147,29 +17187,7 @@ function renderVivenciaDashboard() {
         </article>
         ${renderVivenciaImpactGoal(impactCount, editable, impactBasis)}
         ${renderVivenciaGenderBreakdown(events, metricsByEvent)}
-        <div class="vivencia-insights-grid">
-          <div class="vivencia-insights-column">
-            <article class="chart-panel vivencia-month-panel">
-              <div class="chart-title-row">
-                <div><p class="eyebrow">Impacto mensual</p><h3>${participantTotal ? "Participaciones por mes" : "Eventos por mes"}</h3></div>
-              </div>
-              ${renderVivenciaBars(monthRows, { compact: true })}
-            </article>
-            <article class="chart-panel vivencia-recent-panel">
-              <div class="chart-title-row">
-                <div><p class="eyebrow">Registro</p><h3>Ultimos eventos registrados</h3></div>
-                <span>10 recientes</span>
-              </div>
-              ${renderVivenciaRecentEvents(events)}
-            </article>
-          </div>
-          <article class="chart-panel vivencia-top-panel">
-            <div class="chart-title-row">
-              <div><p class="eyebrow">Top eventos</p><h3>Top 15 eventos por alumnos impactados</h3></div>
-            </div>
-            ${renderVivenciaTopEvents(events, metricsByEvent)}
-          </article>
-        </div>
+        ${renderVivenciaRegisteredEventGallery(events, metricsByEvent, editable)}
       </div>
     </section>
   `;
@@ -20677,6 +20695,19 @@ function render() {
     if (!files?.length || !selectedVivenciaEventForDetail) return;
     await uploadVivenciaEventImages(files, selectedVivenciaEventForDetail);
     event.target.value = "";
+  });
+  $$('[data-vivencia-card-image-upload]').forEach((button) => button.addEventListener("click", () => {
+    const input = $("#vivenciaDashboardImageFile");
+    if (!input) return;
+    input.dataset.eventId = button.dataset.vivenciaCardImageUpload;
+    input.click();
+  }));
+  $("#vivenciaDashboardImageFile")?.addEventListener("change", async (event) => {
+    const eventId = event.currentTarget.dataset.eventId;
+    const files = event.currentTarget.files;
+    if (eventId && files?.length) await uploadVivenciaEventImages(files, eventId);
+    event.currentTarget.value = "";
+    delete event.currentTarget.dataset.eventId;
   });
   $("#vivenciaEventsFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
