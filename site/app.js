@@ -7155,8 +7155,9 @@ function gymWeekOptions(selected) {
 
 function gymBarRows(rows) {
   const max = Math.max(1, ...rows.map((row) => Number(row.value) || 0));
-  return rows.map((row) => `
-    <div class="gym-bar-row">
+  return rows.map((row, index) => `
+    <div class="gym-bar-row ${Number(row.value) === max ? "peak" : ""}">
+      <b aria-hidden="true">${String(index + 1).padStart(2, "0")}</b>
       <span>${escapeHtml(row.label)}</span>
       <div class="gym-bar-track"><i style="width:${Math.round((Number(row.value) || 0) / max * 100)}%"></i></div>
       <strong>${Number(row.value || 0).toLocaleString("es-MX", { maximumFractionDigits: 1 })}</strong>
@@ -7605,7 +7606,7 @@ function renderGymDashboard() {
           <div class="gym-bars">${gymBarRows(dailyRows)}</div>
         </section>
         ${renderGymStudentDistribution("Por semestre", "% de alumnos asistentes", semesterRows, attendanceProfiles.length, unmatchedAttendance, "semester")}
-        ${renderGymStudentDistribution("Alumnos asistentes por carrera", "Top 10 + Otras", careerRows, careerProfiles.length, pendingCareerProfiles, "", {
+        ${renderGymStudentDistribution("Alumnos asistentes por carrera", "Top 10 + Otras", careerRows, careerProfiles.length, pendingCareerProfiles, "career", {
           summaryLabel: "alumnos únicos con carrera identificada",
           itemLabel: "alumnos",
           itemLabelSingular: "alumno",
@@ -7613,7 +7614,7 @@ function renderGymDashboard() {
           unmatchedLabelSingular: "alumno pendiente de cruce académico"
         })}
       </div>
-      <section class="chart-panel gym-week-chart">
+      <section class="chart-panel gym-week-chart facility-${normalizeText(gymDashboardFacility)}">
         <div class="gym-chart-heading">
           <div><p class="eyebrow">${gymDashboardFacility}</p><h3>Asistencia semanal</h3></div>
           <select class="gym-week-filter" data-facility="${gymDashboardFacility}" aria-label="Semanas visibles de ${gymDashboardFacility}">

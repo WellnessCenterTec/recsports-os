@@ -1435,6 +1435,7 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 }
 
 .gym-bars {
+  counter-reset: gym-day;
   display: grid;
   gap: 14px;
 }
@@ -1494,11 +1495,16 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 }
 
 .gym-column-track i {
+  background: linear-gradient(180deg, #62b7f2 0%, #0868c2 100%);
+  box-shadow: 0 5px 12px rgba(8, 104, 194, .2);
   display: block;
   width: min(100%, 46px);
-  background: var(--blue);
-  border-radius: 2px 2px 0 0;
+  border-radius: 10px 10px 3px 3px;
 }
+
+.gym-week-chart.facility-emis .gym-column-track i { background: linear-gradient(180deg, #ffbd5c 0%, #e86b15 100%); box-shadow: 0 5px 12px rgba(232, 107, 21, .22); }
+.gym-week-chart.facility-ambas .gym-column-track i { background: linear-gradient(180deg, #8264d7 0%, #255fc1 100%); }
+.gym-week-chart .gym-week-columns { background: linear-gradient(to top, rgba(218, 232, 244, .55) 1px, transparent 1px); background-size: 100% 25%; border-radius: 12px; }
 
 .gym-heatmap-controls {
   display: grid;
@@ -1607,12 +1613,15 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 
 .gym-bar-row {
   display: grid;
-  grid-template-columns: 86px minmax(0, 1fr) 48px;
+  grid-template-columns: 24px 76px minmax(0, 1fr) 56px;
   align-items: center;
   gap: 10px;
   color: var(--muted);
   font-size: 13px;
 }
+
+.gym-bar-row > b { align-items: center; background: #e8f1fb; border-radius: 99px; color: #2264a4; display: flex; font-size: 10px; height: 22px; justify-content: center; width: 22px; }
+.gym-bar-row.peak > b { background: #0c67b5; color: #fff; }
 
 .gym-bar-row strong {
   color: var(--ink);
@@ -1627,12 +1636,29 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 }
 
 .gym-bar-track i {
+  background: linear-gradient(90deg, #0a61ae 0%, #2faeaf 100%);
+  box-shadow: 0 3px 8px rgba(7, 90, 164, .18);
   display: block;
   height: 100%;
   min-width: 0;
   background: var(--blue);
   border-radius: inherit;
 }
+
+.gym-bar-row.peak .gym-bar-track i { background: linear-gradient(90deg, #0d57a3 0%, #1ca37a 100%); }
+
+.gym-distribution-semester .gym-distribution-row { background: #f5f2ff; border-radius: 10px; grid-template-columns: 42px minmax(0, 1fr) 40px; padding: 8px 9px; }
+.gym-distribution-semester .gym-distribution-row div:first-child { align-items: baseline; display: flex; gap: 6px; }
+.gym-distribution-semester .gym-distribution-row div:first-child strong { background: #e5dcff; border-radius: 8px; color: #6646ba; padding: 4px 7px; }
+.gym-distribution-semester .gym-distribution-row div:first-child span { font-size: 10px; }
+.gym-distribution-semester .gym-distribution-row .gym-bar-track { display: none; }
+.gym-distribution-semester .gym-distribution-row em { background: #7653c9; border-radius: 99px; color: #fff; padding: 4px 6px; }
+
+.gym-distribution-career .gym-distribution-row { border-bottom: 1px solid #e0eaef; padding-bottom: 8px; }
+.gym-distribution-career .gym-distribution-row:nth-child(1) .gym-bar-track i { background: linear-gradient(90deg, #f2b20f, #e17318); }
+.gym-distribution-career .gym-distribution-row:nth-child(2) .gym-bar-track i { background: linear-gradient(90deg, #1279b8, #46b2b0); }
+.gym-distribution-career .gym-distribution-row:nth-child(n + 3) .gym-bar-track i { background: linear-gradient(90deg, #3461b9, #8073cc); }
+.gym-distribution-career .gym-distribution-row em { color: #176570; }
 
 .gym-form-layout {
   display: grid;
@@ -11031,7 +11057,7 @@ body.planning-modal-open {
   .gym-chart-heading select { width: 100%; }
   .gym-form-layout .form-panel form,
   .gym-lookup-form { grid-template-columns: 1fr !important; }
-  .gym-bar-row { grid-template-columns: 72px minmax(0, 1fr) 42px; }
+  .gym-bar-row { grid-template-columns: 22px 64px minmax(0, 1fr) 48px; }
   .blueprint-grid, .wireframes { grid-template-columns: 1fr; }
   .roadmap-board { grid-template-columns: 1fr; }
   .catalog-grid { grid-template-columns: 1fr; }
