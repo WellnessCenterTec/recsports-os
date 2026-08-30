@@ -53,10 +53,8 @@ test("Vivencia elimina el panel de próximos eventos del tablero", () => {
   assert.doesNotMatch(dashboard, /vivencia-upcoming-panel/);
 });
 
-test("Vivencia resume eventos realizados y participantes por género", () => {
+test("Vivencia no muestra una franja adicional de resumen de eventos y género", () => {
   const dashboard = source.slice(source.indexOf("function renderVivenciaDashboard"), source.indexOf("function filteredClassGrades"));
-  assert.match(dashboard, /const completedEvents = events\.filter/);
-  assert.match(dashboard, /Mujeres participantes/);
-  assert.match(dashboard, /Hombres participantes/);
-  assert.match(dashboard, /Eventos realizados/);
+  assert.doesNotMatch(dashboard, /vivencia-completion-summary/);
+  assert.doesNotMatch(dashboard, /Mujeres participantes/);
 });
