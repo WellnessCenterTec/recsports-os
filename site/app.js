@@ -10889,6 +10889,7 @@ function renderExecutiveWeeklyBars(rows, tone = "blue") {
 }
 
 function renderExecutiveGymWeeklyReport(rows) {
+  const wellnessDailyServiceCapacity = 2400;
   const lane = (key, label, tone) => {
     const laneMax = Math.max(...rows.map((row) => Number(row[key] || 0)), 1);
     return `
@@ -10905,8 +10906,11 @@ function renderExecutiveGymWeeklyReport(rows) {
       <div class="exec-report-gym-chart"><p class="exec-report-gym-scale-note">Escala independiente por sede · valores reales sobre cada columna</p>${lane("wellness", "Wellness", "wellness")}${lane("emis", "EMIS", "emis")}</div>
       <aside class="exec-report-daily-average">
         <h4>Promedio de asistencias en Wellness</h4>
-        ${averages.map((row) => `<div><span>${row.day}</span><strong>${row.average === null ? "—" : row.average.toLocaleString("es-MX")}</strong></div>`).join("")}
-        <small>Promedio diario · Wellness</small>
+        ${averages.map((row) => {
+          const service = row.average === null ? null : Math.round((row.average / wellnessDailyServiceCapacity) * 100);
+          return `<div class="exec-report-daily-service ${service !== null && service > 100 ? "over-capacity" : ""}"><span>${row.day}</span><strong>${row.average === null ? "—" : row.average.toLocaleString("es-MX")}</strong><em>${service === null ? "—" : `${service}% servicio`}</em></div>`;
+        }).join("")}
+        <small>Servicio = asistencias promedio del día ÷ capacidad de 2,400 alumnos. Referencia calculada con una estancia aproximada de 2 horas por alumno.</small>
       </aside>
     </div>`;
 }

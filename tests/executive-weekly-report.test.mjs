@@ -38,6 +38,10 @@ test("daily Wellness average is computed from dated Wellness visits only", () =>
   assert.ok(source.includes('normalizeGymSite(row.sitio) === "Wellness"'));
   assert.ok(source.includes("perDate.set(row.fecha"));
   assert.ok(source.includes('"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"'));
+  assert.ok(source.includes("const wellnessDailyServiceCapacity = 2400"));
+  assert.ok(source.includes("% servicio"));
+  assert.ok(source.includes("estancia aproximada de 2 horas por alumno"));
+  assert.ok(styles.includes(".exec-report-daily-service.over-capacity"));
 });
 
 test("every gym week with data receives its strong series color", () => {
