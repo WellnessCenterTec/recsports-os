@@ -36,3 +36,13 @@ test("Vivencia conserva la carga de imagen en tarjetas y elimina el bloque de ga
   assert.doesNotMatch(source, /Guarda primero un evento para poder agregar imágenes asociadas a él/);
   assert.match(source, /data-vivencia-card-image-upload/);
 });
+
+test("Vivencia permite corregir o eliminar matrículas cargadas por evento", () => {
+  assert.match(source, /function renderVivenciaParticipantsManagementModal/);
+  assert.match(source, /data-vivencia-participant-manage/);
+  assert.match(source, /data-vivencia-participant-save/);
+  assert.match(source, /data-vivencia-participant-delete/);
+  assert.match(source, /async function updateVivenciaParticipant/);
+  assert.match(source, /async function deleteVivenciaParticipant/);
+  assert.match(source, /from\("vivencia_participants"\)\.delete\(\)/);
+});

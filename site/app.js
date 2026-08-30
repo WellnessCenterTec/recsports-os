@@ -749,6 +749,7 @@ let vivenciaParticipantImportResult = null;
 let selectedVivenciaEventForParticipants = "";
 let selectedVivenciaEventForDetail = "";
 let vivenciaParticipantsModalOpen = false;
+let vivenciaParticipantsManagementOpen = false;
 let vivenciaEventImagesUploading = false;
 let communicationEvents = [];
 let communicationEventsLoaded = false;
@@ -4173,6 +4174,51 @@ async function importVivenciaParticipants(file, eventId) {
     vivenciaParticipantImporting = false;
     render();
   }
+}
+
+async function refreshVivenciaParticipantTotal(eventId) {
+  const total = vivenciaEventParticipants(eventId).length;
+  const { error } = await supabaseClient
+    .from("vivencia_events")
+    .update({ reported_total_participants: total, updated_at: new Date().toISOString() })
+    .eq("id", eventId);
+  if (error) console.warn(error);
+}
+
+async function updateVivenciaParticipant(participantId, matricula) {
+  const normalized = normalizeMatricula(matricula);
+  if (!participantId || !isValidVivenciaMatricula(normalized)) {
+    toast("Captura una matrícula válida");
+    return;
+  }
+  const participant = vivenciaParticipants.find((row) => row.id === participantId);
+  if (!participant || !supabaseClient || !canEditArea("vivencia")) return;
+  const { error } = await supabaseClient.from("vivencia_participants").update({ matricula: normalized }).eq("id", participantId);
+  if (error) {
+    toast(`No se pudo corregir la matrícula: ${supabaseErrorDetail(error) || error.message}`);
+    return;
+  }
+  await loadVivenciaEvents();
+  await refreshVivenciaParticipantTotal(participant.event_id);
+  addAudit("vivencia", `Matrícula corregida en ${participant.event_name || "evento"}`);
+  toast("Matrícula corregida");
+  render();
+}
+
+async function deleteVivenciaParticipant(participantId) {
+  const participant = vivenciaParticipants.find((row) => row.id === participantId);
+  if (!participant || !supabaseClient || !canEditArea("vivencia")) return;
+  if (!window.confirm(`¿Eliminar la matrícula ${participant.matricula} de este evento?`)) return;
+  const { error } = await supabaseClient.from("vivencia_participants").delete().eq("id", participantId);
+  if (error) {
+    toast(`No se pudo eliminar el registro: ${supabaseErrorDetail(error) || error.message}`);
+    return;
+  }
+  await loadVivenciaEvents();
+  await refreshVivenciaParticipantTotal(participant.event_id);
+  addAudit("vivencia", `Matrícula eliminada de ${participant.event_name || "evento"}`);
+  toast("Registro eliminado");
+  render();
 }
 
 async function saveVivenciaImpactGoal(event) {
@@ -18281,6 +18327,20 @@ function renderVivenciaParticipantsModal(editable) {
   `;
 }
 
+function renderVivenciaParticipantsManagementModal(editable) {
+  if (!vivenciaParticipantsManagementOpen) return "";
+  const event = vivenciaEvents.find((row) => row.id === selectedVivenciaEventForParticipants);
+  const rows = event ? vivenciaEventParticipants(event.id).slice().sort((a, b) => String(a.matricula).localeCompare(String(b.matricula))) : [];
+  return `
+    <div class="modal-backdrop" role="presentation">
+      <section class="vivencia-participants-modal vivencia-participants-manager" role="dialog" aria-modal="true" aria-labelledby="vivenciaParticipantsManagerTitle">
+        <div class="vivencia-modal-heading"><div><p class="eyebrow">Registros del evento</p><h3 id="vivenciaParticipantsManagerTitle">${escapeHtml(event?.event_name || "Evento")}</h3></div><button class="ghost-btn compact-action" id="closeVivenciaParticipantsManager" type="button">Cerrar</button></div>
+        <p class="vivencia-modal-help">Corrige una matrícula y guarda el cambio, o elimina una fila si fue cargada por error.</p>
+        <div class="table-wrap"><table class="vivencia-participants-manager-table"><thead><tr><th>Matrícula</th><th>Acciones</th></tr></thead><tbody>${rows.map((row) => `<tr><td><input data-vivencia-participant-matricula="${escapeHtml(row.id)}" value="${escapeHtml(row.matricula)}" ${editable ? "" : "disabled"} /></td><td><button type="button" class="ghost-btn compact-action" data-vivencia-participant-save="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Guardar</button><button type="button" class="danger-btn compact-action" data-vivencia-participant-delete="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Eliminar</button></td></tr>`).join("") || `<tr><td colspan="2">No hay matrículas cargadas para este evento.</td></tr>`}</tbody></table></div>
+      </section>
+    </div>`;
+}
+
 function formatVivenciaUploadDate(value) {
   if (!value) return "Sin fecha";
   const date = new Date(value);
@@ -18380,6 +18440,7 @@ function renderVivenciaEventHistory() {
                 <td data-label="Estado"><span class="vivencia-status ${escapeHtml(completion.className)}">${escapeHtml(completion.label)}</span></td>
                 <td data-label="Acciones">
                   <button class="ghost-btn compact-action" data-vivencia-detail="${escapeHtml(row.id)}">Detalle</button>
+                  <button class="ghost-btn compact-action" data-vivencia-participant-manage="${escapeHtml(row.id)}" ${editable && isStoredEvent ? "" : "disabled"}>Registros</button>
                   <button class="danger-btn compact-action" data-vivencia-delete="${escapeHtml(row.id)}" ${editable && isStoredEvent ? "" : "disabled"}>Eliminar</button>
                 </td>
               </tr>
@@ -18412,6 +18473,7 @@ function renderVivenciaEventsView() {
       ${renderVivenciaImportSummary()}
       ${renderVivenciaImportSummary(vivenciaParticipantImportResult)}
       ${renderVivenciaParticipantsModal(editable)}
+      ${renderVivenciaParticipantsManagementModal(editable)}
       <div class="vivencia-event-layout">
         <article class="form-panel vivencia-event-entry">
           <div class="vivencia-panel-heading">
@@ -20684,6 +20746,10 @@ function render() {
     vivenciaParticipantsModalOpen = false;
     render();
   });
+  $("#closeVivenciaParticipantsManager")?.addEventListener("click", () => {
+    vivenciaParticipantsManagementOpen = false;
+    render();
+  });
   $("#vivenciaParticipantsForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -20699,6 +20765,18 @@ function render() {
     selectedVivenciaEventForDetail = button.dataset.vivenciaDetail;
     activeView = "vivencia-events";
     render();
+  }));
+  $$("[data-vivencia-participant-manage]").forEach((button) => button.addEventListener("click", () => {
+    selectedVivenciaEventForParticipants = button.dataset.vivenciaParticipantManage;
+    vivenciaParticipantsManagementOpen = true;
+    render();
+  }));
+  $$("[data-vivencia-participant-save]").forEach((button) => button.addEventListener("click", () => {
+    const input = button.closest("tr")?.querySelector("[data-vivencia-participant-matricula]");
+    updateVivenciaParticipant(button.dataset.vivenciaParticipantSave, input?.value || "");
+  }));
+  $$("[data-vivencia-participant-delete]").forEach((button) => button.addEventListener("click", () => {
+    deleteVivenciaParticipant(button.dataset.vivenciaParticipantDelete);
   }));
   $$("[data-communication-detail]").forEach((button) => button.addEventListener("click", () => {
     selectedCommunicationEventForDetail = button.dataset.communicationDetail;
