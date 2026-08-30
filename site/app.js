@@ -19597,6 +19597,17 @@ function bookingProgramEfficiencyByActivity(rows = classBookingReservations) {
 function renderBookingProgramPanel() {
   const offerings = classBookingProgramOfferings();
   const efficiencyByActivity = bookingProgramEfficiencyByActivity();
+  const offeringsByEfficiency = [...offerings].sort((first, second) => {
+    const firstMetric = efficiencyByActivity.get(normalizeText(first.activity));
+    const secondMetric = efficiencyByActivity.get(normalizeText(second.activity));
+    const firstEfficiency = firstMetric?.efficiency;
+    const secondEfficiency = secondMetric?.efficiency;
+    if (firstEfficiency == null && secondEfficiency != null) return 1;
+    if (secondEfficiency == null && firstEfficiency != null) return -1;
+    return (secondEfficiency || 0) - (firstEfficiency || 0)
+      || first.activity.localeCompare(second.activity, "es")
+      || first.start.localeCompare(second.start);
+  });
   return `
     <details class="booking-program-panel" open>
       <summary>
@@ -19609,7 +19620,7 @@ function renderBookingProgramPanel() {
         <div class="booking-program-table-wrap">
           <table class="booking-program-table">
             <thead><tr><th>Actividad</th><th>Frecuencia</th><th>Horario</th><th>Profesor</th><th>Instalacion</th><th>Aforo</th><th>Eficiencia</th></tr></thead>
-            <tbody>${offerings.map((row) => {
+            <tbody>${offeringsByEfficiency.map((row) => {
               const metric = efficiencyByActivity.get(normalizeText(row.activity));
               const efficiencyLabel = metric
                 ? `${metric.percent}% · ${metric.confirmed.toLocaleString("es-MX")} de ${metric.total.toLocaleString("es-MX")} reservas confirmadas`

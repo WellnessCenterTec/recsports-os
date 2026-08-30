@@ -106,4 +106,6 @@ test("Programación Booking mide eficiencia con reservas confirmadas y asigna ve
   assert.ok(appSource.includes('booking-program-efficiency tone-${metric.tone}'));
   assert.ok(appSource.includes("reservas confirmadas"));
   assert.ok(styles.includes(".booking-program-efficiency.tone-4"));
+  assert.match(appSource, /const offeringsByEfficiency = \[\.\.\.offerings\]\.sort/);
+  assert.match(appSource, /\(secondEfficiency \|\| 0\) - \(firstEfficiency \|\| 0\)/);
 });
