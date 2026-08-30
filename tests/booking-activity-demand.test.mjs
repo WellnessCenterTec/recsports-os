@@ -105,6 +105,7 @@ test("Programación Booking mide eficiencia con reservas confirmadas y asigna ve
   assert.deepEqual(metrics.ciclismo, { total: 2, confirmed: 2, efficiency: 1, percent: 100, tone: 4 });
   assert.ok(appSource.includes('booking-program-efficiency tone-${metric.tone}'));
   assert.ok(appSource.includes("reservas confirmadas"));
+  assert.ok(appSource.includes("Aprobadas: ${metric.confirmed.toLocaleString"));
   assert.ok(styles.includes(".booking-program-efficiency.tone-4"));
   assert.match(appSource, /const offeringsByEfficiency = \[\.\.\.offerings\]\.sort/);
   assert.match(appSource, /\(secondEfficiency \|\| 0\) - \(firstEfficiency \|\| 0\)/);

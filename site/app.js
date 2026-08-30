@@ -19634,7 +19634,7 @@ function renderBookingProgramPanel() {
                 <td>${escapeHtml(row.installation)}</td>
                 <td>${row.capacity ? row.capacity.toLocaleString("es-MX") : "-"}</td>
                 <td class="booking-program-efficiency-cell">${metric
-                  ? `<strong>${metric.percent}%</strong><small>${metric.confirmed.toLocaleString("es-MX")} / ${metric.total.toLocaleString("es-MX")} confirmadas</small>`
+                  ? `<strong>${metric.percent}%</strong><small>Aprobadas: ${metric.confirmed.toLocaleString("es-MX")} / ${metric.total.toLocaleString("es-MX")} registros</small>`
                   : `<span>Sin datos</span>`}</td>
               </tr>`;
             }).join("")}</tbody>
