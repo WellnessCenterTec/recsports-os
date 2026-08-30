@@ -46,3 +46,9 @@ test("Vivencia permite corregir o eliminar matrículas cargadas por evento", () 
   assert.match(source, /async function deleteVivenciaParticipant/);
   assert.match(source, /from\("vivencia_participants"\)\.delete\(\)/);
 });
+
+test("Vivencia elimina el panel de próximos eventos del tablero", () => {
+  const dashboard = source.slice(source.indexOf("function renderVivenciaDashboard"), source.indexOf("function filteredClassGrades"));
+  assert.doesNotMatch(dashboard, /<h3>Próximos eventos<\/h3>/);
+  assert.doesNotMatch(dashboard, /vivencia-upcoming-panel/);
+});

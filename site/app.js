@@ -17181,20 +17181,6 @@ function renderVivenciaDashboard() {
   const events = vivenciaVisibleEvents();
   const metrics = vivenciaVisibleMetrics();
   const metricsByEvent = new Map(metrics.map((row) => [row.event_id, row]));
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const inFifteen = new Date(today);
-  inFifteen.setDate(today.getDate() + 15);
-  const upcoming = events
-    .filter((event) => {
-      const date = vivenciaEventDate(event);
-      return date && date >= today && date <= inFifteen;
-    })
-    .sort((a, b) => String(a.event_date).localeCompare(String(b.event_date)));
-  const nextEvent = upcoming[0] || events.find((event) => {
-    const date = vivenciaEventDate(event);
-    return date && date >= today;
-  });
   const uniqueParticipantRows = vivenciaUniqueParticipantRows();
   const uniqueMatriculas = new Set(uniqueParticipantRows.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean));
   const uniqueImportedReferences = new Set(
@@ -17204,13 +17190,6 @@ function renderVivenciaDashboard() {
   const participantTotal = metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
   const impactCount = participantTotal;
   const impactBasis = "participaciones reportadas";
-  const monthRowsMap = new Map();
-  events.forEach((event) => {
-    const key = vivenciaMonthLabel(event.event_date);
-    const participants = vivenciaEventParticipantsCount(event, metricsByEvent);
-    monthRowsMap.set(key, (monthRowsMap.get(key) || 0) + (participantTotal ? participants : 1));
-  });
-  const monthRows = [...monthRowsMap.entries()].map(([label, value]) => ({ label, value }));
   const calendarDate = vivenciaCalendarBaseDate(events);
   const editable = canEditArea("vivencia");
   return `
@@ -17224,13 +17203,6 @@ function renderVivenciaDashboard() {
 
       <div class="vivencia-dashboard-grid">
         ${renderVivenciaCalendar(events, calendarDate)}
-        <article class="chart-panel vivencia-upcoming-panel">
-          <div class="chart-title-row">
-            <div><p class="eyebrow">Agenda</p><h3>Próximos eventos</h3></div>
-            <span>15 días</span>
-          </div>
-          ${renderVivenciaEventCards(upcoming, metricsByEvent)}
-        </article>
         ${renderVivenciaImpactGoal(impactCount, editable, impactBasis)}
         ${renderVivenciaGenderBreakdown(events, metricsByEvent)}
         ${renderVivenciaRegisteredEventGallery(events, metricsByEvent, editable)}
