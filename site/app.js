@@ -18492,15 +18492,6 @@ function renderVivenciaEventsView() {
               <button class="ghost-btn" type="button" data-download-event-participants-template="vivencia">Descargar plantilla</button>
             </div>
           </div>
-          <div class="vivencia-upload-history">
-            <div class="vivencia-panel-heading compact">
-              <div>
-                <p class="eyebrow">Historial</p>
-                <h3>Cargas de participantes</h3>
-              </div>
-            </div>
-            ${renderVivenciaParticipantUploadHistory()}
-          </div>
         </article>
         <article class="form-panel vivencia-event-history">
           <div class="vivencia-panel-heading">

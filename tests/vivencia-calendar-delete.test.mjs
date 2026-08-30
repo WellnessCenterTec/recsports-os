@@ -24,3 +24,9 @@ test("Vivencia muestra eventos con matrículas en cuatro tarjetas y permite carg
   assert.match(source, /\$\$\('\[data-vivencia-card-image-upload\]'\)/);
   assert.match(source, /uploadVivenciaEventImages\(files, eventId\)/);
 });
+
+test("Vivencia elimina el historial visual de cargas de participantes", () => {
+  const vivenciaView = source.slice(source.indexOf("function renderVivenciaEventsView"), source.indexOf("function renderCommunicationEventsView"));
+  assert.doesNotMatch(vivenciaView, /renderVivenciaParticipantUploadHistory\(\)/);
+  assert.doesNotMatch(vivenciaView, /<h3>Cargas de participantes<\/h3>/);
+});
