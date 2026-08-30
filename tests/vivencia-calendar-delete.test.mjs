@@ -30,3 +30,9 @@ test("Vivencia elimina el historial visual de cargas de participantes", () => {
   assert.doesNotMatch(vivenciaView, /renderVivenciaParticipantUploadHistory\(\)/);
   assert.doesNotMatch(vivenciaView, /<h3>Cargas de participantes<\/h3>/);
 });
+
+test("Vivencia conserva la carga de imagen en tarjetas y elimina el bloque de galería del formulario", () => {
+  assert.doesNotMatch(source, /function renderVivenciaEventGallery/);
+  assert.doesNotMatch(source, /Guarda primero un evento para poder agregar imágenes asociadas a él/);
+  assert.match(source, /data-vivencia-card-image-upload/);
+});

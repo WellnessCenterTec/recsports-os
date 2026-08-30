@@ -18391,37 +18391,6 @@ function renderVivenciaEventHistory() {
   `;
 }
 
-function renderVivenciaEventGallery(event, editable) {
-  if (!event) {
-    return `
-      <section class="vivencia-gallery-panel">
-        <div><p class="eyebrow">Galería</p><h3>Imágenes del evento</h3></div>
-        <p>Guarda primero un evento para poder agregar imágenes asociadas a él.</p>
-      </section>
-    `;
-  }
-  const images = vivenciaImagesForEvent(event.id);
-  return `
-    <section class="vivencia-gallery-panel">
-      <div class="vivencia-gallery-heading">
-        <div><p class="eyebrow">Galería</p><h3>Imágenes del evento</h3><span>${images.length} archivo${images.length === 1 ? "" : "s"} asociado${images.length === 1 ? "" : "s"} a este evento</span></div>
-        <button class="ghost-btn compact-action" id="uploadVivenciaEventImages" type="button" ${editable && !vivenciaEventImagesUploading ? "" : "disabled"}>${vivenciaEventImagesUploading ? "Guardando..." : "Agregar imágenes"}</button>
-        <input id="vivenciaEventImagesFile" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden />
-      </div>
-      ${images.length ? `
-        <div class="vivencia-gallery">
-          ${images.map((image) => `
-            <figure>
-              <a href="${escapeHtml(image.public_url || "#")}" target="_blank" rel="noopener"><img src="${escapeHtml(image.public_url || "")}" alt="${escapeHtml(image.file_name || "Imagen del evento")}" /></a>
-              <figcaption><span>${escapeHtml(image.file_name || "Imagen")}</span>${editable ? `<button type="button" class="danger-btn compact-action" data-vivencia-image-delete="${escapeHtml(image.id)}">Eliminar</button>` : ""}</figcaption>
-            </figure>
-          `).join("")}
-        </div>
-      ` : `<div class="vivencia-empty-mini">Aún no hay imágenes asociadas a este evento.</div>`}
-    </section>
-  `;
-}
-
 function renderVivenciaEventsView() {
   const today = new Date().toISOString().slice(0, 10);
   const historyEvents = vivenciaVisibleEvents();
@@ -18472,7 +18441,6 @@ function renderVivenciaEventsView() {
             ${detailEvent ? `<button class="ghost-btn full" id="newVivenciaEvent" type="button">Capturar evento nuevo</button>` : ""}
             <button class="primary-btn full" id="saveVivenciaEvent" type="submit" ${editable ? "" : "disabled"}>${detailEvent ? "Guardar detalle" : "Guardar evento"}</button>
           </form>
-          ${renderVivenciaEventGallery(detailEvent, editable)}
           <div class="vivencia-bulk-upload">
             <div>
               <strong>Sincronizar eventos desde Planeacion</strong>
