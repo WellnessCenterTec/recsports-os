@@ -17017,6 +17017,56 @@ function renderCommunicationStatusBreakdown(events) {
   `;
 }
 
+function communicationEventGenderSummary(event) {
+  const records = communicationEventParticipants(event.id);
+  const total = Math.max(records.length, Number(event.reported_total_participants || 0));
+  const reportedWomen = Math.max(0, Number(event.reported_women || 0));
+  const reportedMen = Math.max(0, Number(event.reported_men || 0));
+  if (!records.length && (reportedWomen || reportedMen)) {
+    return { total, women: reportedWomen, men: reportedMen, unspecified: Math.max(0, total - reportedWomen - reportedMen) };
+  }
+  const counts = records.reduce((summary, participant) => {
+    const gender = vivenciaParticipantGender(participant.genero || findStudentInDatabase(participant.matricula)?.genero);
+    if (gender === "Mujeres") summary.women += 1;
+    else if (gender === "Hombres") summary.men += 1;
+    else summary.unspecified += 1;
+    return summary;
+  }, { total, women: 0, men: 0, unspecified: 0 });
+  counts.unspecified += Math.max(0, total - records.length);
+  return counts;
+}
+
+function renderCommunicationRegisteredEventGallery(events) {
+  const registered = events
+    .filter((event) => event.__communicationEvent && communicationEventParticipants(event.id).length > 0)
+    .slice()
+    .sort((first, second) => String(second.event_date || "").localeCompare(String(first.event_date || "")));
+  return `
+    <section class="chart-panel vivencia-registered-gallery communication-registered-gallery">
+      <div class="chart-title-row">
+        <div><p class="eyebrow">Impacto registrado</p><h3>Eventos de Comunicación con matrículas</h3></div>
+        <span>${registered.length.toLocaleString("es-MX")} con registros</span>
+      </div>
+      ${registered.length ? `<div class="vivencia-registered-grid">
+        ${registered.map((event) => {
+          const summary = communicationEventGenderSummary(event);
+          const date = vivenciaEventDate(event);
+          const dateLabel = date ? date.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "Sin fecha";
+          return `<article class="vivencia-registered-card communication-registered-card" data-communication-detail="${escapeHtml(event.id)}">
+            <div class="vivencia-registered-image"><span aria-hidden="true"><i data-lucide="megaphone"></i></span></div>
+            <div class="vivencia-registered-content">
+              <time>${escapeHtml(dateLabel)}</time>
+              <h4 title="${escapeHtml(event.event_name || "Evento")}">${escapeHtml(event.event_name || "Evento")}</h4>
+              <div class="vivencia-registered-stats"><span><b>${summary.total.toLocaleString("es-MX")}</b> registros</span><span><b>${summary.women.toLocaleString("es-MX")}</b> mujeres</span><span><b>${summary.men.toLocaleString("es-MX")}</b> hombres</span></div>
+              ${summary.unspecified ? `<small class="communication-registered-pending">${summary.unspecified.toLocaleString("es-MX")} sin género identificado</small>` : ""}
+            </div>
+          </article>`;
+        }).join("")}
+      </div>` : `<div class="vivencia-empty-mini">Los eventos aparecerán aquí cuando tengan matrículas cargadas.</div>`}
+    </section>
+  `;
+}
+
 function renderCommunicationCoverage(total, dated) {
   const safeTotal = Math.max(total, 1);
   const progress = total ? Math.round((dated / safeTotal) * 100) : 0;
@@ -17161,12 +17211,9 @@ function renderCommunicationDashboard() {
       </div>
       <div class="vivencia-dashboard-grid">
         ${renderVivenciaCalendar(activities, calendarDate, { planningArea: "comunicacion" })}
-        <article class="chart-panel vivencia-upcoming-panel">
-          <div class="chart-title-row"><div><p class="eyebrow">Agenda</p><h3>Próximas actividades</h3></div><span>15 días</span></div>
-          ${renderCommunicationEventCards(upcoming)}
-        </article>
         ${renderCommunicationImpactGoal(participantTotal)}
         ${renderCommunicationStatusBreakdown(activities)}
+        ${renderCommunicationRegisteredEventGallery(activities)}
         <div class="vivencia-insights-grid">
           <div class="vivencia-insights-column">
             <article class="chart-panel vivencia-month-panel">
@@ -17178,10 +17225,16 @@ function renderCommunicationDashboard() {
               ${renderCommunicationRecentActivities(activities)}
             </article>
           </div>
-          <article class="chart-panel vivencia-top-panel">
-            <div class="chart-title-row"><div><p class="eyebrow">Top actividades</p><h3>Top 15 registros de Comunicación</h3></div></div>
-            ${renderCommunicationTopActivities(activities)}
-          </article>
+          <div class="vivencia-insights-column">
+            <article class="chart-panel vivencia-upcoming-panel">
+              <div class="chart-title-row"><div><p class="eyebrow">Agenda</p><h3>Próximas actividades</h3></div><span>15 días</span></div>
+              ${renderCommunicationEventCards(upcoming)}
+            </article>
+            <article class="chart-panel vivencia-top-panel">
+              <div class="chart-title-row"><div><p class="eyebrow">Top actividades</p><h3>Top 15 registros de Comunicación</h3></div></div>
+              ${renderCommunicationTopActivities(activities)}
+            </article>
+          </div>
         </div>
       </div>
       ${renderPlanningActivityDetail(selected)}

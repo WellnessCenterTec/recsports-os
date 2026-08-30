@@ -66,3 +66,14 @@ test("Vivencia no muestra una franja adicional de resumen de eventos y género",
   assert.doesNotMatch(dashboard, /vivencia-completion-summary/);
   assert.doesNotMatch(dashboard, /Mujeres participantes/);
 });
+
+test("Comunicación usa el patrón de tarjetas de Vivencia sin perder sus gráficos operativos", () => {
+  const dashboard = source.slice(source.indexOf("function renderCommunicationDashboard"), source.indexOf("function renderVivenciaDashboard"));
+  assert.match(source, /function renderCommunicationRegisteredEventGallery/);
+  assert.match(source, /function communicationEventGenderSummary/);
+  assert.match(dashboard, /renderCommunicationRegisteredEventGallery\(activities\)/);
+  assert.match(dashboard, /renderCommunicationImpactGoal\(participantTotal\)/);
+  assert.match(dashboard, /renderCommunicationStatusBreakdown\(activities\)/);
+  assert.match(dashboard, /renderCommunicationTopActivities\(activities\)/);
+  assert.match(dashboard, /renderCommunicationRecentActivities\(activities\)/);
+});

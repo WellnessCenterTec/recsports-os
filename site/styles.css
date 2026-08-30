@@ -9703,6 +9703,11 @@ tbody tr:hover td {
 .vivencia-registered-stats b { color: #075d7a; display: block; font-size: 14px; }
 .vivencia-registered-content .ghost-btn { align-items: center; display: inline-flex; font-size: 11px; gap: 5px; justify-content: center; min-height: 31px; width: 100%; }
 .vivencia-registered-content .ghost-btn svg { height: 14px; width: 14px; }
+.communication-registered-card { cursor: pointer; }
+.communication-registered-card:hover { border-color: #74b9ce; box-shadow: 0 10px 23px rgba(12, 94, 127, .13); transform: translateY(-1px); }
+.communication-registered-card .vivencia-registered-image { background: linear-gradient(135deg, #eaf4ff, #e0f6ef); }
+.communication-registered-card .vivencia-registered-image > span { color: #126c8e; }
+.communication-registered-pending { color: var(--muted); font-size: 10px; font-weight: 700; }
 
 .vivencia-insights-column {
   display: grid;
