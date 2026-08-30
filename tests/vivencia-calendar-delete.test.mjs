@@ -47,6 +47,14 @@ test("Vivencia permite corregir o eliminar matrículas cargadas por evento", () 
   assert.match(source, /from\("vivencia_participants"\)\.delete\(\)/);
 });
 
+test("Vivencia permite seleccionar y eliminar en bloque las matrículas de un evento", () => {
+  assert.match(source, /Seleccionar todo/);
+  assert.match(source, /data-vivencia-participant-select/);
+  assert.match(source, /async function deleteSelectedVivenciaParticipants/);
+  assert.match(source, /\.delete\(\)\.in\("id", participantIds\)/);
+  assert.match(source, /Eliminar seleccionados \(\$\{vivenciaParticipantSelection\.size\}\)/);
+});
+
 test("Vivencia elimina el panel de próximos eventos del tablero", () => {
   const dashboard = source.slice(source.indexOf("function renderVivenciaDashboard"), source.indexOf("function filteredClassGrades"));
   assert.doesNotMatch(dashboard, /<h3>Próximos eventos<\/h3>/);

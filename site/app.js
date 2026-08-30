@@ -750,6 +750,7 @@ let selectedVivenciaEventForParticipants = "";
 let selectedVivenciaEventForDetail = "";
 let vivenciaParticipantsModalOpen = false;
 let vivenciaParticipantsManagementOpen = false;
+let vivenciaParticipantSelection = new Set();
 let vivenciaEventImagesUploading = false;
 let communicationEvents = [];
 let communicationEventsLoaded = false;
@@ -4216,8 +4217,27 @@ async function deleteVivenciaParticipant(participantId) {
   }
   await loadVivenciaEvents();
   await refreshVivenciaParticipantTotal(participant.event_id);
+  vivenciaParticipantSelection.delete(participantId);
   addAudit("vivencia", `Matrícula eliminada de ${participant.event_name || "evento"}`);
   toast("Registro eliminado");
+  render();
+}
+
+async function deleteSelectedVivenciaParticipants() {
+  const event = vivenciaEvents.find((row) => row.id === selectedVivenciaEventForParticipants);
+  const participantIds = [...vivenciaParticipantSelection];
+  if (!event || !participantIds.length || !supabaseClient || !canEditArea("vivencia")) return;
+  if (!window.confirm(`¿Eliminar ${participantIds.length} matrícula(s) de ${event.event_name}? Esta acción no se puede deshacer.`)) return;
+  const { error } = await supabaseClient.from("vivencia_participants").delete().in("id", participantIds);
+  if (error) {
+    toast(`No se pudieron eliminar los registros: ${supabaseErrorDetail(error) || error.message}`);
+    return;
+  }
+  await loadVivenciaEvents();
+  await refreshVivenciaParticipantTotal(event.id);
+  vivenciaParticipantSelection = new Set();
+  addAudit("vivencia", `${participantIds.length} matrículas eliminadas de ${event.event_name}`);
+  toast(`${participantIds.length} registros eliminados`);
   render();
 }
 
@@ -18302,12 +18322,14 @@ function renderVivenciaParticipantsManagementModal(editable) {
   if (!vivenciaParticipantsManagementOpen) return "";
   const event = vivenciaEvents.find((row) => row.id === selectedVivenciaEventForParticipants);
   const rows = event ? vivenciaEventParticipants(event.id).slice().sort((a, b) => String(a.matricula).localeCompare(String(b.matricula))) : [];
+  const allSelected = rows.length > 0 && rows.every((row) => vivenciaParticipantSelection.has(row.id));
   return `
     <div class="modal-backdrop" role="presentation">
       <section class="vivencia-participants-modal vivencia-participants-manager" role="dialog" aria-modal="true" aria-labelledby="vivenciaParticipantsManagerTitle">
         <div class="vivencia-modal-heading"><div><p class="eyebrow">Registros del evento</p><h3 id="vivenciaParticipantsManagerTitle">${escapeHtml(event?.event_name || "Evento")}</h3></div><button class="ghost-btn compact-action" id="closeVivenciaParticipantsManager" type="button">Cerrar</button></div>
-        <p class="vivencia-modal-help">Corrige una matrícula y guarda el cambio, o elimina una fila si fue cargada por error.</p>
-        <div class="table-wrap"><table class="vivencia-participants-manager-table"><thead><tr><th>Matrícula</th><th>Acciones</th></tr></thead><tbody>${rows.map((row) => `<tr><td><input data-vivencia-participant-matricula="${escapeHtml(row.id)}" value="${escapeHtml(row.matricula)}" ${editable ? "" : "disabled"} /></td><td><button type="button" class="ghost-btn compact-action" data-vivencia-participant-save="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Guardar</button><button type="button" class="danger-btn compact-action" data-vivencia-participant-delete="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Eliminar</button></td></tr>`).join("") || `<tr><td colspan="2">No hay matrículas cargadas para este evento.</td></tr>`}</tbody></table></div>
+        <div class="vivencia-manager-actions"><button type="button" class="ghost-btn" id="selectAllVivenciaParticipants" ${editable && rows.length ? "" : "disabled"}>${allSelected ? "Quitar selección" : "Seleccionar todo"}</button><button type="button" class="danger-btn" id="deleteSelectedVivenciaParticipants" ${editable && vivenciaParticipantSelection.size ? "" : "disabled"}>Eliminar seleccionados (${vivenciaParticipantSelection.size})</button></div>
+        <p class="vivencia-modal-help">Corrige una matrícula y guarda el cambio, o selecciona las filas que deseas eliminar.</p>
+        <div class="table-wrap"><table class="vivencia-participants-manager-table"><thead><tr><th>Seleccionar</th><th>Matrícula</th><th>Acciones</th></tr></thead><tbody>${rows.map((row) => `<tr><td><input type="checkbox" data-vivencia-participant-select="${escapeHtml(row.id)}" ${vivenciaParticipantSelection.has(row.id) ? "checked" : ""} ${editable ? "" : "disabled"} /></td><td><input data-vivencia-participant-matricula="${escapeHtml(row.id)}" value="${escapeHtml(row.matricula)}" ${editable ? "" : "disabled"} /></td><td><button type="button" class="ghost-btn compact-action" data-vivencia-participant-save="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Guardar</button><button type="button" class="danger-btn compact-action" data-vivencia-participant-delete="${escapeHtml(row.id)}" ${editable ? "" : "disabled"}>Eliminar</button></td></tr>`).join("") || `<tr><td colspan="3">No hay matrículas cargadas para este evento.</td></tr>`}</tbody></table></div>
       </section>
     </div>`;
 }
@@ -20719,6 +20741,7 @@ function render() {
   });
   $("#closeVivenciaParticipantsManager")?.addEventListener("click", () => {
     vivenciaParticipantsManagementOpen = false;
+    vivenciaParticipantSelection = new Set();
     render();
   });
   $("#vivenciaParticipantsForm")?.addEventListener("submit", async (event) => {
@@ -20739,9 +20762,26 @@ function render() {
   }));
   $$("[data-vivencia-participant-manage]").forEach((button) => button.addEventListener("click", () => {
     selectedVivenciaEventForParticipants = button.dataset.vivenciaParticipantManage;
+    vivenciaParticipantSelection = new Set();
     vivenciaParticipantsManagementOpen = true;
     render();
   }));
+  $("#selectAllVivenciaParticipants")?.addEventListener("click", () => {
+    const rows = vivenciaEventParticipants(selectedVivenciaEventForParticipants);
+    const allSelected = rows.length > 0 && rows.every((row) => vivenciaParticipantSelection.has(row.id));
+    vivenciaParticipantSelection = allSelected ? new Set() : new Set(rows.map((row) => row.id));
+    render();
+  });
+  $$("[data-vivencia-participant-select]").forEach((input) => input.addEventListener("change", () => {
+    const participantId = input.dataset.vivenciaParticipantSelect;
+    if (!participantId) return;
+    const selection = new Set(vivenciaParticipantSelection);
+    if (input.checked) selection.add(participantId);
+    else selection.delete(participantId);
+    vivenciaParticipantSelection = selection;
+    render();
+  }));
+  $("#deleteSelectedVivenciaParticipants")?.addEventListener("click", deleteSelectedVivenciaParticipants);
   $$("[data-vivencia-participant-save]").forEach((button) => button.addEventListener("click", () => {
     const input = button.closest("tr")?.querySelector("[data-vivencia-participant-matricula]");
     updateVivenciaParticipant(button.dataset.vivenciaParticipantSave, input?.value || "");
