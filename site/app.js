@@ -20132,6 +20132,7 @@ function render() {
   const isMentors = activeArea === "mentores";
   const isCollaborators = activeArea === "colaboradores";
   const isPresentation = activeArea === "presentacion";
+  const isClasses = activeArea === "clases";
   $$(".segmented button").forEach((button) => { button.style.order = ""; });
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
   if (collaboratorInfographicTab) collaboratorInfographicTab.hidden = !isCollaborators;
@@ -20155,7 +20156,7 @@ function render() {
   }
   if (reportsTab) reportsTab.hidden = isGym || isSemanaTec || isRepresentativos || isMentors;
   if (systemTab) {
-    systemTab.hidden = isGym || isSemanaTec || isRepresentativos || isMentors || (!isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases")));
+    systemTab.hidden = isClasses || isGym || isSemanaTec || isRepresentativos || isMentors || (!isIntramuros && !isLeadership());
     systemTab.textContent = isIntramuros ? "Cargar Roles de Juego" : "Sistema";
   }
   if (isCollaborators) {
@@ -20178,7 +20179,8 @@ function render() {
   if (activeView === "communication-diffusion" && !isCommunication) activeView = "dashboard";
   if (!isBudget && ["budget-allocation", "budget-request"].includes(activeView)) activeView = "dashboard";
   if (activeView === "collaborator-infographic" && !isCollaborators) activeView = "dashboard";
-  if (activeView === "blueprint" && !isIntramuros && !isLeadership() && !(activeArea === "clases" && canEditArea("clases"))) activeView = "dashboard";
+  if (isClasses && activeView === "blueprint") activeView = "grades";
+  if (activeView === "blueprint" && !isIntramuros && !isLeadership()) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
   if (activeView === "booking" && activeArea !== "clases") activeView = "dashboard";
@@ -21690,13 +21692,8 @@ function downloadUniformesCsv(name = "colaboradores") {
 
 function renderBlueprint(area) {
   const selected = area.id === "general" ? areas[0] : area;
-  const classGradesUpload = selected.id === "clases" ? renderClassGradesSystemUpload() : "";
-  if (selected.id === "clases" && !isLeadership()) {
-    return `<div class="blueprint-grid">${classGradesUpload}</div>`;
-  }
   return `
     <div class="blueprint-grid">
-      ${classGradesUpload}
       <section class="blueprint-card">
         <h3>Mapa de modulos</h3>
         <p>El menu principal queda organizado por las ocho areas operativas y una vista ejecutiva. Cada modulo comparte el mismo patron para que los coordinadores no aprendan ocho sistemas distintos.</p>
