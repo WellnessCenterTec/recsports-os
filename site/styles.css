@@ -1324,19 +1324,19 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 .gym-distribution-summary {
   display: grid;
   gap: 3px;
-  margin: 6px 0 14px;
+  margin: 5px 0 11px;
 }
 
 .gym-distribution-summary strong {
   color: var(--blue);
-  font-size: 28px;
+  font-size: 22px;
   line-height: 1;
 }
 
 .gym-distribution-summary span,
 .gym-distribution-summary em {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 800;
 }
@@ -1347,7 +1347,7 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 
 .gym-distribution-bars {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .gym-distribution-semester .gym-distribution-bars {
@@ -1419,10 +1419,15 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   margin: 2px 0 0;
 }
 
+.gym-distribution-chart .gym-chart-heading { margin-bottom: 14px; }
+.gym-distribution-chart .gym-chart-heading h3 { font-size: 22px; }
+
 .gym-chart-heading > span {
   color: var(--muted);
   font-size: 13px;
 }
+
+.gym-distribution-chart .gym-chart-heading > span { font-size: 11px; }
 
 .gym-chart-heading select {
   width: auto;
