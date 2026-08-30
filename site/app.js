@@ -273,6 +273,16 @@ function masterPeriodCloudArea(areaId) {
   return `${areaId}:${activeMasterPeriod}`;
 }
 
+function participationUploadCloudArea(areaId) {
+  // The participation table and its RLS policies authorize the canonical area
+  // keys ("representativos" and "gamer"), not period-suffixed variants.
+  return areaId;
+}
+
+function participationUploadCloudAreaCandidates(areaId) {
+  return [...new Set([participationUploadCloudArea(areaId), masterPeriodCloudArea(areaId)])];
+}
+
 function masterPeriodCloudSlot(slotKey, imageIndex = 1, legacyMetadata = false) {
   const baseSlot = `${activeMasterPeriod}:${slotKey}`;
   return legacyMetadata && Number(imageIndex) > 1 ? `${baseSlot}~${Number(imageIndex)}` : baseSlot;
@@ -9027,8 +9037,12 @@ async function importParticipationUpload(areaId) {
   }
   const savedCloud = await saveParticipationUploadCloud(areaId, draft);
   if (!savedCloud) {
+    participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
+    participationUploadState[areaId].source = "local";
+    participationUploadState[areaId].draft = null;
+    saveParticipationUploadsLocal();
     render();
-    toast("No se guardó en Supabase. La carga sigue lista para reintentar.");
+    toast("No se pudo guardar en Supabase; quedó respaldada localmente para reintentar.");
     return;
   }
   participationUploadState[areaId].imported = { ...draft, importedAt: new Date().toISOString() };
@@ -10169,7 +10183,7 @@ function participationUploadRowToCloud(areaId, row, fileName = "", uploadId = ""
     ? [matricula, row.clave_materia || "", row.representativo || "", row.coach || ""].map((value) => normalizeText(value)).join("|")
     : normalizeText(matricula);
   return {
-    area_key: masterPeriodCloudArea(areaId),
+    area_key: participationUploadCloudArea(areaId),
     import_key: importKey,
     matricula,
     found_in_student_base: Boolean(row.found),
@@ -10246,9 +10260,7 @@ async function loadParticipationUploadAreaCloud(areaId) {
       .from("participation_upload_rows")
       .select("*")
       .order("updated_at", { ascending: false });
-    query = activeMasterPeriod === "FJ26"
-      ? query.in("area_key", [areaId, masterPeriodCloudArea(areaId)])
-      : query.eq("area_key", masterPeriodCloudArea(areaId));
+    query = query.in("area_key", participationUploadCloudAreaCandidates(areaId));
     const { data, error } = await query.range(offset, offset + pageSize - 1);
     if (error) return { areaId, rows: [], error };
     const page = data || [];
@@ -10309,12 +10321,12 @@ async function saveParticipationUploadCloud(areaId, draft) {
   const deleteOldResult = await supabaseClient
     .from("participation_upload_rows")
     .delete()
-    .eq("area_key", masterPeriodCloudArea(areaId))
+    .eq("area_key", participationUploadCloudArea(areaId))
     .neq("upload_id", uploadId);
   const deleteLegacyResult = await supabaseClient
     .from("participation_upload_rows")
     .delete()
-    .eq("area_key", masterPeriodCloudArea(areaId))
+    .eq("area_key", participationUploadCloudArea(areaId))
     .is("upload_id", null);
   if (deleteOldResult.error || deleteLegacyResult.error) {
     console.warn(`La carga nueva de ${areaId} quedó guardada, pero no se pudo retirar la anterior`, deleteOldResult.error || deleteLegacyResult.error);
