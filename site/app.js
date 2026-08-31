@@ -12895,7 +12895,15 @@ function loadExecutivePresentationLocalNotes() {
 }
 
 function saveExecutivePresentationLocalNotes(notes = executivePresentationNotes) {
-  localStorage.setItem(EXECUTIVE_PRESENTATION_STORAGE_KEY, JSON.stringify(notes));
+  try {
+    localStorage.setItem(EXECUTIVE_PRESENTATION_STORAGE_KEY, JSON.stringify(notes));
+    return true;
+  } catch (error) {
+    // Las fotos de inventario pueden rebasar el espacio del navegador. No se debe
+    // impedir por ello el guardado compartido en Supabase.
+    console.warn("No se pudo crear el respaldo local de la presentación", error);
+    return false;
+  }
 }
 
 function presentationNotesForCurrentWeek() {
@@ -13265,7 +13273,7 @@ function renderExecutivePresentationBudget(budget, notes) {
   return `<div class="executive-presentation-budget">
     <div class="executive-presentation-budget-summary">
       ${presentationMetric("Asignado", money(budget.assigned), "Presupuesto del periodo")}
-      ${presentationMetric("Ejercido", money(budget.spent), `${Math.round(budget.spent / budget.assigned * 100)}% del total`)}
+      ${presentationMetric("Gasto", money(budget.spent), `${Math.round(budget.spent / budget.assigned * 100)}% del total`)}
       ${presentationMetric("Comprometido", money(budget.committed), `${Math.round(budget.committed / budget.assigned * 100)}% del total`)}
       ${presentationMetric("Disponible", money(budget.available), `${Math.max(0, 100 - usage)}% disponible`)}
     </div>
@@ -13294,7 +13302,7 @@ function executivePresentationActivities() {
   return presentationActivitiesApi.upcomingActivities(
     planningCalendarRows.map((row, index) => normalizePlanningCalendarRow(row, index)),
     new Date(),
-    10
+    12
   );
 }
 
@@ -13595,9 +13603,10 @@ function renderExecutivePresentationSlide(slide, index) {
   } else if (slide.key === "budget") {
     body = renderExecutivePresentationBudget(budget, notes);
   } else if (slide.key === "block-activities") {
-    body = `<div class="executive-presentation-activity-block"><div class="executive-presentation-activity-window"><span>Próximos 10 eventos</span><strong>Desde ${escapeHtml(activityWindow.label)}</strong></div>${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha · día</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => {
+    body = `<div class="executive-presentation-activity-block"><div class="executive-presentation-activity-window"><span>Agenda próxima · ${activities.length || 12} eventos</span><strong>Desde ${escapeHtml(activityWindow.label)}</strong></div>${activities.length ? `<div class="executive-presentation-table"><div class="head"><span>Fecha · día</span><span>Actividad</span><span>Área</span><span>Estatus</span></div>${activities.map((row) => {
       const dateParts = presentationActivitiesApi.activityDateParts(row.date);
-      return `<div><time><span>${escapeHtml(dateParts.date)}</span><b>${escapeHtml(dateParts.weekday)}</b></time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em class="activity-status ${escapeHtml(row.presentationStatus)}">${escapeHtml(presentationActivityStatusLabel(row.presentationStatus))}</em></div>`;
+      const month = new Date(`${row.date}T12:00:00`).toLocaleDateString("es-MX", { month: "short", year: "numeric" }).replace(".", "");
+      return `<div><time><span>${escapeHtml(dateParts.date)}</span><b>${escapeHtml(dateParts.weekday)}</b><em>${escapeHtml(month)}</em></time><strong>${escapeHtml(row.activity)}</strong><span>${escapeHtml(labelArea(row.area))}</span><em class="activity-status ${escapeHtml(row.presentationStatus)}">${escapeHtml(presentationActivityStatusLabel(row.presentationStatus))}</em></div>`;
     }).join("")}</div>` : presentationEmptyState(`Sin próximos eventos desde el ${activityWindow.label}`)}${presentationManualNote(notes, "comment_block-activities")}</div>`;
   } else if (slide.key === "inventory") {
     body = renderPresentationInventory(notes);
@@ -13809,7 +13818,14 @@ async function saveExecutivePresentationNotes(form) {
   if (isFeedbackTracking) executivePresentationNotes.__feedback_tracking = { ...(executivePresentationNotes.__feedback_tracking || {}), ...values };
   else executivePresentationNotes[weekKey] = { ...(executivePresentationNotes[weekKey] || {}), ...values };
   saveExecutivePresentationLocalNotes();
-  if (!isFeedbackTracking) localStorage.setItem(EXECUTIVE_PRESENTATION_PENDING_SYNC_KEY, weekKey);
+  if (!isFeedbackTracking) {
+    try {
+      localStorage.setItem(EXECUTIVE_PRESENTATION_PENDING_SYNC_KEY, weekKey);
+    } catch (error) {
+      // La sincronización remota continúa aunque el navegador ya no tenga espacio.
+      console.warn("No se pudo marcar la presentación para sincronización", error);
+    }
+  }
   if (!supabaseClient || currentUser?.auth !== "supabase") {
     return false;
   }
@@ -21815,10 +21831,10 @@ document.addEventListener("keydown", (event) => {
   if (!executivePresentationMode) return;
   if (event.key === "ArrowRight") {
     executivePresentationIndex = Math.min(EXECUTIVE_PRESENTATION_SLIDES.length - 1, executivePresentationIndex + 1);
-    render();
+    updateExecutivePresentationStage();
   } else if (event.key === "ArrowLeft") {
     executivePresentationIndex = Math.max(0, executivePresentationIndex - 1);
-    render();
+    updateExecutivePresentationStage();
   } else if (event.key === "Escape") {
     executivePresentationMode = false;
     render();
