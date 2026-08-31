@@ -38,7 +38,9 @@ test("daily Wellness average is computed from dated Wellness visits only", () =>
   assert.ok(source.includes('normalizeGymSite(row.sitio) === "Wellness"'));
   assert.ok(source.includes("perDate.set(row.fecha"));
   assert.ok(source.includes('"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"'));
-  assert.ok(source.includes("const wellnessDailyServiceCapacity = 2400"));
+  assert.ok(source.includes("const wellnessWeekdayServiceCapacity = 2400"));
+  assert.ok(source.includes("const wellnessWeekendServiceCapacity = 990"));
+  assert.ok(source.includes('["Sábado", "Domingo"].includes(day)'));
   assert.ok(source.includes("% servicio"));
   assert.ok(source.includes("estancia aproximada de 2 horas por alumno"));
   assert.ok(styles.includes(".exec-report-daily-service.over-capacity"));
@@ -127,6 +129,7 @@ test("repeated module totals are replaced by actionable comparisons", () => {
   assert.match(source, /function executiveSemanaTecGroupCounts\(\)[\s\S]*?languageByGroup[\s\S]*?spanish[\s\S]*?english[\s\S]*?hasLanguage/);
   assert.match(source, /exec-week-language-breakdown[\s\S]*?Español[\s\S]*?Inglés/);
   assert.match(styles, /\.exec-week-language-breakdown\s*\{[^}]*display:\s*grid;/s);
+  assert.match(styles, /\.exec-week-language-breakdown b\s*\{[^}]*border-top:\s*0;[^}]*transform:\s*translateY\(-2px\);/s);
   assert.match(source, /function renderExecutiveGeneralDashboard\(\)[\s\S]*?\$\{renderExecutiveInsightCards\(\)\}/, "Insight cards must render in the normal Reporte General screen, not only its PDF clone");
   assert.match(styles, /\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*repeat\(2,/s, "Normal Reporte General must show the insight cards in a readable two-column vertical layout");
   assert.match(styles, /@media \(max-width: 520px\)[\s\S]*?\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*1fr/s, "Insight cards must stack on narrow screens");
@@ -139,9 +142,10 @@ test("Vivencia shows the five latest participant uploads instead of upcoming eve
   );
   assert.match(historyFunction, /vivenciaParticipantUploads[\s\S]*?second - first[\s\S]*?\.slice\(0, 5\)/);
   assert.match(source, /Vivencia · últimas cargas/);
-  assert.match(source, /upload\.eventName[\s\S]*?upload\.uploadDate[\s\S]*?upload\.totalLoaded/);
+  assert.match(source, /upload\.eventName[\s\S]*?exec-insight-vivencia-meta[\s\S]*?upload\.uploadDate[\s\S]*?upload\.totalLoaded/);
   assert.doesNotMatch(source, /Vivencia · próximos eventos|Sin próximos eventos con fecha/);
-  assert.match(styles, /\.exec-insight-vivencia-history > div\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto auto;/s);
+  assert.match(styles, /\.exec-insight-vivencia-history > div\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto;[^}]*border-bottom:\s*0;/s);
+  assert.match(styles, /\.exec-insight-vivencia-meta\s*\{[^}]*align-items:\s*center;[^}]*justify-content:\s*flex-end;/s);
   assert.match(styles, /\.exec-insight-vivencia\s*\{[^}]*padding:\s*18px 19px !important;/s, "Vivencia debe conservar espacio para texto legible en la fila de tres tarjetas");
   assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events > div\s*\{[^}]*padding:\s*4px 0;/s);
 });

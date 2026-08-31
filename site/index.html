@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="wellsync-version" content="20260831-presentation-performance-v2" />
+    <meta name="wellsync-version" content="20260831-operational-cleanup-v3" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>WellSync | Wellness Center</title>
-    <link rel="stylesheet" href="./styles.css?v=20260831-presentation-performance-v2" />
+    <link rel="stylesheet" href="./styles.css?v=20260831-operational-cleanup-v3" />
     <script>
       (() => {
-        const currentVersion = "20260831-presentation-performance-v2";
+        const currentVersion = "20260831-operational-cleanup-v3";
         let checkingVersion = false;
 
         async function ensureLatestWellSync() {
@@ -83,26 +83,12 @@
               <option value="dir">Direccion Deportiva</option>
               <option value="maestro-clases">Maestro de Clases Deportivas</option>
             </select>
+            <a class="planning-link top-planning-link" href="https://planeacion-semestral-recsports.vercel.app/" target="_blank" rel="noopener noreferrer">Planeación</a>
             <button class="ghost-btn" id="exportExcel">Exportar Excel</button>
             <button class="primary-btn" id="exportPdf">Exportar PDF</button>
             <button class="danger-btn" id="logoutButton">Salir</button>
           </div>
         </header>
-
-        <section class="hero-dashboard">
-          <div class="hero-identity">
-            <span class="hero-mark" aria-hidden="true">WS</span>
-            <div>
-              <h1>WellSync</h1>
-              <p>Panel operativo</p>
-            </div>
-          </div>
-          <div class="hero-kpis" id="executiveKpis"></div>
-          <div class="hero-actions">
-            <a class="planning-link" href="https://planeacion-semestral-recsports.vercel.app/" target="_blank" rel="noopener noreferrer">Planeación</a>
-            <img class="hero-borregos-logo" src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" />
-          </div>
-        </section>
 
         <section class="filters-band" aria-label="Filtros recomendados">
           <label>
@@ -141,10 +127,6 @@
         <section class="view-grid">
           <div class="main-panel">
             <div class="section-title">
-              <div>
-                <p class="eyebrow">Dashboard ejecutivo</p>
-                <h2 id="currentTitle">Vista general</h2>
-              </div>
               <div class="segmented" role="tablist" aria-label="Vista">
                 <button class="active" data-view="dashboard">Dashboard</button>
                 <button id="budgetAllocationViewButton" data-view="budget-allocation" hidden>Asignar presupuesto</button>
@@ -192,6 +174,6 @@
     <script src="./module-data-plan.js?v=20260828-intramuros-v25"></script>
     <script src="./view-cache.js?v=20260826-last-view-v4"></script>
     <script src="./mentors-module.js?v=20260828-intramuros-v25"></script>
-    <script src="./app.js?v=20260831-presentation-performance-v2"></script>
+    <script src="./app.js?v=20260831-operational-cleanup-v3"></script>
   </body>
 </html>

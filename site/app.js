@@ -7104,8 +7104,10 @@ function renderCareers() {
 }
 
 function renderExecutiveKpis() {
+  const container = $("#executiveKpis");
+  if (!container) return;
   const metrics = metricSet(allParticipationRows());
-  $("#executiveKpis").innerHTML = [
+  container.innerHTML = [
     ["Alumnos únicos", metrics.unique, "+12% vs periodo ant."],
     ["Registros", metrics.registers, `${cloudCaptures.length} nube / ${localCaptures.length} local`],
     ["Retención", `${metrics.retention}%`, "sin datos sensibles"],
@@ -11022,7 +11024,11 @@ function renderExecutiveWeeklyBars(rows, tone = "blue") {
 }
 
 function renderExecutiveGymWeeklyReport(rows) {
-  const wellnessDailyServiceCapacity = 2400;
+  const wellnessWeekdayServiceCapacity = 2400;
+  const wellnessWeekendServiceCapacity = 990;
+  const wellnessDailyServiceCapacity = (day) => ["Sábado", "Domingo"].includes(day)
+    ? wellnessWeekendServiceCapacity
+    : wellnessWeekdayServiceCapacity;
   const lane = (key, label, tone) => {
     const laneMax = Math.max(...rows.map((row) => Number(row[key] || 0)), 1);
     return `
@@ -11040,10 +11046,11 @@ function renderExecutiveGymWeeklyReport(rows) {
       <aside class="exec-report-daily-average">
         <h4>Promedio de asistencias en Wellness</h4>
         ${averages.map((row) => {
-          const service = row.average === null ? null : Math.round((row.average / wellnessDailyServiceCapacity) * 100);
+          const capacity = wellnessDailyServiceCapacity(row.day);
+          const service = row.average === null ? null : Math.round((row.average / capacity) * 100);
           return `<div class="exec-report-daily-service ${service !== null && service > 100 ? "over-capacity" : ""}"><span>${row.day}</span><strong>${row.average === null ? "—" : row.average.toLocaleString("es-MX")}</strong><em>${service === null ? "—" : `${service}% servicio`}</em></div>`;
         }).join("")}
-        <small>Servicio = asistencias promedio del día ÷ capacidad de 2,400 alumnos. Referencia calculada con una estancia aproximada de 2 horas por alumno.</small>
+        <small>Servicio = asistencias promedio del día ÷ capacidad diaria. Lunes a viernes: 2,400 alumnos; sábado y domingo: 990 alumnos. Referencia calculada con una estancia aproximada de 2 horas por alumno.</small>
       </aside>
     </div>`;
 }
@@ -11267,7 +11274,7 @@ function renderExecutiveInsightCards() {
       <article class="exec-insight-card exec-insight-vivencia">
         <h3>Vivencia · últimas cargas</h3>
         <div class="exec-insight-events exec-insight-vivencia-history">
-          ${vivenciaUploads.length ? vivenciaUploads.map((upload) => `<div><strong title="${escapeHtml(upload.eventName)}">${escapeHtml(upload.eventName)}</strong><time>${escapeHtml(upload.uploadDate)}</time><b>${upload.totalLoaded.toLocaleString("es-MX")}</b></div>`).join("") : `<p>Sin cargas históricas de participantes.</p>`}
+          ${vivenciaUploads.length ? vivenciaUploads.map((upload) => `<div><strong title="${escapeHtml(upload.eventName)}">${escapeHtml(upload.eventName)}</strong><span class="exec-insight-vivencia-meta"><time>${escapeHtml(upload.uploadDate)}</time><b>${upload.totalLoaded.toLocaleString("es-MX")}</b></span></div>`).join("") : `<p>Sin cargas históricas de participantes.</p>`}
         </div>
       </article>
       <article class="exec-insight-card exec-insight-semana-tec">
@@ -19140,15 +19147,8 @@ function renderSchedules(area) {
       </div>
     `;
   }
-  const rows = scheduleMasterRows();
-  const conflicts = scheduleConflicts();
   const programmedOfferings = classProgramOfferings();
-  const programmedBlocks = [...new Set(programmedOfferings.map((row) => row.block))].sort((a, b) => classPeriodSortValue(a) - classPeriodSortValue(b));
   return `
-    <div class="permission-strip">
-      <span>Calendario Maestro: Programacion Oficial + Booking. La programación oficial también define disciplinas, bloques y profesores del dashboard.</span>
-      <span>${programmedOfferings.length} grupos en ${programmedBlocks.join(" + ") || "sin bloques"}  -  ${conflicts.length} conflictos de horario</span>
-    </div>
     <section class="schedule-source-load">
       <div class="section-title compact">
         <div>
@@ -20134,9 +20134,11 @@ function render() {
   renderExecutiveKpis();
   const currentAreaDataStatus = areaDataStatus(area.id);
   const cachedView = currentCachedView();
-  if (currentAreaDataStatus !== "ready" && cachedView?.kpisHtml) $("#executiveKpis").innerHTML = cachedView.kpisHtml;
+  const executiveKpis = $("#executiveKpis");
+  if (currentAreaDataStatus !== "ready" && cachedView?.kpisHtml && executiveKpis) executiveKpis.innerHTML = cachedView.kpisHtml;
   renderSystemMap();
-  $("#currentTitle").textContent = area.name;
+  const currentTitle = $("#currentTitle");
+  if (currentTitle) currentTitle.textContent = area.name;
   const evaluationsTab = $("#evaluationsViewButton");
   const gradesTab = $("#gradesViewButton");
   const bookingTab = $("#bookingViewButton");
