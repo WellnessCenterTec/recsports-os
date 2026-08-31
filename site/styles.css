@@ -1674,12 +1674,12 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 
 .gym-bar-row.peak .gym-bar-track i { background: linear-gradient(90deg, #0d57a3 0%, #1ca37a 100%); }
 
-.gym-distribution-semester .gym-distribution-row { background: #f5f2ff; border-radius: 10px; grid-template-columns: 42px minmax(0, 1fr) 40px; padding: 8px 9px; }
+.gym-distribution-semester .gym-distribution-row { background: #f5f2ff; border-radius: 10px; grid-template-columns: 94px minmax(0, 1fr) 48px; padding: 8px 9px; }
 .gym-distribution-semester .gym-distribution-row div:first-child { align-items: baseline; display: flex; gap: 6px; }
 .gym-distribution-semester .gym-distribution-row div:first-child strong { background: #e5dcff; border-radius: 8px; color: #6646ba; padding: 4px 7px; }
 .gym-distribution-semester .gym-distribution-row div:first-child span { font-size: 10px; }
 .gym-distribution-semester .gym-distribution-row .gym-bar-track { display: none; }
-.gym-distribution-semester .gym-distribution-row em { background: #7653c9; border-radius: 99px; color: #fff; padding: 4px 6px; }
+.gym-distribution-semester .gym-distribution-row em { align-self: center; background: #7653c9; border-radius: 99px; color: #fff; padding: 4px 6px; transform: translateY(-2px); }
 
 .gym-distribution-career .gym-distribution-row { border-bottom: 1px solid #e0eaef; padding-bottom: 8px; }
 .gym-distribution-career .gym-distribution-row:nth-child(1) .gym-bar-track i { background: linear-gradient(90deg, #f2b20f, #e17318); }

@@ -103,4 +103,6 @@ test("gym semester distribution uses two fixed columns instead of an internal sc
   assert.match(semesterBars, /grid-template-rows: repeat\(5, minmax\(0, auto\)\)/);
   assert.match(semesterBars, /grid-auto-flow: column/);
   assert.match(semesterBars, /overflow: visible/);
+  assert.match(styles, /\.gym-distribution-semester \.gym-distribution-row \{[^}]*grid-template-columns: 94px minmax\(0, 1fr\) 48px/);
+  assert.match(styles, /\.gym-distribution-semester \.gym-distribution-row em \{[^}]*translateY\(-2px\)/);
 });
