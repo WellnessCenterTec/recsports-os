@@ -10397,6 +10397,60 @@ function renderUploadBars(title, rows, limit = 8) {
   `;
 }
 
+function renderRepresentativosCoachRanking(rows) {
+  const visible = rows.slice(0, 14);
+  const max = Math.max(...visible.map((row) => row.value), 1);
+  return `
+    <article class="upload-chart-card representativos-coach-chart">
+      <div class="representativos-chart-title"><div><p class="eyebrow">Ranking</p><h3>Alumnos por coach</h3></div><span>${visible.length} coaches</span></div>
+      <ol class="representativos-coach-list">
+        ${visible.map((row, index) => `
+          <li>
+            <b class="representativos-rank rank-${Math.min(index + 1, 4)}">${String(index + 1).padStart(2, "0")}</b>
+            <div><strong title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</strong><i><em style="width:${Math.max(5, Math.round((row.value / max) * 100))}%"></em></i></div>
+            <span>${row.value}</span>
+          </li>
+        `).join("") || `<div class="upload-empty">Sin datos suficientes para graficar.</div>`}
+      </ol>
+    </article>
+  `;
+}
+
+function renderRepresentativosProgramChart(rows) {
+  const visible = rows.slice(0, 12);
+  const max = Math.max(...visible.map((row) => row.value), 1);
+  return `
+    <article class="upload-chart-card representativos-program-chart">
+      <div class="representativos-chart-title"><div><p class="eyebrow">Distribución académica</p><h3>Top de programas</h3></div><span>Top ${visible.length}</span></div>
+      <div class="representativos-program-list">
+        ${visible.map((row) => `
+          <div class="representativos-program-row">
+            <b>${escapeHtml(String(row.label).slice(0, 3).toUpperCase())}</b>
+            <div><strong title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</strong><i><em style="width:${Math.max(5, Math.round((row.value / max) * 100))}%"></em></i></div>
+            <span>${row.value}</span>
+          </div>
+        `).join("") || `<div class="upload-empty">Sin datos suficientes para graficar.</div>`}
+      </div>
+    </article>
+  `;
+}
+
+function renderRepresentativosSemesterChart(rows) {
+  const visible = rows.slice(0, 12);
+  const max = Math.max(...visible.map((row) => row.value), 1);
+  return `
+    <article class="upload-chart-card representativos-semester-chart">
+      <div class="representativos-chart-title"><div><p class="eyebrow">Perfil académico</p><h3>Participación por semestre</h3></div><span>${visible.reduce((sum, row) => sum + row.value, 0)} alumnos</span></div>
+      <div class="representativos-semester-columns">
+        ${visible.map((row) => {
+          const shortLabel = normalizeText(row.label) === "sin semestre" ? "S/D" : `S${row.label}`;
+          return `<div class="representativos-semester-column ${row.value === max ? "is-highlight" : ""}" title="${escapeHtml(row.label)}: ${row.value} alumnos"><strong>${row.value}</strong><i><em style="height:${Math.max(8, Math.round((row.value / max) * 100))}%"></em></i><span>${shortLabel}</span></div>`;
+        }).join("") || `<div class="upload-empty">Sin datos suficientes para graficar.</div>`}
+      </div>
+    </article>
+  `;
+}
+
 function renderParticipationUploadDashboard(areaId) {
   const config = participationUploadConfigs[areaId];
   const state = participationUploadState[areaId];
@@ -10654,10 +10708,10 @@ function renderRepresentativosDashboard() {
           <article><span>Programas</span><strong>${programs.toLocaleString("es-MX")}</strong><em>académicos</em></article>
           <article><span>Base Maestra</span><strong>${matched.toLocaleString("es-MX")}</strong><em>matrículas encontradas</em></article>
         </div>
-        <div class="semana-tec-charts">
-          ${renderUploadBars("Alumnos por coach", semanaTecCountRows(rows, "coach"), 14)}
-          ${renderUploadBars("Top de programas", semanaTecCountRows(rows, "programa").slice(0, 12), 12)}
-          ${renderUploadBars("Participación por semestre", semanaTecSemesterCounts(rows), 12)}
+        <div class="semana-tec-charts representativos-insight-charts">
+          ${renderRepresentativosCoachRanking(semanaTecCountRows(rows, "coach"))}
+          ${renderRepresentativosProgramChart(semanaTecCountRows(rows, "programa"))}
+          ${renderRepresentativosSemesterChart(semanaTecSemesterCounts(rows))}
         </div>
         <section class="semana-tec-groups-panel">
           <div class="class-grade-table-header"><div><p class="eyebrow">Detalle operativo</p><h3>Representativos y coaches</h3></div><span>${groups.length} representativos visibles</span></div>
@@ -15429,7 +15483,7 @@ function renderBudgetDashboard() {
 
       <div class="kpi-grid budget-kpi-strip">
         ${budgetKpiCard("circle-dollar-sign", "Presupuesto asignado", money(assigned), "base del periodo", "blue")}
-        ${budgetKpiCard("trending-up", "Ejercido", money(spent), `${assigned ? Math.round(spent / assigned * 100) : 0}% del presupuesto`, "green")}
+        ${budgetKpiCard("trending-up", "Gasto", money(spent), `${assigned ? Math.round(spent / assigned * 100) : 0}% del presupuesto`, "green")}
         ${budgetKpiCard("clipboard-list", "Comprometido", money(committed), "pendiente de cierre", "gold")}
         ${budgetKpiCard("wallet-cards", "Disponible", money(available), "saldo operativo", "teal")}
         ${budgetKpiCard("pie-chart", "% de uso", `${usage}%`, "ejercido + comprometido", "blue")}

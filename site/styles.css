@@ -7607,6 +7607,170 @@ tbody tr:hover td {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.representativos-insight-charts .upload-chart-card {
+  min-height: 420px;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.representativos-chart-title {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.representativos-chart-title h3 { margin: 2px 0 0; }
+.representativos-chart-title .eyebrow { margin: 0; }
+.representativos-chart-title > span {
+  background: #eef6ff;
+  border-radius: 999px;
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 900;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.representativos-coach-list {
+  display: grid;
+  gap: 7px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.representativos-coach-list li {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 27px minmax(0, 1fr) 32px;
+}
+
+.representativos-rank {
+  align-items: center;
+  background: #edf5ff;
+  border-radius: 50%;
+  color: var(--blue);
+  display: inline-flex;
+  font-size: 9px;
+  font-weight: 900;
+  height: 27px;
+  justify-content: center;
+  width: 27px;
+}
+
+.representativos-rank.rank-1 { background: #fff0c9; color: #9a6400; }
+.representativos-rank.rank-2 { background: #e7edf3; color: #56687a; }
+.representativos-rank.rank-3 { background: #fae6d2; color: #9a5719; }
+
+.representativos-coach-list div,
+.representativos-program-row div { min-width: 0; }
+.representativos-coach-list strong,
+.representativos-program-row strong {
+  display: block;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.representativos-coach-list i,
+.representativos-program-row i {
+  background: #e8eff4;
+  border-radius: 999px;
+  display: block;
+  height: 6px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.representativos-coach-list i em,
+.representativos-program-row i em {
+  background: linear-gradient(90deg, #1667b7, #18a070);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+}
+
+.representativos-coach-list li > span,
+.representativos-program-row > span {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
+  text-align: right;
+}
+
+.representativos-program-list { display: grid; gap: 8px; }
+.representativos-program-row {
+  align-items: center;
+  background: #f8fbfd;
+  border: 1px solid #e6eef3;
+  border-radius: 9px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 32px minmax(0, 1fr) 30px;
+  padding: 7px 8px;
+}
+
+.representativos-program-row > b {
+  align-items: center;
+  background: linear-gradient(145deg, #edf1ff, #d9eeff);
+  border-radius: 7px;
+  color: #365cb1;
+  display: flex;
+  font-size: 9px;
+  font-weight: 900;
+  height: 29px;
+  justify-content: center;
+}
+
+.representativos-program-row i em { background: linear-gradient(90deg, #7250c4, #208d9c); }
+
+.representativos-semester-chart { background: linear-gradient(180deg, #fff 0%, #f5fbf9 100%); }
+.representativos-semester-columns {
+  align-items: end;
+  display: flex;
+  gap: 9px;
+  height: 320px;
+  padding: 7px 4px 0;
+}
+
+.representativos-semester-column {
+  align-items: center;
+  display: grid;
+  flex: 1 1 0;
+  gap: 6px;
+  grid-template-rows: 18px 1fr 18px;
+  justify-items: center;
+  min-width: 0;
+}
+
+.representativos-semester-column > strong { color: #266b74; font-size: 13px; }
+.representativos-semester-column > i {
+  align-items: end;
+  background: repeating-linear-gradient(to top, #dcebe9 0 1px, transparent 1px 31px);
+  border-bottom: 2px solid #bfddd7;
+  display: flex;
+  height: 250px;
+  justify-content: center;
+  padding: 0 4px;
+  width: 100%;
+}
+
+.representativos-semester-column > i em {
+  background: linear-gradient(180deg, #43c6a3, #167b8e);
+  border-radius: 8px 8px 2px 2px;
+  display: block;
+  min-height: 7px;
+  transition: height .2s ease;
+  width: min(36px, 82%);
+}
+
+.representativos-semester-column.is-highlight > i em { background: linear-gradient(180deg, #edbf43, #d37b21); }
+.representativos-semester-column > span { color: #5b7180; font-size: 10px; font-weight: 900; white-space: nowrap; }
+
 .semana-tec-groups-panel {
   background: #fff;
   border: 1px solid var(--line);
