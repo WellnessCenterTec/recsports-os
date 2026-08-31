@@ -13764,17 +13764,24 @@ tbody tr:hover td {
 .executive-presentation-budget-area.navy b i, .executive-presentation-budget-owner.navy b i { background: #334d66; }
 .executive-presentation-budget-area em { text-align: right; color: #07875e; font-style: normal; font-weight: 800; }
 .executive-presentation-budget-owner { display: grid; grid-template-columns: 120px 1fr 28px; align-items: center; gap: 8px; min-height: 32px; font-size: 12px; }
-.executive-presentation-budget-latest { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; }
-.executive-presentation-budget-latest article { min-width: 0; padding: 10px; background: #fff; border: 1px solid #d9e3ec; border-top: 5px solid #0a66b7; border-radius: 7px; }
+.executive-presentation-budget-latest { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; }
+.executive-presentation-budget-latest > header { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 2px; }
+.executive-presentation-budget-latest > header strong { color: #082b55; font-size: 15px; }
+.executive-presentation-budget-latest > header span { color: #687b8d; font-size: 11px; font-weight: 700; }
+.executive-presentation-budget-latest article { display: grid; grid-template-rows: auto 1fr; min-width: 0; padding: 11px 13px; background: #fff; border: 1px solid #d9e3ec; border-top: 5px solid #0a66b7; border-radius: 7px; }
 .executive-presentation-budget-latest article.green { border-top-color: #079365; }
 .executive-presentation-budget-latest article.gold { border-top-color: #e3a713; }
 .executive-presentation-budget-latest article.purple { border-top-color: #7b48bd; }
 .executive-presentation-budget-latest article.teal { border-top-color: #1aa5a0; }
 .executive-presentation-budget-latest article.navy { border-top-color: #334d66; }
-.executive-presentation-budget-latest strong, .executive-presentation-budget-latest span, .executive-presentation-budget-latest em { display: block; overflow: hidden; text-overflow: ellipsis; }
-.executive-presentation-budget-latest strong { color: #082b55; font-size: 12px; }
-.executive-presentation-budget-latest span { margin: 5px 0; min-height: 26px; color: #263f58; font-size: 11px; }
-.executive-presentation-budget-latest em { color: #6c7e90; font-style: normal; font-size: 10px; white-space: nowrap; }
+.executive-presentation-budget-latest article > div > strong, .executive-presentation-budget-latest span, .executive-presentation-budget-latest em { display: block; overflow: hidden; text-overflow: ellipsis; }
+.executive-presentation-budget-latest article > div > strong { color: #082b55; font-size: 13px; }
+.executive-presentation-budget-latest article > div > span { margin: 2px 0 6px; color: #687b8d; font-size: 10px; font-weight: 800; }
+.executive-presentation-budget-latest ol { display: grid; gap: 2px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.executive-presentation-budget-latest li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px; min-width: 0; padding-top: 3px; border-top: 1px solid #e7edf2; }
+.executive-presentation-budget-latest li > span { min-width: 0; color: #263f58; font-size: 10px; white-space: nowrap; }
+.executive-presentation-budget-latest li > em { color: #6c7e90; font-style: normal; font-size: 9px; white-space: nowrap; }
+.executive-presentation-budget-latest li.empty { grid-template-columns: 1fr; padding: 8px 0; }
 .executive-presentation-team { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
 .executive-presentation-team article { min-width: 0; padding: 10px; text-align: center; background: #fff; border: 1px solid #d9e3ec; border-radius: 7px; }
 .executive-presentation-team img, .executive-presentation-team article > span { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 7px; object-fit: cover; color: #fff; background: #0a66b7; border-radius: 50%; font-weight: 900; }

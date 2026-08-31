@@ -13258,7 +13258,7 @@ function executivePresentationLatestPurchases(summaries = executivePresentationB
     const rows = budgetRequestRows
       .filter((row) => row.period === period && row.area === summary.area && row.status !== "rechazado")
       .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-    return { area: summary.area, owner: summary.owner || "Sin responsable", count: rows.length, purchase: rows[0] || null };
+    return { area: summary.area, owner: summary.owner || "Sin responsable", count: rows.length, purchases: rows.slice(0, 5) };
   });
 }
 
@@ -13285,7 +13285,7 @@ function renderExecutivePresentationBudget(budget, notes) {
       }).join("")}</section>
       <aside><h3>Registros por responsable</h3>${latest.map((row, index) => `<div class="executive-presentation-budget-owner ${budgetPresentationTone(index)}"><span>${escapeHtml(row.owner)}</span><b><i style="width:${Math.min(100, row.count * 12)}%"></i></b><strong>${row.count}</strong></div>`).join("")}</aside>
     </div>
-    <div class="executive-presentation-budget-latest">${latest.map((row, index) => `<article class="${budgetPresentationTone(index)}"><strong>${escapeHtml(budgetAreaLabel(row.area))}</strong>${row.purchase ? `<span>${escapeHtml(row.purchase.concept || "Sin concepto")}</span><em>${escapeHtml(row.purchase.date || "Sin fecha")} · ${money(row.purchase.amount || 0)}</em>` : `<span>Sin compras registradas</span><em>${escapeHtml(budget.period)}</em>`}</article>`).join("")}</div>
+    <div class="executive-presentation-budget-latest"><header><strong>Últimas compras por área</strong><span>Las 5 solicitudes más recientes del periodo</span></header>${latest.map((row, index) => `<article class="${budgetPresentationTone(index)}"><div><strong>${escapeHtml(budgetAreaLabel(row.area))}</strong><span>${Math.min(5, row.purchases.length)} de 5 compras recientes</span></div><ol>${row.purchases.length ? row.purchases.map((purchase) => `<li><span>${escapeHtml(purchase.concept || "Sin concepto")}</span><em>${escapeHtml(purchase.date || "Sin fecha")} · ${money(purchase.amount || 0)}</em></li>`).join("") : `<li class="empty"><span>Sin compras registradas</span><em>${escapeHtml(budget.period)}</em></li>`}</ol></article>`).join("")}</div>
     ${presentationManualNote(notes, "comment_budget")}
   </div>`;
 }

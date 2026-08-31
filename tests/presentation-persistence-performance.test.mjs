@@ -20,3 +20,19 @@ test("keyboard navigation updates only the active executive slide", async () => 
   assert.match(handler, /event\.key === "ArrowLeft"[\s\S]*?updateExecutivePresentationStage\(\)/);
   assert.match(handler, /event\.key === "ArrowRight"[\s\S]*?updateExecutivePresentationStage\(\);\n  \} else if \(event\.key === "ArrowLeft"\)[\s\S]*?updateExecutivePresentationStage\(\);/);
 });
+
+test("budget presentation includes five recent purchases for every area", async () => {
+  const [app, styles] = await Promise.all([
+    readFile(new URL("../site/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../site/styles.css", import.meta.url), "utf8")
+  ]);
+
+  const purchases = app.slice(app.indexOf("function executivePresentationLatestPurchases"), app.indexOf("function renderExecutivePresentationBudget"));
+  const budget = app.slice(app.indexOf("function renderExecutivePresentationBudget"), app.indexOf("function executivePresentationActivityWindow"));
+
+  assert.match(purchases, /purchases:\s*rows\.slice\(0,\s*5\)/);
+  assert.match(budget, /Últimas compras por área/);
+  assert.match(budget, /row\.purchases\.map/);
+  assert.match(styles, /\.executive-presentation-budget-latest\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
+  assert.match(styles, /\.executive-presentation-budget-latest ol\s*\{/);
+});
