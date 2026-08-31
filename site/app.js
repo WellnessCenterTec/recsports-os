@@ -19183,9 +19183,6 @@ function renderScheduleUploader(type, title, count, errors) {
       <div>
         <p class="eyebrow">${isOfficial ? "Clases deportivas" : "Booking ofertados"}</p>
         <h3>${title}</h3>
-        <p>${isOfficial
-          ? "Carga disciplinas, bloques PMT1/PMT2/PMT3, profesores, grupos, frecuencia y horarios. Las métricas de alumnos permanecen en cero hasta subir Calificaciones."
-          : "Carga actividades ofertadas, profesores, frecuencia, horarios, instalaciones y aforo. Las gráficas permanecen en cero hasta subir las listas de Booking."}</p>
       </div>
       <div class="upload-action-row">
         <div class="schedule-upload-control">
@@ -20190,7 +20187,7 @@ function render() {
     schedulesTab.textContent = isGeneral ? "Calendario" : isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
     if (isGeneral) schedulesTab.style.order = "2";
   }
-  if (reportsTab) reportsTab.hidden = isGym || isSemanaTec || isRepresentativos || isMentors;
+  if (reportsTab) reportsTab.hidden = isClasses || isGym || isSemanaTec || isRepresentativos || isMentors;
   if (systemTab) {
     systemTab.hidden = isClasses || isGym || isSemanaTec || isRepresentativos || isMentors || (!isIntramuros && !isLeadership());
     systemTab.textContent = isIntramuros ? "Cargar Roles de Juego" : "Sistema";
@@ -20216,6 +20213,7 @@ function render() {
   if (!isBudget && ["budget-allocation", "budget-request"].includes(activeView)) activeView = "dashboard";
   if (activeView === "collaborator-infographic" && !isCollaborators) activeView = "dashboard";
   if (isClasses && activeView === "blueprint") activeView = "grades";
+  if (isClasses && activeView === "reports") activeView = "dashboard";
   if (activeView === "blueprint" && !isIntramuros && !isLeadership()) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";

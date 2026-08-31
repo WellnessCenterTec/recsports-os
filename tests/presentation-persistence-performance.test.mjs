@@ -70,3 +70,37 @@ test("schedule view omits the duplicated Calendario Maestro banner", async () =>
   assert.match(scheduleView, /schedule-source-load/);
   assert.match(scheduleView, /data-schedule-mode="\$\{mode\}"/);
 });
+
+test("Clases Deportivas hides Reportes and returns stale report links to its dashboard", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+
+  assert.match(app, /if \(reportsTab\) reportsTab\.hidden = isClasses \|\| isGym \|\| isSemanaTec \|\| isRepresentativos \|\| isMentors;/);
+  assert.match(app, /if \(isClasses && activeView === "reports"\) activeView = "dashboard";/);
+});
+
+test("schedule upload cards keep their controls without long explanatory paragraphs", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const uploader = app.slice(app.indexOf("function renderScheduleUploader"), app.indexOf("function renderScheduleFilters"));
+
+  assert.doesNotMatch(uploader, /Carga disciplinas, bloques PMT1/);
+  assert.doesNotMatch(uploader, /Carga actividades ofertadas, profesores/);
+  assert.match(uploader, /data-schedule-upload="\$\{type\}"/);
+  assert.match(uploader, /data-download-class-template="\$\{type\}"/);
+});
+
+test("gym career distribution keeps an internal scroll area for the full ranking", async () => {
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+
+  assert.match(styles, /\.gym-distribution-career \.gym-distribution-bars \{[\s\S]*overflow-y: auto/);
+  assert.match(styles, /\.gym-distribution-career \.gym-distribution-bars::-webkit-scrollbar/);
+});
+
+test("gym semester distribution uses two fixed columns instead of an internal scroll", async () => {
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  const semesterBars = styles.match(/\.gym-distribution-semester \.gym-distribution-bars \{[\s\S]*?\n\}/)?.[0] || "";
+
+  assert.match(semesterBars, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(semesterBars, /grid-template-rows: repeat\(5, minmax\(0, auto\)\)/);
+  assert.match(semesterBars, /grid-auto-flow: column/);
+  assert.match(semesterBars, /overflow: visible/);
+});
