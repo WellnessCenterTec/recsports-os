@@ -105,7 +105,7 @@
     tone: "gold",
     source: "Uniformes, Elisa, controles presupuestales propuestos",
     capture: ["Solicitud", "Area", "Proveedor", "Monto", "Estatus", "Fecha requerida"],
-    indicators: ["Presupuesto ejercido", "Comprometido", "Disponible", "Ordenes pendientes", "Costo por participante"],
+    indicators: ["Gasto", "Comprometido", "Disponible", "Ordenes pendientes", "Costo por participante"],
     charts: ["Gasto por area", "Presupuesto vs real", "Estatus de compras"],
     reports: ["Solicitudes por area", "Presupuesto mensual", "Ordenes de compra"]
   },
@@ -404,7 +404,7 @@ const scheduledReports = [
   ["Intramuros", "Retencion y jornadas", "PDF", "Quincenal", "Coord. Intramuros", "Pendiente"],
   ["Vivencia", "Cumplimiento de eventos", "PDF", "Mensual", "Coord. Vivencia", "Pendiente"],
   ["Colaboradores", "Uniformes y cursos", "Excel", "Mensual", "Coord. Colaboradores", "En prototipo"],
-  ["Compras y Presupuesto", "Presupuesto ejercido", "PDF/Excel", "Mensual", "Compras", "Pendiente"],
+  ["Compras y Presupuesto", "Gasto", "PDF/Excel", "Mensual", "Compras", "Pendiente"],
   ["Configuracion", "Matriz de permisos y auditoria", "Excel", "Bajo demanda", "Direccion Deportiva", "En prototipo"]
 ];
 const CONFIG_LINKS_KEY = "wellsync_config_links";
@@ -15013,7 +15013,7 @@ function budgetStatusLabel(status) {
     pendiente: "Pendiente",
     autorizado: "Autorizado",
     comprometido: "Comprometido",
-    ejercido: "Ejercido",
+    ejercido: "Gasto",
     rechazado: "Rechazado"
   };
   return labels[status] || status;
@@ -15502,7 +15502,7 @@ function renderBudgetDashboard() {
         ${budgetKpiCard("trending-up", "Gasto", money(spent), `${assigned ? Math.round(spent / assigned * 100) : 0}% del presupuesto`, "green")}
         ${budgetKpiCard("clipboard-list", "Comprometido", money(committed), "pendiente de cierre", "gold")}
         ${budgetKpiCard("wallet-cards", "Disponible", money(available), "saldo operativo", "teal")}
-        ${budgetKpiCard("pie-chart", "% de uso", `${usage}%`, "ejercido + comprometido", "blue")}
+        ${budgetKpiCard("pie-chart", "% de uso", `${usage}%`, "gasto + comprometido", "blue")}
         ${budgetKpiCard("clipboard-check", "Solicitudes pendientes", pending, "requieren decisión", "lav")}
       </div>
 
@@ -15511,13 +15511,13 @@ function renderBudgetDashboard() {
           <div class="chart-title-row">
             <div>
               <p class="eyebrow">Presupuesto vs real</p>
-              <h3>Asignado, ejercido y comprometido por área</h3>
+              <h3>Asignado, gasto y comprometido por área</h3>
             </div>
             <span>${usage}% uso global</span>
           </div>
           <div class="budget-chart-legend">
             <span class="assigned"></span> Asignado
-            <span class="spent"></span> Ejercido
+            <span class="spent"></span> Gasto
             <span class="committed"></span> Comprometido
           </div>
           <div class="budget-column-chart">
@@ -15566,7 +15566,7 @@ function renderBudgetDashboard() {
             </div>
             <dl>
               <div><dt>Asignado</dt><dd>${money(row.assigned)}</dd></div>
-              <div><dt>Ejercido</dt><dd>${money(row.spent)}</dd></div>
+              <div><dt>Gasto</dt><dd>${money(row.spent)}</dd></div>
               <div><dt>Disponible</dt><dd>${money(row.available)}</dd></div>
             </dl>
             <span class="budget-health ${row.tone}">${budgetToneLabel(row.tone)}</span>
