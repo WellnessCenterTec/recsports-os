@@ -17,7 +17,7 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
     "filteredIntramurosParticipants", "normalizeText", "renderPlanningAreaDashboard", "areas",
     "planningCalendarRows", "planningCalendarLoaded", "planningCalendarError",
     "intramurosRoleCalendarActivities", "intramurosCalendarLayer", "renderIntramurosFilter",
-    "intramurosFilterOptions", "intramurosFilters", "renderIntramurosExecutiveCharts",
+    "intramurosFilterOptions", "intramurosTeamFilterOptions", "intramurosFilters", "renderIntramurosExecutiveCharts",
     "renderTournamentCards", "renderTournamentExpediente", "participationUploadState",
     "intramurosRepresentativeEligibilityAlerts", "renderIntramurosRepresentativeEligibilityAlerts", "escapeHtml"
   ];
@@ -33,6 +33,7 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
     () => [],
     "all",
     (_name, label) => `<label data-test="filter">${label}</label>`,
+    () => [],
     () => [],
     { search: "", sanction: "todos" },
     () => '<div data-test="executive-charts"></div>',
@@ -56,8 +57,19 @@ test("Intramuros Dashboard omits the calendar and preserves its remaining sectio
   assert.match(html, /Participantes Intramuros/);
   assert.match(html, /Con sanción/);
   assert.match(html, />Sanción</);
+  assert.match(html, />Equipo</);
   assert.match(html, />Grupo</);
   assert.match(html, />Comentario</);
+});
+
+test("Intramuros filtra por equipo y limita sus opciones al torneo seleccionado", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const filterSource = extractFunction(app, "filteredIntramurosParticipants", "intramurosGroupCounts");
+
+  assert.match(app, /function intramurosTeamFilterOptions\(\)/);
+  assert.match(app, /intramurosFilters\.tournament === "todos" \|\| row\.torneo === intramurosFilters\.tournament/);
+  assert.match(filterSource, /const teamMatch = intramurosFilters\.team === "todos" \|\| row\.equipo === intramurosFilters\.team/);
+  assert.match(filterSource, /&& teamMatch &&/);
 });
 
 test("Intramuros Dashboard removes only the four duplicated charts", async () => {

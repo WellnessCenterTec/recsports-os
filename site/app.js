@@ -642,7 +642,7 @@ let intramurosRoleCourtMapFilters = { facilities: ["CDB1", "CDB2", "WELLNESS"], 
 let intramurosRoleAgendaSearchTimer = null;
 let selectedIntramurosTournament = "";
 let intramurosCalendarLayer = "all";
-let intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", sanction: "todos", search: "" };
+let intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", team: "todos", sanction: "todos", search: "" };
 let intramurosSearchRenderTimer = null;
 let intramurosOperationRows = loadIntramurosOperationRows();
 let intramurosOperationCloudAvailable = true;
@@ -11523,7 +11523,7 @@ async function switchMasterPeriod(nextPeriod) {
   intramurosRolesUploadSummary = null;
   intramurosRolesPendingUpload = null;
   intramurosRoleAgendaFilters = { team: "", startDate: "", endDate: "", tournament: "todos", status: "todos" };
-  intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", sanction: "todos", search: "" };
+  intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", team: "todos", sanction: "todos", search: "" };
   selectedIntramurosTournament = "";
 
   const globalPeriod = $("#periodFilter");
@@ -11618,6 +11618,14 @@ function intramurosFilterOptions(field) {
     .sort((a, b) => String(a).localeCompare(String(b), "es-MX"));
 }
 
+function intramurosTeamFilterOptions() {
+  return Array.from(new Set(intramurosParticipantAnalyticsRows()
+    .filter((row) => intramurosFilters.tournament === "todos" || row.torneo === intramurosFilters.tournament)
+    .map((row) => row.equipo)
+    .filter(Boolean)))
+    .sort((a, b) => String(a).localeCompare(String(b), "es-MX"));
+}
+
 function intramurosHasNamedTournament(row) {
   return canonicalIntramurosTournament(row.torneo) !== "Sin torneo";
 }
@@ -11635,10 +11643,11 @@ function filteredIntramurosParticipants() {
     const schoolMatch = intramurosFilters.school === "todos" || row.escuela === intramurosFilters.school;
     const genderMatch = intramurosFilters.gender === "todos" || row.genero === intramurosFilters.gender;
     const programMatch = intramurosFilters.program === "todos" || row.programa === intramurosFilters.program;
+    const teamMatch = intramurosFilters.team === "todos" || row.equipo === intramurosFilters.team;
     const sanctionMatch = intramurosFilters.sanction === "todos" || row.sancion === intramurosFilters.sanction;
     const haystack = normalizeText([row.matricula, row.genero, row.programa, row.modalidad, row.escuela, row.tipo_actividad, row.torneo, row.rama, row.equipo, row.grupo, row.sancion, row.comentario].join(" "));
     const searchMatch = !search || haystack.includes(search);
-    return periodMatch && tournamentMatch && branchMatch && schoolMatch && genderMatch && programMatch && sanctionMatch && searchMatch;
+    return periodMatch && tournamentMatch && branchMatch && schoolMatch && genderMatch && programMatch && teamMatch && sanctionMatch && searchMatch;
   });
 }
 
@@ -12834,6 +12843,7 @@ function renderIntramurosDashboard() {
         ${renderIntramurosFilter("school", "Escuela", intramurosFilterOptions("escuela"))}
         ${renderIntramurosFilter("gender", "Género", intramurosFilterOptions("genero"))}
         ${renderIntramurosFilter("program", "Programa", intramurosFilterOptions("programa"))}
+        ${renderIntramurosFilter("team", "Equipo", intramurosTeamFilterOptions())}
         ${renderIntramurosFilter("sanction", "Sanción", intramurosFilterOptions("sancion"))}
         <label>Buscar
           <input id="intramurosSearch" value="${escapeHtml(intramurosFilters.search)}" placeholder="Matrícula, torneo, equipo..." />
