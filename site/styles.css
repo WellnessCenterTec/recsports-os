@@ -8251,6 +8251,7 @@ tbody tr:hover td {
     minmax(88px, .72fr)
     minmax(126px, 1fr)
     minmax(126px, 1fr)
+    minmax(126px, 1fr)
     minmax(180px, 1.35fr);
   overflow-x: auto;
   padding: 12px;
@@ -11128,7 +11129,7 @@ body.planning-modal-open {
   .intramuros-game-info-list article { grid-template-columns: 1fr; }
   .intramuros-game-info-list b { text-align: left; }
   .intramuros-filter-grid {
-    grid-template-columns: 88px 126px 88px 108px 88px 126px 180px;
+    grid-template-columns: 88px 126px 88px 108px 88px 126px 126px 126px 180px;
   }
   .intramuros-role-agenda-filters { grid-template-columns: 1fr; }
   .intramuros-eligibility-alerts-heading { align-items: stretch; flex-direction: column; }

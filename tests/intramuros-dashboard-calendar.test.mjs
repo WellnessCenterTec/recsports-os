@@ -72,6 +72,14 @@ test("Intramuros filtra por equipo y limita sus opciones al torneo seleccionado"
   assert.match(filterSource, /&& teamMatch &&/);
 });
 
+test("los filtros de participantes Intramuros permanecen en una sola fila horizontal", async () => {
+  const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
+  const filterGrid = styles.slice(styles.indexOf(".intramuros-filter-grid {"), styles.indexOf(".intramuros-filter-grid label {"));
+
+  assert.match(filterGrid, /grid-template-columns:[\s\S]*minmax\(180px, 1\.35fr\)/);
+  assert.equal((filterGrid.match(/minmax\(/g) || []).length, 9, "deben existir nueve columnas para los filtros y la búsqueda");
+});
+
 test("Intramuros Dashboard removes only the four duplicated charts", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const styles = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
