@@ -13453,16 +13453,21 @@ function presentationHighlightedTeam() {
 
 function renderPresentationHighlightedTeam(profiles) {
   if (!profiles.length) return presentationEmptyState("Aún no hay profesores marcados como destacados");
-  const density = profiles.length > 15 ? " very-dense" : profiles.length > 10 ? " dense" : "";
-  return `<div class="executive-presentation-team highlighted${density}">${profiles.map((profile, index) => `
-    <article class="rank-${Math.min(index + 1, 4)}">
-      <b class="executive-presentation-team-rank">#${index + 1}</b>
+  const density = `${profiles.length > 5 ? " dense" : ""}${profiles.length > 10 ? " very-dense" : ""}${profiles.length > 18 ? " ultra-dense" : ""}`;
+  return `<div class="executive-presentation-team-celebration">
+    <header><span>★ RECONOCIMIENTO SEMANAL ★</span><h3>¡Felicidades, equipo destacado!</h3><p>Cada logro refleja su compromiso, pasión y constancia. Gracias por poner el ejemplo.</p></header>
+    <div class="executive-presentation-team highlighted${density}">${profiles.map((profile) => `
+    <article>
+      <b class="executive-presentation-team-badge">★ DESTACADO</b>
       ${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="Foto de ${escapeHtml(profile.name)}" />` : `<span>${escapeHtml(profile.initials)}</span>`}
       <strong>${escapeHtml(profile.name)}</strong>
       <em>${escapeHtml(profile.coordinator || "Sin coordinador")}</em>
       <small><b>${profile.weeks.length} ${profile.weeks.length === 1 ? "semana" : "semanas"}</b><span>${profile.weeks.map(escapeHtml).join(" · ")}</span></small>
+      <i>¡Gran trabajo!</i>
     </article>
-  `).join("")}</div>`;
+  `).join("")}</div>
+    <footer><b aria-hidden="true">★</b><strong>Su esfuerzo inspira a todo el equipo.</strong><span>¡Sigan brillando y marcando la diferencia!</span><b aria-hidden="true">★</b></footer>
+  </div>`;
 }
 
 function presentationSelectedCollaborators(notes, key) {

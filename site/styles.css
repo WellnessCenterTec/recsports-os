@@ -13769,15 +13769,15 @@ tbody tr:hover td {
 .executive-presentation-performance-heading h3 { margin: 0; color: #082b55; font-size: 22px; line-height: 1.16; }
 .executive-presentation-portrait-group.highlight .executive-presentation-performance-heading h3 span { color: #e4aa13; }
 .executive-presentation-performance-heading p { margin: 6px 0 0; color: #174a8b; font-size: 12px; }
-.executive-presentation-portrait-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; gap: 12px; }
-.executive-presentation-portrait-grid article { min-width: 0; text-align: center; }
+.executive-presentation-portrait-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 12px; }
+.executive-presentation-portrait-grid article { position: relative; min-width: 0; padding-top: 62px; text-align: center; }
 .executive-presentation-portrait-grid img, .executive-presentation-portrait-grid article > span { display: grid; place-items: center; width: min(126px, 88%); aspect-ratio: 1; height: auto; margin: 0 auto 10px; object-fit: cover; color: #fff; background: #0a66b7; border: 5px solid #e6eff6; border-radius: 50%; box-shadow: 0 8px 22px rgba(8, 43, 85, .16); font-size: 30px; font-weight: 900; }
 .executive-presentation-portrait-group.highlight img, .executive-presentation-portrait-group.highlight article > span { border-color: #ffe7a0; box-shadow: 0 8px 24px rgba(209, 142, 8, .24); }
 .executive-presentation-portrait-grid strong, .executive-presentation-portrait-grid em { display: block; overflow: hidden; text-overflow: ellipsis; }
 .executive-presentation-portrait-grid strong { color: #132b45; font-size: 14px; line-height: 1.16; }
 .executive-presentation-portrait-grid em { margin-top: 4px; color: #6a7d8f; font-style: normal; font-size: 11px; }
 .executive-presentation-portrait-group.highlight .executive-presentation-portrait-grid em { color: #174a8b; }
-.executive-presentation-performance-award { display: grid; justify-items: center; margin: 0 auto 7px; color: #cf8700; }
+.executive-presentation-performance-award { position: absolute; left: 50%; top: 0; display: grid; justify-items: center; width: 100%; margin: 0; color: #cf8700; transform: translateX(-50%); }
 .executive-presentation-performance-award b { position: relative; font-size: 36px; line-height: 1; }
 .executive-presentation-performance-award b::before, .executive-presentation-performance-award b::after { position: absolute; bottom: -5px; color: #df9c18; content: "❧"; font-size: 23px; }
 .executive-presentation-performance-award b::before { right: 100%; transform: scaleX(-1) rotate(-22deg); }
@@ -13846,23 +13846,40 @@ tbody tr:hover td {
 .executive-presentation-team img, .executive-presentation-team article > span { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 7px; object-fit: cover; color: #fff; background: #0a66b7; border-radius: 50%; font-weight: 900; }
 .executive-presentation-team strong, .executive-presentation-team em { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .executive-presentation-team em { margin-top: 3px; color: #687b8d; font-style: normal; font-size: 11px; }
+.executive-presentation-team-celebration { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 15px; height: 100%; overflow: hidden; }
+.executive-presentation-team-celebration::before, .executive-presentation-team-celebration::after { position: absolute; z-index: 0; color: #e3a313; content: "✦  ★  ✦"; font-size: 22px; letter-spacing: 6px; opacity: .45; pointer-events: none; }
+.executive-presentation-team-celebration::before { left: 28px; top: 32px; transform: rotate(-8deg); }
+.executive-presentation-team-celebration::after { right: 28px; top: 32px; transform: rotate(8deg); }
+.executive-presentation-team-celebration > header { position: relative; z-index: 1; padding: 14px 24px 13px; text-align: center; background: linear-gradient(90deg, rgba(255,244,205,.3), rgba(255,232,147,.72), rgba(255,244,205,.3)); border-top: 4px solid #dfa018; border-bottom: 1px solid #f0d58c; border-radius: 8px; }
+.executive-presentation-team-celebration > header span { color: #a66b00; font-size: 10px; font-weight: 950; letter-spacing: 1.5px; }
+.executive-presentation-team-celebration > header h3 { margin: 4px 0 3px; color: #082b55; font-size: 25px; line-height: 1.1; }
+.executive-presentation-team-celebration > header p { margin: 0; color: #345675; font-size: 12px; }
 .executive-presentation-team.highlighted strong { min-height: 30px; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.25; }
-.executive-presentation-team.highlighted article { position: relative; }
+.executive-presentation-team.highlighted { position: relative; z-index: 1; align-items: stretch; }
+.executive-presentation-team.highlighted article { position: relative; display: grid; grid-template-rows: auto auto auto auto auto auto; align-content: start; justify-items: center; min-height: 245px; padding: 16px 12px 14px; background: linear-gradient(180deg, #fffaf0, #fff 62%); border: 1px solid #e4b847; border-top: 5px solid #dfa018; box-shadow: 0 10px 24px rgba(147,96,0,.13); }
+.executive-presentation-team.highlighted img, .executive-presentation-team.highlighted article > span { width: 88px; height: 88px; margin: 9px auto 11px; border: 5px solid #ffe39a; box-shadow: 0 8px 18px rgba(194,126,0,.22); }
+.executive-presentation-team.highlighted strong { color: #0b315f; font-size: 15px; }
 .executive-presentation-team.highlighted small { display: grid; gap: 2px; margin-top: 6px; color: #086f68; font-size: 10px; }
 .executive-presentation-team.highlighted small b { font-size: 11px; }
 .executive-presentation-team.highlighted small span { font-weight: 800; }
-.executive-presentation-team-rank { position: absolute; top: 7px; left: 7px; display: grid; place-items: center; min-width: 25px; height: 25px; padding: 0 5px; color: #fff; background: #607180; border-radius: 50%; font-size: 10px; }
-.executive-presentation-team.highlighted .rank-1 { border-color: #d4a72c; background: #fffdf5; }
-.executive-presentation-team.highlighted .rank-1 .executive-presentation-team-rank { background: #a66b00; }
-.executive-presentation-team.highlighted .rank-2 { border-color: #8b9aa7; background: #f8fafb; }
-.executive-presentation-team.highlighted .rank-2 .executive-presentation-team-rank { background: #657581; }
-.executive-presentation-team.highlighted .rank-3 { border-color: #b57a55; background: #fff9f5; }
-.executive-presentation-team.highlighted .rank-3 .executive-presentation-team-rank { background: #995b37; }
+.executive-presentation-team-badge { padding: 4px 10px; color: #fff; background: linear-gradient(180deg, #e6aa25, #bd7600); border-radius: 999px; box-shadow: 0 3px 8px rgba(151,91,0,.2); font-size: 9px; letter-spacing: .5px; }
+.executive-presentation-team.highlighted article > i { margin-top: 8px; color: #b17200; font-size: 11px; font-style: normal; font-weight: 950; }
+.executive-presentation-team-celebration > footer { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 18px; color: #0b315f; background: #fff9e8; border: 1px solid #efd28a; border-radius: 8px; text-align: center; }
+.executive-presentation-team-celebration > footer b { color: #dfa018; font-size: 20px; }
+.executive-presentation-team-celebration > footer strong { font-size: 15px; }
+.executive-presentation-team-celebration > footer span { color: #42627e; font-size: 12px; }
 .executive-presentation-team.highlighted.dense { gap: 6px; }
-.executive-presentation-team.highlighted.dense article { padding: 7px; }
+.executive-presentation-team.highlighted.dense article { min-height: 0; padding: 7px; }
+.executive-presentation-team.highlighted.dense img, .executive-presentation-team.highlighted.dense article > span { width: 52px; height: 52px; margin: 4px auto 6px; border-width: 3px; }
 .executive-presentation-team.highlighted.very-dense { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
 .executive-presentation-team.highlighted.very-dense article { padding: 5px; }
 .executive-presentation-team.highlighted.very-dense img, .executive-presentation-team.highlighted.very-dense article > span { width: 40px; height: 40px; }
+.executive-presentation-team.highlighted.ultra-dense { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; }
+.executive-presentation-team.highlighted.ultra-dense article { padding: 4px 3px; border-top-width: 3px; }
+.executive-presentation-team.highlighted.ultra-dense img, .executive-presentation-team.highlighted.ultra-dense article > span { width: 30px; height: 30px; margin: 2px auto 3px; border-width: 2px; }
+.executive-presentation-team.highlighted.ultra-dense strong { min-height: 22px; font-size: 9px; }
+.executive-presentation-team.highlighted.ultra-dense em, .executive-presentation-team.highlighted.ultra-dense small, .executive-presentation-team.highlighted.ultra-dense article > i { margin-top: 2px; font-size: 7px; }
+.executive-presentation-team.highlighted.ultra-dense .executive-presentation-team-badge { padding: 2px 4px; font-size: 6px; }
 .executive-presentation-editor-backdrop { position: fixed; inset: 0; z-index: 2100; display: grid; place-items: center; padding: 24px; background: rgba(4, 22, 39, .72); }
 .executive-presentation-editor { width: min(1100px, 96vw); max-height: 92vh; overflow: auto; padding: 22px; background: #fff; border-radius: 8px; }
 .executive-presentation-editor > header { display: flex; justify-content: space-between; align-items: start; }
@@ -13943,6 +13960,20 @@ tbody tr:hover td {
   .executive-presentation-team { grid-template-columns: repeat(5, 1fr); gap: 4px; }
   .executive-presentation-team article { padding: 4px; font-size: 7px; }
   .executive-presentation-team img, .executive-presentation-team article > span { width: 26px; height: 26px; }
+  .executive-presentation-team-celebration { gap: 4px; }
+  .executive-presentation-team-celebration > header { padding: 5px 10px; border-top-width: 2px; }
+  .executive-presentation-team-celebration > header span { font-size: 5px; }
+  .executive-presentation-team-celebration > header h3 { margin: 1px 0; font-size: 11px; }
+  .executive-presentation-team-celebration > header p { font-size: 6px; }
+  .executive-presentation-team.highlighted article { min-height: 0; padding: 4px; border-top-width: 2px; }
+  .executive-presentation-team.highlighted img, .executive-presentation-team.highlighted article > span { width: 30px; height: 30px; margin: 2px auto 3px; border-width: 2px; }
+  .executive-presentation-team.highlighted strong { min-height: 14px; font-size: 6px; }
+  .executive-presentation-team.highlighted small, .executive-presentation-team.highlighted article > i { margin-top: 2px; font-size: 5px; }
+  .executive-presentation-team-badge { padding: 2px 4px; font-size: 4px; }
+  .executive-presentation-team-celebration > footer { gap: 3px; padding: 4px 8px; }
+  .executive-presentation-team-celebration > footer b { font-size: 8px; }
+  .executive-presentation-team-celebration > footer strong { font-size: 7px; }
+  .executive-presentation-team-celebration > footer span { font-size: 6px; }
   .executive-presentation-editor form { grid-template-columns: 1fr; }
   .executive-presentation-editor-layout { grid-template-columns: 1fr; }
   .executive-presentation-activity-editor > label:not(.full) { grid-template-columns: 90px minmax(0, 1fr); }
@@ -13955,6 +13986,7 @@ tbody tr:hover td {
   .executive-presentation-portrait-group { padding: 7px; }
   .executive-presentation-performance-heading h3 { font-size: 13px; }
   .executive-presentation-performance-heading p { margin-top: 2px; font-size: 7px; }
+  .executive-presentation-portrait-grid article { padding-top: 35px; }
   .executive-presentation-performance-award b { font-size: 20px; }
   .executive-presentation-performance-award span { min-width: 72px; padding: 2px 5px; font-size: 6px; }
   .executive-presentation-performance-tip { margin-top: 4px; }
