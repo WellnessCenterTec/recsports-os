@@ -21,7 +21,7 @@ test("keyboard navigation updates only the active executive slide", async () => 
   assert.match(handler, /event\.key === "ArrowRight"[\s\S]*?updateExecutivePresentationStage\(\);\n  \} else if \(event\.key === "ArrowLeft"\)[\s\S]*?updateExecutivePresentationStage\(\);/);
 });
 
-test("budget presentation includes five recent purchases for every area", async () => {
+test("budget presentation includes four recent purchases per area without overlapping sections", async () => {
   const [app, styles] = await Promise.all([
     readFile(new URL("../site/app.js", import.meta.url), "utf8"),
     readFile(new URL("../site/styles.css", import.meta.url), "utf8")
@@ -30,10 +30,14 @@ test("budget presentation includes five recent purchases for every area", async 
   const purchases = app.slice(app.indexOf("function executivePresentationLatestPurchases"), app.indexOf("function renderExecutivePresentationBudget"));
   const budget = app.slice(app.indexOf("function renderExecutivePresentationBudget"), app.indexOf("function executivePresentationActivityWindow"));
 
-  assert.match(purchases, /purchases:\s*rows\.slice\(0,\s*5\)/);
+  assert.match(purchases, /purchases:\s*rows\.slice\(0,\s*4\)/);
   assert.match(budget, /Últimas compras por área/);
+  assert.match(budget, /Las 4 solicitudes más recientes del periodo/);
+  assert.match(budget, /de 4 compras recientes/);
   assert.match(budget, /row\.purchases\.map/);
+  assert.match(styles, /\.executive-presentation-budget\s*\{[^}]*grid-template-rows:\s*auto auto auto minmax\(0, 1fr\)/s);
   assert.match(styles, /\.executive-presentation-budget-latest\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
+  assert.match(styles, /\.executive-presentation-budget-latest\s*\{[^}]*grid-template-rows:\s*auto repeat\(2, minmax\(0, 1fr\)\)/s);
   assert.match(styles, /\.executive-presentation-budget-latest ol\s*\{/);
 });
 
