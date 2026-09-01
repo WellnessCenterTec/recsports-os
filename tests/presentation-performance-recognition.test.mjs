@@ -13,7 +13,9 @@ test("performance slide celebrates every highlighted area leader equally", () =>
   assert.doesNotMatch(source, /performance-award[\s\S]{0,120}#2/);
   assert.doesNotMatch(source, /performance-award[\s\S]{0,120}#3/);
   assert.match(styles, /\.executive-presentation-performance-award span\s*\{[^}]*text-transform:\s*uppercase;/s);
-  assert.match(styles, /\.executive-presentation-portrait-grid article\s*\{[^}]*position:\s*relative;[^}]*padding-top:\s*62px;/s);
+  assert.match(styles, /\.executive-presentation-portrait-grid\s*\{[^}]*align-self:\s*center;[^}]*repeat\(3,[^}]*width:\s*100%;[^}]*height:\s*347px;/s);
+  assert.match(styles, /\.executive-presentation-portrait-grid article\s*\{[^}]*position:\s*relative;[^}]*padding-top:\s*68px;/s);
+  assert.match(styles, /\.executive-presentation-portrait-grid img,[^}]*width:\s*min\(146px, 90%\);/s);
   assert.match(styles, /\.executive-presentation-performance-award\s*\{[^}]*position:\s*absolute;[^}]*top:\s*0;/s);
 });
 
