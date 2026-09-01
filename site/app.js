@@ -13477,7 +13477,30 @@ function presentationSelectedCollaborators(notes, key) {
 function renderPresentationPortraitGroup(title, tone, profiles) {
   const slots = [...profiles.slice(0, MAX_PRESENTATION_SELECTION)];
   while (slots.length < MAX_PRESENTATION_SELECTION) slots.push(null);
-  return `<section class="executive-presentation-portrait-group ${tone}"><h3>${escapeHtml(title)}</h3><div class="executive-presentation-portrait-grid">${slots.map((profile) => profile ? `<article>${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="Foto de ${escapeHtml(profile.name)}" />` : `<span>${escapeHtml(profile.initials)}</span>`}<strong>${escapeHtml(profile.name)}</strong><em>${escapeHtml(profile.role)}</em></article>` : `<article class="empty"><span>+</span><strong>Sin seleccionar</strong><em>Editable</em></article>`).join("")}</div></section>`;
+  const isHighlight = tone === "highlight";
+  const improvementTips = [
+    ["◎", "Define una meta concreta."],
+    ["◌", "Convierte la retroalimentación en acción."],
+    ["↗", "Avanza con constancia: cada mejora cuenta."]
+  ];
+  const heading = isHighlight
+    ? `<div class="executive-presentation-performance-heading"><h3><span aria-hidden="true">★</span> ¡Felicidades, equipo destacado! <span aria-hidden="true">★</span></h3><p>Su compromiso y sus resultados marcan la diferencia.</p></div>`
+    : `<div class="executive-presentation-performance-heading"><h3><span aria-hidden="true">🚀</span> Tu siguiente gran avance comienza hoy</h3><p>Este resultado no te define: es una oportunidad para crecer.</p></div>`;
+  const cards = slots.map((profile, index) => {
+    if (!profile) return `<article class="empty"><span>+</span><strong>Sin seleccionar</strong><em>Editable</em></article>`;
+    const portrait = profile.photoUrl
+      ? `<img src="${escapeHtml(profile.photoUrl)}" alt="Foto de ${escapeHtml(profile.name)}" />`
+      : `<span>${escapeHtml(profile.initials)}</span>`;
+    if (isHighlight) {
+      return `<article><div class="executive-presentation-performance-award"><b>#1</b><span>${escapeHtml(profile.role)}</span></div>${portrait}<strong>${escapeHtml(profile.name)}</strong><em>Líder del área</em></article>`;
+    }
+    const [icon, tip] = improvementTips[index];
+    return `<article>${portrait}<strong>${escapeHtml(profile.name)}</strong><em>${escapeHtml(profile.role)}</em><div class="executive-presentation-performance-tip"><b aria-hidden="true">${icon}</b><span>${escapeHtml(tip)}</span></div></article>`;
+  }).join("");
+  const closing = isHighlight
+    ? `<div class="executive-presentation-performance-closing"><b aria-hidden="true">★</b><strong>¡Felicidades por este gran logro!</strong><span>Sigan inspirando con su compromiso y constancia.</span></div>`
+    : `<div class="executive-presentation-performance-closing"><b aria-hidden="true">★</b><strong>¡Tú puedes lograrlo!</strong><span>Confía en tu proceso y no te rindas.</span></div>`;
+  return `<section class="executive-presentation-portrait-group ${tone}" aria-label="${escapeHtml(title)}">${heading}<div class="executive-presentation-portrait-grid">${cards}</div>${closing}</section>`;
 }
 
 function renderPresentationCollaboratorPicker(key, label, notes) {

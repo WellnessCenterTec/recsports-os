@@ -13760,17 +13760,38 @@ tbody tr:hover td {
 .executive-presentation-people strong, .executive-presentation-people em { display: block; }
 .executive-presentation-people em { margin-top: 2px; color: #65778a; font-style: normal; font-size: 11px; }
 .executive-presentation-performance.selected { height: 100%; }
-.executive-presentation-portrait-group { display: grid; align-content: center; min-height: 100%; padding: 18px; background: #fff; border: 1px solid #d9e3ec; border-radius: 8px; }
-.executive-presentation-portrait-group h3 { margin: 0 0 22px; text-align: center; color: #082b55; font-size: 23px; }
-.executive-presentation-portrait-group.highlight { border-top: 5px solid #e4aa13; }
-.executive-presentation-portrait-group.improving { border-top: 5px solid #0a66b7; }
-.executive-presentation-portrait-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 12px; }
+.executive-presentation-portrait-group { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; align-content: stretch; gap: 12px; min-height: 100%; padding: 18px 20px 16px; overflow: hidden; background: #fff; border: 1px solid #d9e3ec; border-radius: 8px; }
+.executive-presentation-portrait-group.highlight { background: radial-gradient(circle at 50% 50%, rgba(255, 225, 124, .24), transparent 42%), #fff; border-top: 5px solid #e4aa13; }
+.executive-presentation-portrait-group.improving { background: radial-gradient(circle at 76% 48%, rgba(118, 190, 255, .14), transparent 40%), #fff; border-top: 5px solid #0a66b7; }
+.executive-presentation-portrait-group.highlight::before { position: absolute; inset: 36px 18px auto; height: 105px; color: #e4aa13; content: "✦  ·  ★  ·  ✦                         ✦  ·  ★  ·  ✦"; font-size: 13px; letter-spacing: 4px; opacity: .8; pointer-events: none; }
+.executive-presentation-portrait-group.improving::after { position: absolute; right: 18px; top: 92px; color: #9dcefb; content: "↗"; font-size: 116px; font-weight: 900; line-height: 1; opacity: .34; pointer-events: none; transform: rotate(-8deg); }
+.executive-presentation-performance-heading { position: relative; z-index: 1; text-align: center; }
+.executive-presentation-performance-heading h3 { margin: 0; color: #082b55; font-size: 22px; line-height: 1.16; }
+.executive-presentation-portrait-group.highlight .executive-presentation-performance-heading h3 span { color: #e4aa13; }
+.executive-presentation-performance-heading p { margin: 6px 0 0; color: #174a8b; font-size: 12px; }
+.executive-presentation-portrait-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; gap: 12px; }
 .executive-presentation-portrait-grid article { min-width: 0; text-align: center; }
-.executive-presentation-portrait-grid img, .executive-presentation-portrait-grid article > span { display: grid; place-items: center; width: min(156px, 92%); aspect-ratio: 1; height: auto; margin: 0 auto 16px; object-fit: cover; color: #fff; background: #0a66b7; border: 6px solid #e6eff6; border-radius: 50%; box-shadow: 0 10px 26px rgba(8, 43, 85, .18); font-size: 34px; font-weight: 900; }
-.executive-presentation-portrait-group.highlight img, .executive-presentation-portrait-group.highlight article > span { border-color: #fff0b8; }
+.executive-presentation-portrait-grid img, .executive-presentation-portrait-grid article > span { display: grid; place-items: center; width: min(126px, 88%); aspect-ratio: 1; height: auto; margin: 0 auto 10px; object-fit: cover; color: #fff; background: #0a66b7; border: 5px solid #e6eff6; border-radius: 50%; box-shadow: 0 8px 22px rgba(8, 43, 85, .16); font-size: 30px; font-weight: 900; }
+.executive-presentation-portrait-group.highlight img, .executive-presentation-portrait-group.highlight article > span { border-color: #ffe7a0; box-shadow: 0 8px 24px rgba(209, 142, 8, .24); }
 .executive-presentation-portrait-grid strong, .executive-presentation-portrait-grid em { display: block; overflow: hidden; text-overflow: ellipsis; }
-.executive-presentation-portrait-grid strong { color: #132b45; font-size: 15px; }
+.executive-presentation-portrait-grid strong { color: #132b45; font-size: 14px; line-height: 1.16; }
 .executive-presentation-portrait-grid em { margin-top: 4px; color: #6a7d8f; font-style: normal; font-size: 11px; }
+.executive-presentation-portrait-group.highlight .executive-presentation-portrait-grid em { color: #174a8b; }
+.executive-presentation-performance-award { display: grid; justify-items: center; margin: 0 auto 7px; color: #cf8700; }
+.executive-presentation-performance-award b { position: relative; font-size: 36px; line-height: 1; }
+.executive-presentation-performance-award b::before, .executive-presentation-performance-award b::after { position: absolute; bottom: -5px; color: #df9c18; content: "❧"; font-size: 23px; }
+.executive-presentation-performance-award b::before { right: 100%; transform: scaleX(-1) rotate(-22deg); }
+.executive-presentation-performance-award b::after { left: 100%; transform: rotate(-22deg); }
+.executive-presentation-performance-award span { min-width: 112px; margin-top: 2px; padding: 3px 8px; color: #fff; background: linear-gradient(180deg, #e5a41e, #c97800); clip-path: polygon(0 0, 10% 50%, 0 100%, 100% 100%, 90% 50%, 100% 0); font-size: 10px; font-weight: 900; line-height: 1.1; text-transform: uppercase; }
+.executive-presentation-performance-tip { display: grid; justify-items: center; gap: 4px; margin-top: 12px; color: #073b78; }
+.executive-presentation-performance-tip b { display: grid; place-items: center; width: 34px; height: 34px; color: #0a7fe0; border: 3px solid #2a9aec; border-radius: 50%; font-size: 21px; line-height: 1; }
+.executive-presentation-performance-tip span { max-width: 145px; font-size: 10px; font-weight: 850; line-height: 1.18; }
+.executive-presentation-performance-closing { position: relative; z-index: 1; display: grid; justify-items: center; padding-top: 8px; color: #0b356b; border-top: 1px solid #d6e5f3; text-align: center; }
+.executive-presentation-portrait-group.highlight .executive-presentation-performance-closing { border-top-color: #efd18b; }
+.executive-presentation-performance-closing b { width: 32px; margin-top: -24px; color: #dfa018; background: #fff; font-size: 24px; }
+.executive-presentation-portrait-group.improving .executive-presentation-performance-closing b { color: #2c91e9; }
+.executive-presentation-performance-closing strong { font-size: 15px; }
+.executive-presentation-performance-closing span { margin-top: 3px; font-size: 11px; }
 .executive-presentation-portrait-grid article.empty { opacity: .55; }
 .executive-presentation-portrait-grid article.empty > span { color: #71869a; background: #eef3f7; border-style: dashed; box-shadow: none; }
 .executive-presentation-collaborator-picker { grid-column: 1 / -1; min-width: 0; padding: 12px; border: 1px solid #ccd9e4; border-radius: 7px; }
@@ -13932,7 +13953,17 @@ tbody tr:hover td {
   .executive-presentation-performance { grid-template-columns: 1fr; }
   .executive-presentation-portrait-grid img, .executive-presentation-portrait-grid article > span { width: 58px; height: 58px; border-width: 3px; }
   .executive-presentation-portrait-group { padding: 7px; }
-  .executive-presentation-portrait-group h3 { margin-bottom: 8px; font-size: 13px; }
+  .executive-presentation-performance-heading h3 { font-size: 13px; }
+  .executive-presentation-performance-heading p { margin-top: 2px; font-size: 7px; }
+  .executive-presentation-performance-award b { font-size: 20px; }
+  .executive-presentation-performance-award span { min-width: 72px; padding: 2px 5px; font-size: 6px; }
+  .executive-presentation-performance-tip { margin-top: 4px; }
+  .executive-presentation-performance-tip b { width: 20px; height: 20px; border-width: 2px; font-size: 12px; }
+  .executive-presentation-performance-tip span { font-size: 6px; }
+  .executive-presentation-performance-closing { padding-top: 4px; }
+  .executive-presentation-performance-closing b { display: none; }
+  .executive-presentation-performance-closing strong { font-size: 8px; }
+  .executive-presentation-performance-closing span { font-size: 6px; }
   .executive-presentation-collaborator-picker > div { grid-template-columns: 1fr; }
   .executive-presentation-budget-middle { grid-template-columns: 1fr; }
   .executive-presentation-budget-middle > aside { display: none; }
