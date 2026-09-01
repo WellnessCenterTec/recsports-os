@@ -7725,7 +7725,13 @@ tbody tr:hover td {
   text-align: right;
 }
 
-.representativos-program-list { display: grid; gap: 8px; }
+.representativos-program-list {
+  display: grid;
+  gap: 8px;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, auto));
+}
 .representativos-program-row {
   align-items: center;
   background: #f8fbfd;
@@ -7750,6 +7756,14 @@ tbody tr:hover td {
 }
 
 .representativos-program-row i em { background: linear-gradient(90deg, #7250c4, #208d9c); }
+
+@media (max-width: 520px) {
+  .representativos-program-list {
+    grid-auto-flow: row;
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+}
 
 .representativos-semester-chart { background: linear-gradient(180deg, #fff 0%, #f5fbf9 100%); }
 .representativos-semester-columns {
