@@ -55,6 +55,7 @@ test("WellSync loads collaborator birthdays before app rendering and integrates 
   assert.match(app, /item\.names\.join\(", "\)/);
   assert.match(app, /executive-presentation-school-calendar-birthdays/);
   assert.match(css, /\.executive-presentation-school-calendar-birthdays span/);
+  assert.match(css, /\.executive-presentation-school-calendar-birthdays span\s*\{[^}]*width:\s*18px;[^}]*height:\s*18px;[^}]*font-size:\s*13px;/s);
   assert.match(css, /time\.birthday/);
   assert.match(css, /\[data-slide-key="general-indicators"\] \.executive-presentation-slide-body\s*\{\s*padding:\s*6px 8px/);
   assert.match(css, /\[data-slide-key="general-indicators"\] \.executive-presentation-school-calendar\s*\{[^}]*justify-content:\s*space-between[^}]*gap:\s*8px/);
