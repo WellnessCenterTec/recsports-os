@@ -126,27 +126,22 @@
   function renderPriorityBoard(source, escape = escapeHtml) {
     const captured = parsePriorityItems(source);
     const items = captured.length ? captured : DEFAULT_ITEMS;
-    const tones = ["lime", "teal", "cyan", "blue", "navy", "purple", "coral", "slate"];
-    const positionMaps = {
-      1: [1],
-      2: [8, 2],
-      3: [1, 4, 6],
-      4: [8, 2, 4, 6],
-      5: [1, 2, 4, 6, 8],
-      6: [1, 2, 3, 5, 6, 7],
-      7: [1, 2, 3, 4, 6, 7, 8],
-      8: [1, 2, 3, 4, 5, 6, 7, 8]
-    };
-    const positions = positionMaps[items.length] || positionMaps[8];
-    return `<div class="executive-presentation-priority-board radial" data-priority-count="${items.length}">
-      <div class="executive-presentation-priority-orbit">
-        <div class="executive-presentation-priority-hub"><span>Bloque operativo</span><strong>Enfocados en mejorar nuestra operación y experiencia</strong></div>
+    const tones = ["coral", "orange", "green", "blue", "purple", "teal", "navy", "gold"];
+    return `<div class="executive-presentation-priority-board timeline" data-priority-count="${items.length}" style="--priority-count:${items.length}">
+      <header class="executive-presentation-priority-timeline-heading">
+        <span>Bloque operativo</span>
+        <h3>${items.length} ${items.length === 1 ? "punto importante" : "puntos importantes"}</h3>
+        <p>Enfocados en mejorar nuestra operación y experiencia.</p>
+      </header>
+      <div class="executive-presentation-priority-timeline">
         ${items.map((item, index) => {
           const details = priorityDetailItems(item.detail);
           const icon = priorityDetailIcon(details[0] || item.title, item.title);
-          return `<article class="executive-presentation-priority-card radial-card radial-position-${positions[index]} ${tones[index]}${details.length ? "" : " title-only"}">
-            <div class="executive-presentation-priority-petal"><span aria-hidden="true">${icon}</span></div>
-            <div class="executive-presentation-priority-copy"><h3>${escape(item.title.toLocaleUpperCase("es-MX"))}</h3>${details.length ? `<ul class="executive-presentation-priority-radial-details">${details.map((detail) => `<li>${escape(detail)}</li>`).join("")}</ul>` : ""}</div>
+          return `<article class="executive-presentation-priority-timeline-card ${tones[index]}${details.length ? "" : " title-only"}">
+            <div class="executive-presentation-priority-timeline-icon"><span aria-hidden="true">${icon}</span></div>
+            <div class="executive-presentation-priority-timeline-copy"><h4>${escape(item.title)}</h4>${details.length ? `<ul>${details.map((detail) => `<li>${escape(detail)}</li>`).join("")}</ul>` : ""}</div>
+            <span class="executive-presentation-priority-timeline-stem" aria-hidden="true"></span>
+            <strong class="executive-presentation-priority-timeline-index">${String(index + 1).padStart(2, "0")}</strong>
           </article>`;
         }).join("")}
       </div>
