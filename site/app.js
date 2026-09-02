@@ -13230,6 +13230,7 @@ function renderPresentationSchoolCalendar(referenceDate = new Date()) {
   const collaboratorBirthdayRows = collaboratorRows();
   const birthdays = presentationBirthdaysApi.birthdaysForMonth(collaboratorBirthdayRows, today.getMonth());
   const birthdayMarkers = presentationBirthdaysApi.schoolCalendarBirthdayMarkers(collaboratorBirthdayRows);
+  const todayMarker = presentationBirthdaysApi.schoolCalendarDateMarker(today);
   const calendarItems = [
     ...ephemerides.map((item) => ({ ...item, type: "ephemeris" })),
     ...birthdays.map((item) => ({ ...item, type: "birthday", title: item.names.join(", "), scope: "Cumpleaños", tone: "birthday" }))
@@ -13239,6 +13240,7 @@ function renderPresentationSchoolCalendar(referenceDate = new Date()) {
   return `<div class="executive-presentation-school-calendar">
     <div class="executive-presentation-school-calendar-sheet">
       <img src="./assets/calendario-escolar-2026-2027.png" alt="Calendario escolar 2026-2027" />
+      ${todayMarker ? `<div class="executive-presentation-school-calendar-today" aria-label="Día actual: ${today.toLocaleDateString("es-MX")}"><span style="left:${todayMarker.left.toFixed(3)}%;top:${todayMarker.top.toFixed(3)}%;width:${todayMarker.width.toFixed(3)}%;height:${todayMarker.height.toFixed(3)}%"></span></div>` : ""}
       <div class="executive-presentation-school-calendar-progress" aria-hidden="true">
         ${segments.map((segment) => `<span style="left:${segment.left.toFixed(3)}%;top:${segment.top.toFixed(3)}%;width:${segment.width.toFixed(3)}%"></span>`).join("")}
       </div>
@@ -15489,8 +15491,8 @@ function renderBudgetDashboard() {
   const committed = summaries.reduce((sum, row) => sum + row.committed, 0);
   const available = Math.max(0, assigned - spent - committed);
   const usage = assigned ? Math.round(((spent + committed) / assigned) * 100) : 0;
+  const spentUsage = assigned ? Math.round((spent / assigned) * 100) : 0;
   const pending = requests.filter((row) => row.status === "pendiente").length;
-  const maxAssigned = Math.max(...summaries.map((row) => row.assigned), 1);
   const editable = canEditArea("compras");
   return `
     <section class="budget-dashboard">
@@ -15555,27 +15557,29 @@ function renderBudgetDashboard() {
         <article class="chart-panel budget-chart-panel">
           <div class="chart-title-row">
             <div>
-              <p class="eyebrow">Presupuesto vs real</p>
-              <h3>Asignado, gasto y comprometido por área</h3>
+              <p class="eyebrow">Ejecución presupuestal</p>
+              <h3>Gasto ejercido frente al presupuesto por área</h3>
             </div>
-            <span>${usage}% uso global</span>
+            <span>${spentUsage}% gastado global</span>
           </div>
-          <div class="budget-chart-legend">
-            <span class="assigned"></span> Asignado
-            <span class="spent"></span> Gasto
-            <span class="committed"></span> Comprometido
-          </div>
-          <div class="budget-column-chart">
-            ${summaries.map((row) => `
-              <div class="budget-column-group">
-                <div class="budget-columns">
-                  <span class="assigned" style="height:${Math.max(8, Math.round(row.assigned / maxAssigned * 100))}%"><em>${money(row.assigned)}</em></span>
-                  <span class="spent" style="height:${Math.max(5, Math.round(row.spent / maxAssigned * 100))}%"><em>${money(row.spent)}</em></span>
-                  <span class="committed" style="height:${Math.max(5, Math.round(row.committed / maxAssigned * 100))}%"><em>${money(row.committed)}</em></span>
+          <div class="budget-spend-chart">
+            ${summaries.map((row, index) => {
+              const spentPercent = row.assigned ? Math.min(100, Math.round(row.spent / row.assigned * 100)) : 0;
+              const spendBalance = Math.max(0, row.assigned - row.spent);
+              return `
+              <article class="budget-spend-row tone-${index % 6 + 1}">
+                <header>
+                  <strong><i aria-hidden="true"></i>${escapeHtml(budgetAreaLabel(row.area))}</strong>
+                  <span><b>${spentPercent}%</b> utilizado</span>
+                </header>
+                <div class="budget-spend-progress" aria-label="${spentPercent}% del presupuesto gastado"><i style="width:${spentPercent}%"></i></div>
+                <div class="budget-spend-values">
+                  <span>Gastado<b>${money(row.spent)}</b></span>
+                  <span>Asignado<b>${money(row.assigned)}</b></span>
+                  <span>Saldo<b>${money(spendBalance)}</b></span>
                 </div>
-                <strong>${escapeHtml(budgetAreaLabel(row.area))}</strong>
-              </div>
-            `).join("")}
+              </article>`;
+            }).join("")}
           </div>
         </article>
 

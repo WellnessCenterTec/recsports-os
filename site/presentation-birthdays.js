@@ -101,12 +101,38 @@
     return markers;
   }
 
+  function schoolCalendarDateMarker(value = new Date()) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    const definition = ACADEMIC_MONTHS.find(([calendarYear, calendarMonth]) => calendarYear === year && calendarMonth === month);
+    if (!definition) return null;
+    const [, , x, width, y] = definition;
+    const firstColumn = (new Date(year, month, 1).getDay() + 6) % 7;
+    const cellIndex = firstColumn + day - 1;
+    const row = Math.floor(cellIndex / 7);
+    const column = cellIndex % 7;
+    const columnWidth = width / 7;
+    return {
+      year,
+      month,
+      day,
+      left: (x + column * columnWidth) / CALENDAR_WIDTH * 100,
+      top: (y + row * CALENDAR_ROW_HEIGHT) / CALENDAR_HEIGHT * 100,
+      width: columnWidth / CALENDAR_WIDTH * 100,
+      height: CALENDAR_ROW_HEIGHT / CALENDAR_HEIGHT * 100
+    };
+  }
+
   return {
     ACADEMIC_MONTHS,
     birthdaysForMonth,
     collaboratorBirthdays,
     firstName,
     parseBirthday,
+    schoolCalendarDateMarker,
     schoolCalendarBirthdayMarkers
   };
 });
