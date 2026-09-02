@@ -126,19 +126,27 @@
   function renderPriorityBoard(source, escape = escapeHtml) {
     const captured = parsePriorityItems(source);
     const items = captured.length ? captured : DEFAULT_ITEMS;
-    const columns = priorityColumnCount(items.length);
-    const tones = ["blue", "teal", "green", "purple", "navy", "blue", "teal", "green"];
-    return `<div class="executive-presentation-priority-board" data-priority-count="${items.length}">
-      <div class="executive-presentation-priority-intro">
-        <span>Bloque operativo</span>
-        <strong>Enfocados en mejorar nuestra operación y experiencia</strong>
-      </div>
-      <div class="executive-presentation-priority-grid priority-columns-${columns}">
+    const tones = ["lime", "teal", "cyan", "blue", "navy", "purple", "coral", "slate"];
+    const positionMaps = {
+      1: [1],
+      2: [8, 2],
+      3: [1, 4, 6],
+      4: [8, 2, 4, 6],
+      5: [1, 2, 4, 6, 8],
+      6: [1, 2, 3, 5, 6, 7],
+      7: [1, 2, 3, 4, 6, 7, 8],
+      8: [1, 2, 3, 4, 5, 6, 7, 8]
+    };
+    const positions = positionMaps[items.length] || positionMaps[8];
+    return `<div class="executive-presentation-priority-board radial" data-priority-count="${items.length}">
+      <div class="executive-presentation-priority-orbit">
+        <div class="executive-presentation-priority-hub"><span>Bloque operativo</span><strong>Enfocados en mejorar nuestra operación y experiencia</strong></div>
         ${items.map((item, index) => {
           const details = priorityDetailItems(item.detail);
-          return `<article class="executive-presentation-priority-card ${tones[index]}${details.length ? "" : " title-only"}">
-            <h3>${escape(item.title.toLocaleUpperCase("es-MX"))}</h3>
-            ${details.length ? `<ul class="executive-presentation-priority-details" data-priority-detail-count="${details.length}">${details.map((detail) => `<li><span class="executive-presentation-priority-detail-icon" aria-hidden="true">${priorityDetailIcon(detail, item.title)}</span><span>${escape(detail)}</span></li>`).join("")}</ul>` : ""}
+          const icon = priorityDetailIcon(details[0] || item.title, item.title);
+          return `<article class="executive-presentation-priority-card radial-card radial-position-${positions[index]} ${tones[index]}${details.length ? "" : " title-only"}">
+            <div class="executive-presentation-priority-petal"><span aria-hidden="true">${icon}</span></div>
+            <div class="executive-presentation-priority-copy"><h3>${escape(item.title.toLocaleUpperCase("es-MX"))}</h3>${details.length ? `<ul class="executive-presentation-priority-radial-details">${details.map((detail) => `<li>${escape(detail)}</li>`).join("")}</ul>` : ""}</div>
           </article>`;
         }).join("")}
       </div>

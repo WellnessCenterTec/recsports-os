@@ -103,7 +103,7 @@ test("chooses a topic icon for each priority detail", () => {
   assert.equal(priorities.priorityDetailIcon("Difundir la carrera"), "📣");
 });
 
-test("board renders centered title hierarchy, bulleted detail, and no visible numbering", () => {
+test("board renders an adaptive radial hierarchy with no visible numbering", () => {
   const source = JSON.stringify({
     version: 2,
     items: Array.from({ length: 8 }, (_, index) => ({
@@ -114,13 +114,24 @@ test("board renders centered title hierarchy, bulleted detail, and no visible nu
   const html = priorities.renderPriorityBoard(source, priorities.escapeHtml);
 
   assert.match(html, /data-priority-count="8"/);
-  assert.match(html, /priority-columns-4/);
+  assert.match(html, /executive-presentation-priority-board radial/);
+  assert.match(html, /executive-presentation-priority-hub/);
   assert.match(html, /<h3>TEMA 1<\/h3>/);
-  assert.match(html, /executive-presentation-priority-details/);
-  assert.match(html, /executive-presentation-priority-detail-icon/);
-  assert.match(html, /<span>Detalle 1<\/span>/);
+  assert.match(html, /executive-presentation-priority-radial-details/);
+  assert.match(html, /<li>Detalle 1<\/li>/);
   assert.equal((html.match(/executive-presentation-priority-card/g) || []).length, 8);
+  assert.equal((html.match(/executive-presentation-priority-petal/g) || []).length, 8);
   assert.doesNotMatch(html, /executive-presentation-priority-number/);
+});
+
+test("radial board redistributes every supported priority count", () => {
+  for (let count = 1; count <= 8; count += 1) {
+    const source = JSON.stringify({ version: 2, items: Array.from({ length: count }, (_, index) => ({ title: `Punto ${index + 1}`, detail: "Detalle" })) });
+    const html = priorities.renderPriorityBoard(source, priorities.escapeHtml);
+    assert.match(html, new RegExp(`data-priority-count="${count}"`));
+    assert.equal((html.match(/radial-position-[1-8]/g) || []).length, count);
+    assert.equal((html.match(/executive-presentation-priority-petal/g) || []).length, count);
+  }
 });
 
 test("WellSync loads the priority module before the app and uses it in editor and slide", async () => {
@@ -130,8 +141,8 @@ test("WellSync loads the priority module before the app and uses it in editor an
   ]);
 
   assert.match(index, /presentation-priorities\.js[^]*app\.js/);
-  assert.match(index, /wellsync-version" content="20260902-budget-calendar-v4/);
-  assert.match(index, /presentation-priorities\.js\?v=20260818-priority-icons-v1/);
+  assert.match(index, /wellsync-version" content="20260902-priority-orbit-v2/);
+  assert.match(index, /presentation-priorities\.js\?v=20260902-priority-orbit-v2/);
   assert.match(app, /WellSyncPresentationPriorities/);
   assert.match(app, /renderPriorityEditor\(notes\.priorities/);
   assert.match(app, /renderPriorityBoard\(notes\.priorities/);
@@ -145,12 +156,11 @@ test("priority editor submission serializes paired fields into the existing prio
   assert.match(app, /section_key, content/);
 });
 
-test("priority grid and editor collapse safely on narrow screens", async () => {
+test("priority orbit and editor scale safely on narrow screens", async () => {
   const css = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
 
-  assert.match(css, /\.executive-presentation-priority-grid\.priority-columns-4\s*\{\s*grid-template-columns:\s*repeat\(4/);
-  assert.match(css, /\.executive-presentation-priority-grid\s*\{\s*grid-template-columns:\s*1fr !important;\s*\}/);
   assert.match(css, /\.executive-presentation-priority-editor\s*\{\s*grid-template-columns:\s*1fr;\s*\}/);
-  assert.match(css, /\.executive-presentation-priority-card h3[^}]*text-align:\s*center/);
-  assert.match(css, /\.executive-presentation-priority-detail-icon/);
+  assert.match(css, /\.executive-presentation-priority-hub\s*\{\s*width:\s*104px;/);
+  assert.match(css, /\.executive-presentation-priority-petal,[^}]*width:\s*50px;/s);
+  assert.match(css, /\.executive-presentation-priority-petal\s*\{[^}]*clip-path:\s*polygon/s);
 });
