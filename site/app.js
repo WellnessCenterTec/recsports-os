@@ -738,6 +738,8 @@ let vivenciaEventImages = [];
 let vivenciaDashboardSettings = { impact_goal: 3800 };
 let vivenciaEventsLoaded = false;
 let vivenciaEventsAvailable = true;
+let vivenciaFormsFeed = null;
+let vivenciaFormsFeedError = "";
 let planningCalendarRows = [];
 let planningCalendarLoaded = false;
 let planningCalendarError = "";
@@ -2785,7 +2787,24 @@ async function loadVivenciaParticipantDetails() {
   return { data: rows, error: null, count: rows.length };
 }
 
+async function loadVivenciaFormsFeed() {
+  const feedUrl = String(window.RECSPORTS_ENV?.VIVENCIA_FORMS_FEED_URL || "").trim();
+  vivenciaFormsFeed = null;
+  vivenciaFormsFeedError = "";
+  if (!feedUrl || !window.WellSyncVivenciaFormsFeed) return;
+  try {
+    const separator = feedUrl.includes("?") ? "&" : "?";
+    const response = await fetch(`${feedUrl}${separator}fresh=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    vivenciaFormsFeed = window.WellSyncVivenciaFormsFeed.normalizeFeed(await response.json(), { cutoffDate: "2026-08-10" });
+  } catch (error) {
+    vivenciaFormsFeedError = "No se pudo actualizar la fuente de Google Forms";
+    console.warn(vivenciaFormsFeedError, error);
+  }
+}
+
 async function loadVivenciaEvents() {
+  await loadVivenciaFormsFeed();
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const { data, error } = await supabaseClient
     .from("vivencia_events")
@@ -16612,8 +16631,8 @@ function vivenciaImagesForEvent(eventId) {
   return vivenciaEventImages.filter((image) => image.event_id === eventId);
 }
 
-function renderVivenciaGenderBreakdown(events, metricsByEvent = vivenciaEventMetricMap()) {
-  const rows = vivenciaGenderRows(events, metricsByEvent);
+function renderVivenciaGenderBreakdown(events, metricsByEvent = vivenciaEventMetricMap(), sourceRows = null) {
+  const rows = Array.isArray(sourceRows) ? sourceRows : vivenciaGenderRows(events, metricsByEvent);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
   const gradient = total
     ? rows.reduce((parts, row, index) => {
@@ -16942,6 +16961,7 @@ function renderVivenciaTopEvents(events, metricsByEvent) {
 }
 
 function renderVivenciaRegisteredEventGallery(events, metricsByEvent, editable) {
+  if (vivenciaFormsFeed?.events?.length) return renderVivenciaFormsEventGallery(events, editable);
   const registered = events
     .filter((event) => vivenciaEventParticipants(event.id).length > 0)
     .slice()
@@ -16977,6 +16997,79 @@ function renderVivenciaRegisteredEventGallery(events, metricsByEvent, editable) 
         }).join("")}
       </div><input id="vivenciaDashboardImageFile" type="file" accept="image/jpeg,image/png,image/webp" hidden />`
         : `<div class="vivencia-empty-mini">Los eventos aparecerán aquí al contar con matrículas registradas.</div>`}
+    </section>
+  `;
+}
+
+function vivenciaFormsDateLabel(value) {
+  const date = new Date(`${value || ""}T12:00:00`);
+  return Number.isNaN(date.getTime())
+    ? "Sin fecha"
+    : date.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function vivenciaFormsUpdatedLabel(value) {
+  const date = new Date(value || "");
+  return Number.isNaN(date.getTime())
+    ? "Actualización pendiente"
+    : `Actualizado ${date.toLocaleDateString("es-MX", { day: "numeric", month: "short" })}, ${date.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit" })}`;
+}
+
+function vivenciaFormsMatchingStoredEvent(formEvent, events) {
+  const sameDate = events.filter((event) => event.event_date === formEvent.event_date);
+  if (sameDate.length === 1) return sameDate[0];
+  const sourceTokens = new Set(normalizeText(formEvent.event_name).split(" ").filter((token) => token.length > 3));
+  return sameDate
+    .map((event) => ({ event, overlap: normalizeText(event.event_name).split(" ").filter((token) => sourceTokens.has(token)).length }))
+    .sort((first, second) => second.overlap - first.overlap)[0]?.event || null;
+}
+
+function renderVivenciaFormsEventGallery(events, editable) {
+  const feed = vivenciaFormsFeed;
+  const registered = feed.events.slice().sort((first, second) => String(second.event_date).localeCompare(String(first.event_date)));
+  const sourceUrl = String(window.RECSPORTS_ENV?.VIVENCIA_FORMS_SOURCE_URL || "").trim();
+  return `
+    <section class="chart-panel vivencia-registered-gallery vivencia-forms-gallery">
+      <div class="chart-title-row">
+        <div><p class="eyebrow">Evidencia de eventos</p><h3>Registros recibidos desde Google Forms</h3></div>
+        <span>${registered.length.toLocaleString("es-MX")} eventos · ${feed.participant_records.toLocaleString("es-MX")} matrículas únicas</span>
+      </div>
+      <div class="vivencia-forms-source-status">
+        <div class="vivencia-forms-source-icon"><i data-lucide="refresh-cw" aria-hidden="true"></i></div>
+        <div>
+          <strong>Fuente automática configurada</strong>
+          <span>Solo considera respuestas desde el 10 de agosto de 2026. ${feed.response_count.toLocaleString("es-MX")} respuestas recibidas; ${Math.max(0, feed.response_count - feed.participant_records).toLocaleString("es-MX")} duplicadas dentro del mismo evento.</span>
+        </div>
+        <div class="vivencia-forms-source-meta">
+          <b>${escapeHtml(vivenciaFormsUpdatedLabel(feed.last_response_at))}</b>
+          ${sourceUrl ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Abrir hoja origen</a>` : ""}
+        </div>
+      </div>
+      <div class="vivencia-forms-privacy-note"><i data-lucide="shield-check" aria-hidden="true"></i><span>WellSync no muestra nombres ni correos. El género quedará visible al completar el cruce seguro por matrícula con la base institucional.</span></div>
+      <div class="vivencia-registered-grid">
+        ${registered.map((event) => {
+          const storedEvent = vivenciaFormsMatchingStoredEvent(event, events);
+          const image = storedEvent ? vivenciaImagesForEvent(storedEvent.id)[0] : null;
+          const genderReady = event.women != null && event.men != null;
+          return `<article class="vivencia-registered-card vivencia-forms-card">
+            <div class="vivencia-registered-image">${image?.public_url
+              ? `<img src="${escapeHtml(image.public_url)}" alt="Evidencia de ${escapeHtml(event.event_name)}" />`
+              : `<span aria-hidden="true"><i data-lucide="clipboard-list"></i></span>`}</div>
+            <div class="vivencia-registered-content">
+              <time>${escapeHtml(vivenciaFormsDateLabel(event.event_date))}</time>
+              <h4 title="${escapeHtml(event.event_name)}">${escapeHtml(event.event_name)}</h4>
+              <div class="vivencia-registered-stats">
+                <span><b>${event.participant_records.toLocaleString("es-MX")}</b> registros</span>
+                <span class="${genderReady ? "" : "pending"}"><b>${genderReady ? event.women.toLocaleString("es-MX") : "—"}</b> mujeres</span>
+                <span class="${genderReady ? "" : "pending"}"><b>${genderReady ? event.men.toLocaleString("es-MX") : "—"}</b> hombres</span>
+              </div>
+              ${event.response_count > event.participant_records ? `<small class="vivencia-forms-duplicates">${(event.response_count - event.participant_records).toLocaleString("es-MX")} respuesta(s) duplicada(s) excluida(s)</small>` : `<small class="vivencia-forms-duplicates">Sin duplicados</small>`}
+              <button type="button" class="ghost-btn compact-action" data-vivencia-card-image-upload="${escapeHtml(storedEvent?.id || "")}" ${editable && storedEvent ? "" : "disabled"}><i data-lucide="image-up" aria-hidden="true"></i>${image ? "Cambiar imagen" : "Cargar imagen"}</button>
+            </div>
+          </article>`;
+        }).join("")}
+      </div>
+      <input id="vivenciaDashboardImageFile" type="file" accept="image/jpeg,image/png,image/webp" hidden />
     </section>
   `;
 }
@@ -17355,23 +17448,28 @@ function renderVivenciaDashboard() {
     vivenciaParticipants.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean)
   );
   const identifiedParticipantCount = Math.max(uniqueMatriculas.size, uniqueImportedReferences.size, vivenciaParticipantDetailsCount);
-  const participantTotal = metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
+  const formsParticipantTotal = Number(vivenciaFormsFeed?.participant_records || 0);
+  const participantTotal = formsParticipantTotal || metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
   const impactCount = participantTotal;
-  const impactBasis = "participaciones reportadas";
+  const impactBasis = formsParticipantTotal ? "matrículas únicas de Google Forms" : "participaciones reportadas";
+  const identifiedCount = formsParticipantTotal || identifiedParticipantCount;
+  const genderRows = vivenciaFormsFeed?.events?.length && window.WellSyncVivenciaFormsFeed
+    ? window.WellSyncVivenciaFormsFeed.genderRows(vivenciaFormsFeed)
+    : null;
   const calendarDate = vivenciaCalendarBaseDate(events);
   const editable = canEditArea("vivencia");
   return `
     <section class="vivencia-dashboard">
       <div class="kpi-grid vivencia-kpi-strip">
         <div class="kpi"><span>Eventos del semestre</span><strong>${events.length}</strong><em>desde Planeación/Vivencia</em></div>
-        <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
-        <div class="kpi"><span>${uniqueMatriculas.size ? "Matrículas únicas identificadas" : "Participantes identificados"}</span><strong>${identifiedParticipantCount.toLocaleString("es-MX")}</strong></div>
+        <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${formsParticipantTotal ? "desde Google Forms" : (participantTotal ? "por registros" : "sin participantes cargados")}</em></div>
+        <div class="kpi"><span>${formsParticipantTotal || uniqueMatriculas.size ? "Matrículas únicas identificadas" : "Participantes identificados"}</span><strong>${identifiedCount.toLocaleString("es-MX")}</strong></div>
         <div class="kpi"><span>Avance de meta</span><strong>${Math.round((impactCount / Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1)) * 100)}%</strong><em>sobre ${escapeHtml(impactBasis)}</em></div>
       </div>
       <div class="vivencia-dashboard-grid">
         ${renderVivenciaCalendar(events, calendarDate)}
         ${renderVivenciaImpactGoal(impactCount, editable, impactBasis)}
-        ${renderVivenciaGenderBreakdown(events, metricsByEvent)}
+        ${renderVivenciaGenderBreakdown(events, metricsByEvent, genderRows)}
         ${renderVivenciaRegisteredEventGallery(events, metricsByEvent, editable)}
       </div>
     </section>
@@ -18653,14 +18751,14 @@ function renderVivenciaEventsView() {
               ${vivenciaPlanningSyncing ? "Sincronizando..." : "Sincronizar eventos"}
             </button>
           </div>
-          <div class="vivencia-bulk-upload">
+          <div class="vivencia-bulk-upload vivencia-forms-control">
             <div>
-              <strong>Carga de participantes</strong>
-              <span>Selecciona un evento y sube matriculas. Se ignoran duplicados dentro del mismo evento.</span>
+              <strong>Registro automático desde Google Forms</strong>
+              <span>WellSync toma únicamente las respuestas recibidas desde el 10 de agosto de 2026 y excluye duplicados dentro del mismo evento.</span>
             </div>
             <div class="vivencia-upload-actions">
-              <button class="primary-btn" id="openVivenciaParticipantsModal" type="button" ${editable && vivenciaEvents.length ? "" : "disabled"}>Cargar participantes</button>
-              <button class="ghost-btn" type="button" data-download-event-participants-template="vivencia">Descargar plantilla</button>
+              <span class="vivencia-forms-control-status ${vivenciaFormsFeedError ? "error" : ""}">${vivenciaFormsFeedError || (vivenciaFormsFeed?.last_response_at ? vivenciaFormsUpdatedLabel(vivenciaFormsFeed.last_response_at) : "Fuente pendiente")}</span>
+              ${window.RECSPORTS_ENV?.VIVENCIA_FORMS_SOURCE_URL ? `<a class="ghost-btn" href="${escapeHtml(window.RECSPORTS_ENV.VIVENCIA_FORMS_SOURCE_URL)}" target="_blank" rel="noopener noreferrer">Abrir hoja</a>` : ""}
             </div>
           </div>
         </article>

@@ -9851,6 +9851,24 @@ tbody tr:hover td {
 .vivencia-registered-stats b { color: #075d7a; display: block; font-size: 14px; }
 .vivencia-registered-content .ghost-btn { align-items: center; display: inline-flex; font-size: 11px; gap: 5px; justify-content: center; min-height: 31px; width: 100%; }
 .vivencia-registered-content .ghost-btn svg { height: 14px; width: 14px; }
+.vivencia-forms-gallery { display: grid; gap: 14px; }
+.vivencia-forms-source-status { align-items: center; background: linear-gradient(135deg, #effaf6, #eef6ff); border: 1px solid #cfe6df; border-radius: 12px; display: grid; gap: 12px; grid-template-columns: auto minmax(0, 1fr) auto; padding: 12px 14px; }
+.vivencia-forms-source-icon { align-items: center; background: #fff; border: 1px solid #cde3dc; border-radius: 50%; color: #16806c; display: flex; height: 38px; justify-content: center; width: 38px; }
+.vivencia-forms-source-icon svg { height: 18px; width: 18px; }
+.vivencia-forms-source-status strong, .vivencia-forms-source-status span { display: block; }
+.vivencia-forms-source-status strong { color: var(--ink); font-size: 13px; }
+.vivencia-forms-source-status span { color: var(--muted); font-size: 11px; line-height: 1.35; margin-top: 3px; }
+.vivencia-forms-source-meta { display: grid; gap: 4px; justify-items: end; text-align: right; }
+.vivencia-forms-source-meta b { color: #16806c; font-size: 11px; }
+.vivencia-forms-source-meta a { color: var(--blue); font-size: 11px; font-weight: 850; text-decoration: none; }
+.vivencia-forms-privacy-note { align-items: center; color: var(--muted); display: flex; font-size: 11px; gap: 7px; }
+.vivencia-forms-privacy-note svg { color: #16806c; flex: 0 0 auto; height: 15px; width: 15px; }
+.vivencia-forms-card .vivencia-registered-image { background: linear-gradient(135deg, #e9f7f1, #e7f1ff); }
+.vivencia-forms-card .vivencia-registered-stats .pending b { color: #8b98a2; }
+.vivencia-forms-duplicates { color: var(--muted); font-size: 10px; min-height: 12px; }
+.vivencia-forms-control { border-color: #cfe6df; background: linear-gradient(135deg, #f6fcf9, #f4f9ff); }
+.vivencia-forms-control-status { color: #16806c; font-size: 11px; font-weight: 850; }
+.vivencia-forms-control-status.error { color: #b63b3b; }
 .communication-registered-card { cursor: pointer; }
 .communication-registered-card:hover { border-color: #74b9ce; box-shadow: 0 10px 23px rgba(12, 94, 127, .13); transform: translateY(-1px); }
 .communication-registered-card .vivencia-registered-image { background: linear-gradient(135deg, #eaf4ff, #e0f6ef); }
@@ -11090,6 +11108,8 @@ body.planning-modal-open {
   .intramuros-eligibility-alerts-heading { align-items: stretch; flex-direction: column; }
   .intramuros-eligibility-alert-count { align-self: flex-start; }
   .intramuros-progress-row { grid-template-columns: 1fr; gap: 8px; }
+  .vivencia-forms-source-status { grid-template-columns: auto minmax(0, 1fr); }
+  .vivencia-forms-source-meta { grid-column: 1 / -1; justify-items: start; text-align: left; }
   .booking-visual-row,
   .gym-dashboard-main-row { grid-template-columns: 1fr; }
   .exec-pie { justify-self: center; }
