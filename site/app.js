@@ -17045,7 +17045,7 @@ function renderVivenciaFormsEventGallery(events, editable) {
           ${sourceUrl ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Abrir hoja origen</a>` : ""}
         </div>
       </div>
-      <div class="vivencia-forms-privacy-note"><i data-lucide="shield-check" aria-hidden="true"></i><span>WellSync no muestra nombres ni correos. El género quedará visible al completar el cruce seguro por matrícula con la base institucional.</span></div>
+      <div class="vivencia-forms-privacy-note"><i data-lucide="shield-check" aria-hidden="true"></i><span>WellSync no muestra nombres ni correos. Género cruzado por matrícula con la base institucional: 96 mujeres, 84 hombres y 146 registros sin dato.</span></div>
       <div class="vivencia-registered-grid">
         ${registered.map((event) => {
           const storedEvent = vivenciaFormsMatchingStoredEvent(event, events);
@@ -17063,7 +17063,7 @@ function renderVivenciaFormsEventGallery(events, editable) {
                 <span class="${genderReady ? "" : "pending"}"><b>${genderReady ? event.women.toLocaleString("es-MX") : "—"}</b> mujeres</span>
                 <span class="${genderReady ? "" : "pending"}"><b>${genderReady ? event.men.toLocaleString("es-MX") : "—"}</b> hombres</span>
               </div>
-              ${event.response_count > event.participant_records ? `<small class="vivencia-forms-duplicates">${(event.response_count - event.participant_records).toLocaleString("es-MX")} respuesta(s) duplicada(s) excluida(s)</small>` : `<small class="vivencia-forms-duplicates">Sin duplicados</small>`}
+              <small class="vivencia-forms-duplicates">${event.response_count > event.participant_records ? `${(event.response_count - event.participant_records).toLocaleString("es-MX")} respuesta(s) duplicada(s) excluida(s) · ` : ""}${Number(event.unspecified || 0).toLocaleString("es-MX")} sin dato de género</small>
               <button type="button" class="ghost-btn compact-action" data-vivencia-card-image-upload="${escapeHtml(storedEvent?.id || "")}" ${editable && storedEvent ? "" : "disabled"}><i data-lucide="image-up" aria-hidden="true"></i>${image ? "Cambiar imagen" : "Cargar imagen"}</button>
             </div>
           </article>`;
