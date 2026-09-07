@@ -12296,8 +12296,8 @@ const INTRAMUROS_FACILITY_COURTS = [
     label: "CDB1",
     courts: [
       ["Tocho", ["tocho"], "Tochito", "tochito"], ["Soft 1", ["soft1"], "Fútbol 7", "futbol7"], ["Soft 2", ["soft2"], "Fútbol 7", "futbol7"],
-      ["C # 4", ["c4"], "Fútbol soccer", "soccer"], ["C # 3", ["c3"], "Fútbol soccer", "soccer"],
-      ["C # 1 FR", ["c1fr"], "Fútbol rápido", "futbolrapido"], ["C # 2 FR", ["c2fr"], "Fútbol rápido", "futbolrapido"]
+      ["CS 4", ["c4", "fs4", "cs4"], "Fútbol soccer", "soccer"], ["CS 3", ["c3", "fs3", "cs3"], "Fútbol soccer", "soccer"],
+      ["CFR 1", ["c1fr", "cfr1"], "Fútbol rápido", "futbolrapido"], ["CFR 2", ["c2fr", "cfr2"], "Fútbol rápido", "futbolrapido"]
     ]
   },
   {
@@ -12307,13 +12307,13 @@ const INTRAMUROS_FACILITY_COURTS = [
       ["CP # 1", ["cp1"], "Pádel", "padel"], ["CP # 2", ["cp2"], "Pádel", "padel"], ["CP # 3", ["cp3"], "Pádel", "padel"], ["CP # 4", ["cp4"], "Pádel", "padel"],
       ["CT # 1", ["ct1"], "Tenis", "tenis"], ["CT # 2", ["ct2"], "Tenis", "tenis"], ["CT # 4", ["ct4"], "Tenis", "tenis"], ["CT # 5", ["ct5"], "Tenis", "tenis"],
       ["CT # 6", ["ct6"], "Tenis", "tenis"], ["CT # 7", ["ct7"], "Tenis", "tenis"], ["CT # 8", ["ct8"], "Tenis", "tenis"], ["CT # 9", ["ct9"], "Tenis", "tenis"], ["CT # 10", ["ct10"], "Tenis", "tenis"],
-      ["VB Playa", ["vbplaya"], "Voleibol de playa", "voleibolplaya"], ["CDB 2 # 1", ["cdb21"], "Voleibol", "voleibol"], ["CDB 2 # 2", ["cdb22"], "Básquetbol", "basquetbol"]
+      ["VB Playa", ["vbplaya"], "Voleibol de playa", "voleibolplaya"], ["CDB 2 VB 1", ["cdb21", "cdb2vb1"], "Voleibol", "voleibol"], ["CDB 2 BB 2", ["cdb22", "cdb2bb2"], "Básquetbol", "basquetbol"]
     ]
   },
   {
     id: "WELLNESS",
     label: "Wellness",
-    courts: [["WELL # 1", ["well1vb"], "Voleibol", "voleibol"], ["WELL # 2", ["well1bb"], "Básquetbol", "basquetbol"]]
+    courts: [["WELL VB 1", ["well1vb", "wellvoley1", "wellvb1"], "Voleibol", "voleibol"], ["WELL BB 2", ["well1bb", "wellbask", "wellbb2"], "Básquetbol", "basquetbol"]]
   }
 ].map((facility) => ({ ...facility, courts: facility.courts.map(([label, aliases, sport, sportClass]) => ({ label, aliases, sport, sportClass })) }));
 
@@ -12339,7 +12339,7 @@ function intramurosRoleCourtMapMatches(row, facility, court) {
   const tournament = normalizeText(row.torneo);
   const looseCourt = courtName.match(/^c(\d+)$/)?.[1] || "";
   if (looseCourt) {
-    if (facility.id === "CDB1") return court.label === `C # ${looseCourt}` && !/padel|tenis/.test(tournament);
+    if (facility.id === "CDB1") return court.aliases.includes(`c${looseCourt}`) && !/padel|tenis/.test(tournament);
     if (facility.id !== "CDB2") return false;
     if (/padel/.test(tournament)) return court.label === `CP # ${looseCourt}`;
     if (/tenis/.test(tournament)) return court.label === `CT # ${looseCourt}`;
