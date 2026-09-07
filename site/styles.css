@@ -1528,13 +1528,13 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
 }
 
 .gym-heatmap-legend i.low,
-.gym-heatmap-cell.low { background: #2f9e5f; color: #fff; }
+.gym-heatmap-cell.low { background: #bfe8ff; color: #16324a; }
 
 .gym-heatmap-legend i.medium,
-.gym-heatmap-cell.medium { background: #f3c742; color: #16202a; }
+.gym-heatmap-cell.medium { background: #5bade2; color: #102f49; }
 
 .gym-heatmap-legend i.high,
-.gym-heatmap-cell.high { background: #c93d3d; color: #fff; }
+.gym-heatmap-cell.high { background: #1769aa; color: #fff; }
 
 .gym-heatmap {
   display: grid;
