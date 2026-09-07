@@ -7533,9 +7533,23 @@ function gymAttendanceWeeklySummary(facility) {
   return Array.from(rowsByWeek.values()).sort((a, b) => a.week - b.week);
 }
 
+function gymAttendanceDayPeaks(rows) {
+  return GYM_DAYS.reduce((acc, day) => {
+    acc[day] = Math.max(0, ...rows.map((row) => Number(row?.days?.[day] || 0)));
+    return acc;
+  }, {});
+}
+
+function gymAttendanceDayCell(row, day, dayPeaks) {
+  const value = Number(row?.days?.[day] || 0);
+  const peakClass = value > 0 && value === Number(dayPeaks?.[day] || 0) ? "gym-day-peak" : "";
+  return `<td${peakClass ? ` class="${peakClass}"` : ""}>${value ? formatCount(value) : ""}</td>`;
+}
+
 function renderGymFacilityAttendanceTable(facility) {
   const rows = gymAttendanceWeeklySummary(facility);
   const total = rows.reduce((sum, row) => sum + row.total, 0);
+  const dayPeaks = gymAttendanceDayPeaks(rows);
   const dayTotals = GYM_DAYS.reduce((acc, day) => {
     acc[day] = rows.reduce((sum, row) => sum + Number(row.days[day] || 0), 0);
     return acc;
@@ -7563,7 +7577,7 @@ function renderGymFacilityAttendanceTable(facility) {
                 <td>${index + 1}</td>
                 <td>${escapeHtml(row.label)}</td>
                 <td><strong>${formatCount(row.total)}</strong></td>
-                ${GYM_DAYS.map((day) => `<td>${row.days[day] ? formatCount(row.days[day]) : ""}</td>`).join("")}
+                ${GYM_DAYS.map((day) => gymAttendanceDayCell(row, day, dayPeaks)).join("")}
               </tr>
             `).join("") : `<tr><td colspan="10">Sin asistencias cargadas para ${escapeHtml(facility)}.</td></tr>`}
           </tbody>
@@ -7601,7 +7615,9 @@ function renderGymCombinedAttendanceTable() {
   });
   const wellnessTotals = totalsFor(wellnessRows);
   const emisTotals = totalsFor(emisRows);
-  const dayCells = (row) => GYM_DAYS.map((day) => `<td>${row?.days?.[day] ? formatCount(row.days[day]) : ""}</td>`).join("");
+  const wellnessDayPeaks = gymAttendanceDayPeaks(wellnessRows);
+  const emisDayPeaks = gymAttendanceDayPeaks(emisRows);
+  const dayCells = (row, dayPeaks) => GYM_DAYS.map((day) => gymAttendanceDayCell(row, day, dayPeaks)).join("");
   return `
     <div class="table-wrap gym-attendance-combined-wrap">
       <table class="gym-attendance-combined-table">
@@ -7626,11 +7642,11 @@ function renderGymCombinedAttendanceTable() {
                 <td>${index + 1}</td>
                 <td>${escapeHtml(wellness.label)}</td>
                 <td><strong>${wellness.total ? formatCount(wellness.total) : ""}</strong></td>
-                ${dayCells(wellness)}
+                ${dayCells(wellness, wellnessDayPeaks)}
                 <td class="gym-table-gap"></td>
                 <td>${escapeHtml(emis.label)}</td>
                 <td><strong>${emis.total ? formatCount(emis.total) : ""}</strong></td>
-                ${dayCells(emis)}
+                ${dayCells(emis, emisDayPeaks)}
               </tr>
             `;
           }).join("") : `<tr><td colspan="20">Sin asistencias cargadas todavía.</td></tr>`}

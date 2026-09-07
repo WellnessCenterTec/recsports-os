@@ -2203,6 +2203,11 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   color: #075b9c;
 }
 
+.gym-attendance-summary-table tbody td.gym-day-peak,
+.gym-attendance-combined-table tbody td.gym-day-peak {
+  font-weight: 900;
+}
+
 .gym-attendance-combined-table tfoot td {
   background: #e4ebf0;
   border-top: 2px solid #c7d3dc;
