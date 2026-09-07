@@ -125,6 +125,46 @@ test("Avance por torneo siempre ordena de mayor a menor porcentaje", async () =>
   assert.match(html, /intramuros-progress-detail/, "porcentaje y estado deben permanecer agrupados");
 });
 
+test("Avance por torneo usa exclusivamente los roles de juego cargados", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const helperStart = app.indexOf("function intramurosRoleBranchBuckets(");
+  const helperEnd = app.indexOf("\nfunction intramurosTournamentSummaries(", helperStart);
+  const helperSource = app.slice(helperStart, helperEnd);
+  const createSummary = Function(
+    "intramurosGameRoles",
+    "intramurosRoleIsGame",
+    "canonicalIntramurosTournament",
+    "intramurosRoleHasResult",
+    "normalizeText",
+    "headerKey",
+    `"use strict"; ${helperSource}; return intramurosRoleTournamentProgressRows;`
+  );
+  const summarize = createSummary(
+    [],
+    (row) => row.type === "game",
+    (value) => String(value || "Sin torneo").replace(/^Torneo de /, ""),
+    (row) => Boolean(row.resultado),
+    (value) => String(value || "").toLowerCase(),
+    (value) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "")
+  );
+  const summaries = summarize([
+    { type: "game", torneo: "Torneo de Fútbol 7", rama: "Varonil", equipo_local: "Azules", equipo_visitante: "Rojos", resultado: "2-1" },
+    { type: "game", torneo: "Fútbol 7", rama: "VAR, F", equipo_local: "Azules", equipo_visitante: "Verdes", resultado: "" },
+    { type: "game", torneo: "Básquetbol", rama: "MIX", equipo_local: "Uno", equipo_visitante: "Dos", resultado: "48-41" },
+    { type: "reservation", torneo: "Tenis singles", resultado: "" },
+    { type: "game", torneo: "Sin torneo", equipo_local: "A", equipo_visitante: "B", resultado: "" }
+  ]);
+
+  assert.deepEqual(summaries, [
+    { torneo: "Fútbol 7", rama: "Varonil, Femenil", teams: 3, games: 2, withResult: 1, pending: 1, varonilTeams: 3, femenilTeams: 2, mixtoTeams: 0, progress: 50, status: "En curso" },
+    { torneo: "Básquetbol", rama: "Mixto", teams: 2, games: 1, withResult: 1, pending: 0, varonilTeams: 0, femenilTeams: 0, mixtoTeams: 2, progress: 100, status: "Cerrado" }
+  ]);
+  const chartsSource = extractFunction(app, "renderIntramurosExecutiveCharts", "renderIntramurosFilter");
+  assert.match(chartsSource, /intramurosRoleTournamentProgressRows\(\)/);
+  assert.doesNotMatch(chartsSource, /intramurosTournamentSummaries\(\)/);
+  assert.match(chartsSource, /b\.games - a\.games/);
+});
+
 test("el buscador de Intramuros permite escribir seguido y conserva el cursor", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const listenerStart = app.indexOf('$("#intramurosSearch")?.addEventListener("input"');
@@ -217,13 +257,15 @@ test("los siete indicadores de Roles permanecen en una sola línea", async () =>
   assert.match(styles, /\.intramuros-role-kpi-grid\s*\{\s*grid-template-columns:\s*repeat\(7,\s*minmax\(0,\s*1fr\)\);/);
 });
 
-test("las tarjetas de torneo muestran totales y participantes por rama", async () => {
+test("las tarjetas de torneo muestran únicamente datos derivados de Roles de Juego", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const cardsSource = extractFunction(app, "renderTournamentCards", "renderIntramurosGameInfoList");
 
-  ["Participantes", "Equipos", "Juegos", "Participantes por rama", "Varonil", "Femenil", "Mixto"].forEach((label) => {
+  ["Equipos", "Juegos", "Con resultado", "Pendientes", "Equipos por rama", "Varonil", "Femenil", "Mixto"].forEach((label) => {
     assert.ok(cardsSource.includes(label), `${label} debe mostrarse en cada tarjeta`);
   });
+  assert.match(cardsSource, /const summaries = intramurosRoleTournamentProgressRows\(\)/);
+  assert.doesNotMatch(cardsSource, /intramurosTournamentSummaries\(\)|Participantes|totalParticipants/);
   assert.match(cardsSource, /budget-area-track/);
   assert.match(cardsSource, /\$\{row\.progress\}% avance/);
 });

@@ -11896,7 +11896,7 @@ function renderIntramurosExecutiveBars(title, rows, options = {}) {
 function renderIntramurosProgressCard(summaries) {
   const orderedSummaries = [...summaries].sort((a, b) => (
     Number(b.progress || 0) - Number(a.progress || 0)
-    || Number(b.totalParticipants || 0) - Number(a.totalParticipants || 0)
+    || Number(b.games || 0) - Number(a.games || 0)
     || String(a.torneo || "").localeCompare(String(b.torneo || ""), "es-MX")
   ));
   return `
@@ -11919,9 +11919,9 @@ function renderIntramurosProgressCard(summaries) {
 }
 
 function renderIntramurosExecutiveCharts(rows) {
-  const summaries = intramurosTournamentSummaries()
+  const summaries = intramurosRoleTournamentProgressRows()
     .filter((row) => intramurosFilters.tournament === "todos" || row.torneo === intramurosFilters.tournament)
-    .sort((a, b) => b.totalParticipants - a.totalParticipants);
+    .sort((a, b) => b.games - a.games);
   return `
     <div class="intramuros-exec-grid">
       ${renderIntramurosSchoolGenderCard(rows)}
@@ -12109,6 +12109,59 @@ function intramurosRoleDay(row) {
   const value = String(row.fecha || "").trim();
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "Sin fecha" : date.toLocaleDateString("es-MX", { weekday: "long" });
+}
+
+function intramurosRoleBranchBuckets(value) {
+  const branch = normalizeText(value);
+  const tokens = branch.split(/[^a-z0-9]+/).filter(Boolean);
+  const buckets = [];
+  if (branch.includes("var") || branch.includes("masc") || branch.includes("hombre") || tokens.includes("v")) buckets.push("varonil");
+  if (branch.includes("fem") || branch.includes("mujer") || tokens.includes("f")) buckets.push("femenil");
+  if (branch.includes("mixt") || tokens.includes("mix") || tokens.includes("m")) buckets.push("mixto");
+  return buckets;
+}
+
+function intramurosRoleTournamentProgressRows(rows = intramurosGameRoles) {
+  const tournaments = new Map();
+  rows.filter(intramurosRoleIsGame).forEach((row) => {
+    const torneo = canonicalIntramurosTournament(row.torneo);
+    if (!torneo || torneo === "Sin torneo") return;
+    if (!tournaments.has(torneo)) tournaments.set(torneo, {
+      torneo,
+      games: 0,
+      withResult: 0,
+      teams: new Set(),
+      branchTeams: { varonil: new Set(), femenil: new Set(), mixto: new Set() }
+    });
+    const summary = tournaments.get(torneo);
+    const teams = [row.equipo_local, row.equipo_visitante].map((team) => String(team || "").trim()).filter(Boolean);
+    const branches = intramurosRoleBranchBuckets(row.rama);
+    summary.games += 1;
+    if (intramurosRoleHasResult(row)) summary.withResult += 1;
+    teams.forEach((team) => summary.teams.add(headerKey(team)));
+    branches.forEach((branch) => teams.forEach((team) => summary.branchTeams[branch].add(headerKey(team))));
+  });
+  return Array.from(tournaments.values()).map((summary) => {
+    const progress = summary.games ? Math.round((summary.withResult / summary.games) * 100) : 0;
+    const activeBranches = [
+      ["varonil", "Varonil"],
+      ["femenil", "Femenil"],
+      ["mixto", "Mixto"]
+    ].filter(([branch]) => summary.branchTeams[branch].size).map(([, label]) => label);
+    return {
+      torneo: summary.torneo,
+      rama: activeBranches.join(", ") || "Sin rama",
+      teams: summary.teams.size,
+      games: summary.games,
+      withResult: summary.withResult,
+      pending: Math.max(0, summary.games - summary.withResult),
+      varonilTeams: summary.branchTeams.varonil.size,
+      femenilTeams: summary.branchTeams.femenil.size,
+      mixtoTeams: summary.branchTeams.mixto.size,
+      progress,
+      status: progress >= 100 ? "Cerrado" : progress ? "En curso" : "Programado"
+    };
+  });
 }
 
 function intramurosTournamentSummaries() {
@@ -12698,7 +12751,7 @@ function renderIntramurosOmarWorkspace() {
 }
 
 function renderTournamentCards(eligibilityAlerts = []) {
-  const summaries = intramurosTournamentSummaries();
+  const summaries = intramurosRoleTournamentProgressRows();
   return `
     <section class="intramuros-tournament-section">
       <div class="budget-table-heading">
@@ -12711,22 +12764,22 @@ function renderTournamentCards(eligibilityAlerts = []) {
             <div><h3>${escapeHtml(row.torneo)}</h3><span>${escapeHtml(row.status)}</span></div>
             <p>${escapeHtml(row.rama)}</p>
             <dl>
-              <div><dt>Participantes</dt><dd>${row.totalParticipants}</dd></div>
               <div><dt>Equipos</dt><dd>${row.teams}</dd></div>
               <div><dt>Juegos</dt><dd>${row.games}</dd></div>
               <div><dt>Con resultado</dt><dd>${row.withResult}</dd></div>
+              <div><dt>Pendientes</dt><dd>${row.pending}</dd></div>
             </dl>
-            <small class="intramuros-tournament-branches-title">Participantes por rama</small>
-            <div class="intramuros-tournament-branches" aria-label="Participantes por rama">
-              <span>Varonil <b>${row.varonil}</b></span>
-              <span>Femenil <b>${row.femenil}</b></span>
-              <span>Mixto <b>${row.mixto}</b></span>
+            <small class="intramuros-tournament-branches-title">Equipos por rama</small>
+            <div class="intramuros-tournament-branches" aria-label="Equipos por rama">
+              <span>Varonil <b>${row.varonilTeams}</b></span>
+              <span>Femenil <b>${row.femenilTeams}</b></span>
+              <span>Mixto <b>${row.mixtoTeams}</b></span>
             </div>
             <div class="budget-area-track"><span style="width:${row.progress}%"></span></div>
             <strong>${row.progress}% avance</strong>
             <button class="primary-btn compact-action" type="button" data-open-intramuros-tournament="${escapeHtml(row.torneo)}">Abrir expediente</button>
           </article>
-        `).join("") : `<div class="upload-empty">Carga participantes o roles para ver expedientes.</div>`}
+        `).join("") : `<div class="upload-empty">Carga roles de juego para ver expedientes.</div>`}
         ${renderIntramurosRepresentativeEligibilityAlerts(eligibilityAlerts, { compact: true })}
       </div>
     </section>
