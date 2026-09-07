@@ -11272,12 +11272,12 @@ body.planning-modal-open {
 }
 
 .executive-report-print-root {
-  height: 202mm;
+  height: 289mm;
   left: -200vw;
   page: executive-report-page;
   position: fixed;
   top: 0;
-  width: 289mm;
+  width: 202mm;
 }
 
 body.executive-report-print {
@@ -11285,10 +11285,10 @@ body.executive-report-print {
 }
 
 .executive-report-print-sheet {
-  height: 202mm;
+  height: 289mm;
   overflow: hidden;
   page: executive-report-page;
-  width: 289mm;
+  width: 202mm;
 }
 
 .executive-report-print-page {
@@ -11297,12 +11297,12 @@ body.executive-report-print {
   page: executive-report-page;
   transform: scale(var(--executive-report-print-scale, 1));
   transform-origin: left top;
-  width: 1152px;
+  width: 760px;
 }
 
 @media print {
   @page executive-report-page {
-    size: A4 landscape;
+    size: A4 portrait;
     margin: 4mm;
   }
 
@@ -11318,11 +11318,11 @@ body.executive-report-print {
 
   body.executive-report-print > .executive-report-print-root {
     display: block !important;
-    height: 202mm;
+    height: 289mm;
     left: 0;
     position: absolute;
     top: 0;
-    width: 289mm;
+    width: 202mm;
   }
 }
 
@@ -11399,7 +11399,10 @@ body.executive-report-print {
   .executive-report-print-page .exec-report-daily-average small { font-size: var(--exec-print-label); }
 
   .executive-report-print-page .exec-report-module-grid { gap: 7px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .executive-report-print-page .exec-report-insight-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .executive-report-print-page .exec-report-insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .executive-report-print-page .exec-report-insight-grid > article,
+  .executive-report-print-page .exec-report-insight-grid > article:nth-last-child(-n + 3) { grid-column: auto; }
+  .executive-report-print-page .exec-report-insight-grid > article:last-child { grid-column: 1 / -1; }
   .executive-report-print-page .exec-report-module-grid article { border-radius: 10px; gap: 2px; padding: 7px 10px; }
   .executive-report-print-page .exec-report-module-grid h3 { font-size: var(--exec-print-card-title); font-weight: 850; line-height: 1.15; }
   .executive-report-print-page .exec-report-module-grid strong { font-size: 21px; }

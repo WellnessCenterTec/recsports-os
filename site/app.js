@@ -11208,7 +11208,7 @@ function executiveVivenciaUploadHistory() {
       const second = new Date(b.upload_date || b.created_at || 0).getTime() || 0;
       return second - first;
     })
-    .slice(0, 5)
+    .slice(0, 8)
     .map((row) => ({
       ...row,
       eventName: eventsById.get(row.event_id)?.event_name || "Evento no encontrado",
