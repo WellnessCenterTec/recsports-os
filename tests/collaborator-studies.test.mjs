@@ -8,9 +8,13 @@ test("Colaboradores includes Estudios as a visible base column", () => {
   assert.match(app, /const BASE_COLLABORATOR_COLUMNS = \[[^\]]*"Coordinador",\s*"Estudios",\s*"% de cursos"/s);
 });
 
-test("the supplied 22 study records are linked by exact nomina", () => {
+test("the supplied 42 study records are linked by exact nomina", () => {
   const block = app.match(/const COLLABORATOR_STUDIES_BY_NOMINA = Object\.freeze\(\{([\s\S]*?)\}\);/)?.[1] || "";
   const expected = [
+    "L03502097", "L00854455", "L03573624", "L03578914", "L03580573", "L03085157",
+    "L03103270", "L01342857", "L03581878", "L03535985", "L03580266", "L03573766",
+    "L03583626", "L03570768", "L03107888", "L03542931", "L03542469", "L03563346",
+    "L03524682", "L03538790",
     "L03519864", "L03566159", "L01310698", "L03131207", "L03584237", "L03526997",
     "L03526995", "L01418467", "L03526872", "L03110251", "L01193243", "L03566480",
     "L03105095", "L03501954", "L03554088", "L03058587", "L03526957", "L03131201",
