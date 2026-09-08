@@ -63,6 +63,35 @@
     };
   }
 
+  function weeklyKeys(notes) {
+    return Object.keys(notes && typeof notes === "object" ? notes : {})
+      .filter((key) => /^\d{4}-W\d{2}$/.test(key))
+      .sort((a, b) => b.localeCompare(a));
+  }
+
+  function latestWeeklyContent(notes, currentWeekKey) {
+    const source = notes && typeof notes === "object" ? notes : {};
+    if (source[currentWeekKey] && typeof source[currentWeekKey] === "object") {
+      return cloneEditableContent(source[currentWeekKey]);
+    }
+    const latestKey = weeklyKeys(source)[0];
+    return latestKey ? cloneEditableContent(source[latestKey]) : {};
+  }
+
+  function compactWeeklyNotes(notes, currentWeekKey, maxWeeks = 1) {
+    const source = notes && typeof notes === "object" ? notes : {};
+    const keep = new Set(weeklyKeys(source).slice(0, Math.max(1, Number(maxWeeks) || 1)));
+    if (source[currentWeekKey] && typeof source[currentWeekKey] === "object") keep.add(currentWeekKey);
+    const compact = {};
+    if (source.__feedback_tracking && typeof source.__feedback_tracking === "object") {
+      compact.__feedback_tracking = cloneEditableContent(source.__feedback_tracking);
+    }
+    keep.forEach((key) => {
+      compact[key] = cloneEditableContent(source[key]);
+    });
+    return compact;
+  }
+
   window.WellSyncPresentationHistory = {
     PENDING_STORAGE_KEY,
     cloneEditableContent,
@@ -70,6 +99,8 @@
     defaultTitle,
     isComplete,
     createSnapshot,
-    createPendingStore
+    createPendingStore,
+    latestWeeklyContent,
+    compactWeeklyNotes
   };
 })();

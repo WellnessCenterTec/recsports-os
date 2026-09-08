@@ -7,9 +7,18 @@ test("presentation saves to Supabase even when browser storage is full", async (
 
   assert.match(app, /function saveExecutivePresentationLocalNotes[\s\S]*?try \{[\s\S]*?localStorage\.setItem\(EXECUTIVE_PRESENTATION_STORAGE_KEY/);
   assert.match(app, /No se pudo crear el respaldo local de la presentación/);
+  assert.match(app, /compactWeeklyNotes\(notes, presentationWeekKey\(\), 1\)/);
   assert.match(app, /No se pudo marcar la presentación para sincronización/);
   assert.match(app, /supabaseClient\.from\("presentaciones"\)\.upsert/);
   assert.match(app, /supabaseClient\.from\("presentacion_notas"\)\.upsert/);
+});
+
+test("presentation opens the most recent weekly content instead of a blank new week", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+
+  assert.match(app, /latestWeeklyContent\(executivePresentationNotes, key\)/);
+  assert.match(app, /\.eq\("presentation_type", "weekly"\)[\s\S]*?\.order\("updated_at", \{ ascending: false \}\)[\s\S]*?\.limit\(1\)/);
+  assert.match(app, /pendingWeek === weekKey[\s\S]*?cloudValues/);
 });
 
 test("keyboard navigation updates only the active executive slide", async () => {
@@ -39,6 +48,8 @@ test("budget presentation includes four recent purchases per area without overla
   assert.match(styles, /\.executive-presentation-budget-latest\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
   assert.match(styles, /\.executive-presentation-budget-latest\s*\{[^}]*grid-template-rows:\s*auto repeat\(2, minmax\(0, 1fr\)\)/s);
   assert.match(styles, /\.executive-presentation-budget-latest ol\s*\{/);
+  assert.match(styles, /\.executive-presentation-stage \.executive-presentation-budget-latest li > span \{ font-size: 14px; \}/);
+  assert.match(styles, /\.executive-presentation-stage \.executive-presentation-budget-latest li > em \{ font-size: 12px; \}/);
 });
 
 test("global WellSync metric strip is removed without breaking dashboard renders", async () => {

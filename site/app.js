@@ -308,6 +308,7 @@ const BASE_COLLABORATOR_COLUMNS = [
   "Colaboradores",
   "Puesto",
   "Coordinador",
+  "Estudios",
   "% de cursos",
   "Playeras Joma",
   "Talla pants",
@@ -317,6 +318,30 @@ const BASE_COLLABORATOR_COLUMNS = [
   "Disciplina",
   "Primeros auxilios"
 ];
+const COLLABORATOR_STUDIES_BY_NOMINA = Object.freeze({
+  L03519864: "Licenciatura en Organización Deportiva",
+  L03566159: "Preparatoria",
+  L01310698: "Licenciatura en Educación Preescolar",
+  L03131207: "Licenciatura en Psicología Clínica, UANL",
+  L03584237: "Licenciatura",
+  L03526997: "Licenciatura en Nutrición",
+  L03526995: "Licenciatura en Organización Deportiva",
+  L01418467: "Licenciatura en Organización Deportiva",
+  L03526872: "Licenciatura",
+  L03110251: "Licenciatura",
+  L01193243: "Preparatoria",
+  L03566480: "Licenciatura en Organización Deportiva",
+  L03105095: "Licenciatura en Ciencias del Ejercicio, Facultad de Organización Deportiva, UANL",
+  L03501954: "Preparatoria",
+  L03554088: "Licenciatura",
+  L03058587: "Licenciatura en Relaciones Internacionales y Maestría",
+  L03526957: "Licenciatura en Organización Deportiva",
+  L03131201: "Preparatoria",
+  L03578302: "Maestría en Educación y Licenciatura en Nutrición",
+  L03132238: "Licenciatura en Educación y Maestría",
+  L03561193: "Licenciatura en Organización Deportiva",
+  L03566395: "Licenciatura en Organización Deportiva"
+});
 const COLLABORATOR_WEEK_COLUMNS = ["Destacados", "En Desarrollo"];
 const SEMESTER_WEEK_OPTIONS = Array.from({ length: 20 }, (_, index) => `S${index + 1}`);
 const SUPABASE_ENV = window.RECSPORTS_ENV || {};
@@ -4698,6 +4723,7 @@ async function deleteVivenciaEvent(eventId) {
 }
 
 function collaboratorFromCloud(row) {
+  const nomina = String(row.nomina || "").trim().toUpperCase();
   return {
     __id: row.nomina,
     __photoPath: row.photo_path || "",
@@ -4706,6 +4732,7 @@ function collaboratorFromCloud(row) {
     Colaboradores: row.full_name || "",
     Puesto: row.puesto || "",
     Coordinador: row.coordinador || "",
+    Estudios: COLLABORATOR_STUDIES_BY_NOMINA[nomina] || "",
     "% de cursos": row.course_percent ?? "",
     "Playeras Joma": row.playera_joma || "",
     "Talla pants": row.talla_pants || "",
@@ -4807,6 +4834,7 @@ async function loadPublicCollaboratorDirectory() {
         Colaboradores: publicRow?.Colaboradores || row.Colaboradores || "",
         Puesto: publicRow?.Puesto || row.Puesto || "",
         Coordinador: publicRow?.Coordinador || row.Coordinador || "",
+        Estudios: publicRow?.Estudios || row.Estudios || COLLABORATOR_STUDIES_BY_NOMINA[nomina.toUpperCase()] || "",
         Destacados: highlightsByNomina.get(nomina.toUpperCase()) || row.Destacados || row.Destacado || ""
       };
     });
@@ -6412,7 +6440,12 @@ function collaboratorRows() {
   const rows = collaboratorsCloudLoaded
     ? cloudCollaborators
     : recordsFor("Uniformes").filter((row) => String(row.Nomina || row.Colaboradores || "").trim());
-  return [...rows].sort((a, b) => String(a.Colaboradores || "").localeCompare(String(b.Colaboradores || ""), "es"));
+  return rows
+    .map((row) => ({
+      ...row,
+      Estudios: row.Estudios || COLLABORATOR_STUDIES_BY_NOMINA[String(row.Nomina || "").trim().toUpperCase()] || ""
+    }))
+    .sort((a, b) => String(a.Colaboradores || "").localeCompare(String(b.Colaboradores || ""), "es"));
 }
 
 function contractRows() {
@@ -12916,16 +12949,23 @@ function saveExecutivePresentationLocalNotes(notes = executivePresentationNotes)
     localStorage.setItem(EXECUTIVE_PRESENTATION_STORAGE_KEY, JSON.stringify(notes));
     return true;
   } catch (error) {
-    // Las fotos de inventario pueden rebasar el espacio del navegador. No se debe
-    // impedir por ello el guardado compartido en Supabase.
-    console.warn("No se pudo crear el respaldo local de la presentación", error);
-    return false;
+    // Las fotos de semanas anteriores pueden llenar el almacenamiento. Conserva
+    // la versión más reciente y vuelve a intentarlo sin bloquear Supabase.
+    try {
+      const compact = presentationHistoryApi.compactWeeklyNotes(notes, presentationWeekKey(), 1);
+      localStorage.setItem(EXECUTIVE_PRESENTATION_STORAGE_KEY, JSON.stringify(compact));
+      return true;
+    } catch (compactError) {
+      console.warn("No se pudo crear el respaldo local de la presentación", compactError || error);
+      return false;
+    }
   }
 }
 
 function presentationNotesForCurrentWeek() {
   const key = presentationWeekKey();
-  return { ...(executivePresentationNotes[key] || {}), ...(executivePresentationNotes.__feedback_tracking || {}) };
+  const weekly = presentationHistoryApi.latestWeeklyContent(executivePresentationNotes, key);
+  return { ...weekly, ...(executivePresentationNotes.__feedback_tracking || {}) };
 }
 
 function presentationTextItems(value) {
@@ -13825,10 +13865,23 @@ async function refreshExecutivePresentationData() {
 async function loadExecutivePresentationNotes() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const weekKey = presentationWeekKey();
-  const presentation = await supabaseClient.from("presentaciones").select("id").eq("week_key", weekKey).eq("presentation_type", "weekly").maybeSingle();
+  let presentation = await supabaseClient.from("presentaciones").select("id,week_key,updated_at").eq("week_key", weekKey).eq("presentation_type", "weekly").maybeSingle();
   if (presentation.error) {
     executivePresentationCloudAvailable = false;
     return;
+  }
+  if (!presentation.data?.id) {
+    presentation = await supabaseClient
+      .from("presentaciones")
+      .select("id,week_key,updated_at")
+      .eq("presentation_type", "weekly")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (presentation.error) {
+      executivePresentationCloudAvailable = false;
+      return;
+    }
   }
   if (!presentation.data?.id) return;
   const result = await supabaseClient.from("presentacion_notas").select("section_key, content").eq("presentacion_id", presentation.data.id);
@@ -13837,7 +13890,11 @@ async function loadExecutivePresentationNotes() {
     return;
   }
   executivePresentationCloudAvailable = true;
-  executivePresentationNotes[weekKey] = { ...(executivePresentationNotes[weekKey] || {}), ...Object.fromEntries((result.data || []).map((row) => [row.section_key, row.content || ""])) };
+  const cloudValues = Object.fromEntries((result.data || []).map((row) => [row.section_key, row.content || ""]));
+  const pendingWeek = localStorage.getItem(EXECUTIVE_PRESENTATION_PENDING_SYNC_KEY);
+  executivePresentationNotes[weekKey] = pendingWeek === weekKey
+    ? { ...cloudValues, ...(executivePresentationNotes[weekKey] || {}) }
+    : cloudValues;
   const tracking = await supabaseClient.from("presentaciones").select("id").eq("week_key", "feedback-tracking").eq("presentation_type", "tracking").maybeSingle();
   if (!tracking.error && tracking.data?.id) {
     const trackingNotes = await supabaseClient.from("presentacion_notas").select("section_key, content").eq("presentacion_id", tracking.data.id);

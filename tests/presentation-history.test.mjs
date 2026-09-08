@@ -48,6 +48,42 @@ test("pending queue upserts by id and removes only the synchronized item", async
   assert.deepEqual(Array.from(store.list(), (item) => item.id), ["b"]);
 });
 
+test("uses the latest weekly presentation when the current week is still blank", async () => {
+  const history = await loadHelper();
+  const notes = {
+    "2026-W35": { inventory_gallery: "old" },
+    "2026-W36": { inventory_gallery: "latest-images", priorities: "Últimos puntos" },
+    __feedback_tracking: { feedback_records: "tracking" }
+  };
+
+  assert.equal(
+    JSON.stringify(history.latestWeeklyContent(notes, "2026-W37")),
+    JSON.stringify({ inventory_gallery: "latest-images", priorities: "Últimos puntos" })
+  );
+  assert.equal(
+    JSON.stringify(history.latestWeeklyContent(notes, "2026-W35")),
+    JSON.stringify({ inventory_gallery: "old" })
+  );
+});
+
+test("compacts local presentation storage without discarding the latest images", async () => {
+  const history = await loadHelper();
+  const notes = {
+    "2026-W34": { inventory_gallery: "older-images" },
+    "2026-W35": { inventory_gallery: "old-images" },
+    "2026-W36": { inventory_gallery: "latest-images" },
+    __feedback_tracking: { feedback_records: "tracking" }
+  };
+
+  assert.equal(
+    JSON.stringify(history.compactWeeklyNotes(notes, "2026-W37", 1)),
+    JSON.stringify({
+      __feedback_tracking: { feedback_records: "tracking" },
+      "2026-W36": { inventory_gallery: "latest-images" }
+    })
+  );
+});
+
 test("rejects incomplete or duplicate slide snapshots", async () => {
   const history = await loadHelper();
   const slides = Array.from({ length: 12 }, (_, index) => ({ key: index === 11 ? "slide-0" : `slide-${index}`, html: `<article>${index}</article>` }));
