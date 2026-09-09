@@ -610,7 +610,7 @@ const EXECUTIVE_PRESENTATION_SLIDES = [
   { key: "feedback", title: "Retroalimentación personal", icon: "messages-square" },
   { key: "weekly-topics", title: "Temas semanales", icon: "notebook-tabs" },
   { key: "team", title: "Equipo", icon: "users" },
-  { key: "map", title: "Mapa / distribución de espacios", icon: "map" },
+  { key: "improvement-history", title: "Historial de área de mejora", icon: "trending-up" },
   { key: "detailed-schedules", title: "Tema especial", icon: "sparkles" }
 ];
 const EXECUTIVE_PRESENTATION_EDIT_FIELDS = {
@@ -633,8 +633,7 @@ const EXECUTIVE_PRESENTATION_EDIT_FIELDS = {
   "detailed-schedules": [
     ["special_topic_title", "Título del tema especial", "Escribe el tema principal de la junta"],
     ["special_topic_points", "Puntos del tema", "Un punto por línea"]
-  ],
-  map: [["map_notes", "Mapa y distribución de espacios", "Cambios, bloqueos o necesidades de espacio"]]
+  ]
 };
 const MAX_PRESENTATION_SELECTION = 3;
 let executivePresentationIndex = 0;
@@ -13488,10 +13487,10 @@ function presentationCollaboratorProfile(row) {
   };
 }
 
-function presentationHighlightedTeam() {
+function presentationTeamHistory(columns) {
   const profiles = new Map();
   collaboratorRows().forEach((row) => {
-    const weeks = collaboratorWeekValues(row, ["Destacados", "Destacado"]);
+    const weeks = collaboratorWeekValues(row, columns);
     if (!weeks.length) return;
     const profile = presentationCollaboratorProfile(row);
     const key = collaboratorMatchKey(profile.nomina || profile.name);
@@ -13513,6 +13512,14 @@ function presentationHighlightedTeam() {
   });
 }
 
+function presentationHighlightedTeam() {
+  return presentationTeamHistory(["Destacados", "Destacado"]);
+}
+
+function presentationImprovementTeam() {
+  return presentationTeamHistory(["En Desarrollo", "En mejora", "En Mejora"]);
+}
+
 function renderPresentationHighlightedTeam(profiles) {
   if (!profiles.length) return presentationEmptyState("Aún no hay profesores marcados como destacados");
   const density = `${profiles.length > 5 ? " dense" : ""}${profiles.length > 10 ? " very-dense" : ""}${profiles.length > 18 ? " ultra-dense" : ""}`;
@@ -13529,6 +13536,24 @@ function renderPresentationHighlightedTeam(profiles) {
     </article>
   `).join("")}</div>
     <footer><b aria-hidden="true">★</b><strong>Su esfuerzo inspira a todo el equipo.</strong><span>¡Sigan brillando y marcando la diferencia!</span><b aria-hidden="true">★</b></footer>
+  </div>`;
+}
+
+function renderPresentationImprovementTeam(profiles) {
+  const density = `${profiles.length > 5 ? " dense" : ""}${profiles.length > 10 ? " very-dense" : ""}${profiles.length > 18 ? " ultra-dense" : ""}`;
+  return `<div class="executive-presentation-team-celebration improvement-history">
+    <header><span>↗ SEGUIMIENTO Y CRECIMIENTO ↗</span><h3>Historial de área de mejora</h3><p>Cada semana es una nueva oportunidad para avanzar con enfoque, constancia y compromiso.</p></header>
+    ${profiles.length ? `<div class="executive-presentation-team highlighted improvement-history${density}">${profiles.map((profile) => `
+    <article>
+      <b class="executive-presentation-team-badge">↗ EN MEJORA</b>
+      ${profile.photoUrl ? `<img src="${escapeHtml(profile.photoUrl)}" alt="Foto de ${escapeHtml(profile.name)}" />` : `<span>${escapeHtml(profile.initials)}</span>`}
+      <strong>${escapeHtml(profile.name)}</strong>
+      <em>${escapeHtml(profile.coordinator || "Sin coordinador")}</em>
+      <small><b>${profile.weeks.length} ${profile.weeks.length === 1 ? "semana" : "semanas"}</b><span>${profile.weeks.map(escapeHtml).join(" · ")}</span></small>
+      <i>¡Sigue adelante!</i>
+    </article>
+  `).join("")}</div>` : `<div class="executive-presentation-improvement-empty"><b>↗</b><strong>Listos para acompañar el siguiente avance</strong><span>El historial se llenará al registrar semanas en la columna “En Desarrollo” de Colaboradores.</span></div>`}
+    <footer><b aria-hidden="true">↗</b><strong>¡Tú puedes lograrlo!</strong><span>Cada mejora cuenta; la constancia transforma los resultados.</span><b aria-hidden="true">↗</b></footer>
   </div>`;
 }
 
@@ -13723,14 +13748,14 @@ function renderExecutivePresentationSlide(slide, index) {
     body = `<div class="executive-presentation-split"><section><h3>Temas por área</h3>${manualList("area_topics")}<h3>Temas semanales</h3>${manualList("topics")}</section><section><h3>Acuerdos</h3>${manualList("agreements")}<h3>Pendientes</h3>${manualList("pending")}</section></div>${presentationManualNote(notes, "observations", "Observaciones")}`;
   } else if (slide.key === "team") {
     body = `${renderPresentationHighlightedTeam(presentationHighlightedTeam())}${presentationManualNote(notes, "comment_team")}`;
+  } else if (slide.key === "improvement-history") {
+    body = renderPresentationImprovementTeam(presentationImprovementTeam());
   } else if (slide.key === "detailed-schedules") {
     const specialTitle = String(notes.special_topic_title || "").trim();
     const specialPoints = presentationTextItems(notes.special_topic_points).slice(0, 8);
     body = specialTitle || specialPoints.length
       ? `<div class="executive-presentation-special-topic"><header><span>Tema de la semana</span><h3>${escapeHtml(specialTitle || "Tema especial")}</h3><p>Ideas clave, decisiones y contexto para conversar en la junta.</p></header><div>${specialPoints.map((point, pointIndex) => `<article><b>${pointIndex + 1}</b><span>${escapeHtml(point)}</span></article>`).join("") || `<article class="empty"><span>Agrega los puntos principales desde Editar contenido.</span></article>`}</div></div>`
       : presentationEmptyState("Tema especial pendiente de capturar");
-  } else if (slide.key === "map") {
-    body = renderPresentationMap(notes);
   }
   return `<article class="executive-presentation-slide" data-slide-key="${slide.key}" aria-label="Diapositiva ${index + 1}: ${escapeHtml(slide.title)}"><header><div class="executive-presentation-number">${index + 1}</div><div><h2>${escapeHtml(slide.title)}</h2><p>${index === 0 ? "Junta semanal" : presentationWeekKey()}</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></header><div class="executive-presentation-slide-body">${body}</div><footer>WellSync · Dirección Deportiva</footer></article>`;
 }
