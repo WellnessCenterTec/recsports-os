@@ -3026,7 +3026,7 @@ async function loadCommunicationEvents() {
     const student = findStudentInDatabase(participant.matricula) || {};
     return {
       ...participant,
-      genero: participant.genero || student.genero || "No especificado",
+      genero: participant.genero || student.genero || "",
       carrera: participant.carrera || student.carrera || "Sin carrera",
       semestre: participant.semestre || student.semestre || "",
       nivel_escolar: participant.nivel_escolar || student.nivel || "Sin nivel"
@@ -17507,7 +17507,9 @@ function communicationEventGenderSummary(event) {
     return { total, women: reportedWomen, men: reportedMen, unspecified: Math.max(0, total - reportedWomen - reportedMen) };
   }
   const counts = records.reduce((summary, participant) => {
-    const gender = vivenciaParticipantGender(participant.genero || findStudentInDatabase(participant.matricula)?.genero);
+    const institutionalGender = vivenciaParticipantGender(findStudentInDatabase(participant.matricula)?.genero);
+    const uploadedGender = vivenciaParticipantGender(participant.genero);
+    const gender = institutionalGender !== "Sin dato" ? institutionalGender : uploadedGender;
     if (gender === "Mujeres") summary.women += 1;
     else if (gender === "Hombres") summary.men += 1;
     else summary.unspecified += 1;
