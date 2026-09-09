@@ -123,9 +123,14 @@ test("el mapa de canchas usa recinto, fecha y horario para marcar ocupación", a
   const rows = [
     { fecha: "2026-08-29", hora: "18:00", cancha: "C # 3", torneo: "Fútbol soccer", equipo_local: "Azules", equipo_visitante: "Rojos" },
     { fecha: "2026-08-29", hora: "18:00", cancha: "C # 3", torneo: "Pádel", equipo_local: "Pádel A", equipo_visitante: "Pádel B" },
+    { fecha: "2026-08-29", hora: "18:00", cancha: "CFR # 1", torneo: "Fútbol rápido", equipo_local: "Rápidos A", equipo_visitante: "Rápidos B" },
+    { fecha: "2026-08-29", hora: "18:00", cancha: "C # 2 FR", torneo: "Fútbol rápido", equipo_local: "Rápidos C", equipo_visitante: "Rápidos D" },
+    { fecha: "2026-08-29", hora: "18:00", cancha: "CDB 2 VB 1", torneo: "Voleibol", equipo_local: "Voleibol A", equipo_visitante: "Voleibol B" },
+    { fecha: "2026-08-29", hora: "18:00", cancha: "CDB 2 # 2", torneo: "Básquetbol", equipo_local: "Básquet A", equipo_visitante: "Básquet B" },
     { fecha: "2026-08-29", hora: "18:00", cancha: "Tocho", torneo: "Tochito", equipo_local: "Tochos", equipo_visitante: "Borregos" },
     { fecha: "2026-08-29", hora: "18:00", cancha: "Soft 1", torneo: "Fútbol 7", estatus_partido: "Pendiente de rival" },
-    { fecha: "2026-08-29", hora: "19:00", cancha: "WELL 1 / VB", torneo: "Voleibol de sala", equipo_local: "A", equipo_visitante: "B" }
+    { fecha: "2026-08-29", hora: "19:00", cancha: "WELL 1 / VB", torneo: "Voleibol de sala", equipo_local: "A", equipo_visitante: "B" },
+    { fecha: "2026-08-29", hora: "19:00", cancha: "WELL BASK", torneo: "Básquetbol", equipo_local: "C", equipo_visitante: "D" }
   ];
   const cdb1 = courtMap(rows, { facilities: ["CDB1"], date: "2026-08-29", time: "18:00" });
   const cdb2 = courtMap(rows, { facilities: ["CDB2"], date: "2026-08-29", time: "18:00" });
@@ -135,13 +140,17 @@ test("el mapa de canchas usa recinto, fecha y horario para marcar ocupación", a
   assert.deepEqual(courtMap(rows, { date: "2026-08-29", time: "18:00" }).selectedIds, ["CDB1", "CDB2", "WELLNESS"]);
   assert.equal(currentSlot.date, "2026-08-29");
   assert.equal(currentSlot.time, "18:00");
-  assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "C # 3").occupiedBy.length, 1);
+  assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "CS 3").occupiedBy.length, 1);
+  assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "CFR 1").occupiedBy.length, 1);
+  assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "CFR 2").occupiedBy.length, 1);
   assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "Tocho").occupiedBy.length, 1);
   assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "Soft 1").pending, true);
   assert.equal(cdb2.facilities[0].courts.find((court) => court.label === "CP # 3").occupiedBy.length, 1);
   assert.equal(cdb2.facilities[0].courts.some((court) => court.label === "CT # 3"), false);
+  assert.equal(cdb2.facilities[0].courts.find((court) => court.label === "CDB 2 VB 1").occupiedBy.length, 1);
+  assert.equal(cdb2.facilities[0].courts.find((court) => court.label === "CDB 2 BB 2").occupiedBy.length, 1);
   assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "Tocho").sport, "Tochito");
   assert.equal(cdb1.facilities[0].courts.find((court) => court.label === "Tocho").ball, "🏈");
-  assert.equal(wellness.facilities[0].courts.find((court) => court.label === "WELL # 1").occupiedBy.length, 1);
-  assert.equal(wellness.facilities[0].courts.find((court) => court.label === "WELL # 2").occupiedBy.length, 0);
+  assert.equal(wellness.facilities[0].courts.find((court) => court.label === "WELL VB 1").occupiedBy.length, 1);
+  assert.equal(wellness.facilities[0].courts.find((court) => court.label === "WELL BB 2").occupiedBy.length, 1);
 });

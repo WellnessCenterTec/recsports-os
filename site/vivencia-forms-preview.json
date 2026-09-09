@@ -1,0 +1,19 @@
+{
+  "source": "Google Forms",
+  "cutoff_date": "2026-08-10",
+  "last_response_at": "2026-09-03T16:24:00-06:00",
+  "response_count": 342,
+  "participant_records": 326,
+  "events": [
+    { "id": "google-forms-kermes-mexicana-2026-09-01", "event_name": "KERMES MEXICANA 1 de septiembre, Jardín de piedra Wellness Center", "event_date": "2026-09-01", "response_count": 263, "participant_records": 254, "women": 82, "men": 57, "unspecified": 115 },
+    { "id": "google-forms-concurso-puzzle-switch-2026-08-20", "event_name": "CONCURSO PUZZLE SWITCH 20 de agosto, Jardín de piedra Wellness Center", "event_date": "2026-08-20", "response_count": 25, "participant_records": 23, "women": 6, "men": 10, "unspecified": 7 },
+    { "id": "google-forms-halloween-run-2026-10-15", "event_name": "Halloween Run 3k 15 de octubre, Centro Deportivo Borregos 1 Vitapista", "event_date": "2026-10-15", "response_count": 25, "participant_records": 20, "women": 4, "men": 4, "unspecified": 12 },
+    { "id": "google-forms-feria-recreativa-2026-08-13", "event_name": "Feria Recreativa 13 de agosto, Jardín de piedra Wellness Center", "event_date": "2026-08-13", "response_count": 14, "participant_records": 14, "women": 2, "men": 8, "unspecified": 4 },
+    { "id": "google-forms-hybrid-race-2026-10-07", "event_name": "HYBRID RACE 7 de octubre, Wellness Center", "event_date": "2026-10-07", "response_count": 4, "participant_records": 4, "women": 1, "men": 1, "unspecified": 2 },
+    { "id": "google-forms-fall-guys-2026-09-29", "event_name": "FALL Guys: Ultimate Knockout 29 de septiembre, Wellness Center Sala Gamer", "event_date": "2026-09-29", "response_count": 4, "participant_records": 4, "women": 0, "men": 1, "unspecified": 3 },
+    { "id": "google-forms-expo-deportes-2026-08-13", "event_name": "Expo Deportes 13 de agosto, Jardín de piedra Wellness Center", "event_date": "2026-08-13", "response_count": 2, "participant_records": 2, "women": 0, "men": 0, "unspecified": 2 },
+    { "id": "google-forms-voleibol-gigante-2026-11-12", "event_name": "VOLEIBOL GIGANTE 12 de noviembre, Arena Wellness", "event_date": "2026-11-12", "response_count": 2, "participant_records": 2, "women": 1, "men": 1, "unspecified": 0 },
+    { "id": "google-forms-combine-borregos-2026-09-10", "event_name": "EVENTO COMBINE BORREGOS 10 de septiembre, Jardín de las carreras", "event_date": "2026-09-10", "response_count": 2, "participant_records": 2, "women": 0, "men": 1, "unspecified": 1 },
+    { "id": "google-forms-dia-de-muertos-2026-11-03", "event_name": "DÍA DE MUERTOS: CALAVERAS LITERARIAS 3 de noviembre, Jardín de Piedra", "event_date": "2026-11-03", "response_count": 1, "participant_records": 1, "women": 0, "men": 1, "unspecified": 0 }
+  ]
+}

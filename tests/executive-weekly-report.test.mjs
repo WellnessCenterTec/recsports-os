@@ -60,7 +60,7 @@ test("every gym week with data receives its strong series color", () => {
   assert.match(styles, /\.exec-report-gym-card\s*\{[^}]*padding:\s*15px 20px;/s);
 });
 
-test("general report PDF uses an isolated one-page landscape export view", () => {
+test("general report PDF uses an isolated one-page portrait export view", () => {
   [
     "printExecutiveGeneralReport()",
     "createExecutiveReportPrintView()",
@@ -76,7 +76,10 @@ test("general report PDF uses an isolated one-page landscape export view", () =>
   assert.ok(source.includes('class="exec-report-attended-total"'), "Attended total must have its own horizontal hero column");
   assert.ok(source.includes('<li><span>Gimnasio</span><strong>'), "Operational module totals must use separated labels and values");
   assert.ok(source.includes('style="--exec-report-intramuros-columns:${Math.max(rows.length, 1)}"'), "Intramuros must expose its tournament count to the layout");
-  assert.match(styles, /@page executive-report-page\s*{\s*size:\s*A4 landscape;\s*margin:\s*4mm;/);
+  assert.match(styles, /\.executive-report-print-root\s*{[^}]*height:\s*289mm;[^}]*width:\s*202mm;/s);
+  assert.match(styles, /\.executive-report-print-sheet\s*{[^}]*height:\s*289mm;[^}]*width:\s*202mm;/s);
+  assert.match(styles, /\.executive-report-print-page\s*{[^}]*width:\s*760px;/s);
+  assert.match(styles, /@page executive-report-page\s*{\s*size:\s*A4 portrait;\s*margin:\s*4mm;/);
   assert.match(styles, /\.executive-report-print-page \.exec-report-attended\s*{[^}]*grid-template-columns:\s*repeat\(2,/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-intramuros-grid\s*{[^}]*grid-template-columns:\s*repeat\(var\(--exec-report-intramuros-columns,/s);
   assert.match(styles, /\.exec-report-intramuros-grid article\s*{[^}]*display:\s*grid;[^}]*justify-items:\s*center/s, "Intramuros labels and totals must stack without overlapping");
@@ -135,12 +138,12 @@ test("repeated module totals are replaced by actionable comparisons", () => {
   assert.match(styles, /@media \(max-width: 520px\)[\s\S]*?\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*1fr/s, "Insight cards must stack on narrow screens");
 });
 
-test("Vivencia shows the five latest participant uploads instead of upcoming events", () => {
+test("Vivencia shows the eight latest participant uploads instead of upcoming events", () => {
   const historyFunction = source.slice(
     source.indexOf("function executiveVivenciaUploadHistory"),
     source.indexOf("function executiveSemanaTecGroupCounts")
   );
-  assert.match(historyFunction, /vivenciaParticipantUploads[\s\S]*?second - first[\s\S]*?\.slice\(0, 5\)/);
+  assert.match(historyFunction, /vivenciaParticipantUploads[\s\S]*?second - first[\s\S]*?\.slice\(0, 8\)/);
   assert.match(source, /Vivencia · últimas cargas/);
   assert.match(source, /upload\.eventName[\s\S]*?exec-insight-vivencia-meta[\s\S]*?upload\.uploadDate[\s\S]*?upload\.totalLoaded/);
   assert.doesNotMatch(source, /Vivencia · próximos eventos|Sin próximos eventos con fecha/);
@@ -160,7 +163,8 @@ test("mentor communities appear as a vertical top seven in the three-card insigh
   assert.match(source, /mentorCommunities\.map\(\(row, index\)[\s\S]*?\$\{index \+ 1\}[\s\S]*?alumnos/, "Community ranking must render vertically from 1 to 7");
   assert.match(styles, /\.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
   assert.match(styles, /\.exec-report-insight-grid > article:nth-last-child\(-n \+ 3\)\s*\{[^}]*grid-column:\s*span 2;/s);
-  assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
+  assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
+  assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid > article:last-child\s*\{[^}]*grid-column:\s*1 \/ -1;/s);
   assert.match(styles, /\.exec-insight-mentor-communities ol\s*\{[^}]*display:\s*grid;/s);
   assert.match(source, /function executiveMentorCommunityLogo[\s\S]*?assets\/community-logos/);
   assert.match(source, /<img class="exec-mentor-community-logo"[\s\S]*?alt="\$\{escapeHtml\(row\.label\)\}"/);

@@ -819,6 +819,8 @@ let vivenciaEventImages = [];
 let vivenciaDashboardSettings = { impact_goal: 3800 };
 let vivenciaEventsLoaded = false;
 let vivenciaEventsAvailable = true;
+let vivenciaFormsFeed = null;
+let vivenciaFormsFeedError = "";
 let planningCalendarRows = [];
 let planningCalendarLoaded = false;
 let planningCalendarError = "";
@@ -2866,7 +2868,24 @@ async function loadVivenciaParticipantDetails() {
   return { data: rows, error: null, count: rows.length };
 }
 
+async function loadVivenciaFormsFeed() {
+  const feedUrl = String(window.RECSPORTS_ENV?.VIVENCIA_FORMS_FEED_URL || "").trim();
+  vivenciaFormsFeed = null;
+  vivenciaFormsFeedError = "";
+  if (!feedUrl || !window.WellSyncVivenciaFormsFeed) return;
+  try {
+    const separator = feedUrl.includes("?") ? "&" : "?";
+    const response = await fetch(`${feedUrl}${separator}fresh=${Date.now()}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    vivenciaFormsFeed = window.WellSyncVivenciaFormsFeed.normalizeFeed(await response.json(), { cutoffDate: "2026-08-10" });
+  } catch (error) {
+    vivenciaFormsFeedError = "No se pudo actualizar la fuente de Google Forms";
+    console.warn(vivenciaFormsFeedError, error);
+  }
+}
+
 async function loadVivenciaEvents() {
+  await loadVivenciaFormsFeed();
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const { data, error } = await supabaseClient
     .from("vivencia_events")
@@ -7603,9 +7622,23 @@ function gymAttendanceWeeklySummary(facility) {
   return Array.from(rowsByWeek.values()).sort((a, b) => a.week - b.week);
 }
 
+function gymAttendanceDayPeaks(rows) {
+  return GYM_DAYS.reduce((acc, day) => {
+    acc[day] = Math.max(0, ...rows.map((row) => Number(row?.days?.[day] || 0)));
+    return acc;
+  }, {});
+}
+
+function gymAttendanceDayCell(row, day, dayPeaks) {
+  const value = Number(row?.days?.[day] || 0);
+  const peakClass = value > 0 && value === Number(dayPeaks?.[day] || 0) ? "gym-day-peak" : "";
+  return `<td${peakClass ? ` class="${peakClass}"` : ""}>${value ? formatCount(value) : ""}</td>`;
+}
+
 function renderGymFacilityAttendanceTable(facility) {
   const rows = gymAttendanceWeeklySummary(facility);
   const total = rows.reduce((sum, row) => sum + row.total, 0);
+  const dayPeaks = gymAttendanceDayPeaks(rows);
   const dayTotals = GYM_DAYS.reduce((acc, day) => {
     acc[day] = rows.reduce((sum, row) => sum + Number(row.days[day] || 0), 0);
     return acc;
@@ -7633,7 +7666,7 @@ function renderGymFacilityAttendanceTable(facility) {
                 <td>${index + 1}</td>
                 <td>${escapeHtml(row.label)}</td>
                 <td><strong>${formatCount(row.total)}</strong></td>
-                ${GYM_DAYS.map((day) => `<td>${row.days[day] ? formatCount(row.days[day]) : ""}</td>`).join("")}
+                ${GYM_DAYS.map((day) => gymAttendanceDayCell(row, day, dayPeaks)).join("")}
               </tr>
             `).join("") : `<tr><td colspan="10">Sin asistencias cargadas para ${escapeHtml(facility)}.</td></tr>`}
           </tbody>
@@ -7671,7 +7704,9 @@ function renderGymCombinedAttendanceTable() {
   });
   const wellnessTotals = totalsFor(wellnessRows);
   const emisTotals = totalsFor(emisRows);
-  const dayCells = (row) => GYM_DAYS.map((day) => `<td>${row?.days?.[day] ? formatCount(row.days[day]) : ""}</td>`).join("");
+  const wellnessDayPeaks = gymAttendanceDayPeaks(wellnessRows);
+  const emisDayPeaks = gymAttendanceDayPeaks(emisRows);
+  const dayCells = (row, dayPeaks) => GYM_DAYS.map((day) => gymAttendanceDayCell(row, day, dayPeaks)).join("");
   return `
     <div class="table-wrap gym-attendance-combined-wrap">
       <table class="gym-attendance-combined-table">
@@ -7696,11 +7731,11 @@ function renderGymCombinedAttendanceTable() {
                 <td>${index + 1}</td>
                 <td>${escapeHtml(wellness.label)}</td>
                 <td><strong>${wellness.total ? formatCount(wellness.total) : ""}</strong></td>
-                ${dayCells(wellness)}
+                ${dayCells(wellness, wellnessDayPeaks)}
                 <td class="gym-table-gap"></td>
                 <td>${escapeHtml(emis.label)}</td>
                 <td><strong>${emis.total ? formatCount(emis.total) : ""}</strong></td>
-                ${dayCells(emis)}
+                ${dayCells(emis, emisDayPeaks)}
               </tr>
             `;
           }).join("") : `<tr><td colspan="20">Sin asistencias cargadas todavía.</td></tr>`}
@@ -11278,7 +11313,7 @@ function executiveVivenciaUploadHistory() {
       const second = new Date(b.upload_date || b.created_at || 0).getTime() || 0;
       return second - first;
     })
-    .slice(0, 5)
+    .slice(0, 8)
     .map((row) => ({
       ...row,
       eventName: eventsById.get(row.event_id)?.event_name || "Evento no encontrado",
@@ -11950,7 +11985,7 @@ function renderIntramurosExecutiveBars(title, rows, options = {}) {
 function renderIntramurosProgressCard(summaries) {
   const orderedSummaries = [...summaries].sort((a, b) => (
     Number(b.progress || 0) - Number(a.progress || 0)
-    || Number(b.totalParticipants || 0) - Number(a.totalParticipants || 0)
+    || Number(b.games || 0) - Number(a.games || 0)
     || String(a.torneo || "").localeCompare(String(b.torneo || ""), "es-MX")
   ));
   return `
@@ -11973,9 +12008,9 @@ function renderIntramurosProgressCard(summaries) {
 }
 
 function renderIntramurosExecutiveCharts(rows) {
-  const summaries = intramurosTournamentSummaries()
+  const summaries = intramurosRoleTournamentProgressRows()
     .filter((row) => intramurosFilters.tournament === "todos" || row.torneo === intramurosFilters.tournament)
-    .sort((a, b) => b.totalParticipants - a.totalParticipants);
+    .sort((a, b) => b.games - a.games);
   return `
     <div class="intramuros-exec-grid">
       ${renderIntramurosSchoolGenderCard(rows)}
@@ -12165,6 +12200,59 @@ function intramurosRoleDay(row) {
   return Number.isNaN(date.getTime()) ? "Sin fecha" : date.toLocaleDateString("es-MX", { weekday: "long" });
 }
 
+function intramurosRoleBranchBuckets(value) {
+  const branch = normalizeText(value);
+  const tokens = branch.split(/[^a-z0-9]+/).filter(Boolean);
+  const buckets = [];
+  if (branch.includes("var") || branch.includes("masc") || branch.includes("hombre") || tokens.includes("v")) buckets.push("varonil");
+  if (branch.includes("fem") || branch.includes("mujer") || tokens.includes("f")) buckets.push("femenil");
+  if (branch.includes("mixt") || tokens.includes("mix") || tokens.includes("m")) buckets.push("mixto");
+  return buckets;
+}
+
+function intramurosRoleTournamentProgressRows(rows = intramurosGameRoles) {
+  const tournaments = new Map();
+  rows.filter(intramurosRoleIsGame).forEach((row) => {
+    const torneo = canonicalIntramurosTournament(row.torneo);
+    if (!torneo || torneo === "Sin torneo") return;
+    if (!tournaments.has(torneo)) tournaments.set(torneo, {
+      torneo,
+      games: 0,
+      withResult: 0,
+      teams: new Set(),
+      branchTeams: { varonil: new Set(), femenil: new Set(), mixto: new Set() }
+    });
+    const summary = tournaments.get(torneo);
+    const teams = [row.equipo_local, row.equipo_visitante].map((team) => String(team || "").trim()).filter(Boolean);
+    const branches = intramurosRoleBranchBuckets(row.rama);
+    summary.games += 1;
+    if (intramurosRoleHasResult(row)) summary.withResult += 1;
+    teams.forEach((team) => summary.teams.add(headerKey(team)));
+    branches.forEach((branch) => teams.forEach((team) => summary.branchTeams[branch].add(headerKey(team))));
+  });
+  return Array.from(tournaments.values()).map((summary) => {
+    const progress = summary.games ? Math.round((summary.withResult / summary.games) * 100) : 0;
+    const activeBranches = [
+      ["varonil", "Varonil"],
+      ["femenil", "Femenil"],
+      ["mixto", "Mixto"]
+    ].filter(([branch]) => summary.branchTeams[branch].size).map(([, label]) => label);
+    return {
+      torneo: summary.torneo,
+      rama: activeBranches.join(", ") || "Sin rama",
+      teams: summary.teams.size,
+      games: summary.games,
+      withResult: summary.withResult,
+      pending: Math.max(0, summary.games - summary.withResult),
+      varonilTeams: summary.branchTeams.varonil.size,
+      femenilTeams: summary.branchTeams.femenil.size,
+      mixtoTeams: summary.branchTeams.mixto.size,
+      progress,
+      status: progress >= 100 ? "Cerrado" : progress ? "En curso" : "Programado"
+    };
+  });
+}
+
 function intramurosTournamentSummaries() {
   const participantRows = intramurosParticipantAnalyticsRows().filter(intramurosHasNamedTournament);
   const tournamentNames = Array.from(new Set([
@@ -12297,8 +12385,8 @@ const INTRAMUROS_FACILITY_COURTS = [
     label: "CDB1",
     courts: [
       ["Tocho", ["tocho"], "Tochito", "tochito"], ["Soft 1", ["soft1"], "Fútbol 7", "futbol7"], ["Soft 2", ["soft2"], "Fútbol 7", "futbol7"],
-      ["C # 4", ["c4"], "Fútbol soccer", "soccer"], ["C # 3", ["c3"], "Fútbol soccer", "soccer"],
-      ["C # 1 FR", ["c1fr"], "Fútbol rápido", "futbolrapido"], ["C # 2 FR", ["c2fr"], "Fútbol rápido", "futbolrapido"]
+      ["CS 4", ["c4", "fs4", "cs4"], "Fútbol soccer", "soccer"], ["CS 3", ["c3", "fs3", "cs3"], "Fútbol soccer", "soccer"],
+      ["CFR 1", ["c1fr", "cfr1"], "Fútbol rápido", "futbolrapido"], ["CFR 2", ["c2fr", "cfr2"], "Fútbol rápido", "futbolrapido"]
     ]
   },
   {
@@ -12308,13 +12396,13 @@ const INTRAMUROS_FACILITY_COURTS = [
       ["CP # 1", ["cp1"], "Pádel", "padel"], ["CP # 2", ["cp2"], "Pádel", "padel"], ["CP # 3", ["cp3"], "Pádel", "padel"], ["CP # 4", ["cp4"], "Pádel", "padel"],
       ["CT # 1", ["ct1"], "Tenis", "tenis"], ["CT # 2", ["ct2"], "Tenis", "tenis"], ["CT # 4", ["ct4"], "Tenis", "tenis"], ["CT # 5", ["ct5"], "Tenis", "tenis"],
       ["CT # 6", ["ct6"], "Tenis", "tenis"], ["CT # 7", ["ct7"], "Tenis", "tenis"], ["CT # 8", ["ct8"], "Tenis", "tenis"], ["CT # 9", ["ct9"], "Tenis", "tenis"], ["CT # 10", ["ct10"], "Tenis", "tenis"],
-      ["VB Playa", ["vbplaya"], "Voleibol de playa", "voleibolplaya"], ["CDB 2 # 1", ["cdb21"], "Voleibol", "voleibol"], ["CDB 2 # 2", ["cdb22"], "Básquetbol", "basquetbol"]
+      ["VB Playa", ["vbplaya"], "Voleibol de playa", "voleibolplaya"], ["CDB 2 VB 1", ["cdb21", "cdb2vb1"], "Voleibol", "voleibol"], ["CDB 2 BB 2", ["cdb22", "cdb2bb2"], "Básquetbol", "basquetbol"]
     ]
   },
   {
     id: "WELLNESS",
     label: "Wellness",
-    courts: [["WELL # 1", ["well1vb"], "Voleibol", "voleibol"], ["WELL # 2", ["well1bb"], "Básquetbol", "basquetbol"]]
+    courts: [["WELL VB 1", ["well1vb", "wellvoley1", "wellvb1"], "Voleibol", "voleibol"], ["WELL BB 2", ["well1bb", "wellbask", "wellbb2"], "Básquetbol", "basquetbol"]]
   }
 ].map((facility) => ({ ...facility, courts: facility.courts.map(([label, aliases, sport, sportClass]) => ({ label, aliases, sport, sportClass })) }));
 
@@ -12340,7 +12428,7 @@ function intramurosRoleCourtMapMatches(row, facility, court) {
   const tournament = normalizeText(row.torneo);
   const looseCourt = courtName.match(/^c(\d+)$/)?.[1] || "";
   if (looseCourt) {
-    if (facility.id === "CDB1") return court.label === `C # ${looseCourt}` && !/padel|tenis/.test(tournament);
+    if (facility.id === "CDB1") return court.aliases.includes(`c${looseCourt}`) && !/padel|tenis/.test(tournament);
     if (facility.id !== "CDB2") return false;
     if (/padel/.test(tournament)) return court.label === `CP # ${looseCourt}`;
     if (/tenis/.test(tournament)) return court.label === `CT # ${looseCourt}`;
@@ -12752,7 +12840,7 @@ function renderIntramurosOmarWorkspace() {
 }
 
 function renderTournamentCards(eligibilityAlerts = []) {
-  const summaries = intramurosTournamentSummaries();
+  const summaries = intramurosRoleTournamentProgressRows();
   return `
     <section class="intramuros-tournament-section">
       <div class="budget-table-heading">
@@ -12765,22 +12853,22 @@ function renderTournamentCards(eligibilityAlerts = []) {
             <div><h3>${escapeHtml(row.torneo)}</h3><span>${escapeHtml(row.status)}</span></div>
             <p>${escapeHtml(row.rama)}</p>
             <dl>
-              <div><dt>Participantes</dt><dd>${row.totalParticipants}</dd></div>
               <div><dt>Equipos</dt><dd>${row.teams}</dd></div>
               <div><dt>Juegos</dt><dd>${row.games}</dd></div>
               <div><dt>Con resultado</dt><dd>${row.withResult}</dd></div>
+              <div><dt>Pendientes</dt><dd>${row.pending}</dd></div>
             </dl>
-            <small class="intramuros-tournament-branches-title">Participantes por rama</small>
-            <div class="intramuros-tournament-branches" aria-label="Participantes por rama">
-              <span>Varonil <b>${row.varonil}</b></span>
-              <span>Femenil <b>${row.femenil}</b></span>
-              <span>Mixto <b>${row.mixto}</b></span>
+            <small class="intramuros-tournament-branches-title">Equipos por rama</small>
+            <div class="intramuros-tournament-branches" aria-label="Equipos por rama">
+              <span>Varonil <b>${row.varonilTeams}</b></span>
+              <span>Femenil <b>${row.femenilTeams}</b></span>
+              <span>Mixto <b>${row.mixtoTeams}</b></span>
             </div>
             <div class="budget-area-track"><span style="width:${row.progress}%"></span></div>
             <strong>${row.progress}% avance</strong>
             <button class="primary-btn compact-action" type="button" data-open-intramuros-tournament="${escapeHtml(row.torneo)}">Abrir expediente</button>
           </article>
-        `).join("") : `<div class="upload-empty">Carga participantes o roles para ver expedientes.</div>`}
+        `).join("") : `<div class="upload-empty">Carga roles de juego para ver expedientes.</div>`}
         ${renderIntramurosRepresentativeEligibilityAlerts(eligibilityAlerts, { compact: true })}
       </div>
     </section>
@@ -16800,8 +16888,8 @@ function vivenciaImagesForEvent(eventId) {
   return vivenciaEventImages.filter((image) => image.event_id === eventId);
 }
 
-function renderVivenciaGenderBreakdown(events, metricsByEvent = vivenciaEventMetricMap()) {
-  const rows = vivenciaGenderRows(events, metricsByEvent);
+function renderVivenciaGenderBreakdown(events, metricsByEvent = vivenciaEventMetricMap(), sourceRows = null) {
+  const rows = Array.isArray(sourceRows) ? sourceRows : vivenciaGenderRows(events, metricsByEvent);
   const total = rows.reduce((sum, row) => sum + row.value, 0);
   const gradient = total
     ? rows.reduce((parts, row, index) => {
@@ -17130,6 +17218,7 @@ function renderVivenciaTopEvents(events, metricsByEvent) {
 }
 
 function renderVivenciaRegisteredEventGallery(events, metricsByEvent, editable) {
+  if (vivenciaFormsFeed?.events?.length) return renderVivenciaFormsEventGallery(events, editable);
   const registered = events
     .filter((event) => vivenciaEventParticipants(event.id).length > 0)
     .slice()
@@ -17165,6 +17254,79 @@ function renderVivenciaRegisteredEventGallery(events, metricsByEvent, editable) 
         }).join("")}
       </div><input id="vivenciaDashboardImageFile" type="file" accept="image/jpeg,image/png,image/webp" hidden />`
         : `<div class="vivencia-empty-mini">Los eventos aparecerán aquí al contar con matrículas registradas.</div>`}
+    </section>
+  `;
+}
+
+function vivenciaFormsDateLabel(value) {
+  const date = new Date(`${value || ""}T12:00:00`);
+  return Number.isNaN(date.getTime())
+    ? "Sin fecha"
+    : date.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function vivenciaFormsUpdatedLabel(value) {
+  const date = new Date(value || "");
+  return Number.isNaN(date.getTime())
+    ? "Actualización pendiente"
+    : `Actualizado ${date.toLocaleDateString("es-MX", { day: "numeric", month: "short" })}, ${date.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit" })}`;
+}
+
+function vivenciaFormsMatchingStoredEvent(formEvent, events) {
+  const sameDate = events.filter((event) => event.event_date === formEvent.event_date);
+  if (sameDate.length === 1) return sameDate[0];
+  const sourceTokens = new Set(normalizeText(formEvent.event_name).split(" ").filter((token) => token.length > 3));
+  return sameDate
+    .map((event) => ({ event, overlap: normalizeText(event.event_name).split(" ").filter((token) => sourceTokens.has(token)).length }))
+    .sort((first, second) => second.overlap - first.overlap)[0]?.event || null;
+}
+
+function renderVivenciaFormsEventGallery(events, editable) {
+  const feed = vivenciaFormsFeed;
+  const registered = feed.events.slice().sort((first, second) => String(second.event_date).localeCompare(String(first.event_date)));
+  const sourceUrl = String(window.RECSPORTS_ENV?.VIVENCIA_FORMS_SOURCE_URL || "").trim();
+  return `
+    <section class="chart-panel vivencia-registered-gallery vivencia-forms-gallery">
+      <div class="chart-title-row">
+        <div><p class="eyebrow">Evidencia de eventos</p><h3>Registros recibidos desde Google Forms</h3></div>
+        <span>${registered.length.toLocaleString("es-MX")} eventos · ${feed.participant_records.toLocaleString("es-MX")} matrículas únicas</span>
+      </div>
+      <div class="vivencia-forms-source-status">
+        <div class="vivencia-forms-source-icon"><i data-lucide="refresh-cw" aria-hidden="true"></i></div>
+        <div>
+          <strong>Fuente automática configurada</strong>
+          <span>Solo considera respuestas desde el 10 de agosto de 2026. ${feed.response_count.toLocaleString("es-MX")} respuestas recibidas; ${Math.max(0, feed.response_count - feed.participant_records).toLocaleString("es-MX")} duplicadas dentro del mismo evento.</span>
+        </div>
+        <div class="vivencia-forms-source-meta">
+          <b>${escapeHtml(vivenciaFormsUpdatedLabel(feed.last_response_at))}</b>
+          ${sourceUrl ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">Abrir hoja origen</a>` : ""}
+        </div>
+      </div>
+      <div class="vivencia-forms-privacy-note"><i data-lucide="shield-check" aria-hidden="true"></i><span>WellSync no muestra nombres ni correos. Género cruzado por matrícula con la base institucional: 96 mujeres, 84 hombres y 146 registros sin dato.</span></div>
+      <div class="vivencia-registered-grid">
+        ${registered.map((event) => {
+          const storedEvent = vivenciaFormsMatchingStoredEvent(event, events);
+          const image = storedEvent ? vivenciaImagesForEvent(storedEvent.id)[0] : null;
+          const genderReady = event.women != null && event.men != null;
+          return `<article class="vivencia-registered-card vivencia-forms-card">
+            <div class="vivencia-registered-image">${image?.public_url
+              ? `<img src="${escapeHtml(image.public_url)}" alt="Evidencia de ${escapeHtml(event.event_name)}" />`
+              : `<span aria-hidden="true"><i data-lucide="clipboard-list"></i></span>`}</div>
+            <div class="vivencia-registered-content">
+              <time>${escapeHtml(vivenciaFormsDateLabel(event.event_date))}</time>
+              <h4 title="${escapeHtml(event.event_name)}">${escapeHtml(event.event_name)}</h4>
+              <div class="vivencia-registered-stats">
+                <span><b>${event.participant_records.toLocaleString("es-MX")}</b> registros</span>
+                <span class="${genderReady ? "" : "pending"}"><b>${genderReady ? event.women.toLocaleString("es-MX") : "—"}</b> mujeres</span>
+                <span class="${genderReady ? "" : "pending"}"><b>${genderReady ? event.men.toLocaleString("es-MX") : "—"}</b> hombres</span>
+              </div>
+              <small class="vivencia-forms-duplicates">${event.response_count > event.participant_records ? `${(event.response_count - event.participant_records).toLocaleString("es-MX")} respuesta(s) duplicada(s) excluida(s) · ` : ""}${Number(event.unspecified || 0).toLocaleString("es-MX")} sin dato de género</small>
+              <button type="button" class="ghost-btn compact-action" data-vivencia-card-image-upload="${escapeHtml(storedEvent?.id || "")}" ${editable && storedEvent ? "" : "disabled"}><i data-lucide="image-up" aria-hidden="true"></i>${image ? "Cambiar imagen" : "Cargar imagen"}</button>
+            </div>
+          </article>`;
+        }).join("")}
+      </div>
+      <input id="vivenciaDashboardImageFile" type="file" accept="image/jpeg,image/png,image/webp" hidden />
     </section>
   `;
 }
@@ -17543,23 +17705,28 @@ function renderVivenciaDashboard() {
     vivenciaParticipants.map((participant) => normalizeMatricula(participant.matricula)).filter(Boolean)
   );
   const identifiedParticipantCount = Math.max(uniqueMatriculas.size, uniqueImportedReferences.size, vivenciaParticipantDetailsCount);
-  const participantTotal = metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
+  const formsParticipantTotal = Number(vivenciaFormsFeed?.participant_records || 0);
+  const participantTotal = formsParticipantTotal || metrics.reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
   const impactCount = participantTotal;
-  const impactBasis = "participaciones reportadas";
+  const impactBasis = formsParticipantTotal ? "matrículas únicas de Google Forms" : "participaciones reportadas";
+  const identifiedCount = formsParticipantTotal || identifiedParticipantCount;
+  const genderRows = vivenciaFormsFeed?.events?.length && window.WellSyncVivenciaFormsFeed
+    ? window.WellSyncVivenciaFormsFeed.genderRows(vivenciaFormsFeed)
+    : null;
   const calendarDate = vivenciaCalendarBaseDate(events);
   const editable = canEditArea("vivencia");
   return `
     <section class="vivencia-dashboard">
       <div class="kpi-grid vivencia-kpi-strip">
         <div class="kpi"><span>Eventos del semestre</span><strong>${events.length}</strong><em>desde Planeación/Vivencia</em></div>
-        <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${participantTotal ? "por registros" : "sin participantes cargados"}</em></div>
-        <div class="kpi"><span>${uniqueMatriculas.size ? "Matrículas únicas identificadas" : "Participantes identificados"}</span><strong>${identifiedParticipantCount.toLocaleString("es-MX")}</strong></div>
+        <div class="kpi"><span>Participaciones totales</span><strong>${participantTotal}</strong><em>${formsParticipantTotal ? "desde Google Forms" : (participantTotal ? "por registros" : "sin participantes cargados")}</em></div>
+        <div class="kpi"><span>${formsParticipantTotal || uniqueMatriculas.size ? "Matrículas únicas identificadas" : "Participantes identificados"}</span><strong>${identifiedCount.toLocaleString("es-MX")}</strong></div>
         <div class="kpi"><span>Avance de meta</span><strong>${Math.round((impactCount / Math.max(Number(vivenciaDashboardSettings.impact_goal || 3800), 1)) * 100)}%</strong><em>sobre ${escapeHtml(impactBasis)}</em></div>
       </div>
       <div class="vivencia-dashboard-grid">
         ${renderVivenciaCalendar(events, calendarDate)}
         ${renderVivenciaImpactGoal(impactCount, editable, impactBasis)}
-        ${renderVivenciaGenderBreakdown(events, metricsByEvent)}
+        ${renderVivenciaGenderBreakdown(events, metricsByEvent, genderRows)}
         ${renderVivenciaRegisteredEventGallery(events, metricsByEvent, editable)}
       </div>
     </section>
@@ -18841,14 +19008,14 @@ function renderVivenciaEventsView() {
               ${vivenciaPlanningSyncing ? "Sincronizando..." : "Sincronizar eventos"}
             </button>
           </div>
-          <div class="vivencia-bulk-upload">
+          <div class="vivencia-bulk-upload vivencia-forms-control">
             <div>
-              <strong>Carga de participantes</strong>
-              <span>Selecciona un evento y sube matriculas. Se ignoran duplicados dentro del mismo evento.</span>
+              <strong>Registro automático desde Google Forms</strong>
+              <span>WellSync toma únicamente las respuestas recibidas desde el 10 de agosto de 2026 y excluye duplicados dentro del mismo evento.</span>
             </div>
             <div class="vivencia-upload-actions">
-              <button class="primary-btn" id="openVivenciaParticipantsModal" type="button" ${editable && vivenciaEvents.length ? "" : "disabled"}>Cargar participantes</button>
-              <button class="ghost-btn" type="button" data-download-event-participants-template="vivencia">Descargar plantilla</button>
+              <span class="vivencia-forms-control-status ${vivenciaFormsFeedError ? "error" : ""}">${vivenciaFormsFeedError || (vivenciaFormsFeed?.last_response_at ? vivenciaFormsUpdatedLabel(vivenciaFormsFeed.last_response_at) : "Fuente pendiente")}</span>
+              ${window.RECSPORTS_ENV?.VIVENCIA_FORMS_SOURCE_URL ? `<a class="ghost-btn" href="${escapeHtml(window.RECSPORTS_ENV.VIVENCIA_FORMS_SOURCE_URL)}" target="_blank" rel="noopener noreferrer">Abrir hoja</a>` : ""}
             </div>
           </div>
         </article>
