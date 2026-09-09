@@ -34,7 +34,7 @@ test("slide four loads the activity helper and renders the expanded activity age
     readFile(new URL("../site/app.js", import.meta.url), "utf8")
   ]);
 
-  assert.match(index, /presentation-activities\.js\?v=20260818-block-activities-v1[^]*app\.js\?v=20260909-improvement-history-v1/);
+  assert.match(index, /presentation-activities\.js\?v=20260818-block-activities-v1[^]*app\.js\?v=20260909-presentation-designs-v1/);
   assert.match(app, /upcomingActivities\([^]*new Date\(\),\s*12\s*\)/);
   assert.match(app, /Agenda próxima/);
   assert.match(app, /Fecha · día/);

@@ -599,6 +599,7 @@ let moduleDataCoordinator = null;
 let moduleDataPlan = null;
 const EXECUTIVE_PRESENTATION_STORAGE_KEY = "wellsync_executive_presentation_notes";
 const EXECUTIVE_PRESENTATION_PENDING_SYNC_KEY = "wellsync_executive_presentation_pending_sync";
+const EXECUTIVE_PRESENTATION_DESIGN_STORAGE_KEY = "wellsync_executive_presentation_design_v1";
 const EXECUTIVE_PRESENTATION_SLIDES = [
   { key: "cover", title: "Portada", icon: "presentation" },
   { key: "general-indicators", title: "Calendario escolar", icon: "calendar-days" },
@@ -635,6 +636,12 @@ const EXECUTIVE_PRESENTATION_EDIT_FIELDS = {
     ["special_topic_points", "Puntos del tema", "Un punto por línea"]
   ]
 };
+const EXECUTIVE_PRESENTATION_DESIGNS = [
+  { id: "institutional", label: "Institucional", colors: ["#082b55", "#0a66b7", "#ffffff"] },
+  { id: "ocean", label: "Océano", colors: ["#073b4c", "#13a8a8", "#dff7f6"] },
+  { id: "energy", label: "Energía", colors: ["#5b214e", "#ef6c4d", "#ffd166"] },
+  { id: "forest", label: "Bosque", colors: ["#174c3c", "#2f936b", "#d8a928"] }
+];
 const MAX_PRESENTATION_SELECTION = 3;
 let executivePresentationIndex = 0;
 let executivePresentationMode = false;
@@ -643,6 +650,8 @@ let executivePresentationEditingSlide = "priorities";
 let executivePresentationCloudAvailable = true;
 let executivePresentationSaving = false;
 let executivePresentationNotes = loadExecutivePresentationLocalNotes();
+let executivePresentationDesign = loadExecutivePresentationDesign();
+let executivePresentationDesignScope = "all";
 const presentationHistoryApi = window.WellSyncPresentationHistory;
 const presentationPrioritiesApi = window.WellSyncPresentationPriorities;
 const presentationBirthdaysApi = window.WellSyncPresentationBirthdays;
@@ -660,6 +669,34 @@ let executivePresentationHistoryViewer = null;
 let executivePresentationHistoryViewerIndex = 0;
 let executivePresentationHistoryReuseTarget = null;
 let executivePresentationHistoryReturnFocus = null;
+
+function normalizeExecutivePresentationDesign(value) {
+  return EXECUTIVE_PRESENTATION_DESIGNS.some((design) => design.id === value) ? value : "institutional";
+}
+
+function loadExecutivePresentationDesign() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(EXECUTIVE_PRESENTATION_DESIGN_STORAGE_KEY) || "{}");
+    const slides = stored.slides && typeof stored.slides === "object" && !Array.isArray(stored.slides)
+      ? Object.fromEntries(Object.entries(stored.slides).map(([key, value]) => [key, normalizeExecutivePresentationDesign(value)]))
+      : {};
+    return { global: normalizeExecutivePresentationDesign(stored.global), slides };
+  } catch {
+    return { global: "institutional", slides: {} };
+  }
+}
+
+function saveExecutivePresentationDesign() {
+  try {
+    localStorage.setItem(EXECUTIVE_PRESENTATION_DESIGN_STORAGE_KEY, JSON.stringify(executivePresentationDesign));
+  } catch (error) {
+    console.warn("No se pudo guardar el diseño de la presentación", error);
+  }
+}
+
+function executivePresentationDesignForSlide(slideKey) {
+  return normalizeExecutivePresentationDesign(executivePresentationDesign.slides?.[slideKey] || executivePresentationDesign.global);
+}
 let presentationInventoryDraft = null;
 let presentationFeedbackDraft = null;
 let presentationMapImageDraft = null;
@@ -13757,7 +13794,8 @@ function renderExecutivePresentationSlide(slide, index) {
       ? `<div class="executive-presentation-special-topic"><header><span>Tema de la semana</span><h3>${escapeHtml(specialTitle || "Tema especial")}</h3><p>Ideas clave, decisiones y contexto para conversar en la junta.</p></header><div>${specialPoints.map((point, pointIndex) => `<article><b>${pointIndex + 1}</b><span>${escapeHtml(point)}</span></article>`).join("") || `<article class="empty"><span>Agrega los puntos principales desde Editar contenido.</span></article>`}</div></div>`
       : presentationEmptyState("Tema especial pendiente de capturar");
   }
-  return `<article class="executive-presentation-slide" data-slide-key="${slide.key}" aria-label="Diapositiva ${index + 1}: ${escapeHtml(slide.title)}"><header><div class="executive-presentation-number">${index + 1}</div><div><h2>${escapeHtml(slide.title)}</h2><p>${index === 0 ? "Junta semanal" : presentationWeekKey()}</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></header><div class="executive-presentation-slide-body">${body}</div><footer>WellSync · Dirección Deportiva</footer></article>`;
+  const design = executivePresentationDesignForSlide(slide.key);
+  return `<article class="executive-presentation-slide" data-slide-key="${slide.key}" data-presentation-design="${design}" aria-label="Diapositiva ${index + 1}: ${escapeHtml(slide.title)}"><header><div class="executive-presentation-number">${index + 1}</div><div><h2>${escapeHtml(slide.title)}</h2><p>${index === 0 ? "Junta semanal" : presentationWeekKey()}</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></header><div class="executive-presentation-slide-body">${body}</div><footer>WellSync · Dirección Deportiva</footer></article>`;
 }
 
 function renderPresentationCloudState() {
@@ -13844,6 +13882,23 @@ function renderExecutivePresentationPreview() {
   `;
 }
 
+function renderExecutivePresentationDesignPicker() {
+  const selectedSlide = EXECUTIVE_PRESENTATION_SLIDES[executivePresentationIndex];
+  const activeDesign = executivePresentationDesignScope === "slide"
+    ? executivePresentationDesignForSlide(selectedSlide.key)
+    : normalizeExecutivePresentationDesign(executivePresentationDesign.global);
+  return `<section class="executive-presentation-design-picker" aria-labelledby="presentationDesignTitle">
+    <header>
+      <div><p class="eyebrow">Apariencia</p><h3 id="presentationDesignTitle">Cambiar diseño</h3><span>Modifica únicamente colores y superficies; la información permanece intacta.</span></div>
+      <label>Aplicar a<select data-presentation-design-scope><option value="all" ${executivePresentationDesignScope === "all" ? "selected" : ""}>Toda la presentación</option><option value="slide" ${executivePresentationDesignScope === "slide" ? "selected" : ""}>Diapositiva ${executivePresentationIndex + 1}: ${escapeHtml(selectedSlide.title)}</option></select></label>
+    </header>
+    <div class="executive-presentation-design-options">
+      ${EXECUTIVE_PRESENTATION_DESIGNS.map((design) => `<button type="button" class="${design.id === activeDesign ? "selected" : ""}" aria-pressed="${design.id === activeDesign}" data-presentation-design-option="${design.id}"><span>${design.colors.map((color) => `<i style="background:${color}"></i>`).join("")}</span><strong>${escapeHtml(design.label)}</strong><em>${design.id === activeDesign ? "Activo" : "Aplicar"}</em></button>`).join("")}
+      <button type="button" class="executive-presentation-design-reset" data-presentation-design-reset><span>↺</span><strong>Restablecer</strong><em>${executivePresentationDesignScope === "slide" ? "Esta diapositiva" : "Toda la presentación"}</em></button>
+    </div>
+  </section>`;
+}
+
 function sanitizePresentationSnapshotHtml(html) {
   const template = document.createElement("template");
   template.innerHTML = String(html || "");
@@ -13896,7 +13951,7 @@ function renderPresentationHistoryReuseDialog() {
 }
 
 function renderExecutivePresentationHub() {
-  return `<section class="executive-presentation-hub"><div class="executive-presentation-hero"><div><p class="eyebrow">WellSync · Dirección Deportiva</p><h2>Presentación Ejecutiva</h2><p>Datos automáticos del sistema y contenido editable por semana, en una sola junta.</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div><div class="executive-presentation-template-grid"><article class="executive-presentation-template active executive-presentation-template-summary"><div><span>Formato activo · ${escapeHtml(presentationWeekKey())}</span><h3>Junta semanal híbrida</h3><p>12 diapositivas: indicadores, presupuesto, calendario, desempeño y equipo se actualizan desde WellSync; acuerdos y notas se editan por semana.</p><div class="executive-presentation-actions"><button class="primary-btn" type="button" data-presentation-action="present">Abrir presentación</button><button class="primary-btn" type="button" data-presentation-history-save>Guardar presentación</button><button class="ghost-btn" type="button" data-presentation-action="edit">Editar contenido</button><button class="ghost-btn" type="button" data-presentation-action="refresh">Actualizar datos</button><button class="ghost-btn" type="button" data-presentation-action="pdf">Exportar PDF</button><button class="ghost-btn" type="button" data-presentation-action="powerpoint">PowerPoint</button></div></div></article></div>${renderExecutivePresentationPreview()}${renderExecutivePresentationHistory()}<div class="executive-presentation-template-grid executive-presentation-template-grid-upcoming">${["Informe mensual", "Rectoría", "Coordinadores"].map((title) => `<article class="executive-presentation-template coming"><span>Próximamente</span><h3>${title}</h3><p>Formato preparado para una siguiente fase.</p></article>`).join("")}</div></section>${renderExecutivePresentationStage()}${renderExecutivePresentationEditor()}${renderPresentationHistorySaveDialog()}${renderPresentationHistoryViewer()}${renderPresentationHistoryReuseDialog()}`;
+  return `<section class="executive-presentation-hub"><div class="executive-presentation-hero"><div><p class="eyebrow">WellSync · Dirección Deportiva</p><h2>Presentación Ejecutiva</h2><p>Datos automáticos del sistema y contenido editable por semana, en una sola junta.</p></div><img src="./assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div><div class="executive-presentation-template-grid"><article class="executive-presentation-template active executive-presentation-template-summary"><div><span>Formato activo · ${escapeHtml(presentationWeekKey())}</span><h3>Junta semanal híbrida</h3><p>12 diapositivas: indicadores, presupuesto, calendario, desempeño y equipo se actualizan desde WellSync; acuerdos y notas se editan por semana.</p><div class="executive-presentation-actions"><button class="primary-btn" type="button" data-presentation-action="present">Abrir presentación</button><button class="primary-btn" type="button" data-presentation-history-save>Guardar presentación</button><button class="ghost-btn" type="button" data-presentation-action="edit">Editar contenido</button><button class="ghost-btn" type="button" data-presentation-action="refresh">Actualizar datos</button><button class="ghost-btn" type="button" data-presentation-action="pdf">Exportar PDF</button><button class="ghost-btn" type="button" data-presentation-action="powerpoint">PowerPoint</button></div></div></article></div>${renderExecutivePresentationDesignPicker()}${renderExecutivePresentationPreview()}${renderExecutivePresentationHistory()}<div class="executive-presentation-template-grid executive-presentation-template-grid-upcoming">${["Informe mensual", "Rectoría", "Coordinadores"].map((title) => `<article class="executive-presentation-template coming"><span>Próximamente</span><h3>${title}</h3><p>Formato preparado para una siguiente fase.</p></article>`).join("")}</div></section>${renderExecutivePresentationStage()}${renderExecutivePresentationEditor()}${renderPresentationHistorySaveDialog()}${renderPresentationHistoryViewer()}${renderPresentationHistoryReuseDialog()}`;
 }
 
 async function refreshExecutivePresentationData() {
@@ -14219,6 +14274,37 @@ function closePresentationHistoryLayer(layer) {
 }
 
 function bindExecutivePresentationControls() {
+  $('[data-presentation-design-scope]')?.addEventListener("change", (event) => {
+    executivePresentationDesignScope = event.currentTarget.value === "slide" ? "slide" : "all";
+    render();
+  });
+  $$('[data-presentation-design-option]').forEach((button) => button.addEventListener("click", () => {
+    const design = normalizeExecutivePresentationDesign(button.dataset.presentationDesignOption);
+    const slide = EXECUTIVE_PRESENTATION_SLIDES[executivePresentationIndex];
+    if (executivePresentationDesignScope === "slide") {
+      executivePresentationDesign.slides = { ...(executivePresentationDesign.slides || {}), [slide.key]: design };
+      toast(`Diseño ${EXECUTIVE_PRESENTATION_DESIGNS.find((item) => item.id === design)?.label || design} aplicado a la diapositiva ${executivePresentationIndex + 1}`);
+    } else {
+      executivePresentationDesign = { global: design, slides: {} };
+      toast(`Diseño ${EXECUTIVE_PRESENTATION_DESIGNS.find((item) => item.id === design)?.label || design} aplicado a toda la presentación`);
+    }
+    saveExecutivePresentationDesign();
+    render();
+  }));
+  $('[data-presentation-design-reset]')?.addEventListener("click", () => {
+    const slide = EXECUTIVE_PRESENTATION_SLIDES[executivePresentationIndex];
+    if (executivePresentationDesignScope === "slide") {
+      const slides = { ...(executivePresentationDesign.slides || {}) };
+      delete slides[slide.key];
+      executivePresentationDesign = { ...executivePresentationDesign, slides };
+      toast(`Diseño de la diapositiva ${executivePresentationIndex + 1} restablecido`);
+    } else {
+      executivePresentationDesign = { global: "institutional", slides: {} };
+      toast("Diseño institucional restablecido en toda la presentación");
+    }
+    saveExecutivePresentationDesign();
+    render();
+  });
   $$('[data-presentation-action]').forEach((button) => button.addEventListener("click", async () => {
     const action = button.dataset.presentationAction;
     if (action === "present") {
