@@ -11029,14 +11029,32 @@ function executiveGenderAttendanceSummary() {
   };
 }
 
+function executiveWellnessReportDisplayLabel(value) {
+  const label = String(value || "").trim();
+  const normalized = normalizeText(label);
+  const corrections = {
+    "transaferenciaa 2:00 a 4:30": "Transferencia 2:00 a 4:30",
+    "dia de muertos: claveras literarias": "DÍA DE MUERTOS: CALAVERAS LITERARIAS",
+    "futbol 7 emcs": "Fútbol 7 EMCS"
+  };
+  return corrections[normalized] || label;
+}
+
 function executiveIntramurosRows() {
   const rows = intramurosParticipants.length ? intramurosParticipants : executiveOperationalRows().filter((row) => row.area === "intramuros");
   const grouped = new Map();
   rows.forEach((row) => {
-    const key = row.torneo || row.operacion || "Intramuros";
+    const key = executiveWellnessReportDisplayLabel(row.torneo || row.operacion || "Intramuros");
     grouped.set(key, (grouped.get(key) || 0) + 1);
   });
-  return Array.from(grouped.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8);
+  const ranked = Array.from(grouped.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+  const visible = ranked.slice(0, 8);
+  const lightningTournamentTotal = ranked.slice(8).reduce((sum, row) => sum + row.value, 0);
+  return lightningTournamentTotal
+    ? [...visible, { label: "Torneos relámpagos", value: lightningTournamentTotal }]
+    : visible;
 }
 
 function executiveStatus(areaId, value, options = {}) {
@@ -11316,7 +11334,7 @@ function executiveVivenciaUploadHistory() {
     .slice(0, 8)
     .map((row) => ({
       ...row,
-      eventName: eventsById.get(row.event_id)?.event_name || "Evento no encontrado",
+      eventName: executiveWellnessReportDisplayLabel(eventsById.get(row.event_id)?.event_name || "Evento no encontrado"),
       uploadDate: formatVivenciaUploadDate(row.upload_date || row.created_at),
       totalLoaded: Number(row.total_inserted || 0)
     }));

@@ -98,8 +98,8 @@ test("general report PDF uses an isolated one-page portrait export view", () => 
   assert.match(styles, /\.exec-report-attended-total > strong\s*{[^}]*font-size:\s*clamp\(26px,\s*22cqw,\s*72px\)[^}]*white-space:\s*nowrap/s, "Large attended totals must stay inside their own column");
 });
 
-test("executive PDF unifies card typography and preserves both information bands", () => {
-  assert.match(styles, /\.executive-report-print-page\s*\{[^}]*--exec-print-card-title:\s*11px;[^}]*--exec-print-label:\s*7px;[^}]*--exec-print-value:\s*8\.5px;/s);
+test("executive PDF increases compact typography and preserves both information bands", () => {
+  assert.match(styles, /\.executive-report-print-page\s*\{[^}]*--exec-print-card-title:\s*12px;[^}]*--exec-print-label:\s*8px;[^}]*--exec-print-value:\s*9\.5px;/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-card > h3\s*\{[^}]*font-size:\s*var\(--exec-print-card-title\)/s);
   assert.match(styles, /\.executive-report-print-page \.exec-insight-card > h3\s*\{[^}]*font-size:\s*var\(--exec-print-card-title\)/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-intramuros-label\s*\{[^}]*font-size:\s*var\(--exec-print-value\)/s);
@@ -109,6 +109,16 @@ test("executive PDF unifies card typography and preserves both information bands
   assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events strong\s*\{[^}]*font-size:\s*11px;/s, "Vivencia items must be legible on screen");
   assert.match(styles, /\.exec-insight-mentor-communities li > strong\s*\{[^}]*font-size:\s*14px;/s, "Mentor totals must be legible on screen");
   assert.match(styles, /\.exec-footer-kpis\s*\{[^}]*background:\s*var\(--teal\);[^}]*color:\s*#fff;/s, "The lower information band must remain");
+});
+
+test("weekly report corrects display labels and groups the hidden Intramuros tournaments", () => {
+  assert.match(source, /function executiveWellnessReportDisplayLabel\(value\)/);
+  assert.ok(source.includes('"transaferenciaa 2:00 a 4:30": "Transferencia 2:00 a 4:30"'));
+  assert.ok(source.includes('"dia de muertos: claveras literarias": "DÍA DE MUERTOS: CALAVERAS LITERARIAS"'));
+  assert.ok(source.includes('"futbol 7 emcs": "Fútbol 7 EMCS"'));
+  assert.match(source, /const lightningTournamentTotal = ranked\.slice\(8\)\.reduce/);
+  assert.ok(source.includes('{ label: "Torneos relámpagos", value: lightningTournamentTotal }'));
+  assert.match(source, /eventName: executiveWellnessReportDisplayLabel\(/);
 });
 
 test("repeated module totals are replaced by actionable comparisons", () => {

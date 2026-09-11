@@ -11339,9 +11339,9 @@ body.executive-report-print {
 }
 
   .executive-report-print-page {
-    --exec-print-card-title: 11px;
-    --exec-print-label: 7px;
-    --exec-print-value: 8.5px;
+    --exec-print-card-title: 12px;
+    --exec-print-label: 8px;
+    --exec-print-value: 9.5px;
     background: #fff;
     border: 0;
     border-radius: 0;
@@ -11370,7 +11370,7 @@ body.executive-report-print {
   .executive-report-print-page .exec-report-hero li { border-radius: 6px; gap: 1px 7px; padding: 5px 8px; }
   .executive-report-print-page .exec-report-hero li span { font-size: 10px; }
   .executive-report-print-page .exec-report-hero li strong { font-size: 16px; }
-  .executive-report-print-page .exec-report-hero li em { font-size: 8px; }
+  .executive-report-print-page .exec-report-hero li em { font-size: 9px; }
   .executive-report-print-page .exec-report-attended { border-left: 1px solid rgba(255,255,255,.75); border-top: 0; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 0; padding-left: 16px; padding-top: 0; }
   .executive-report-print-page .exec-report-attended-total { gap: 3px; }
   .executive-report-print-page .exec-report-attended-total > span { font-size: 11px; }
@@ -11381,7 +11381,7 @@ body.executive-report-print {
   .executive-report-print-page .exec-report-gender-donut > div { height: 40px; width: 40px; }
   .executive-report-print-page .exec-report-gender-donut strong { font-size: 10px; }
   .executive-report-print-page .exec-report-gender-donut span,
-  .executive-report-print-page .exec-report-gender-legend span { font-size: 7px; }
+  .executive-report-print-page .exec-report-gender-legend span { font-size: 8px; }
   .executive-report-print-page .exec-report-gender-legend { gap: 7px; }
 
   .executive-report-print-page .exec-report-section-title { font-size: 15px; margin: 0; }
@@ -11425,11 +11425,11 @@ body.executive-report-print {
   .executive-report-print-page .exec-insight-ranking ol { gap: 2px; }
   .executive-report-print-page .exec-insight-ranking li { gap: 3px; }
   .executive-report-print-page .exec-insight-ranking li span { gap: 2px; }
-  .executive-report-print-page .exec-insight-ranking li b { font-size: 6px; height: 11px; width: 11px; }
+  .executive-report-print-page .exec-insight-ranking li b { font-size: 7px; height: 12px; width: 12px; }
   .executive-report-print-page .exec-insight-ranking li em { font-size: var(--exec-print-label); }
   .executive-report-print-page .exec-insight-ranking li strong { font-size: var(--exec-print-value); }
   .executive-report-print-page .exec-insight-ranking p,
-  .executive-report-print-page .exec-insight-events p { font-size: 7px; }
+  .executive-report-print-page .exec-insight-events p { font-size: 8px; }
   .executive-report-print-page .exec-insight-events { gap: 1px; }
   .executive-report-print-page .exec-insight-events > div { gap: 4px; padding: 2px 0; }
   .executive-report-print-page .exec-insight-events time { border-radius: 4px; font-size: var(--exec-print-label); padding: 2px 3px; }
@@ -11445,16 +11445,16 @@ body.executive-report-print {
   .executive-report-print-page .exec-week-language-breakdown b { font-size: var(--exec-print-label); }
   .executive-report-print-page .exec-insight-mentor-communities ol { gap: 1px; }
   .executive-report-print-page .exec-insight-mentor-communities li { gap: 3px; grid-template-columns: 12px minmax(0, 1fr) auto; padding: 1px 0; }
-  .executive-report-print-page .exec-insight-mentor-communities li > b { font-size: 6px; height: 11px; width: 11px; }
+  .executive-report-print-page .exec-insight-mentor-communities li > b { font-size: 7px; height: 12px; width: 12px; }
   .executive-report-print-page .exec-mentor-community-logo { height: 12px; width: 54px; }
   .executive-report-print-page .exec-mentor-community-name { font-size: var(--exec-print-label); }
   .executive-report-print-page .exec-insight-mentor-communities li > strong { font-size: var(--exec-print-value); }
   .executive-report-print-page .exec-insight-mentor-communities li small { font-size: var(--exec-print-label); }
-  .executive-report-print-page .exec-insight-mentor-communities > p { font-size: 7px; }
+  .executive-report-print-page .exec-insight-mentor-communities > p { font-size: 8px; }
 
   .executive-report-print-page .exec-report-intramuros p { font-size: var(--exec-print-value); margin: -2px 0 4px; }
-  .executive-report-print-page .exec-report-intramuros-grid { gap: 4px 6px; grid-template-columns: repeat(var(--exec-report-intramuros-columns, 1), minmax(0, 1fr)); overflow: visible; }
-  .executive-report-print-page .exec-report-intramuros-grid article { border-radius: 7px; padding: 4px 7px; }
+  .executive-report-print-page .exec-report-intramuros-grid { gap: 4px; grid-template-columns: repeat(var(--exec-report-intramuros-columns, 1), minmax(0, 1fr)); overflow: visible; }
+  .executive-report-print-page .exec-report-intramuros-grid article { border-radius: 7px; padding: 4px; }
   .executive-report-print-page .exec-report-intramuros-label { font-size: var(--exec-print-value); }
   .executive-report-print-page .exec-report-intramuros-grid strong { font-size: 14px; }
   .executive-report-print-page .exec-report-sport-icon { font-size: 10px; height: 18px; width: 18px; }
@@ -11462,7 +11462,7 @@ body.executive-report-print {
   .executive-report-print-page .exec-footer-kpis { border-radius: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; }
   .executive-report-print-page .exec-footer-kpis article { gap: 1px; padding: 6px; }
   .executive-report-print-page .exec-footer-kpis strong { font-size: 18px; }
-  .executive-report-print-page .exec-footer-kpis span { font-size: 8px; }
+  .executive-report-print-page .exec-footer-kpis span { font-size: 9px; }
 .class-executive-hero,
 .class-risk-board,
 .class-alert-panel,
