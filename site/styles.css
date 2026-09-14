@@ -1640,6 +1640,59 @@ label { color: var(--muted); font-size: 12px; font-weight: 700; display: grid; g
   gap: 12px;
 }
 
+.gym-live-occupancy-card {
+  min-width: 0;
+  padding: 16px;
+}
+
+.gym-live-occupancy-heading {
+  align-items: center;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.gym-live-occupancy-heading h3,
+.gym-live-occupancy-heading p {
+  margin: 0;
+}
+
+.gym-live-occupancy-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.gym-live-occupancy-heading > div > p:last-child,
+.gym-live-occupancy-card > small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.gym-live-occupancy-heading .secondary-btn {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.gym-live-occupancy-frame {
+  background: #f4f8fb;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  height: 360px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.gym-live-occupancy-frame iframe {
+  background: #fff;
+  border: 0;
+  height: 100%;
+  width: 100%;
+}
+
 .gym-semester-calendar {
   align-items: end;
   background: #eef6f4;
@@ -11080,6 +11133,8 @@ body.planning-modal-open {
   .physical-code-panel { grid-template-columns: 1fr; }
   .physical-hof-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .gym-form-layout { grid-template-columns: 1fr; }
+  .gym-live-occupancy-heading { align-items: stretch; flex-direction: column; }
+  .gym-live-occupancy-heading .secondary-btn { width: 100%; }
   .class-simulator-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .class-simulator-maps { grid-template-columns: 1fr; }
   .vivencia-event-layout { grid-template-columns: 1fr; }

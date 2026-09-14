@@ -523,6 +523,7 @@ const students = Array.from({ length: 180 }, (_, i) => ({
 }));
 
 const GYM_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const GYM_LIVE_OCCUPANCY_URL = "https://hash-dependence-latitude-dubai.trycloudflare.com/app/";
 
 const budgetFilters = { period: "AD26", area: "todos", status: "todos" };
 let budgetPeriods = ["AD26"];
@@ -7855,6 +7856,31 @@ function syncGymAttendanceDateFields(dateValue) {
   if (dateInput) dateInput.setCustomValidity(week ? "" : "La fecha esta fuera del calendario de clases");
 }
 
+function renderGymLiveOccupancy() {
+  return `
+    <section class="chart-panel gym-live-occupancy-card">
+      <div class="gym-live-occupancy-heading">
+        <div>
+          <p class="eyebrow">Aforo en vivo</p>
+          <h3>Gimnasio GYM-MTY</h3>
+          <p>Consulta el número de personas que se encuentran actualmente en el gimnasio.</p>
+        </div>
+        <a class="secondary-btn" href="${GYM_LIVE_OCCUPANCY_URL}" target="_blank" rel="noopener noreferrer">Abrir en otra pestaña</a>
+      </div>
+      <div class="gym-live-occupancy-frame">
+        <iframe
+          src="${GYM_LIVE_OCCUPANCY_URL}"
+          title="Aforo actual del gimnasio GYM-MTY"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+          sandbox="allow-forms allow-scripts allow-same-origin"
+        ></iframe>
+      </div>
+      <small>La lectura depende del servicio externo de GYM-MTY. Si el panel no responde, utiliza el botón para abrirlo directamente.</small>
+    </section>
+  `;
+}
+
 function renderGymAttendanceRegistration() {
   const today = gymAttendanceDefaultDate();
   const calendar = gymPeriodCalendar();
@@ -7925,6 +7951,7 @@ function renderGymAttendanceRegistration() {
           </div>
         </section>
       </div>
+      ${renderGymLiveOccupancy()}
     </div>
   `;
 }
