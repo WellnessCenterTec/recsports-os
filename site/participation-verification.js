@@ -77,13 +77,15 @@
     const sources = { captures: [], gym: [], booking: [], vivencia: [] };
     for (let index = 0; index < input.length; index += 250) {
       const batch = input.slice(index, index + 250);
-      const parts = await Promise.all([
+      const results = await Promise.allSettled([
         pages(client, "participations", "id,matricula,area_key,status,operation_label,metadata,record_date", batch),
         pages(client, "gym_asistencias", "id,matricula,fecha,hora,sitio", batch),
         pages(client, "class_booking_reservations", "id,source_reservation_id,matricula,reservation_at,status,activity,raw_space", batch),
         pages(client, "vivencia_participants", "id,event_id,matricula", batch)
       ]);
-      ["captures", "gym", "booking", "vivencia"].forEach((key, i) => sources[key].push(...parts[i]));
+      const failures = results.filter((result) => result.status === "rejected").map((result) => result.reason.message);
+      if (failures.length) throw new Error(failures.join("; "));
+      ["captures", "gym", "booking", "vivencia"].forEach((key, i) => sources[key].push(...results[i].value));
     }
     const eventIds = [...new Set(sources.vivencia.map((row) => row.event_id).filter(Boolean))];
     const events = new Map();
