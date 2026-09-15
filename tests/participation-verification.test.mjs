@@ -135,7 +135,7 @@ test("el tablero de Posgrado exige el archivo verificado y no usa la búsqueda i
   assert.match(verifier.renderView(), /Carga un archivo y presiona Verificar participación/);
   assert.match(verifier.renderView(), /id="pvBuildReport" disabled/);
   verifier.state.batchRows = verifier.consolidate(["A002"], {});
-  assert.match(verifier.renderView(), /Se usarán solo las matrículas verificadas del archivo/);
+  assert.match(verifier.renderView(), /Se usarán solo las matrículas verificadas del archivo de Posgrado/);
   assert.doesNotMatch(verifier.renderView(), /id="pvBuildReport" disabled/);
   verifier.state.report = { rows: [] };
   verifier.useSession(null);

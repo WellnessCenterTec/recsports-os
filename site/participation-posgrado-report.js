@@ -10,6 +10,10 @@
     const text = String(value ?? "").trim();
     return text && !["SIN IDENTIFICAR", "NO APLICA", "N/A", "NA", "-"].includes(text.toUpperCase()) ? text : "";
   };
+  const gender = (value) => {
+    const text = clean(value);
+    return ["F", "FEMENINO", "MUJER"].includes(text) ? "Femenino" : ["M", "MASCULINO", "HOMBRE"].includes(text) ? "Masculino" : "No especificado";
+  };
 
   async function readPages(client, table, columns, field, values) {
     const rows = [];
@@ -22,32 +26,24 @@
     return rows;
   }
 
-  async function queryProfiles(client, matriculas) {
+  async function queryAcademicRows(client, matriculas) {
     if (!client?.auth?.getSession) throw new Error("Inicia sesión con Supabase para crear el reporte.");
     const { data, error } = await client.auth.getSession();
     if (error || !data?.session) throw new Error("La sesión de Supabase venció. Vuelve a iniciar sesión para crear el reporte.");
-    const profiles = [];
-    for (let index = 0; index < matriculas.length; index += 250) {
-      profiles.push(...await readPages(client, "students_minimal", "matricula,nivel_escolar,genero,carrera", "matricula", matriculas.slice(index, index + 250)));
-    }
-    const posgrado = profiles.filter((row) => clean(row.nivel_escolar) === "POSGRADO").map((row) => row.matricula);
     const academics = [];
-    for (let index = 0; index < posgrado.length; index += 250) {
-      academics.push(...await readPages(client, "Base de datos_alumnos", 'Matricula,"Desc Programa Academico","v_Clave Major Agrupado",carrera', "Matricula", posgrado.slice(index, index + 250)));
+    for (let index = 0; index < matriculas.length; index += 250) {
+      academics.push(...await readPages(client, "Base de datos_alumnos", 'Matricula,"Desc Programa Academico","v_Clave Major Agrupado",carrera,"Desc Genero"', "Matricula", matriculas.slice(index, index + 250)));
     }
-    return { profiles, academics };
+    return { academics };
   }
 
   function buildReport(batchRows, source) {
-    const profileMap = new Map((source.profiles || []).map((row) => [clean(row.matricula), row]));
     const academicMap = new Map((source.academics || []).map((row) => [clean(row.Matricula), row]));
-    const unknown = batchRows.filter((row) => !profileMap.has(clean(row.matricula))).length;
-    const excluded = batchRows.filter((row) => profileMap.has(clean(row.matricula)) && clean(profileMap.get(clean(row.matricula)).nivel_escolar) !== "POSGRADO").length;
-    const rows = batchRows.filter((row) => clean(profileMap.get(clean(row.matricula))?.nivel_escolar) === "POSGRADO").map((row) => {
-      const profile = profileMap.get(clean(row.matricula));
+    const unknown = batchRows.filter((row) => !academicMap.has(clean(row.matricula))).length;
+    const rows = batchRows.map((row) => {
       const academic = academicMap.get(clean(row.matricula)) || {};
-      const program = useful(academic["Desc Programa Academico"]) || useful(academic.carrera) || useful(academic["v_Clave Major Agrupado"]) || useful(profile.carrera) || "Sin programa en la fuente";
-      return { ...row, program, gender: useful(profile.genero) || "No especificado" };
+      const program = useful(academic["Desc Programa Academico"]) || useful(academic.carrera) || useful(academic["v_Clave Major Agrupado"]) || "Sin programa en la fuente";
+      return { ...row, program, gender: gender(academic["Desc Genero"]) };
     });
     const participating = rows.filter((row) => row.total > 0).length;
     const records = rows.reduce((sum, row) => sum + row.total, 0);
@@ -71,7 +67,7 @@
         }
       });
     });
-    return { input: batchRows.length, unknown, excluded, rows, participating, records, byModule,
+    return { input: batchRows.length, unknown, rows, participating, records, byModule,
       programs: [...programMap.values()].sort((a, b) => b.students - a.students || a.name.localeCompare(b.name, "es")),
       activities: [...activityMap.values()].map((item) => ({ ...item, students: item.students.size })).sort((a, b) => b.records - a.records || a.name.localeCompare(b.name, "es")),
       genders: [...genderMap].map(([name, students]) => ({ name, students })).sort((a, b) => b.students - a.students),
@@ -93,8 +89,8 @@
       <div class="pv-report-page">
         <header class="pv-report-title"><div class="pv-report-logo">WS</div><div><p>WellSync · RecSports &amp; Wellness</p><h2>Reporte Posgrado</h2><span>Participación verificada en Clases, Gimnasio, Intramuros, Booking, Nado libre y Vivencia</span></div><div class="pv-report-file"><strong>${fmt(report.input)}</strong><span>matrículas en el archivo</span></div></header>
         <section class="pv-report-hero"><div class="pv-report-hero-modules">${report.byModule.map((item) => `<article><span>${esc(item.name)}</span><strong>${fmt(item.records)}</strong><small>${fmt(item.students)} alumnos únicos en el módulo</small></article>`).join("")}</div><div class="pv-report-hero-impact"><span>ALUMNOS DE POSGRADO CON PARTICIPACIÓN</span><strong>${fmt(report.participating)}</strong><div class="pv-report-donut" style="--value:${students ? 100 * report.participating / students : 0}%"><b>${pct(report.participating, students)}</b><small>del Posgrado en el archivo</small></div></div></section>
-        <div class="pv-report-kpis"><article><span>Posgrado identificado</span><strong>${fmt(students)}</strong></article><article><span>Sin participación verificada</span><strong>${fmt(students - report.participating)}</strong></article><article><span>Registros confirmados</span><strong>${fmt(report.records)}</strong></article><article><span>Registros por alumno de Posgrado</span><strong>${students ? (report.records / students).toFixed(2) : "0.00"}</strong></article></div>
-        <p class="pv-report-scope">${fmt(report.excluded)} matrículas del archivo pertenecen a otro nivel; ${fmt(report.unknown)} no se encontraron en la base de nivel escolar y quedan fuera de los porcentajes. Cada participación corresponde a un registro confirmado; una reserva aprobada sin asistencia no se cuenta. Se incluyen todas las fechas encontradas en las fuentes.</p>
+        <div class="pv-report-kpis"><article><span>Matrículas del archivo de Posgrado</span><strong>${fmt(students)}</strong></article><article><span>Sin participación verificada</span><strong>${fmt(students - report.participating)}</strong></article><article><span>Registros confirmados</span><strong>${fmt(report.records)}</strong></article><article><span>Registros por matrícula del archivo</span><strong>${students ? (report.records / students).toFixed(2) : "0.00"}</strong></article></div>
+        <p class="pv-report-scope">El archivo verificado se considera el padrón de Posgrado. No se usa el campo de nivel escolar de la base para excluir matrículas, porque la carga actual puede clasificar códigos de programa como Profesional. ${fmt(report.unknown)} matrículas no aparecen en Base de datos_alumnos; permanecen en los totales con programa y género sin dato. Solo se cuentan asistencias o usos confirmados y todas las fechas disponibles.</p>
         <div class="pv-report-grid"><article class="pv-report-card"><h3>Participación por módulo</h3><p>Registros confirmados y alumnos únicos; un alumno puede aparecer en varios módulos.</p><div class="pv-report-module-list">${report.byModule.map((item) => `<div><span>${esc(item.name)}</span>${bar(item.records, maximumModule)}<strong>${fmt(item.records)}</strong><small>${fmt(item.students)} alumnos · ${pct(item.students, students)} del Posgrado</small></div>`).join("")}</div></article>
         <article class="pv-report-card"><h3>Programas con más alumnos</h3><p>Porcentaje de participación dentro de cada programa del archivo.</p>${topPrograms.length ? `<div class="pv-report-rank">${topPrograms.map((item, i) => `<div><b>${i + 1}</b><span title="${esc(item.name)}">${esc(item.name)}</span><strong>${fmt(item.students)}</strong>${bar(item.students, maximumProgram)}<small>${fmt(item.participating)} con participación · ${pct(item.participating, item.students)}</small></div>`).join("")}</div>` : `<p class="pv-report-empty">Sin programas de Posgrado en el archivo.</p>`}</article>
         <article class="pv-report-card"><h3>Actividades más registradas</h3><p>Frecuencia de registros, separada de alumnos únicos.</p>${topActivities.length ? `<div class="pv-report-rank">${topActivities.map((item, i) => `<div><b>${i + 1}</b><span title="${esc(item.name)}">${esc(item.name)} <em>· ${esc(item.module)}</em></span><strong>${fmt(item.records)}</strong>${bar(item.records, maximumActivity)}<small>${fmt(item.students)} alumnos únicos</small></div>`).join("")}</div>` : `<p class="pv-report-empty">No hay actividades con asistencia o uso confirmados.</p>`}</article>
@@ -108,12 +104,12 @@
     if (!XLSX || !report) throw new Error("No está disponible el generador de Excel.");
     const book = XLSX.utils.book_new();
     const append = (name, rows) => XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), name);
-    append("INDICADORES", [{ "Matrículas del archivo": report.input, "Posgrado identificado": report.rows.length, "Con participación": report.participating, "Sin participación": report.rows.length - report.participating, "Registros": report.records, "Otro nivel": report.excluded, "Sin clasificar": report.unknown }]);
+    append("INDICADORES", [{ "Matrículas del archivo de Posgrado": report.input, "Con participación": report.participating, "Sin participación": report.rows.length - report.participating, "Registros": report.records, "Sin datos académicos": report.unknown }]);
     append("PROGRAMAS", report.programs.map((item) => ({ Programa: item.name, "Alumnos únicos": item.students, "Con participación": item.participating, "Sin participación": item.students - item.participating, "Porcentaje de participación": pct(item.participating, item.students), Registros: item.records })));
     append("MODULOS", report.byModule.map((item) => ({ Módulo: item.name, Registros: item.records, "Alumnos únicos": item.students, "Porcentaje de alumnos": pct(item.students, report.rows.length) })));
     append("ACTIVIDADES", report.activities.map((item) => ({ Módulo: item.module, Actividad: item.name, Registros: item.records, "Alumnos únicos": item.students })));
     append("ALUMNOS", report.rows.map((row) => ({ Matrícula: row.matricula, Programa: row.program, Género: row.gender, "Participó": row.total ? "Sí" : "No", Registros: row.total, ...Object.fromEntries(modules.map((name) => [name, row.counts[name] || 0])) })));
     XLSX.writeFile(book, "reporte-posgrado-participacion.xlsx");
   }
-  root.WellSyncPosgradoReport = { queryProfiles, buildReport, renderReport, exportWorkbook };
+  root.WellSyncPosgradoReport = { queryAcademicRows, buildReport, renderReport, exportWorkbook };
 })(typeof window === "undefined" ? globalThis : window);
