@@ -6134,7 +6134,7 @@ function isSportsLeaderAccount(user = currentUser) {
 }
 
 function visibleAreas() {
-  if (!currentUser || ["admin", "direccion"].includes(currentUser.role)) return areas;
+  if (!currentUser || ["admin", "direccion"].includes(currentUser.role)) return currentUser?.auth === "supabase" ? [...areas, { id: "participation-verification", name: "Verificación de participación", tone: "blue" }] : areas;
   if (currentUser.globalAccess || isSportsLeaderAccount()) return areas;
   if (currentUser.role === "compras") return areas.filter((area) => area.id === "compras");
   const assignedAreas = areas.filter((area) => area.id === currentUser.area);
@@ -7105,7 +7105,8 @@ function renderNav() {
     colaboradores: "users",
     compras: "wallet-cards",
     presentacion: "presentation",
-    configuracion: "settings"
+    configuracion: "settings",
+    "participation-verification": "list-checks"
   };
   if (!allowed.some((area) => area.id === activeArea)) {
     activeArea = allowed[0]?.id || "general";
@@ -7125,7 +7126,7 @@ function renderNav() {
     activeView = "dashboard";
     rememberActiveArea(targetArea);
     render();
-    ensureAreaData(targetArea).catch(() => {});
+    if (targetArea !== "participation-verification") ensureAreaData(targetArea).catch(() => {});
   }));
 }
 
@@ -20571,6 +20572,14 @@ function render() {
   renderNav();
   syncGlobalFilterControls();
   const area = areas.find((a) => a.id === activeArea) || areas.find((a) => a.id === "general");
+  if (activeArea === "participation-verification") {
+    window.WellSyncParticipationVerification.useSession(currentUser.id);
+    $(".filters-band").hidden = true;
+    $(".segmented").hidden = true;
+    $("#contentArea").innerHTML = window.WellSyncParticipationVerification.renderView();
+    window.WellSyncParticipationVerification.bindView($("#contentArea"), supabaseClient, window.XLSX);
+    return;
+  }
   if (area && activeArea !== area.id) activeArea = area.id;
   renderExecutiveKpis();
   const currentAreaDataStatus = areaDataStatus(area.id);
@@ -22344,6 +22353,7 @@ $("#exportPdf").addEventListener("click", () => {
 
 $("#logoutButton").addEventListener("click", () => {
   addAudit("logout", "Sesion cerrada");
+  window.WellSyncParticipationVerification.useSession(null);
   if (currentUser?.auth === "supabase") {
     supabaseClient?.auth.signOut();
     cloudCaptures = [];
