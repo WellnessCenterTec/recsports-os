@@ -2,17 +2,17 @@
 (function (root) {
   "use strict";
   const modules = ["Clases", "Gimnasio", "Intramuros", "Booking", "Nado libre", "Vivencia"];
-  const state = { userId: null, mode: "file", grid: null, headers: [], column: -1, singleValue: "", batchRows: null, singleRows: null, rows: null, detail: null, filter: "todos", search: "", sort: "matricula", descending: false, loading: false, error: "" };
+  const state = { userId: null, mode: "file", grid: null, headers: [], column: -1, singleValue: "", batchRows: null, singleRows: null, report: null, reportError: "", rows: null, detail: null, filter: "todos", search: "", sort: "matricula", descending: false, loading: false, error: "" };
   function useSession(userId) {
     if (state.userId === userId) return;
-    Object.assign(state, { userId, mode: "file", grid: null, headers: [], column: -1, singleValue: "", batchRows: null, singleRows: null, rows: null, detail: null, filter: "todos", search: "", sort: "matricula", descending: false, loading: false, error: "" });
+    Object.assign(state, { userId, mode: "file", grid: null, headers: [], column: -1, singleValue: "", batchRows: null, singleRows: null, report: null, reportError: "", rows: null, detail: null, filter: "todos", search: "", sort: "matricula", descending: false, loading: false, error: "" });
   }
   const clean = (value) => String(value ?? "").trim().toUpperCase().replace(/\s+/g, "");
   const singleInput = (value) => clean(value) ? [clean(value)] : [];
   function setMode(mode) {
-    if (!(["file", "single"].includes(mode)) || state.loading) return;
+    if (!(["file", "single", "report"].includes(mode)) || state.loading) return;
     state.mode = mode;
-    state.rows = mode === "file" ? state.batchRows : state.singleRows;
+    state.rows = mode === "file" ? state.batchRows : mode === "single" ? state.singleRows : null;
     state.detail = null;
     state.filter = "todos";
     state.search = "";
@@ -131,8 +131,10 @@
       records.forEach((record) => { if (!activities.has(record.activity)) activities.set(record.activity, []); activities.get(record.activity).push(record); });
       return `<h3>${esc(module)}</h3>${[...activities].map(([activity, items]) => `<strong>${esc(activity)} — ${items.length} participación${items.length === 1 ? "" : "es"}</strong><ul>${items.map((item) => `<li>${esc(item.date)} · ${esc(item.source)} · ID ${esc(item.id)}${item.category ? ` · ${esc(item.category)}` : ""}</li>`).join("")}</ul>`).join("")}`;
     }).join("") : "Sin registros de participación verificada en las fuentes consultadas."}</section></div>` : "";
+    const modeSwitch = `<div class="pv-mode-switch" role="tablist" aria-label="Modo de verificación">${[["file", "Archivo Excel o CSV"], ["single", "Buscar una matrícula"], ["report", "Reporte Posgrado"]].map(([mode, label]) => `<button type="button" role="tab" data-pv-mode="${mode}" aria-selected="${state.mode === mode}" class="${state.mode === mode ? "active" : ""}">${label}</button>`).join("")}</div>`;
+    if (state.mode === "report") return `<section class="pv-module"><div class="pv-heading"><div><p class="eyebrow">Consulta de solo lectura</p><h2>Verificación de participación</h2><p>Tablero de Posgrado basado únicamente en el archivo verificado.</p></div></div>${modeSwitch}${state.loading ? `<div class="permission-strip">Preparando Reporte Posgrado…</div>` : ""}${state.reportError ? `<div class="permission-strip" role="alert">No se pudo crear el reporte: ${esc(state.reportError)}. No se muestran porcentajes parciales.</div>` : ""}${state.report ? root.WellSyncPosgradoReport.renderReport(state.report) : !state.loading ? `<div class="pv-report-prompt"><h3>Reporte Posgrado</h3><p>${state.batchRows ? "Se usarán solo las matrículas verificadas del archivo. El nivel escolar y el programa se consultan en la base para ese mismo grupo." : "Carga un archivo y presiona Verificar participación antes de preparar el tablero."}</p><button class="primary-btn" id="pvBuildReport" ${state.batchRows ? "" : "disabled"}>Crear reporte de Posgrado</button></div>` : ""}</section>`;
     return `<section class="pv-module"><div class="pv-heading"><div><p class="eyebrow">Consulta de solo lectura</p><h2>Verificación de participación</h2><p>Carga matrículas y consulta asistencias o usos confirmados en las fuentes disponibles.</p></div></div>
-      <div class="pv-mode-switch" role="tablist" aria-label="Modo de verificación"><button type="button" role="tab" data-pv-mode="file" aria-selected="${state.mode === "file"}" class="${state.mode === "file" ? "active" : ""}">Archivo Excel o CSV</button><button type="button" role="tab" data-pv-mode="single" aria-selected="${state.mode === "single"}" class="${state.mode === "single" ? "active" : ""}">Buscar una matrícula</button></div>
+      ${modeSwitch}
       ${state.mode === "file" ? `<div class="pv-upload"><label>Archivo Excel o CSV<input id="pvFile" type="file" accept=".xlsx,.csv"></label>${state.headers.length ? `<label>Columna de matrícula<select id="pvColumn">${state.headers.map((value, i) => `<option value="${i}" ${i === state.column ? "selected" : ""}>${esc(value || `Columna ${i + 1}`)}</option>`).join("")}</select></label>` : ""}<div class="pv-upload-counts"><span>Filas cargadas <strong>${summary.rows}</strong></span><span>Matrículas únicas <strong>${summary.input.length}</strong></span><span>Duplicados <strong>${summary.duplicates}</strong></span></div><button class="primary-btn" id="pvVerify" ${summary.input.length && !state.loading ? "" : "disabled"}>${state.loading ? "Verificando participación…" : "Verificar participación"}</button></div>` : `<form class="pv-upload pv-single" id="pvSingleForm"><label for="pvSingleInput">Matrícula<input id="pvSingleInput" type="search" value="${esc(state.singleValue)}" placeholder="Ej. A01234567" autocomplete="off" aria-label="Matrícula para verificación individual"></label><button class="primary-btn" id="pvSingleVerify" type="submit" ${singleInput(state.singleValue).length && !state.loading ? "" : "disabled"}>${state.loading ? "Verificando participación…" : "Verificar matrícula"}</button><span>Consulta las seis fuentes y muestra el mismo detalle y descarga que el archivo.</span></form>`}
       <p class="pv-note">Clases e Intramuros: solo capturas con estatus de asistencia. Booking y Nado libre: solo reservaciones con estatus de asistencia o uso; una reserva APPROVED no prueba asistencia. Vivencia: participantes de eventos realizados. Las listas de clase, torneos y alumnos no se cuentan.</p>
       ${state.error ? `<div class="permission-strip" role="alert">Consulta incompleta: ${esc(state.error)}. No se muestran resultados para evitar falsos ceros.</div>` : ""}
@@ -150,10 +152,31 @@
   function bindView(container, client, XLSX) {
     const refresh = () => { container.innerHTML = renderView(); bindView(container, client, XLSX); };
     container.querySelectorAll("[data-pv-mode]").forEach((button) => button.addEventListener("click", () => { setMode(button.dataset.pvMode); refresh(); }));
+    container.querySelector("#pvBuildReport")?.addEventListener("click", async () => {
+      if (state.loading || !state.batchRows || !root.WellSyncPosgradoReport) return;
+      state.loading = true; state.reportError = ""; state.report = null; refresh();
+      try {
+        const source = await root.WellSyncPosgradoReport.queryProfiles(client, state.batchRows.map((row) => row.matricula));
+        state.report = root.WellSyncPosgradoReport.buildReport(state.batchRows, source);
+      } catch (error) { state.reportError = error.message; }
+      finally { state.loading = false; refresh(); }
+    });
+    container.querySelector("#pvReportExcel")?.addEventListener("click", () => { try { root.WellSyncPosgradoReport.exportWorkbook(XLSX, state.report); } catch (error) { state.reportError = error.message; refresh(); } });
+    container.querySelector("#pvReportPdf")?.addEventListener("click", () => {
+      const page = container.querySelector("#pvPosgradoReport .pv-report-page");
+      if (!page) return;
+      const printRoot = document.createElement("div");
+      printRoot.className = "pv-report-print-root";
+      printRoot.appendChild(page.cloneNode(true));
+      document.body.appendChild(printRoot);
+      document.body.classList.add("pv-report-print");
+      window.addEventListener("afterprint", () => { printRoot.remove(); document.body.classList.remove("pv-report-print"); }, { once: true });
+      window.print();
+    });
     container.querySelector("#pvFile")?.addEventListener("change", async (event) => {
       const file = event.target.files?.[0];
       if (!file) return;
-      state.error = ""; state.batchRows = null; state.rows = null; state.detail = null;
+      state.error = ""; state.batchRows = null; state.report = null; state.reportError = ""; state.rows = null; state.detail = null;
       try {
         if (!/\.(xlsx|csv)$/i.test(file.name)) throw new Error("Usa un archivo .xlsx o .csv.");
         const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
@@ -165,10 +188,10 @@
       } catch (error) { state.grid = null; state.headers = []; state.column = -1; state.error = error.message; }
       refresh();
     });
-    container.querySelector("#pvColumn")?.addEventListener("change", (event) => { state.column = Number(event.target.value); state.batchRows = null; state.rows = null; refresh(); });
+    container.querySelector("#pvColumn")?.addEventListener("change", (event) => { state.column = Number(event.target.value); state.batchRows = null; state.report = null; state.rows = null; refresh(); });
     container.querySelector("#pvVerify")?.addEventListener("click", async () => {
       if (state.loading) return;
-      state.loading = true; state.error = ""; state.batchRows = null; state.rows = null; refresh();
+      state.loading = true; state.error = ""; state.batchRows = null; state.report = null; state.reportError = ""; state.rows = null; refresh();
       try { const input = inputSummary(state.grid, state.column).input; state.batchRows = consolidate(input, await query(client, input)); state.rows = state.batchRows; }
       catch (error) { state.error = error.message; }
       finally { state.loading = false; refresh(); }

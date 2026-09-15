@@ -127,3 +127,17 @@ test("modo individual muestra el mismo resumen y conserva el resultado cargado p
   assert.equal(verifier.state.singleRows.length, 1);
   verifier.useSession(null);
 });
+
+test("el tablero de Posgrado exige el archivo verificado y no usa la búsqueda individual", () => {
+  verifier.useSession("report-mode-user");
+  verifier.state.singleRows = verifier.consolidate(["A001"], {});
+  verifier.setMode("report");
+  assert.match(verifier.renderView(), /Carga un archivo y presiona Verificar participación/);
+  assert.match(verifier.renderView(), /id="pvBuildReport" disabled/);
+  verifier.state.batchRows = verifier.consolidate(["A002"], {});
+  assert.match(verifier.renderView(), /Se usarán solo las matrículas verificadas del archivo/);
+  assert.doesNotMatch(verifier.renderView(), /id="pvBuildReport" disabled/);
+  verifier.state.report = { rows: [] };
+  verifier.useSession(null);
+  assert.equal(verifier.state.report, null);
+});
