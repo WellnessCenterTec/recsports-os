@@ -64,6 +64,13 @@ test("consulta por lotes a las cuatro fuentes físicas, sin N+1 ni escrituras", 
   assert.deepEqual([...new Set(calls)].sort(), ["class_booking_reservations", "gym_asistencias", "participations", "vivencia_participants"].sort());
 });
 
+test("una sesión vencida impide mostrar ceros falsos o consultar con el rol anónimo", async () => {
+  let queried = false;
+  const client = { auth: { async getSession() { return { data: { session: null }, error: null }; } }, from() { queried = true; throw new Error("No debe consultar"); } };
+  await assert.rejects(verifier.query(client, ["A001"]), /sesión de Supabase venció/);
+  assert.equal(queried, false);
+});
+
 test("Vivencia obtiene actividad y fecha desde el evento real sin depender de columnas de la vista", async () => {
   const calls = [];
   const client = { from(table) {

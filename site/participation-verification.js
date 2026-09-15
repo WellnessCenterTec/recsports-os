@@ -74,6 +74,10 @@
   }
   async function query(client, input) {
     if (!client) throw new Error("Inicia sesión con Supabase para consultar las fuentes.");
+    if (client.auth?.getSession) {
+      const { data, error } = await client.auth.getSession();
+      if (error || !data?.session) throw new Error("La sesión de Supabase venció. Vuelve a iniciar sesión para verificar participaciones.");
+    }
     const sources = { captures: [], gym: [], booking: [], vivencia: [] };
     for (let index = 0; index < input.length; index += 250) {
       const batch = input.slice(index, index + 250);
