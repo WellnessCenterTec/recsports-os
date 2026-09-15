@@ -91,3 +91,32 @@ test("al cambiar o cerrar sesión elimina matrículas y resultados de memoria", 
   assert.equal(verifier.state.grid, null);
   assert.equal(verifier.state.rows, null);
 });
+
+test("búsqueda individual normaliza la matrícula igual que el archivo y admite una inexistente", () => {
+  assert.deepEqual(normalize(verifier.singleInput("  a0 1234567  ")), ["A01234567"]);
+  assert.deepEqual(normalize(verifier.singleInput("  ")), []);
+  const rows = normalize(verifier.consolidate(verifier.singleInput("a09999999"), {}));
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].matricula, "A09999999");
+  assert.equal(rows[0].total, 0);
+});
+
+test("modo individual muestra el mismo resumen y conserva el resultado cargado por archivo", () => {
+  verifier.useSession("mode-test-user");
+  verifier.state.batchRows = verifier.consolidate(["A001", "A002"], {});
+  verifier.state.singleValue = "a09999999";
+  verifier.state.singleRows = verifier.consolidate(["A09999999"], {});
+  verifier.setMode("file");
+  assert.equal(verifier.state.rows.length, 2);
+  verifier.setMode("single");
+  const view = verifier.renderView();
+  assert.equal(verifier.state.rows.length, 1);
+  assert.match(view, /Verificar matrícula/);
+  assert.match(view, /A09999999/);
+  assert.match(view, /Descargar resultados/);
+  assert.doesNotMatch(view, /id="pvFile"/);
+  verifier.setMode("file");
+  assert.equal(verifier.state.rows.length, 2);
+  assert.equal(verifier.state.singleRows.length, 1);
+  verifier.useSession(null);
+});

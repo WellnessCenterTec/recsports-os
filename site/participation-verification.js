@@ -2,12 +2,22 @@
 (function (root) {
   "use strict";
   const modules = ["Clases", "Gimnasio", "Intramuros", "Booking", "Nado libre", "Vivencia"];
-  const state = { userId: null, grid: null, headers: [], column: -1, rows: null, detail: null, filter: "todos", search: "", sort: "matricula", descending: false, loading: false, error: "" };
+  const state = { userId: null, mode: "file", grid: null, headers: [], column: -1, singleValue: "", batchRows: null, singleRows: null, rows: null, detail: null, filter: "todos", search: "", sort: "matricula", descending: false, loading: false, error: "" };
   function useSession(userId) {
     if (state.userId === userId) return;
-    Object.assign(state, { userId, grid: null, headers: [], column: -1, rows: null, detail: null, filter: "todos", search: "", sort: "matricula", descending: false, loading: false, error: "" });
+    Object.assign(state, { userId, mode: "file", grid: null, headers: [], column: -1, singleValue: "", batchRows: null, singleRows: null, rows: null, detail: null, filter: "todos", search: "", sort: "matricula", descending: false, loading: false, error: "" });
   }
   const clean = (value) => String(value ?? "").trim().toUpperCase().replace(/\s+/g, "");
+  const singleInput = (value) => clean(value) ? [clean(value)] : [];
+  function setMode(mode) {
+    if (!(["file", "single"].includes(mode)) || state.loading) return;
+    state.mode = mode;
+    state.rows = mode === "file" ? state.batchRows : state.singleRows;
+    state.detail = null;
+    state.filter = "todos";
+    state.search = "";
+    state.error = "";
+  }
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
   const date = (value) => value ? String(value).slice(0, 10) : "Sin fecha en la fuente";
   const inputSummary = (grid, column) => {
@@ -116,10 +126,11 @@
       return `<h3>${esc(module)}</h3>${[...activities].map(([activity, items]) => `<strong>${esc(activity)} — ${items.length} participación${items.length === 1 ? "" : "es"}</strong><ul>${items.map((item) => `<li>${esc(item.date)} · ${esc(item.source)} · ID ${esc(item.id)}${item.category ? ` · ${esc(item.category)}` : ""}</li>`).join("")}</ul>`).join("")}`;
     }).join("") : "Sin registros de participación verificada en las fuentes consultadas."}</section></div>` : "";
     return `<section class="pv-module"><div class="pv-heading"><div><p class="eyebrow">Consulta de solo lectura</p><h2>Verificación de participación</h2><p>Carga matrículas y consulta asistencias o usos confirmados en las fuentes disponibles.</p></div></div>
-      <div class="pv-upload"><label>Archivo Excel o CSV<input id="pvFile" type="file" accept=".xlsx,.csv"></label>${state.headers.length ? `<label>Columna de matrícula<select id="pvColumn">${state.headers.map((value, i) => `<option value="${i}" ${i === state.column ? "selected" : ""}>${esc(value || `Columna ${i + 1}`)}</option>`).join("")}</select></label>` : ""}<div class="pv-upload-counts"><span>Filas cargadas <strong>${summary.rows}</strong></span><span>Matrículas únicas <strong>${summary.input.length}</strong></span><span>Duplicados <strong>${summary.duplicates}</strong></span></div><button class="primary-btn" id="pvVerify" ${summary.input.length && !state.loading ? "" : "disabled"}>${state.loading ? "Verificando participación…" : "Verificar participación"}</button></div>
+      <div class="pv-mode-switch" role="tablist" aria-label="Modo de verificación"><button type="button" role="tab" data-pv-mode="file" aria-selected="${state.mode === "file"}" class="${state.mode === "file" ? "active" : ""}">Archivo Excel o CSV</button><button type="button" role="tab" data-pv-mode="single" aria-selected="${state.mode === "single"}" class="${state.mode === "single" ? "active" : ""}">Buscar una matrícula</button></div>
+      ${state.mode === "file" ? `<div class="pv-upload"><label>Archivo Excel o CSV<input id="pvFile" type="file" accept=".xlsx,.csv"></label>${state.headers.length ? `<label>Columna de matrícula<select id="pvColumn">${state.headers.map((value, i) => `<option value="${i}" ${i === state.column ? "selected" : ""}>${esc(value || `Columna ${i + 1}`)}</option>`).join("")}</select></label>` : ""}<div class="pv-upload-counts"><span>Filas cargadas <strong>${summary.rows}</strong></span><span>Matrículas únicas <strong>${summary.input.length}</strong></span><span>Duplicados <strong>${summary.duplicates}</strong></span></div><button class="primary-btn" id="pvVerify" ${summary.input.length && !state.loading ? "" : "disabled"}>${state.loading ? "Verificando participación…" : "Verificar participación"}</button></div>` : `<form class="pv-upload pv-single" id="pvSingleForm"><label for="pvSingleInput">Matrícula<input id="pvSingleInput" type="search" value="${esc(state.singleValue)}" placeholder="Ej. A01234567" autocomplete="off" aria-label="Matrícula para verificación individual"></label><button class="primary-btn" id="pvSingleVerify" type="submit" ${singleInput(state.singleValue).length && !state.loading ? "" : "disabled"}>${state.loading ? "Verificando participación…" : "Verificar matrícula"}</button><span>Consulta las seis fuentes y muestra el mismo detalle y descarga que el archivo.</span></form>`}
       <p class="pv-note">Clases e Intramuros: solo capturas con estatus de asistencia. Booking y Nado libre: solo reservaciones con estatus de asistencia o uso; una reserva APPROVED no prueba asistencia. Vivencia: participantes de eventos realizados. Las listas de clase, torneos y alumnos no se cuentan.</p>
       ${state.error ? `<div class="permission-strip" role="alert">Consulta incompleta: ${esc(state.error)}. No se muestran resultados para evitar falsos ceros.</div>` : ""}
-      ${state.rows ? `<div class="pv-kpis">${[["Matrículas analizadas", rows.length], ["Con participación", participating], ["Sin participación verificada", rows.length - participating], ["Participaciones totales", total], ["Promedio de participaciones", rows.length ? (total / rows.length).toFixed(2) : "0"]].map(([label, value]) => `<article class="kpi"><span>${label}</span><strong>${value}</strong></article>`).join("")}</div><div class="pv-tools"><label>Filtrar<select id="pvFilter"><option value="todos" ${state.filter === "todos" ? "selected" : ""}>Todos</option><option value="si" ${state.filter === "si" ? "selected" : ""}>Con participación</option><option value="no" ${state.filter === "no" ? "selected" : ""}>Sin participación</option></select></label><label>Buscar matrícula<input id="pvSearch" type="search" value="${esc(state.search)}"></label><button class="ghost-btn" id="pvExport">Descargar resultados</button></div><div class="table-wrap"><table><thead><tr>${["Matrícula", "Participó", "Total", ...modules, "Detalle"].map((label) => `<th>${label === "Participó" || label === "Detalle" ? esc(label) : `<button class="pv-sort" data-sort="${esc(label === "Matrícula" ? "matricula" : label === "Total" ? "total" : label)}">${esc(label)}</button>`}</th>`).join("")}</tr></thead><tbody>${displayRows().map((row) => `<tr><td>${esc(row.matricula)}</td><td>${row.total ? "Sí" : "No"}</td><td>${row.total}</td>${modules.map((module) => `<td>${row.counts[module]}</td>`).join("")}<td><button class="ghost-btn pv-detail" data-matricula="${esc(row.matricula)}">Ver detalle</button></td></tr>`).join("") || `<tr><td colspan="10">Sin resultados para estos filtros.</td></tr>`}</tbody></table></div>${detail}` : ""}</section>`;
+      ${state.rows ? `<div class="pv-kpis">${[["Matrículas analizadas", rows.length], ["Con participación", participating], ["Sin participación verificada", rows.length - participating], ["Participaciones totales", total], ["Promedio de participaciones", rows.length ? (total / rows.length).toFixed(2) : "0"]].map(([label, value]) => `<article class="kpi"><span>${label}</span><strong>${value}</strong></article>`).join("")}</div><div class="pv-tools">${state.mode === "file" ? `<label>Filtrar<select id="pvFilter"><option value="todos" ${state.filter === "todos" ? "selected" : ""}>Todos</option><option value="si" ${state.filter === "si" ? "selected" : ""}>Con participación</option><option value="no" ${state.filter === "no" ? "selected" : ""}>Sin participación</option></select></label><label>Buscar matrícula en resultados<input id="pvSearch" type="search" value="${esc(state.search)}"></label>` : ""}<button class="ghost-btn" id="pvExport">Descargar resultados</button></div><div class="table-wrap"><table><thead><tr>${["Matrícula", "Participó", "Total", ...modules, "Detalle"].map((label) => `<th>${label === "Participó" || label === "Detalle" ? esc(label) : `<button class="pv-sort" data-sort="${esc(label === "Matrícula" ? "matricula" : label === "Total" ? "total" : label)}">${esc(label)}</button>`}</th>`).join("")}</tr></thead><tbody>${displayRows().map((row) => `<tr><td>${esc(row.matricula)}</td><td>${row.total ? "Sí" : "No"}</td><td>${row.total}</td>${modules.map((module) => `<td>${row.counts[module]}</td>`).join("")}<td><button class="ghost-btn pv-detail" data-matricula="${esc(row.matricula)}">Ver detalle</button></td></tr>`).join("") || `<tr><td colspan="10">Sin resultados para estos filtros.</td></tr>`}</tbody></table></div>${detail}` : ""}</section>`;
   }
   function exportWorkbook(XLSX) {
     if (!XLSX || !state.rows) throw new Error("No está disponible el generador de Excel.");
@@ -132,10 +143,11 @@
   }
   function bindView(container, client, XLSX) {
     const refresh = () => { container.innerHTML = renderView(); bindView(container, client, XLSX); };
+    container.querySelectorAll("[data-pv-mode]").forEach((button) => button.addEventListener("click", () => { setMode(button.dataset.pvMode); refresh(); }));
     container.querySelector("#pvFile")?.addEventListener("change", async (event) => {
       const file = event.target.files?.[0];
       if (!file) return;
-      state.error = ""; state.rows = null; state.detail = null;
+      state.error = ""; state.batchRows = null; state.rows = null; state.detail = null;
       try {
         if (!/\.(xlsx|csv)$/i.test(file.name)) throw new Error("Usa un archivo .xlsx o .csv.");
         const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
@@ -147,11 +159,26 @@
       } catch (error) { state.grid = null; state.headers = []; state.column = -1; state.error = error.message; }
       refresh();
     });
-    container.querySelector("#pvColumn")?.addEventListener("change", (event) => { state.column = Number(event.target.value); state.rows = null; refresh(); });
+    container.querySelector("#pvColumn")?.addEventListener("change", (event) => { state.column = Number(event.target.value); state.batchRows = null; state.rows = null; refresh(); });
     container.querySelector("#pvVerify")?.addEventListener("click", async () => {
       if (state.loading) return;
-      state.loading = true; state.error = ""; state.rows = null; refresh();
-      try { const input = inputSummary(state.grid, state.column).input; state.rows = consolidate(input, await query(client, input)); }
+      state.loading = true; state.error = ""; state.batchRows = null; state.rows = null; refresh();
+      try { const input = inputSummary(state.grid, state.column).input; state.batchRows = consolidate(input, await query(client, input)); state.rows = state.batchRows; }
+      catch (error) { state.error = error.message; }
+      finally { state.loading = false; refresh(); }
+    });
+    container.querySelector("#pvSingleInput")?.addEventListener("input", (event) => {
+      state.singleValue = event.target.value;
+      const button = container.querySelector("#pvSingleVerify");
+      if (button) button.disabled = !singleInput(state.singleValue).length || state.loading;
+    });
+    container.querySelector("#pvSingleForm")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const input = singleInput(state.singleValue);
+      if (state.loading || !input.length) return;
+      state.singleValue = input[0];
+      state.loading = true; state.error = ""; state.singleRows = null; state.rows = null; state.detail = null; refresh();
+      try { state.singleRows = consolidate(input, await query(client, input)); state.rows = state.singleRows; }
       catch (error) { state.error = error.message; }
       finally { state.loading = false; refresh(); }
     });
@@ -162,5 +189,5 @@
     container.querySelector("#pvClose")?.addEventListener("click", () => { state.detail = null; refresh(); });
     container.querySelector("#pvExport")?.addEventListener("click", () => { try { exportWorkbook(XLSX); } catch (error) { state.error = error.message; refresh(); } });
   }
-  root.WellSyncParticipationVerification = { renderView, bindView, inputSummary, consolidate, activityForBooking, validBooking, query, exportWorkbook, useSession, state };
+  root.WellSyncParticipationVerification = { renderView, bindView, inputSummary, singleInput, setMode, consolidate, activityForBooking, validBooking, query, exportWorkbook, useSession, state };
 })(typeof window === "undefined" ? globalThis : window);

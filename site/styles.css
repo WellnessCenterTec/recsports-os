@@ -14498,6 +14498,11 @@ tbody tr:hover td {
 
 /* Verificación de participación */
 .pv-module { display: grid; gap: 18px; }
+.pv-mode-switch { display: flex; flex-wrap: wrap; gap: 8px; }
+.pv-mode-switch button { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); font: inherit; font-weight: 700; padding: 10px 16px; cursor: pointer; }
+.pv-mode-switch button.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.pv-single input { width: min(320px, 100%); }
+.pv-single span { color: var(--muted); }
 .pv-heading, .pv-upload, .pv-note, .pv-tools { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
 .pv-heading h2 { margin: 4px 0 8px; }
 .pv-heading p:last-child { margin-bottom: 0; color: var(--muted); }
