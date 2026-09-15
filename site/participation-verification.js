@@ -19,7 +19,7 @@
   const validBooking = (value) => ["ATTENDED", "CHECKED-IN", "COMPLETED", "ASISTIO", "ASISTIÓ"].includes(clean(value).replace(/_/g, "-"));
   function emptyRow(matricula) { return { matricula, total: 0, counts: Object.fromEntries(modules.map((name) => [name, 0])), details: [] }; }
   function add(row, record, seen) {
-    const key = `${record.source}:${record.id}`;
+    const key = `${record.source}:${record.dedupKey || record.id}`;
     if (seen.has(key)) return;
     seen.add(key);
     row.details.push(record);
@@ -48,7 +48,7 @@
     for (const item of sources.vivencia || []) {
       const row = map.get(clean(item.matricula));
       if (!row || clean(item.event_status) !== "REALIZADO") continue;
-      add(row, { source: "vivencia_participant_details", id: `${item.event_id}:${clean(item.matricula)}`, module: "Vivencia", activity: item.event_name || "Sin actividad en la fuente", date: date(item.event_date), category: item.classification || "" }, seen);
+      add(row, { source: "vivencia_participants", id: item.id, dedupKey: `${item.event_id}:${clean(item.matricula)}`, module: "Vivencia", activity: item.event_name || "Sin actividad en la fuente", date: date(item.event_date), category: item.classification || "" }, seen);
     }
     return [...map.values()];
   }
@@ -71,10 +71,28 @@
         pages(client, "participations", "id,matricula,area_key,status,operation_label,metadata,record_date", batch),
         pages(client, "gym_asistencias", "id,matricula,fecha,hora,sitio", batch),
         pages(client, "class_booking_reservations", "id,source_reservation_id,matricula,reservation_at,status,activity,raw_space", batch),
-        pages(client, "vivencia_participant_details", "id,event_id,matricula,event_name,event_date,event_status,classification", batch)
+        pages(client, "vivencia_participants", "id,event_id,matricula", batch)
       ]);
       ["captures", "gym", "booking", "vivencia"].forEach((key, i) => sources[key].push(...parts[i]));
     }
+    const eventIds = [...new Set(sources.vivencia.map((row) => row.event_id).filter(Boolean))];
+    const events = new Map();
+    for (let index = 0; index < eventIds.length; index += 250) {
+      const batch = eventIds.slice(index, index + 250);
+      for (let offset = 0; ; offset += 1000) {
+        const response = await client.from("vivencia_events")
+          .select("id,event_name,event_date,status,classification,archived_at")
+          .in("id", batch).order("id", { ascending: true }).range(offset, offset + 999);
+        if (response.error) throw new Error(`vivencia_events: ${response.error.message}`);
+        (response.data || []).forEach((event) => events.set(event.id, event));
+        if (!response.data || response.data.length < 1000) break;
+      }
+    }
+    sources.vivencia = sources.vivencia.map((participant) => {
+      const event = events.get(participant.event_id);
+      if (!event) throw new Error(`vivencia_events: no se pudo leer el evento ${participant.event_id}`);
+      return { ...participant, event_name: event.event_name, event_date: event.event_date, event_status: event.archived_at ? "archivado" : event.status, classification: event.classification };
+    });
     return sources;
   }
   function displayRows() {

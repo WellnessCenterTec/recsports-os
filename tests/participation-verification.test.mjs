@@ -61,7 +61,26 @@ test("consulta por lotes a las cuatro fuentes físicas, sin N+1 ni escrituras", 
   const results = await verifier.query(client, input);
   assert.deepEqual(normalize(Object.keys(results)), ["captures", "gym", "booking", "vivencia"]);
   assert.equal(calls.length, 8);
-  assert.deepEqual([...new Set(calls)].sort(), ["class_booking_reservations", "gym_asistencias", "participations", "vivencia_participant_details"].sort());
+  assert.deepEqual([...new Set(calls)].sort(), ["class_booking_reservations", "gym_asistencias", "participations", "vivencia_participants"].sort());
+});
+
+test("Vivencia obtiene actividad y fecha desde el evento real sin depender de columnas de la vista", async () => {
+  const calls = [];
+  const client = { from(table) {
+    const request = { select(columns) { calls.push([table, columns]); return this; }, in(field, values) { assert.ok(values.length <= 250); assert.equal(field, table === "vivencia_events" ? "id" : "matricula"); return this; }, order() { return this; }, async range() {
+      if (table === "vivencia_participants") return { data: [{ id: "vp1", event_id: "event1", matricula: "A001" }], error: null };
+      if (table === "vivencia_events") return { data: [{ id: "event1", event_name: "Festival", event_date: "2026-08-30", status: "realizado", classification: "Vivencia", archived_at: null }], error: null };
+      return { data: [], error: null };
+    } };
+    return request;
+  } };
+  const sources = await verifier.query(client, ["A001"]);
+  const rows = normalize(verifier.consolidate(["A001"], sources));
+  assert.equal(rows[0].counts.Vivencia, 1);
+  assert.equal(rows[0].details[0].activity, "Festival");
+  assert.equal(rows[0].details[0].date, "2026-08-30");
+  assert.equal(rows[0].details[0].id, "vp1");
+  assert.deepEqual(calls.filter(([table]) => table.startsWith("vivencia")), [["vivencia_participants", "id,event_id,matricula"], ["vivencia_events", "id,event_name,event_date,status,classification,archived_at"]]);
 });
 
 test("al cambiar o cerrar sesión elimina matrículas y resultados de memoria", () => {
