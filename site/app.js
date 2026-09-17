@@ -527,6 +527,12 @@ const GYM_LIVE_OCCUPANCY_URL = "https://hash-dependence-latitude-dubai.trycloudf
 
 const budgetFilters = { period: "AD26", area: "todos", status: "todos" };
 let budgetPeriods = ["AD26"];
+let budgetSheetExpenses = [];
+let budgetSheetIssues = [];
+let budgetSheetDuplicates = 0;
+let budgetSheetFetchedAt = "";
+let budgetSheetState = "pendiente";
+let budgetSheetMessage = "";
 const BUDGET_ACTIVE_PERIODS = new Set(["AD26"]);
 const BUDGET_RETIRED_PERIODS = ["AN26"];
 let budgetPeriodFormOpen = false;
@@ -1232,7 +1238,10 @@ function latestBudgetPeriodKey(periodRows = [], fallbackPeriods = []) {
 async function loadBudgetData() {
   budgetCloudReady = false;
   budgetCloudMessage = "Modo local";
-  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    await loadBudgetSheetExpenses();
+    return;
+  }
   if (canEditArea("compras")) {
     for (const period of BUDGET_RETIRED_PERIODS) {
       const requestsDelete = await supabaseClient.from("budget_requests").delete().eq("period_key", period);
@@ -1260,6 +1269,7 @@ async function loadBudgetData() {
   if (periodsResult.error || plansResult.error || requestsResult.error) {
     console.warn(periodsResult.error || plansResult.error || requestsResult.error);
     budgetCloudMessage = "Activa las tablas de Presupuesto en Supabase";
+    await loadBudgetSheetExpenses();
     return;
   }
   const cloudPlans = (plansResult.data || []).map(budgetPlanFromCloud).filter((row) => row && BUDGET_ACTIVE_PERIODS.has(row.period));
@@ -1295,6 +1305,54 @@ async function loadBudgetData() {
     .map(normalizeBudgetRequest)
     .filter((row) => row && BUDGET_ACTIVE_PERIODS.has(row.period) && !LEGACY_BUDGET_DEMO_IDS.has(row.id));
   saveBudgetRequestRows();
+  await loadBudgetSheetExpenses();
+}
+
+async function loadBudgetSheetExpenses() {
+  const localExample = ["127.0.0.1", "localhost"].includes(window.location.hostname)
+    && new URLSearchParams(window.location.search).get("budget_source_preview") === "1";
+  if (localExample) {
+    const example = window.WellSyncBudgetExpensesFeed.parse([
+      ["ID", "Nombre", "Tipo de gasto", "Tipo de pago", "Costo", "Área", "Comentario / OC", "Adjuntar archivo", "Fecha", "Mes", "Usuario"],
+      ["EJEMPLO-01", "Material para actividad", "Material Deportivo", "AMEX", "$1,250.00", "Clases Deportivas", "", "", "9/15/2026", "9", ""],
+      ["EJEMPLO-02", "Servicio de mantenimiento", "Mantenimiento", "Transferencia", "$2,400.00", "Gimnasio", "", "", "9/16/2026", "9", ""]
+    ]);
+    budgetSheetExpenses = example.rows;
+    budgetSheetIssues = example.issues;
+    budgetSheetDuplicates = 0;
+    budgetSheetFetchedAt = "";
+    budgetSheetState = "ejemplo";
+    budgetSheetMessage = "Datos de ejemplo para revisar el diseño; no son gastos de la hoja";
+    return;
+  }
+  budgetSheetExpenses = [];
+  budgetSheetIssues = [];
+  budgetSheetDuplicates = 0;
+  budgetSheetFetchedAt = "";
+  if (!supabaseClient || currentUser?.auth !== "supabase") {
+    budgetSheetState = "pendiente";
+    budgetSheetMessage = "Inicia sesión con Supabase para consultar la hoja privada";
+    return;
+  }
+  try {
+    const { data } = await supabaseClient.auth.getSession();
+    if (!data?.session?.access_token) throw new Error("Sesión Supabase no disponible");
+    const response = await fetch("/api/budget-expenses", {
+      headers: { Authorization: `Bearer ${data.session.access_token}` },
+      cache: "no-store"
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "No se pudo consultar la hoja");
+    budgetSheetExpenses = Array.isArray(payload.rows) ? payload.rows : [];
+    budgetSheetIssues = Array.isArray(payload.issues) ? payload.issues : [];
+    budgetSheetDuplicates = Number(payload.duplicateCount) || 0;
+    budgetSheetFetchedAt = payload.fetchedAt || "";
+    budgetSheetState = "activo";
+    budgetSheetMessage = "Lectura privada de Gastos Log";
+  } catch (error) {
+    budgetSheetState = "pendiente";
+    budgetSheetMessage = error.message || "No se pudo consultar la hoja";
+  }
 }
 
 async function saveBudgetAllocationToCloud(plan) {
@@ -15428,6 +15486,25 @@ function budgetKpiCard(icon, title, value, meta, tone = "blue") {
   `;
 }
 
+function renderBudgetSheetPreview() {
+  const rows = budgetSheetExpenses.filter((row) => budgetFilters.area === "todos" || row.area === budgetFilters.area);
+  const mapped = rows.filter((row) => row.area);
+  const total = mapped.reduce((sum, row) => sum + row.amount, 0);
+  const lastUpdate = budgetSheetFetchedAt
+    ? new Date(budgetSheetFetchedAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
+    : "Sin lectura en vivo";
+  return `<section class="budget-sheet-preview" aria-label="Vista previa de gastos de Google Sheets">
+    <div class="budget-sheet-heading">
+      <div><p class="eyebrow">Fuente externa · Gastos Log</p><h3>Gastos registrados en la hoja</h3></div>
+      <div class="budget-sheet-heading-actions"><span class="budget-sheet-status ${escapeHtml(budgetSheetState)}">${budgetSheetState === "activo" ? "Conectado" : budgetSheetState === "ejemplo" ? "Ejemplo local" : "Pendiente de conexión"}</span>${budgetSheetState !== "ejemplo" ? `<button class="secondary-btn compact-action" type="button" data-budget-sheet-refresh>Actualizar</button>` : ""}</div>
+    </div>
+    <p class="budget-sheet-note">${escapeHtml(budgetSheetMessage)}. Esta vista no se suma todavía al gasto del tablero ni modifica solicitudes o presupuestos.</p>
+    <div class="budget-sheet-metrics"><span><strong>${mapped.length.toLocaleString("es-MX")}</strong> gastos con área identificada</span><span><strong>${money(total)}</strong> en la fuente visible${budgetFilters.area === "todos" ? "" : ` para ${escapeHtml(budgetAreaLabel(budgetFilters.area))}`}</span><span><strong>${budgetSheetIssues.length}</strong> observaciones de mapeo</span></div>
+    <p class="budget-sheet-meta">${escapeHtml(lastUpdate)}${budgetSheetDuplicates ? ` · ${budgetSheetDuplicates} ID duplicados consolidados` : ""} · La hoja no trae columna de periodo; falta confirmar qué fechas corresponden a AD26.</p>
+    ${rows.length ? `<div class="budget-sheet-table-wrap"><table><thead><tr><th>Fecha</th><th>Área en la hoja</th><th>Gasto</th><th>Tipo</th><th>Monto</th></tr></thead><tbody>${rows.slice(0, 8).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.sourceArea)}${row.area ? "" : " · sin equivalencia"}</td><td>${escapeHtml(row.concept)}</td><td>${escapeHtml(row.category)}</td><td>${money(row.amount)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="budget-sheet-empty">Los gastos aparecerán aquí cuando se autorice la lectura privada de la hoja.</p>`}
+  </section>`;
+}
+
 async function saveBudgetAllocation(event) {
   event.preventDefault();
   if (!isLeadership()) {
@@ -15884,6 +15961,8 @@ function renderBudgetDashboard() {
       ` : ""}
 
       ${renderBudgetEditPanel()}
+
+      ${renderBudgetSheetPreview()}
 
       <div class="kpi-grid budget-kpi-strip">
         ${budgetKpiCard("circle-dollar-sign", "Presupuesto asignado", money(assigned), "base del periodo", "blue")}
@@ -21248,6 +21327,10 @@ function render() {
     selectedBudgetRequestEditId = "";
     render();
   }));
+  $("[data-budget-sheet-refresh]")?.addEventListener("click", async () => {
+    await loadBudgetSheetExpenses();
+    render();
+  });
   $("#budgetAllocationForm")?.addEventListener("submit", saveBudgetAllocation);
   $("#budgetRequestForm")?.addEventListener("submit", saveBudgetRequest);
   $("#budgetEditRequestForm")?.addEventListener("submit", updateBudgetRequest);
@@ -22527,6 +22610,12 @@ $("#logoutButton").addEventListener("click", () => {
     collaboratorSettingsLoaded = false;
     cloudStatus = "Supabase listo";
   }
+  budgetSheetExpenses = [];
+  budgetSheetIssues = [];
+  budgetSheetDuplicates = 0;
+  budgetSheetFetchedAt = "";
+  budgetSheetState = "pendiente";
+  budgetSheetMessage = "";
   clearSession();
   moduleDataCoordinator?.reset();
   moduleDataCoordinator = null;
