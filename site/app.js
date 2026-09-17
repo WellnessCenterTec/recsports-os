@@ -15490,6 +15490,7 @@ function renderBudgetSheetPreview() {
   const rows = budgetSheetExpenses.filter((row) => budgetFilters.area === "todos" || row.area === budgetFilters.area);
   const mapped = rows.filter((row) => row.area);
   const total = mapped.reduce((sum, row) => sum + row.amount, 0);
+  const hasSourceData = budgetSheetState === "activo" || budgetSheetState === "ejemplo";
   const lastUpdate = budgetSheetFetchedAt
     ? new Date(budgetSheetFetchedAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
     : "Sin lectura en vivo";
@@ -15499,7 +15500,7 @@ function renderBudgetSheetPreview() {
       <div class="budget-sheet-heading-actions"><span class="budget-sheet-status ${escapeHtml(budgetSheetState)}">${budgetSheetState === "activo" ? "Conectado" : budgetSheetState === "ejemplo" ? "Ejemplo local" : "Pendiente de conexión"}</span>${budgetSheetState !== "ejemplo" ? `<button class="secondary-btn compact-action" type="button" data-budget-sheet-refresh>Actualizar</button>` : ""}</div>
     </div>
     <p class="budget-sheet-note">${escapeHtml(budgetSheetMessage)}. Esta vista no se suma todavía al gasto del tablero ni modifica solicitudes o presupuestos.</p>
-    <div class="budget-sheet-metrics"><span><strong>${mapped.length.toLocaleString("es-MX")}</strong> gastos con área identificada</span><span><strong>${money(total)}</strong> en la fuente visible${budgetFilters.area === "todos" ? "" : ` para ${escapeHtml(budgetAreaLabel(budgetFilters.area))}`}</span><span><strong>${budgetSheetIssues.length}</strong> observaciones de mapeo</span></div>
+    <div class="budget-sheet-metrics"><span><strong>${hasSourceData ? mapped.length.toLocaleString("es-MX") : "—"}</strong> gastos con área identificada</span><span><strong>${hasSourceData ? money(total) : "—"}</strong> en la fuente visible${budgetFilters.area === "todos" ? "" : ` para ${escapeHtml(budgetAreaLabel(budgetFilters.area))}`}</span><span><strong>${hasSourceData ? budgetSheetIssues.length : "—"}</strong> observaciones de mapeo</span></div>
     <p class="budget-sheet-meta">${escapeHtml(lastUpdate)}${budgetSheetDuplicates ? ` · ${budgetSheetDuplicates} ID duplicados consolidados` : ""} · La hoja no trae columna de periodo; falta confirmar qué fechas corresponden a AD26.</p>
     ${rows.length ? `<div class="budget-sheet-table-wrap"><table><thead><tr><th>Fecha</th><th>Área en la hoja</th><th>Gasto</th><th>Tipo</th><th>Monto</th></tr></thead><tbody>${rows.slice(0, 8).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.sourceArea)}${row.area ? "" : " · sin equivalencia"}</td><td>${escapeHtml(row.concept)}</td><td>${escapeHtml(row.category)}</td><td>${money(row.amount)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="budget-sheet-empty">Los gastos aparecerán aquí cuando se autorice la lectura privada de la hoja.</p>`}
   </section>`;

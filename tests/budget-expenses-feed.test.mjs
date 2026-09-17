@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { generateKeyPairSync } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 
 const require = createRequire(import.meta.url);
 const feed = require("../site/budget-expenses-feed.js");
@@ -104,4 +106,21 @@ test("El endpoint exige permiso de presupuesto y entrega solo campos financieros
       else process.env[name] = value;
     }
   }
+});
+
+test("La vista pendiente no presenta importes ausentes como cero", () => {
+  const app = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
+  const start = app.indexOf("function renderBudgetSheetPreview() {");
+  const end = app.indexOf("\nasync function saveBudgetAllocation", start);
+  assert.ok(start >= 0 && end > start);
+  const context = {
+    budgetSheetExpenses: [], budgetFilters: { area: "todos" }, budgetSheetFetchedAt: "",
+    budgetSheetState: "pendiente", budgetSheetMessage: "Sin lectura", budgetSheetDuplicates: 0,
+    budgetSheetIssues: [], escapeHtml: (value) => String(value),
+    money: (value) => `$${value}`, budgetAreaLabel: (value) => value
+  };
+  const html = runInNewContext(`${app.slice(start, end)}\nrenderBudgetSheetPreview()`, context);
+  assert.match(html, /<strong>—<\/strong> gastos con área identificada/);
+  assert.match(html, /<strong>—<\/strong> en la fuente visible/);
+  assert.doesNotMatch(html, /<strong>\$0<\/strong>/);
 });
