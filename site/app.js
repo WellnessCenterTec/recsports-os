@@ -858,6 +858,9 @@ let selectedCommunicationPlanningDraft = null;
 let communicationParticipants = [];
 let communicationParticipantUploads = [];
 let communicationParticipantsAvailable = true;
+let communicationEventImages = [];
+let communicationEventImagesAvailable = true;
+let communicationEventImageUploadingId = "";
 let communicationParticipantImporting = false;
 let communicationParticipantImportResult = null;
 let selectedCommunicationEventForParticipants = "";
@@ -2975,12 +2978,14 @@ async function loadCommunicationEvents() {
     communicationEvents = [];
     communicationParticipants = [];
     communicationParticipantUploads = [];
+    communicationEventImages = [];
+    communicationEventImagesAvailable = true;
     communicationEventsAvailable = true;
     communicationParticipantsAvailable = true;
     communicationDashboardSettings = { impact_goal: 3800 };
     return;
   }
-  const [eventsResult, settingsResult, participantsResult, uploadsResult] = await Promise.all([
+  const [eventsResult, settingsResult, participantsResult, uploadsResult, imagesResult] = await Promise.all([
     supabaseClient
       .from("communication_events")
       .select("*")
@@ -3002,12 +3007,17 @@ async function loadCommunicationEvents() {
       .from("communication_participant_uploads")
       .select("*")
       .order("upload_date", { ascending: false })
-      .limit(200)
+      .limit(200),
+    supabaseClient
+      .from("communication_event_images")
+      .select("event_id, storage_path, file_name, mime_type, file_size, updated_at")
+      .limit(1500)
   ]);
   if (eventsResult.error) {
     communicationEvents = [];
     communicationParticipants = [];
     communicationParticipantUploads = [];
+    communicationEventImages = [];
     communicationEventsAvailable = false;
     communicationParticipantsAvailable = !participantsResult.error;
     communicationDashboardSettings = { impact_goal: 3800 };
@@ -3017,6 +3027,15 @@ async function loadCommunicationEvents() {
   communicationEventsAvailable = true;
   communicationEvents = (eventsResult.data || []).filter((event) => masterPeriodMatchesDate(event.event_date));
   const activeEventIds = new Set(communicationEvents.map((event) => event.id));
+  communicationEventImagesAvailable = !imagesResult.error;
+  if (imagesResult.error) console.warn("No se pudieron cargar las imágenes de eventos de Comunicación", imagesResult.error);
+  communicationEventImages = await Promise.all((imagesResult.data || [])
+    .filter((image) => activeEventIds.has(image.event_id))
+    .map(async (image) => {
+      const signed = await supabaseClient.storage.from("communication-event-images").createSignedUrl(image.storage_path, 24 * 60 * 60);
+      return signed.error ? null : { ...image, public_url: signed.data.signedUrl };
+    }));
+  communicationEventImages = communicationEventImages.filter(Boolean);
   communicationParticipantsAvailable = !participantsResult.error && !uploadsResult.error;
   communicationParticipantUploads = uploadsResult.error
     ? []
@@ -17565,6 +17584,71 @@ function communicationEventGenderSummary(event) {
   return counts;
 }
 
+function communicationEventImage(eventId) {
+  return communicationEventImages.find((image) => image.event_id === eventId) || null;
+}
+
+async function uploadCommunicationEventImage(eventId, file) {
+  if (!file) return;
+  const eventRow = communicationEvents.find((event) => event.id === eventId && !event.archived_at);
+  if (!eventRow || !supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("comunicacion")) {
+    toast("Necesitas permiso de Comunicación para cargar imágenes de eventos");
+    return;
+  }
+  if (!communicationEventImagesAvailable) {
+    toast("Falta activar las imágenes de eventos de Comunicación en Supabase");
+    return;
+  }
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) {
+    toast("La imagen debe ser JPG, PNG o WEBP y pesar máximo 10 MB");
+    return;
+  }
+  const previous = communicationEventImage(eventId);
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-") || "imagen";
+  const storagePath = `${eventId}/${crypto.randomUUID()}-${safeName}`;
+  const bucket = supabaseClient.storage.from("communication-event-images");
+  communicationEventImageUploadingId = eventId;
+  render();
+  let uploaded = false;
+  try {
+    const { error: storageError } = await bucket.upload(storagePath, file, { contentType: file.type, upsert: false });
+    if (storageError) throw storageError;
+    uploaded = true;
+    const { data: signed, error: signedError } = await bucket.createSignedUrl(storagePath, 24 * 60 * 60);
+    if (signedError || !signed?.signedUrl) throw signedError || new Error("No se pudo mostrar la imagen guardada");
+    const image = {
+      event_id: eventId,
+      storage_path: storagePath,
+      file_name: file.name,
+      mime_type: file.type,
+      file_size: file.size,
+      updated_by: currentUser.id,
+      updated_at: new Date().toISOString()
+    };
+    const { error: metadataError } = await supabaseClient
+      .from("communication_event_images")
+      .upsert(image, { onConflict: "event_id" });
+    if (metadataError) throw metadataError;
+    communicationEventImages = [
+      ...communicationEventImages.filter((row) => row.event_id !== eventId),
+      { ...image, public_url: signed.signedUrl }
+    ];
+    if (previous?.storage_path && previous.storage_path !== storagePath) {
+      const { error: removeError } = await bucket.remove([previous.storage_path]);
+      if (removeError) console.warn("No se pudo retirar la imagen anterior de Comunicación", removeError);
+    }
+    addAudit("comunicacion", `Imagen de evento guardada: ${eventRow.event_name}`);
+    toast("Imagen guardada en Supabase y visible en la tarjeta");
+  } catch (error) {
+    if (uploaded) await bucket.remove([storagePath]);
+    console.error("No se pudo guardar la imagen del evento de Comunicación", error);
+    toast(`No se pudo guardar la imagen: ${supabaseErrorDetail(error) || error.message}`);
+  } finally {
+    communicationEventImageUploadingId = "";
+    render();
+  }
+}
+
 function renderCommunicationRegisteredEventGallery(events) {
   const registered = events
     .filter((event) => event.__communicationEvent && communicationEventParticipants(event.id).length > 0)
@@ -17576,13 +17660,24 @@ function renderCommunicationRegisteredEventGallery(events) {
         <div><p class="eyebrow">Impacto registrado</p><h3>Eventos de Comunicación con matrículas</h3></div>
         <span>${registered.length.toLocaleString("es-MX")} con registros</span>
       </div>
+      ${!communicationEventImagesAvailable ? `<p class="communication-event-image-notice">Para guardar fotos, activa la estructura de imágenes de eventos de Comunicación en Supabase.</p>` : ""}
       ${registered.length ? `<div class="vivencia-registered-grid">
         ${registered.map((event) => {
           const summary = communicationEventGenderSummary(event);
+          const image = communicationEventImage(event.id);
+          const uploading = communicationEventImageUploadingId === event.id;
+          const editable = currentUser?.auth === "supabase" && canEditArea("comunicacion");
           const date = vivenciaEventDate(event);
           const dateLabel = date ? date.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "Sin fecha";
           return `<article class="vivencia-registered-card communication-registered-card" data-communication-detail="${escapeHtml(event.id)}">
-            <div class="vivencia-registered-image"><span aria-hidden="true"><i data-lucide="megaphone"></i></span></div>
+            <div class="vivencia-registered-image">
+              ${editable ? `<button type="button" class="communication-event-image-button" data-communication-card-image-upload="${escapeHtml(event.id)}" aria-label="${image ? "Cambiar" : "Cargar"} imagen de ${escapeHtml(event.event_name || "evento")}" ${uploading ? "disabled" : ""}>` : `<div class="communication-event-image-static">`}
+                ${image?.public_url
+                  ? `<img src="${escapeHtml(image.public_url)}" alt="Imagen de ${escapeHtml(event.event_name || "evento")}" loading="lazy">`
+                  : `<span aria-hidden="true"><i data-lucide="image-plus"></i></span>`}
+                ${editable ? `<em>${uploading ? "Guardando..." : image ? "Cambiar imagen" : "Cargar imagen"}</em>` : ""}
+              ${editable ? `</button>` : `</div>`}
+            </div>
             <div class="vivencia-registered-content">
               <time>${escapeHtml(dateLabel)}</time>
               <h4 title="${escapeHtml(event.event_name || "Evento")}">${escapeHtml(event.event_name || "Evento")}</h4>
@@ -17591,7 +17686,7 @@ function renderCommunicationRegisteredEventGallery(events) {
             </div>
           </article>`;
         }).join("")}
-      </div>` : `<div class="vivencia-empty-mini">Los eventos aparecerán aquí cuando tengan matrículas cargadas.</div>`}
+      </div><input id="communicationEventImageFile" type="file" accept="image/jpeg,image/png,image/webp" hidden>` : `<div class="vivencia-empty-mini">Los eventos aparecerán aquí cuando tengan matrículas cargadas.</div>`}
     </section>
   `;
 }
@@ -21197,6 +21292,23 @@ function render() {
     await importCommunicationEvents(file);
     event.target.value = "";
   });
+  $$('[data-communication-card-image-upload]').forEach((button) => button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!communicationEventImagesAvailable) {
+      toast("Falta activar las imágenes de eventos de Comunicación en Supabase");
+      return;
+    }
+    const input = $("#communicationEventImageFile");
+    if (!input || button.disabled) return;
+    input.dataset.eventId = button.dataset.communicationCardImageUpload;
+    input.value = "";
+    input.click();
+  }));
+  $("#communicationEventImageFile")?.addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (file) await uploadCommunicationEventImage(event.target.dataset.eventId, file);
+    event.target.value = "";
+  });
   $$('[data-communication-diffusion-upload]').forEach((input) => input.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -22394,6 +22506,9 @@ $("#logoutButton").addEventListener("click", () => {
     communicationParticipants = [];
     communicationParticipantUploads = [];
     communicationParticipantsAvailable = true;
+    communicationEventImages = [];
+    communicationEventImagesAvailable = true;
+    communicationEventImageUploadingId = "";
     communicationParticipantImporting = false;
     communicationParticipantImportResult = null;
     selectedCommunicationEventForParticipants = "";
