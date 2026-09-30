@@ -6681,6 +6681,46 @@ const PHYSICAL_TEST_UNITS = {
   remo_suspendido: "repeticiones"
 };
 
+const PHYSICAL_WHOLE_NUMBER_TESTS = new Set([
+  "abdominales",
+  "lagartijas",
+  "saltos_cuerda",
+  "wall_ball",
+  "remo_distancia",
+  "remo_suspendido"
+]);
+
+const PHYSICAL_RESULT_CORRECTIONS = [
+  {
+    collaborator: "Carlos Daniel Navarro Luna",
+    evaluatedAt: "2026-09-30",
+    testKey: "remo_distancia",
+    value: 168
+  },
+  {
+    collaborator: "Jesús Francisco Vázquez Reza",
+    evaluatedAt: "2026-09-26",
+    testKey: "remo_distancia",
+    value: 275
+  }
+];
+
+function physicalTestValueDisplay(testKey, value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  if (testKey === "cooper_12m") return number.toFixed(3);
+  if (PHYSICAL_WHOLE_NUMBER_TESTS.has(testKey)) return String(Math.trunc(number));
+  return number.toLocaleString("es-MX", { maximumFractionDigits: 2 });
+}
+
+function physicalRawValueDisplay(testKey, value) {
+  const rawValue = String(value || "").trim();
+  if (testKey !== "remo_distancia") return rawValue;
+  const metricValue = rawValue.match(/^(-?\d+(?:[.,]\d+)?)\s*(?:m|mts?\.?|metros?)$/i);
+  if (!metricValue) return rawValue;
+  return String(Math.trunc(Number(metricValue[1].replace(",", "."))));
+}
+
 function physicalFilterOptions(key) {
   return [...new Set(physicalEvaluations.map((row) => String(row[key] || "").trim()).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, "es"));
@@ -6706,22 +6746,30 @@ function physicalResult(row, testKey) {
   return (row.physical_evaluation_results || []).find((result) => result.test_key === testKey);
 }
 
+function correctedPhysicalNumericValue(row, testKey, result = physicalResult(row, testKey)) {
+  const collaborator = String(row?.captured_name || row?.collaborator_nomina || "").trim();
+  const evaluatedAt = String(row?.evaluated_at || "").slice(0, 10);
+  const correction = PHYSICAL_RESULT_CORRECTIONS.find((item) => item.collaborator === collaborator
+    && item.evaluatedAt === evaluatedAt
+    && item.testKey === testKey);
+  if (correction) return correction.value;
+  if (result?.numeric_value === null || result?.numeric_value === undefined || result?.numeric_value === "") return null;
+  const value = Number(result.numeric_value);
+  return Number.isFinite(value) ? value : null;
+}
+
 function physicalAverage(rows, testKey, stage = "todos") {
   const values = rows
     .filter((row) => stage === "todos" || row.evaluation_stage === stage)
-    .map((row) => physicalResult(row, testKey)?.numeric_value)
-    .filter((value) => value !== null && value !== undefined && value !== "")
-    .map(Number)
-    .filter(Number.isFinite);
+    .map((row) => correctedPhysicalNumericValue(row, testKey))
+    .filter((value) => value !== null);
   return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
 
 function physicalTestStats(rows, testKey) {
   const values = rows
-    .map((row) => physicalResult(row, testKey)?.numeric_value)
-    .filter((value) => value !== null && value !== undefined && value !== "")
-    .map(Number)
-    .filter(Number.isFinite);
+    .map((row) => correctedPhysicalNumericValue(row, testKey))
+    .filter((value) => value !== null);
   return {
     count: values.length,
     average: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null,
@@ -6733,10 +6781,11 @@ function physicalTestStats(rows, testKey) {
 function physicalResultDisplay(row, testKey) {
   const result = physicalResult(row, testKey);
   if (!result) return "-";
-  if (result.numeric_value !== null && result.numeric_value !== undefined && result.numeric_value !== "") {
-    return `${Number(result.numeric_value).toLocaleString("es-MX", { maximumFractionDigits: 2 })}`;
+  const numericValue = correctedPhysicalNumericValue(row, testKey, result);
+  if (numericValue !== null) {
+    return physicalTestValueDisplay(testKey, numericValue);
   }
-  if (result.raw_value) return result.raw_value;
+  if (result.raw_value) return physicalRawValueDisplay(testKey, result.raw_value);
   return {
     lesion: "Lesión",
     contraindicacion: "Contraindicación",
@@ -6749,9 +6798,8 @@ function physicalTimeline(rows, testKey) {
   const grouped = new Map();
   rows.forEach((row) => {
     const result = physicalResult(row, testKey);
-    if (result?.numeric_value === null || result?.numeric_value === undefined || result?.numeric_value === "") return;
-    const value = Number(result.numeric_value);
-    if (!Number.isFinite(value) || !row.evaluated_at) return;
+    const value = correctedPhysicalNumericValue(row, testKey, result);
+    if (value === null || !row.evaluated_at) return;
     const dateKey = new Date(row.evaluated_at).toISOString().slice(0, 10);
     const item = grouped.get(dateKey) || { date: dateKey, total: 0, count: 0 };
     item.total += value;
@@ -6815,12 +6863,8 @@ function physicalHallDaysSince(row) {
 }
 
 function physicalHallResultLabel(testKey, value) {
-  const number = Number(value);
-  const formatted = Number.isInteger(number)
-    ? number.toLocaleString("es-MX")
-    : number.toLocaleString("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  if (testKey === "cooper_12m") return `${formatted} km`;
-  if (testKey === "remo_distancia") return `${formatted} m`;
+  const formatted = physicalTestValueDisplay(testKey, value);
+  if (testKey === "cooper_12m") return formatted;
   return formatted;
 }
 
@@ -6834,7 +6878,7 @@ function physicalHallRanking(testKey, collaboratorIndex = collaboratorPhotoIndex
       if (!collaboratorProfile) return;
       if (!physicalHallGenderMatches(row, collaboratorIndex)) return;
       const result = physicalResult(row, testKey);
-      const value = physicalNumericValue(result);
+      const value = correctedPhysicalNumericValue(row, testKey, result) ?? physicalNumericValue(result);
       if (value === null) return;
       const collaboratorKey = collaboratorMatchKey(collaboratorNomina);
       const evaluatedAt = row.evaluated_at ? new Date(row.evaluated_at) : null;
@@ -22110,7 +22154,11 @@ function downloadPhysicalEvaluationsCsv() {
       ];
       const results = testKeys.flatMap((key) => {
         const result = physicalResult(row, key) || {};
-        return [result.numeric_value ?? result.raw_value ?? "", result.result_status || "", result.notes || ""];
+        const numericValue = correctedPhysicalNumericValue(row, key, result);
+        const displayValue = numericValue !== null
+          ? physicalTestValueDisplay(key, numericValue)
+          : physicalRawValueDisplay(key, result.raw_value ?? "");
+        return [displayValue, result.result_status || "", result.notes || ""];
       });
       return [...base, ...results].map(csvEscape).join(",");
     })
