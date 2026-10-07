@@ -163,29 +163,34 @@ test("Vivencia shows the eight latest participant uploads instead of upcoming ev
   assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events > div\s*\{[^}]*padding:\s*4px 0;/s);
 });
 
-test("mentor communities appear as a vertical top seven in the three-card insight row", () => {
+test("postgraduate summary shows doctorate and masters cards by module", () => {
   [
+    "executivePostgraduateModuleSummary",
+    "renderExecutivePostgraduateLevelCard",
+    "Maestría",
+    "Doctorado",
+    "Clases",
+    "Booking",
+    "Gimnasio",
+    "Intramuros",
+    "Vivencia",
+    "Mentoría",
+    "exec-insight-mentoria-panel",
+    "exec-mentoria-community-list",
     "executiveMentorCommunityRanking",
-    "Mentores · comunidades activas",
-    "rankCommunities(mentorshipReport().mentors, 7)",
-    "exec-insight-mentor-communities"
-  ].forEach((needle) => assert.ok(source.includes(needle), `Missing mentor community marker: ${needle}`));
-  assert.match(source, /mentorCommunities\.map\(\(row, index\)[\s\S]*?\$\{index \+ 1\}[\s\S]*?alumnos/, "Community ranking must render vertically from 1 to 7");
+    "exec-insight-posgrado-mentors",
+    "Posgrado · participación"
+  ].forEach((needle) => assert.ok(source.includes(needle), `Missing postgraduate marker: ${needle}`));
+  assert.match(source, /rawLevel\.includes\("doctor"\)\s*\?\s*"Doctorado"/, "Doctorate must be identified from the original academic level text");
+  assert.match(source, /rawLevel\.includes\("maestr"\)[\s\S]*?\?\s*"Maestría"/, "Masters must be identified from the original academic level text");
+  assert.match(source, /moduleLabels\s*=\s*\["Clases",\s*"Booking",\s*"Gimnasio",\s*"Intramuros",\s*"Vivencia"\]/, "The two postgraduate cards must use the requested modules");
+  assert.match(source, /mentorCommunities\.slice\(0,\s*5\)/, "Mentorship side card must show the department top 5 communities");
   assert.match(styles, /\.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
   assert.match(styles, /\.exec-report-insight-grid > article:nth-last-child\(-n \+ 3\)\s*\{[^}]*grid-column:\s*span 2;/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
-  assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid > article:last-child\s*\{[^}]*grid-column:\s*1 \/ -1;/s);
-  assert.match(styles, /\.exec-insight-mentor-communities ol\s*\{[^}]*display:\s*grid;/s);
-  assert.match(source, /function executiveMentorCommunityLogo[\s\S]*?assets\/community-logos/);
-  assert.match(source, /<img class="exec-mentor-community-logo"[\s\S]*?alt="\$\{escapeHtml\(row\.label\)\}"/);
-  assert.doesNotMatch(source, /exec-mentor-community-logo[^\n]*?<\/img>[^\n]*?<span[^>]*>\$\{escapeHtml\(row\.label\)\}/, "The wordmark must not repeat the community name as adjacent text");
-  assert.match(styles, /\.exec-mentor-community-logo\s*\{[^}]*object-fit:\s*contain;/s);
-  assert.match(styles, /\.exec-mentor-community-logo\s*\{[^}]*height:\s*23px;[^}]*width:\s*100px;/s, "Every community wordmark must use the same readable visible box");
-  ["forta", "kresko", "reflekto", "spirita", "talenta", "ekvilibro", "energio", "krei", "pasio", "revo"].forEach((community) => {
-    const png = fs.readFileSync(new URL(`../site/assets/community-logos/${community}.png`, import.meta.url));
-    assert.equal(png.readUInt32BE(16), 360, `${community} logo must use the common width`);
-    assert.equal(png.readUInt32BE(20), 80, `${community} logo must use the common height`);
-  });
+  assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid > article:last-child\s*\{[^}]*grid-column:\s*auto;/s);
+  assert.match(styles, /\.exec-posgrado-degree-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(0,\s*1fr\)\s*minmax\(0,\s*\.78fr\);/s);
+  assert.match(styles, /\.exec-posgrado-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*96px\)/s);
 });
 
 test("class demand ranks complete disciplines instead of separate PMT blocks", () => {

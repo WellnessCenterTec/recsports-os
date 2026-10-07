@@ -682,6 +682,7 @@ h3 { font-size: 15px; margin-bottom: 8px; }
 .budget-sheet-heading-actions { justify-content: flex-end; }
 .budget-sheet-status { background: #fff2d6; border-radius: 999px; color: #795000; font-size: 11px; font-weight: 800; padding: 6px 10px; white-space: nowrap; }
 .budget-sheet-status.activo { background: #ddf5ea; color: #08734b; }
+.budget-sheet-status.revision { background: #fff2d6; color: #795000; }
 .budget-sheet-status.ejemplo { background: #e8f1ff; color: #174f9a; }
 .budget-sheet-note,
 .budget-sheet-meta,
@@ -696,6 +697,7 @@ h3 { font-size: 15px; margin-bottom: 8px; }
 .budget-sheet-table-wrap th:last-child,
 .budget-sheet-table-wrap td:last-child { text-align: right; white-space: nowrap; }
 .budget-sheet-table-wrap th { background: #eef5fb; color: #264d76; }
+.budget-source-breakdown { color: #31506c; font-size: 12px; font-weight: 700; margin: -4px 2px 14px; }
 
 @media (max-width: 700px) {
   .budget-sheet-heading { align-items: flex-start; flex-direction: column; }
@@ -7016,6 +7018,23 @@ tbody tr:hover td {
 .exec-insight-mentor-communities li > strong { color: #08285d; font-size: 14px; white-space: nowrap; }
 .exec-insight-mentor-communities li small { color: #42638d; font-size: 9px; }
 .exec-insight-mentor-communities > p { color: #6a7d8f; font-size: 10px; margin: 0; }
+.exec-insight-posgrado-mentors { background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%); }
+.exec-posgrado-degree-grid { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, .78fr); }
+.exec-insight-posgrado-panel { background: #f4f9ff; border-radius: 12px; min-width: 0; padding: 10px; }
+.exec-insight-mentoria-panel { background: #fbf8ff; }
+.exec-insight-posgrado-panel h4 { color: #08285d; font-size: 13px; margin: 0; }
+.exec-mentoria-community-list { display: grid; gap: 5px; list-style: none; margin: 0; padding: 0; }
+.exec-mentoria-community-list li { align-items: center; display: grid; gap: 5px; grid-template-columns: 17px minmax(0, 1fr) auto; }
+.exec-mentoria-community-list b { align-items: center; background: #eadfff; border-radius: 50%; color: #7648ac; display: flex; font-size: 9px; height: 17px; justify-content: center; width: 17px; }
+.exec-mentoria-community-list span { color: #163c71; font-size: 10px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exec-mentoria-community-list strong { color: #08285d; font-size: 12px; white-space: nowrap; }
+.exec-posgrado-chart { display: grid; gap: 7px; }
+.exec-posgrado-row { align-items: center; display: grid; gap: 8px; grid-template-columns: minmax(0, 96px) minmax(0, 1fr) 36px; }
+.exec-posgrado-row span { color: #163c71; font-size: 11px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exec-posgrado-row i { background: #d9ebff; border-radius: 999px; display: block; height: 10px; overflow: hidden; }
+.exec-posgrado-row em { background: linear-gradient(90deg, #0d78d5, #19a7b7); border-radius: inherit; display: block; height: 100%; }
+.exec-posgrado-row strong { color: #08285d; font-size: 14px; text-align: right; }
+.exec-posgrado-empty { color: #6a7d8f; font-size: 11px; font-weight: 750; margin: 0; }
 .exec-report-intramuros p { color: #42638d; margin: -8px 0 14px; }
 .exec-report-intramuros-grid { display: grid; gap: 8px 12px; grid-template-columns: repeat(var(--exec-report-intramuros-columns, 1), minmax(0, 1fr)); }
 .exec-report-intramuros-grid article { align-content: center; border: 1px solid #d3e2f2; border-radius: 12px; display: grid; gap: 4px; justify-items: center; min-width: 0; padding: 8px 6px; text-align: center; }
@@ -11510,7 +11529,7 @@ body.executive-report-print {
   .executive-report-print-page .exec-report-insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .executive-report-print-page .exec-report-insight-grid > article,
   .executive-report-print-page .exec-report-insight-grid > article:nth-last-child(-n + 3) { grid-column: auto; }
-  .executive-report-print-page .exec-report-insight-grid > article:last-child { grid-column: 1 / -1; }
+  .executive-report-print-page .exec-report-insight-grid > article:last-child { grid-column: auto; }
   .executive-report-print-page .exec-report-module-grid article { border-radius: 10px; gap: 2px; padding: 7px 10px; }
   .executive-report-print-page .exec-report-module-grid h3 { font-size: var(--exec-print-card-title); font-weight: 850; line-height: 1.15; }
   .executive-report-print-page .exec-report-module-grid strong { font-size: 21px; }
@@ -11554,6 +11573,20 @@ body.executive-report-print {
   .executive-report-print-page .exec-insight-mentor-communities li > strong { font-size: var(--exec-print-value); }
   .executive-report-print-page .exec-insight-mentor-communities li small { font-size: var(--exec-print-label); }
   .executive-report-print-page .exec-insight-mentor-communities > p { font-size: 8px; }
+  .executive-report-print-page .exec-posgrado-degree-grid { gap: 4px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, .78fr); }
+  .executive-report-print-page .exec-insight-posgrado-panel { border-radius: 7px; padding: 5px; }
+  .executive-report-print-page .exec-insight-posgrado-panel h4 { font-size: var(--exec-print-label); }
+  .executive-report-print-page .exec-mentoria-community-list { gap: 2px; }
+  .executive-report-print-page .exec-mentoria-community-list li { gap: 2px; grid-template-columns: 12px minmax(0, 1fr) auto; }
+  .executive-report-print-page .exec-mentoria-community-list b { font-size: 7px; height: 12px; width: 12px; }
+  .executive-report-print-page .exec-mentoria-community-list span { font-size: var(--exec-print-label); }
+  .executive-report-print-page .exec-mentoria-community-list strong { font-size: var(--exec-print-value); }
+  .executive-report-print-page .exec-posgrado-chart { gap: 3px; }
+  .executive-report-print-page .exec-posgrado-row { gap: 4px; grid-template-columns: minmax(0, 70px) minmax(0, 1fr) 24px; }
+  .executive-report-print-page .exec-posgrado-row span { font-size: var(--exec-print-label); }
+  .executive-report-print-page .exec-posgrado-row i { height: 6px; }
+  .executive-report-print-page .exec-posgrado-row strong { font-size: var(--exec-print-value); }
+  .executive-report-print-page .exec-posgrado-empty { font-size: 8px; }
 
   .executive-report-print-page .exec-report-intramuros p { font-size: var(--exec-print-value); margin: -2px 0 4px; }
   .executive-report-print-page .exec-report-intramuros-grid { gap: 4px; grid-template-columns: repeat(var(--exec-report-intramuros-columns, 1), minmax(0, 1fr)); overflow: visible; }

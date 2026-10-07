@@ -1,6 +1,7 @@
 (function initBudgetExpensesFeed(global) {
   "use strict";
 
+  const SOURCE_PERIOD = "AD26";
   const required = ["id", "nombre", "costo", "area", "fecha"];
   const clean = (value) => String(value ?? "").trim();
   const key = (value) => clean(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -71,6 +72,7 @@
       if (byId.has(id)) duplicateCount += 1;
       byId.set(id, {
         id,
+        period: SOURCE_PERIOD,
         concept,
         category: categoryColumn < 0 ? "" : clean(cells[categoryColumn]),
         paymentType: paymentColumn < 0 ? "" : clean(cells[paymentColumn]),
@@ -84,7 +86,7 @@
     return { rows, issues, duplicateCount };
   }
 
-  const api = Object.freeze({ areaKey, amount, date, parse });
+  const api = Object.freeze({ SOURCE_PERIOD, areaKey, amount, date, parse });
   global.WellSyncBudgetExpensesFeed = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

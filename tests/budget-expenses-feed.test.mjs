@@ -30,6 +30,7 @@ test("Gastos Log se mapea por encabezados y no devuelve usuario, comentario ni a
   assert.equal(result.rows[1].amount, 1250.5);
   assert.equal(result.rows[0].amount, -50);
   assert.equal(result.rows[1].date, "2026-08-18");
+  assert.deepEqual(result.rows.map((row) => row.period), ["AD26", "AD26"]);
   assert.equal(JSON.stringify(result).includes("Wendy"), false);
   assert.equal(JSON.stringify(result).includes("nota privada"), false);
   assert.equal(JSON.stringify(result).includes("archivo privado"), false);
@@ -97,6 +98,7 @@ test("El endpoint exige permiso de presupuesto y entrega solo campos financieros
     await endpoint({ method: "GET", headers: { authorization: "Bearer test-jwt" } }, permitted);
     assert.equal(permitted.code, 200);
     assert.equal(permitted.body.rows[0].amount, 12.5);
+    assert.equal(permitted.body.sourcePeriod, "AD26");
     assert.equal(JSON.stringify(permitted.body).includes("Wendy"), false);
     assert.equal(JSON.stringify(permitted.body).includes("privado"), false);
   } finally {
@@ -114,13 +116,60 @@ test("La vista pendiente no presenta importes ausentes como cero", () => {
   const end = app.indexOf("\nasync function saveBudgetAllocation", start);
   assert.ok(start >= 0 && end > start);
   const context = {
-    budgetSheetExpenses: [], budgetFilters: { area: "todos" }, budgetSheetFetchedAt: "",
+    budgetSheetExpenses: [], budgetFilters: { area: "todos", period: "AD26" }, budgetSheetFetchedAt: "",
     budgetSheetState: "pendiente", budgetSheetMessage: "Sin lectura", budgetSheetDuplicates: 0,
     budgetSheetIssues: [], escapeHtml: (value) => String(value),
-    money: (value) => `$${value}`, budgetAreaLabel: (value) => value
+    money: (value) => `$${value}`, budgetAreaLabel: (value) => value,
+    window: { WellSyncBudgetExpensesFeed: feed }
   };
   const html = runInNewContext(`${app.slice(start, end)}\nrenderBudgetSheetPreview()`, context);
   assert.match(html, /<strong>—<\/strong> gastos con área identificada/);
   assert.match(html, /<strong>—<\/strong> en la fuente visible/);
   assert.doesNotMatch(html, /<strong>\$0<\/strong>/);
+  assert.match(html, /Todos los registros de esta hoja corresponden a AD26/);
+});
+
+test("La suma del tablero usa la hoja solo al estar validada y solo en AD26", () => {
+  const app = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
+  const start = app.indexOf("function budgetDashboardAreaSummary(areaKey) {");
+  const end = app.indexOf("\nfunction budgetStatusLabel", start);
+  assert.ok(start >= 0 && end > start);
+  const context = {
+    budgetFilters: { period: "AD26" }, budgetSheetState: "activo",
+    budgetSheetExpenses: [
+      { period: "AD26", area: "gimnasio", amount: 250 },
+      { period: "AD26", area: "clases", amount: 700 }
+    ],
+    budgetAreaSummary: () => ({ assigned: 1000, threshold: 80, spent: 100, committed: 50 })
+  };
+  const summarize = runInNewContext(`${app.slice(start, end)}\nbudgetDashboardAreaSummary`, context);
+  const active = summarize("gimnasio");
+  assert.equal(active.requestSpent, 100);
+  assert.equal(active.sheetSpent, 250);
+  assert.equal(active.spent, 350);
+  assert.equal(active.available, 600);
+  context.budgetSheetState = "revision";
+  assert.equal(summarize("gimnasio").spent, 100);
+  context.budgetSheetState = "pendiente";
+  assert.equal(summarize("gimnasio").spent, 100);
+  context.budgetSheetState = "activo";
+  context.budgetFilters.period = "FJ26";
+  assert.equal(summarize("gimnasio").spent, 100);
+});
+
+test("La hoja AD26 no aparece al seleccionar otro periodo", () => {
+  const app = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
+  const start = app.indexOf("function renderBudgetSheetPreview() {");
+  const end = app.indexOf("\nasync function saveBudgetAllocation", start);
+  const context = {
+    budgetSheetExpenses: [{ period: "AD26", area: "gimnasio", amount: 250, date: "2026-09-17", concept: "Material", sourceArea: "Gimnasio", category: "Material" }],
+    budgetFilters: { area: "todos", period: "FJ26" }, budgetSheetFetchedAt: "",
+    budgetSheetState: "activo", budgetSheetMessage: "Lectura privada", budgetSheetDuplicates: 0,
+    budgetSheetIssues: [], escapeHtml: (value) => String(value),
+    money: (value) => `$${value}`, budgetAreaLabel: (value) => value,
+    window: { WellSyncBudgetExpensesFeed: feed }
+  };
+  const html = runInNewContext(`${app.slice(start, end)}\nrenderBudgetSheetPreview()`, context);
+  assert.match(html, /Esta fuente solo corresponde a AD26/);
+  assert.doesNotMatch(html, /Material<\/td>/);
 });

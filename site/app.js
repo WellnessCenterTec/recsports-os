@@ -1347,8 +1347,10 @@ async function loadBudgetSheetExpenses() {
     budgetSheetIssues = Array.isArray(payload.issues) ? payload.issues : [];
     budgetSheetDuplicates = Number(payload.duplicateCount) || 0;
     budgetSheetFetchedAt = payload.fetchedAt || "";
-    budgetSheetState = "activo";
-    budgetSheetMessage = "Lectura privada de Gastos Log";
+    budgetSheetState = budgetSheetIssues.length ? "revision" : "activo";
+    budgetSheetMessage = budgetSheetIssues.length
+      ? "Hay registros con datos inválidos o áreas sin equivalencia; la suma al tablero queda detenida hasta revisarlos"
+      : "Lectura privada de Gastos Log";
   } catch (error) {
     budgetSheetState = "pendiente";
     budgetSheetMessage = error.message || "No se pudo consultar la hoja";
@@ -11526,6 +11528,86 @@ function executiveMentorCommunityLogo(label) {
   return logos.has(community) ? `./assets/community-logos/${community}.png` : "";
 }
 
+function executivePostgraduateModuleSummary() {
+  const moduleLabels = ["Clases", "Booking", "Gimnasio", "Intramuros", "Vivencia"];
+  const emptyDegree = (label) => ({
+    label,
+    total: 0,
+    modules: moduleLabels.map((moduleLabel) => ({ label: moduleLabel, value: 0 }))
+  });
+  if (!studentDatabaseLoaded) return { ready: false, degrees: [emptyDegree("Doctorado"), emptyDegree("Maestría")] };
+  const studentsByMatricula = new Map(cloudStudentDatabase.map((student) => [normalizeMatricula(student.matricula), student]));
+  const byDegree = new Map([
+    ["Doctorado", new Map(moduleLabels.map((label) => [label, new Set()]))],
+    ["Maestría", new Map(moduleLabels.map((label) => [label, new Set()]))]
+  ]);
+  const moduleForArea = (area) => {
+    const clean = normalizeText(area);
+    if (clean.includes("clase")) return "Clases";
+    if (clean.includes("booking") || clean.includes("nado")) return "Booking";
+    if (clean.includes("gimnas")) return "Gimnasio";
+    if (clean.includes("intramuro")) return "Intramuros";
+    if (clean.includes("vivencia")) return "Vivencia";
+    return "";
+  };
+  const degreeForStudent = (student) => {
+    const rawLevel = normalizeText([student.gradoEscolar, student.programa, student.carrera].filter(Boolean).join(" "));
+    return rawLevel.includes("doctor") ? "Doctorado" : rawLevel.includes("maestr") || rawLevel.includes("maestria") ? "Maestría" : "";
+  };
+  mentorActivityRows().forEach((row) => {
+    const matricula = normalizeMatricula(row.matricula);
+    const student = studentsByMatricula.get(matricula);
+    if (!student || student.nivel !== "Posgrado") return;
+    const degree = degreeForStudent(student);
+    const moduleLabel = moduleForArea(row.area);
+    if (!degree || !moduleLabel) return;
+    byDegree.get(degree).get(moduleLabel).add(matricula);
+  });
+  const degrees = Array.from(byDegree.entries()).map(([label, moduleMap]) => {
+    const unique = new Set();
+    const modules = moduleLabels.map((moduleLabel) => {
+      const students = moduleMap.get(moduleLabel) || new Set();
+      students.forEach((matricula) => unique.add(matricula));
+      return { label: moduleLabel, value: students.size };
+    });
+    return { label, total: unique.size, modules };
+  });
+  return { ready: true, degrees };
+}
+
+function renderExecutivePostgraduateDegreeCard(degree, ready) {
+  const max = Math.max(...degree.modules.map((row) => row.value), 1);
+  return `
+    <section class="exec-insight-posgrado-panel">
+      <div class="exec-insight-card-heading"><h4>${escapeHtml(degree.label)}</h4><span>${ready ? `${degree.total.toLocaleString("es-MX")} alumnos` : "Base pendiente"}</span></div>
+      ${ready ? `<div class="exec-posgrado-chart">
+        ${degree.modules.map((row) => `
+          <div class="exec-posgrado-row">
+            <span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span>
+            <i><em style="width:${Math.max(6, Math.round((row.value / max) * 100))}%"></em></i>
+            <strong>${row.value.toLocaleString("es-MX")}</strong>
+          </div>
+        `).join("")}
+      </div>` : `<p class="exec-posgrado-empty">Carga Base Maestra para distinguir el nivel.</p>`}
+    </section>`;
+}
+
+function renderExecutivePostgraduateLevelCard(postgraduate, mentorCommunities) {
+  return `
+    <article class="exec-insight-card exec-insight-posgrado-mentors">
+      <div class="exec-insight-card-heading"><h3>Posgrado · participación</h3><span>Maestría / Doctorado</span></div>
+      <div class="exec-posgrado-degree-grid">
+        ${postgraduate.degrees.map((degree) => renderExecutivePostgraduateDegreeCard(degree, postgraduate.ready)).join("")}
+        <section class="exec-insight-posgrado-panel exec-insight-mentoria-panel">
+          <div class="exec-insight-card-heading"><h4>Mentoría</h4><span>Top 5</span></div>
+          ${mentorCommunities.length ? `<ol class="exec-mentoria-community-list">
+            ${mentorCommunities.slice(0, 5).map((row, index) => `<li><b>${index + 1}</b><span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")}</strong></li>`).join("")}
+          </ol>` : `<p class="exec-posgrado-empty">Sin cruces de mentoría y actividad.</p>`}
+        </section>
+      </div>
+    </article>`;
+}
+
 function renderExecutiveRankingColumn(title, rows, tone, emptyLabel) {
   return `
     <div class="exec-insight-ranking ${tone}">
@@ -11545,6 +11627,7 @@ function renderExecutiveInsightCards() {
   const classGroupCount = executiveClassGroupCount("PMT1");
   const vivenciaUploads = executiveVivenciaUploadHistory();
   const semanaTecGroups = executiveSemanaTecGroupCounts();
+  const postgraduate = executivePostgraduateModuleSummary();
   const mentorCommunities = executiveMentorCommunityRanking();
   return `
     <section class="exec-report-module-grid exec-report-insight-grid">
@@ -11581,13 +11664,7 @@ function renderExecutiveInsightCards() {
             </article>`).join("")}
         </div>
       </article>
-      <article class="exec-insight-card exec-insight-mentor-communities">
-        <h3>Mentores · comunidades activas</h3>
-        ${mentorCommunities.length ? `<ol>${mentorCommunities.map((row, index) => {
-          const logo = executiveMentorCommunityLogo(row.label);
-          return `<li><b>${index + 1}</b>${logo ? `<img class="exec-mentor-community-logo" src="${logo}" alt="${escapeHtml(row.label)}" />` : `<span class="exec-mentor-community-name" title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span>`}<strong>${row.value.toLocaleString("es-MX")} <small>alumnos</small></strong></li>`;
-        }).join("")}</ol>` : `<p>Sin cruces de mentoría y actividad.</p>`}
-      </article>
+      ${renderExecutivePostgraduateLevelCard(postgraduate, mentorCommunities)}
     </section>`;
 }
 
@@ -15498,6 +15575,28 @@ function budgetAreaSummary(areaKey, period = budgetFilters.period) {
   return { ...plan, area: areaKey, rows, spent, committed, used, available, usage, tone };
 }
 
+function budgetDashboardAreaSummary(areaKey) {
+  const summary = budgetAreaSummary(areaKey);
+  const sheetSpent = budgetSheetState === "activo"
+    ? budgetSheetExpenses.filter((row) => row.period === budgetFilters.period && row.area === areaKey)
+      .reduce((sum, row) => sum + row.amount, 0)
+    : 0;
+  const spent = summary.spent + sheetSpent;
+  const used = spent + summary.committed;
+  const usage = summary.assigned ? Math.round((used / summary.assigned) * 100) : 0;
+  const tone = usage >= 95 ? "red" : usage >= summary.threshold ? "yellow" : "green";
+  return {
+    ...summary,
+    requestSpent: summary.spent,
+    sheetSpent,
+    spent,
+    used,
+    available: Math.max(0, summary.assigned - used),
+    usage,
+    tone
+  };
+}
+
 function budgetStatusLabel(status) {
   const labels = {
     pendiente: "Pendiente",
@@ -15531,22 +15630,23 @@ function budgetKpiCard(icon, title, value, meta, tone = "blue") {
 }
 
 function renderBudgetSheetPreview() {
-  const rows = budgetSheetExpenses.filter((row) => budgetFilters.area === "todos" || row.area === budgetFilters.area);
+  const sourceMatchesPeriod = budgetFilters.period === window.WellSyncBudgetExpensesFeed.SOURCE_PERIOD;
+  const rows = budgetSheetExpenses.filter((row) => row.period === budgetFilters.period && (budgetFilters.area === "todos" || row.area === budgetFilters.area));
   const mapped = rows.filter((row) => row.area);
   const total = mapped.reduce((sum, row) => sum + row.amount, 0);
-  const hasSourceData = budgetSheetState === "activo" || budgetSheetState === "ejemplo";
+  const hasSourceData = sourceMatchesPeriod && ["activo", "revision", "ejemplo"].includes(budgetSheetState);
   const lastUpdate = budgetSheetFetchedAt
     ? new Date(budgetSheetFetchedAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
     : "Sin lectura en vivo";
   return `<section class="budget-sheet-preview" aria-label="Vista previa de gastos de Google Sheets">
     <div class="budget-sheet-heading">
-      <div><p class="eyebrow">Fuente externa · Gastos Log</p><h3>Gastos registrados en la hoja</h3></div>
-      <div class="budget-sheet-heading-actions"><span class="budget-sheet-status ${escapeHtml(budgetSheetState)}">${budgetSheetState === "activo" ? "Conectado" : budgetSheetState === "ejemplo" ? "Ejemplo local" : "Pendiente de conexión"}</span>${budgetSheetState !== "ejemplo" ? `<button class="secondary-btn compact-action" type="button" data-budget-sheet-refresh>Actualizar</button>` : ""}</div>
+      <div><p class="eyebrow">Fuente externa · Gastos Log · AD26</p><h3>Gastos registrados en la hoja</h3></div>
+      <div class="budget-sheet-heading-actions"><span class="budget-sheet-status ${escapeHtml(budgetSheetState)}">${budgetSheetState === "activo" ? "Conectado" : budgetSheetState === "revision" ? "Revisar datos" : budgetSheetState === "ejemplo" ? "Ejemplo local" : "Pendiente de conexión"}</span>${budgetSheetState !== "ejemplo" ? `<button class="secondary-btn compact-action" type="button" data-budget-sheet-refresh>Actualizar</button>` : ""}</div>
     </div>
-    <p class="budget-sheet-note">${escapeHtml(budgetSheetMessage)}. Esta vista no se suma todavía al gasto del tablero ni modifica solicitudes o presupuestos.</p>
+    <p class="budget-sheet-note">${escapeHtml(budgetSheetMessage)}. ${budgetSheetState === "activo" ? "Los gastos con área identificada se suman al gasto de WellSync en AD26; no se crean solicitudes." : "La suma al tablero está pendiente; no se modifican solicitudes ni presupuestos."}</p>
     <div class="budget-sheet-metrics"><span><strong>${hasSourceData ? mapped.length.toLocaleString("es-MX") : "—"}</strong> gastos con área identificada</span><span><strong>${hasSourceData ? money(total) : "—"}</strong> en la fuente visible${budgetFilters.area === "todos" ? "" : ` para ${escapeHtml(budgetAreaLabel(budgetFilters.area))}`}</span><span><strong>${hasSourceData ? budgetSheetIssues.length : "—"}</strong> observaciones de mapeo</span></div>
-    <p class="budget-sheet-meta">${escapeHtml(lastUpdate)}${budgetSheetDuplicates ? ` · ${budgetSheetDuplicates} ID duplicados consolidados` : ""} · La hoja no trae columna de periodo; falta confirmar qué fechas corresponden a AD26.</p>
-    ${rows.length ? `<div class="budget-sheet-table-wrap"><table><thead><tr><th>Fecha</th><th>Área en la hoja</th><th>Gasto</th><th>Tipo</th><th>Monto</th></tr></thead><tbody>${rows.slice(0, 8).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.sourceArea)}${row.area ? "" : " · sin equivalencia"}</td><td>${escapeHtml(row.concept)}</td><td>${escapeHtml(row.category)}</td><td>${money(row.amount)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="budget-sheet-empty">Los gastos aparecerán aquí cuando se autorice la lectura privada de la hoja.</p>`}
+    <p class="budget-sheet-meta">${escapeHtml(lastUpdate)}${budgetSheetDuplicates ? ` · ${budgetSheetDuplicates} ID duplicados consolidados` : ""} · Todos los registros de esta hoja corresponden a AD26; no se aplica corte por fecha.</p>
+    ${rows.length ? `<div class="budget-sheet-table-wrap"><table><thead><tr><th>Fecha</th><th>Área en la hoja</th><th>Gasto</th><th>Tipo</th><th>Monto</th></tr></thead><tbody>${rows.slice(0, 8).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.sourceArea)}${row.area ? "" : " · sin equivalencia"}</td><td>${escapeHtml(row.concept)}</td><td>${escapeHtml(row.category)}</td><td>${money(row.amount)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="budget-sheet-empty">${sourceMatchesPeriod ? "Los gastos aparecerán aquí cuando se autorice la lectura privada de la hoja." : "Esta fuente solo corresponde a AD26. Selecciona AD26 para ver sus gastos."}</p>`}
   </section>`;
 }
 
@@ -15947,10 +16047,12 @@ function renderBudgetEditPanel() {
 
 function renderBudgetDashboard() {
   const selectedAreas = filteredBudgetAreas();
-  const summaries = selectedAreas.map((row) => budgetAreaSummary(row.area));
+  const summaries = selectedAreas.map((row) => budgetDashboardAreaSummary(row.area));
   const requests = filteredBudgetRequests();
   const assigned = summaries.reduce((sum, row) => sum + row.assigned, 0);
   const spent = summaries.reduce((sum, row) => sum + row.spent, 0);
+  const requestSpent = summaries.reduce((sum, row) => sum + row.requestSpent, 0);
+  const sheetSpent = summaries.reduce((sum, row) => sum + row.sheetSpent, 0);
   const committed = summaries.reduce((sum, row) => sum + row.committed, 0);
   const available = Math.max(0, assigned - spent - committed);
   const usage = assigned ? Math.round(((spent + committed) / assigned) * 100) : 0;
@@ -16011,12 +16113,13 @@ function renderBudgetDashboard() {
 
       <div class="kpi-grid budget-kpi-strip">
         ${budgetKpiCard("circle-dollar-sign", "Presupuesto asignado", money(assigned), "base del periodo", "blue")}
-        ${budgetKpiCard("trending-up", "Gasto", money(spent), `${assigned ? Math.round(spent / assigned * 100) : 0}% del presupuesto`, "green")}
+        ${budgetKpiCard("trending-up", "Gasto", money(spent), budgetSheetState === "activo" && budgetFilters.period === "AD26" ? "WellSync + hoja AD26" : "hoja pendiente", "green")}
         ${budgetKpiCard("clipboard-list", "Comprometido", money(committed), "pendiente de cierre", "gold")}
         ${budgetKpiCard("wallet-cards", "Disponible", money(available), "saldo operativo", "teal")}
         ${budgetKpiCard("pie-chart", "% de uso", `${usage}%`, "gasto + comprometido", "blue")}
         ${budgetKpiCard("clipboard-check", "Solicitudes pendientes", pending, "requieren decisión", "lav")}
       </div>
+      ${budgetSheetState === "activo" && budgetFilters.period === "AD26" ? `<p class="budget-source-breakdown">Gasto AD26: ${money(requestSpent)} WellSync + ${money(sheetSpent)} Gastos Log = ${money(spent)} total.</p>` : ""}
 
       <div class="budget-main-grid">
         <article class="chart-panel budget-chart-panel">
@@ -16080,6 +16183,7 @@ function renderBudgetDashboard() {
             </div>
             <dl>
               <div><dt>Asignado</dt><dd>${money(row.assigned)}</dd></div>
+              ${budgetSheetState === "activo" && budgetFilters.period === "AD26" ? `<div><dt>Gasto WellSync</dt><dd>${money(row.requestSpent)}</dd></div><div><dt>Gasto hoja</dt><dd>${money(row.sheetSpent)}</dd></div>` : ""}
               <div><dt>Gasto</dt><dd>${money(row.spent)}</dd></div>
               <div><dt>Disponible</dt><dd>${money(row.available)}</dd></div>
             </dl>
