@@ -83,7 +83,7 @@ async function handler(request, response) {
     const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     if (!credentials.client_email || !credentials.private_key) throw new Error("Cuenta de servicio incompleta");
     const result = await readExpenses(await googleAccessToken(credentials));
-    return json(response, 200, { ...result, fetchedAt: new Date().toISOString(), source: "Gastos Log" });
+    return json(response, 200, { ...result, fetchedAt: new Date().toISOString(), source: "Gastos Log", sourcePeriod: feed.SOURCE_PERIOD });
   } catch (error) {
     console.error("No se pudo leer Gastos Log", error);
     return json(response, 502, { error: "No se pudo actualizar la hoja de gastos" });
