@@ -155,6 +155,8 @@ test("repeated module totals are replaced by actionable comparisons", () => {
   assert.match(source, /function executiveSemanaTecGroupCounts\(\)[\s\S]*?languageByGroup[\s\S]*?spanish[\s\S]*?english[\s\S]*?hasLanguage/);
   assert.match(source, /exec-week-language-breakdown[\s\S]*?Español[\s\S]*?Inglés/);
   assert.match(styles, /\.exec-week-language-breakdown\s*\{[^}]*display:\s*grid;/s);
+  assert.match(styles, /\.exec-week-group-grid > article\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\) auto;[^}]*height:\s*100%;/s, "Semana TEC cards must use their full available height");
+  assert.match(styles, /\.exec-week-language-breakdown\s*\{[^}]*gap:\s*7px;[^}]*min-height:\s*39px;/s, "Semana TEC language labels must have more vertical separation");
   assert.match(styles, /\.exec-week-language-breakdown b\s*\{[^}]*border-top:\s*0;[^}]*transform:\s*translateY\(-2px\);/s);
   assert.match(source, /function renderExecutiveGeneralDashboard\(\)[\s\S]*?\$\{renderExecutiveInsightCards\(\)\}/, "Insight cards must render in the normal Reporte General screen, not only its PDF clone");
   assert.match(styles, /\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*repeat\(2,/s, "Normal Reporte General must show the insight cards in a readable two-column vertical layout");
