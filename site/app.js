@@ -11705,7 +11705,13 @@ function printExecutiveGeneralReport() {
   const printView = createExecutiveReportPrintView();
   if (!printView) return;
   const { sheet, page } = printView;
-  const cleanup = () => cleanupExecutiveReportPrintView();
+  const previousTitle = document.title;
+  const reportWeek = Math.max(1, Number(executiveReportState.week) || 1);
+  document.title = `Semana ${reportWeek} - Reporte Wellness`;
+  const cleanup = () => {
+    document.title = previousTitle;
+    cleanupExecutiveReportPrintView();
+  };
   window.addEventListener("beforeprint", () => fitExecutiveReportPrintPage(sheet, page), { once: true });
   window.addEventListener("afterprint", cleanup, { once: true });
   requestAnimationFrame(() => {

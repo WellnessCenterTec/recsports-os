@@ -98,6 +98,17 @@ test("general report PDF uses an isolated one-page portrait export view", () => 
   assert.match(styles, /\.exec-report-attended-total > strong\s*{[^}]*font-size:\s*clamp\(26px,\s*22cqw,\s*72px\)[^}]*white-space:\s*nowrap/s, "Large attended totals must stay inside their own column");
 });
 
+test("Wellness PDF suggests the visible week in its default filename", () => {
+  const printFunction = source.slice(
+    source.indexOf("function printExecutiveGeneralReport()"),
+    source.indexOf("function executivePlanningUpcomingRows()")
+  );
+  assert.match(printFunction, /const previousTitle = document\.title;/, "The normal page title must be preserved");
+  assert.match(printFunction, /const reportWeek = Math\.max\(1, Number\(executiveReportState\.week\) \|\| 1\);/);
+  assert.match(printFunction, /document\.title = `Semana \$\{reportWeek\} - Reporte Wellness`;/, "The selected week must lead the suggested PDF filename");
+  assert.match(printFunction, /document\.title = previousTitle;[\s\S]*?cleanupExecutiveReportPrintView\(\);/, "The normal page title must be restored after printing");
+});
+
 test("executive PDF increases compact typography and preserves both information bands", () => {
   assert.match(styles, /\.executive-report-print-page\s*\{[^}]*--exec-print-card-title:\s*12px;[^}]*--exec-print-label:\s*8px;[^}]*--exec-print-value:\s*9\.5px;/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-card > h3\s*\{[^}]*font-size:\s*var\(--exec-print-card-title\)/s);
