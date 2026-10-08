@@ -7020,21 +7020,24 @@ tbody tr:hover td {
 .exec-insight-mentor-communities li small { color: #42638d; font-size: 9px; }
 .exec-insight-mentor-communities > p { color: #6a7d8f; font-size: 10px; margin: 0; }
 .exec-insight-posgrado-mentors { background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%); }
+.exec-insight-posgrado-mentors > .exec-insight-card-heading h3 { font-size: 19px; }
+.exec-insight-posgrado-mentors > .exec-insight-card-heading > span { font-size: 12px; }
 .exec-posgrado-degree-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.exec-insight-posgrado-panel { background: #f4f9ff; border-radius: 12px; min-width: 0; padding: 10px; }
+.exec-insight-posgrado-panel { background: #f4f9ff; border-radius: 12px; display: grid; grid-template-rows: auto 1fr; min-width: 0; padding: 12px; }
 .exec-insight-mentoria-panel { background: #fbf8ff; }
-.exec-insight-posgrado-panel h4 { color: #08285d; font-size: 13px; margin: 0; }
-.exec-mentoria-community-list { display: grid; gap: 5px; list-style: none; margin: 0; padding: 0; }
-.exec-mentoria-community-list li { align-items: center; display: grid; gap: 5px; grid-template-columns: 17px minmax(0, 1fr) auto; }
-.exec-mentoria-community-list b { align-items: center; background: #eadfff; border-radius: 50%; color: #7648ac; display: flex; font-size: 9px; height: 17px; justify-content: center; width: 17px; }
-.exec-mentoria-community-list span { color: #163c71; font-size: 10px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.exec-mentoria-community-list strong { color: #08285d; font-size: 12px; white-space: nowrap; }
-.exec-posgrado-chart { display: grid; gap: 7px; }
-.exec-posgrado-row { align-items: center; display: grid; gap: 8px; grid-template-columns: minmax(0, 96px) minmax(0, 1fr) 36px; }
-.exec-posgrado-row span { color: #163c71; font-size: 11px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.exec-posgrado-row i { background: #d9ebff; border-radius: 999px; display: block; height: 10px; overflow: hidden; }
+.exec-insight-posgrado-panel h4 { color: #08285d; font-size: 15px; margin: 0; }
+.exec-insight-posgrado-panel .exec-insight-card-heading > span { font-size: 12px; padding: 4px 9px; }
+.exec-mentoria-community-list { align-content: space-between; display: grid; gap: 5px; grid-template-rows: repeat(5, minmax(20px, 1fr)); list-style: none; margin: 0; padding: 0; }
+.exec-mentoria-community-list li { align-items: center; display: grid; gap: 7px; grid-template-columns: 20px minmax(0, 1fr) auto; }
+.exec-mentoria-community-list b { align-items: center; background: #eadfff; border-radius: 50%; color: #7648ac; display: flex; font-size: 10px; height: 20px; justify-content: center; width: 20px; }
+.exec-mentoria-community-list span { color: #163c71; font-size: 12px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exec-mentoria-community-list strong { color: #08285d; font-size: 15px; white-space: nowrap; }
+.exec-posgrado-chart { align-content: space-between; display: grid; gap: 8px; grid-template-rows: repeat(5, minmax(16px, 1fr)); }
+.exec-posgrado-row { align-items: center; display: grid; gap: 9px; grid-template-columns: minmax(0, 105px) minmax(0, 1fr) 38px; }
+.exec-posgrado-row span { color: #163c71; font-size: 13px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exec-posgrado-row i { background: #d9ebff; border-radius: 999px; display: block; height: 12px; overflow: hidden; }
 .exec-posgrado-row em { background: linear-gradient(90deg, #0d78d5, #19a7b7); border-radius: inherit; display: block; height: 100%; }
-.exec-posgrado-row strong { color: #08285d; font-size: 14px; text-align: right; }
+.exec-posgrado-row strong { color: #08285d; font-size: 16px; text-align: right; }
 .exec-posgrado-empty { color: #6a7d8f; font-size: 11px; font-weight: 750; margin: 0; }
 .exec-report-intramuros p { color: #42638d; margin: -8px 0 14px; }
 .exec-report-intramuros-grid { display: grid; gap: 8px 12px; grid-template-columns: repeat(var(--exec-report-intramuros-columns, 1), minmax(0, 1fr)); }
