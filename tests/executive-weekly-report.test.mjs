@@ -80,7 +80,9 @@ test("general report PDF uses an isolated one-page portrait export view", () => 
   assert.ok(source.includes('style="--exec-report-intramuros-columns:${Math.max(rows.length, 1)}"'), "Intramuros must expose its tournament count to the layout");
   assert.match(styles, /\.executive-report-print-root\s*{[^}]*height:\s*289mm;[^}]*width:\s*202mm;/s);
   assert.match(styles, /\.executive-report-print-sheet\s*{[^}]*height:\s*289mm;[^}]*width:\s*202mm;/s);
-  assert.match(styles, /\.executive-report-print-page\s*{[^}]*width:\s*760px;/s);
+  assert.match(styles, /\.executive-report-print-page\s*{[^}]*margin-left:\s*var\(--executive-report-print-offset-x\);[^}]*width:\s*860px;/s);
+  assert.match(source, /const offsetX = Math\.max\(0, \(sheet\.clientWidth - contentWidth \* scale\) \/ 2\);/);
+  assert.match(source, /--executive-report-print-offset-x[^]*?sheet\.dataset\.printOffsetX/, "PDF content must be centered after scaling");
   assert.match(styles, /@page executive-report-page\s*{\s*size:\s*A4 portrait;\s*margin:\s*4mm;/);
   assert.match(styles, /\.executive-report-print-page \.exec-report-attended\s*{[^}]*grid-template-columns:\s*repeat\(2,/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-intramuros-grid\s*{[^}]*grid-template-columns:\s*repeat\(var\(--exec-report-intramuros-columns,/s);
@@ -112,7 +114,7 @@ test("Wellness PDF suggests the visible week in its default filename", () => {
 });
 
 test("executive PDF increases compact typography and preserves both information bands", () => {
-  assert.match(styles, /\.executive-report-print-page\s*\{[^}]*--exec-print-card-title:\s*12px;[^}]*--exec-print-label:\s*8px;[^}]*--exec-print-value:\s*9\.5px;/s);
+  assert.match(styles, /\.executive-report-print-page\s*\{[^}]*--exec-print-card-title:\s*12\.5px;[^}]*--exec-print-label:\s*8\.25px;[^}]*--exec-print-value:\s*10px;/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-card > h3\s*\{[^}]*font-size:\s*var\(--exec-print-card-title\)/s);
   assert.match(styles, /\.executive-report-print-page \.exec-insight-card > h3\s*\{[^}]*font-size:\s*var\(--exec-print-card-title\)/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-intramuros-label\s*\{[^}]*font-size:\s*var\(--exec-print-value\)/s);

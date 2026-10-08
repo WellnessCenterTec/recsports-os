@@ -11430,12 +11430,14 @@ body.executive-report-print {
 }
 
 .executive-report-print-page {
+  --executive-report-print-offset-x: 0px;
   box-sizing: border-box;
+  margin-left: var(--executive-report-print-offset-x);
   max-width: none !important;
   page: executive-report-page;
   transform: scale(var(--executive-report-print-scale, 1));
   transform-origin: left top;
-  width: 760px;
+  width: 860px;
 }
 
 @media print {
@@ -11472,9 +11474,9 @@ body.executive-report-print {
 }
 
   .executive-report-print-page {
-    --exec-print-card-title: 12px;
-    --exec-print-label: 8px;
-    --exec-print-value: 9.5px;
+    --exec-print-card-title: 12.5px;
+    --exec-print-label: 8.25px;
+    --exec-print-value: 10px;
     background: #fff;
     border: 0;
     border-radius: 0;
@@ -11486,7 +11488,7 @@ body.executive-report-print {
   }
 
   .executive-report-print-page .exec-report-titlebar { gap: 10px; padding: 0 0 5px; }
-  .executive-report-print-page .exec-report-titlebar h2 { font-size: 22px; margin-bottom: 1px; }
+  .executive-report-print-page .exec-report-titlebar h2 { font-size: 23px; margin-bottom: 1px; }
   .executive-report-print-page .exec-report-titlebar span { font-size: 11px; }
   .executive-report-print-page .exec-report-titlebar > div:last-child { gap: 1px; }
   .executive-report-print-page .exec-report-titlebar > div:last-child strong { font-size: 17px; }
