@@ -11701,16 +11701,21 @@ function cleanupExecutiveReportPrintView() {
 function fitExecutiveReportPrintPage(sheet, page) {
   page.style.setProperty("--executive-report-print-scale", "1");
   page.style.setProperty("--executive-report-print-offset-x", "0px");
+  page.style.setProperty("--executive-report-print-offset-y", "0px");
   const contentWidth = Math.max(page.scrollWidth, page.offsetWidth, 1);
   const contentHeight = Math.max(page.scrollHeight, page.offsetHeight, 1);
   const scale = Math.min(sheet.clientWidth / contentWidth, sheet.clientHeight / contentHeight, 1) * 0.99;
   const offsetX = Math.max(0, (sheet.clientWidth - contentWidth * scale) / 2);
+  const offsetY = Math.max(0, (sheet.clientHeight - contentHeight * scale) / 2);
   page.style.setProperty("--executive-report-print-scale", scale.toFixed(4));
   page.style.setProperty("--executive-report-print-offset-x", `${offsetX.toFixed(2)}px`);
+  page.style.setProperty("--executive-report-print-offset-y", `${offsetY.toFixed(2)}px`);
   sheet.dataset.printScale = scale.toFixed(4);
   sheet.dataset.printOffsetX = offsetX.toFixed(2);
+  sheet.dataset.printOffsetY = offsetY.toFixed(2);
   document.body.dataset.lastExecutiveReportPrintScale = scale.toFixed(4);
   document.body.dataset.lastExecutiveReportPrintOffsetX = offsetX.toFixed(2);
+  document.body.dataset.lastExecutiveReportPrintOffsetY = offsetY.toFixed(2);
 }
 
 function createExecutiveReportPrintView() {

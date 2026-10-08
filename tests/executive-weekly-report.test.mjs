@@ -80,10 +80,13 @@ test("general report PDF uses an isolated one-page portrait export view", () => 
   assert.ok(source.includes('style="--exec-report-intramuros-columns:${Math.max(rows.length, 1)}"'), "Intramuros must expose its tournament count to the layout");
   assert.match(styles, /\.executive-report-print-root\s*{[^}]*height:\s*289mm;[^}]*width:\s*202mm;/s);
   assert.match(styles, /\.executive-report-print-sheet\s*{[^}]*height:\s*289mm;[^}]*width:\s*202mm;/s);
-  assert.match(styles, /\.executive-report-print-page\s*{[^}]*margin-left:\s*var\(--executive-report-print-offset-x\);[^}]*width:\s*860px;/s);
+  assert.match(styles, /\.executive-report-print-page\s*{[^}]*margin-left:\s*var\(--executive-report-print-offset-x\);[^}]*margin-top:\s*var\(--executive-report-print-offset-y\);[^}]*width:\s*860px;/s);
   assert.match(source, /const offsetX = Math\.max\(0, \(sheet\.clientWidth - contentWidth \* scale\) \/ 2\);/);
-  assert.match(source, /--executive-report-print-offset-x[^]*?sheet\.dataset\.printOffsetX/, "PDF content must be centered after scaling");
+  assert.match(source, /const offsetY = Math\.max\(0, \(sheet\.clientHeight - contentHeight \* scale\) \/ 2\);/);
+  assert.match(source, /--executive-report-print-offset-x[^]*?--executive-report-print-offset-y[^]*?sheet\.dataset\.printOffsetX[^]*?sheet\.dataset\.printOffsetY/, "PDF content must be centered after scaling");
   assert.match(styles, /@page executive-report-page\s*{\s*size:\s*A4 portrait;\s*margin:\s*4mm;/);
+  assert.match(styles, /body\.executive-report-print > \.executive-report-print-root\s*{[^}]*position:\s*static;/s, "The print sheet must honor the A4 page margins");
+  assert.match(styles, /html,[^}]*body\.executive-report-print,[^}]*\.executive-report-print-root,[^}]*\.executive-report-print-sheet\s*{[^}]*background:\s*#fff !important;/s, "The exported A4 page must not expose the app background");
   assert.match(styles, /\.executive-report-print-page \.exec-report-attended\s*{[^}]*grid-template-columns:\s*repeat\(2,/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-intramuros-grid\s*{[^}]*grid-template-columns:\s*repeat\(var\(--exec-report-intramuros-columns,/s);
   assert.match(styles, /\.exec-report-intramuros-grid article\s*{[^}]*display:\s*grid;[^}]*justify-items:\s*center/s, "Intramuros labels and totals must stack without overlapping");

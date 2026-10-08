@@ -11431,8 +11431,10 @@ body.executive-report-print {
 
 .executive-report-print-page {
   --executive-report-print-offset-x: 0px;
+  --executive-report-print-offset-y: 0px;
   box-sizing: border-box;
   margin-left: var(--executive-report-print-offset-x);
+  margin-top: var(--executive-report-print-offset-y);
   max-width: none !important;
   page: executive-report-page;
   transform: scale(var(--executive-report-print-scale, 1));
@@ -11452,6 +11454,17 @@ body.executive-report-print {
     print-color-adjust: exact !important;
   }
 
+  html,
+  body.executive-report-print,
+  .executive-report-print-root,
+  .executive-report-print-sheet {
+    background: #fff !important;
+  }
+
+  body.executive-report-print {
+    margin: 0 !important;
+  }
+
   body.executive-report-print > *:not(.executive-report-print-root) {
     display: none !important;
   }
@@ -11460,7 +11473,7 @@ body.executive-report-print {
     display: block !important;
     height: 289mm;
     left: 0;
-    position: absolute;
+    position: static;
     top: 0;
     width: 202mm;
   }
