@@ -202,6 +202,12 @@ const classDisciplineIndicators = [
 const careers = ["ITC", "LAF", "LIN", "MC", "LNB", "ARQ", "IMT", "LAE", "MNA", "DCA"];
 const genders = ["Femenino", "Masculino", "No especificado"];
 const levels = ["Profesional", "Posgrado"];
+// Claves base verificadas en los padrones presenciales trimestral y semestral de Posgrado.
+// Los sufijos de plan (por ejemplo DCI18 o MCC16I) se eliminan antes de clasificar.
+const POSTGRADUATE_PROGRAM_CODES = {
+  Doctorado: new Set(["DBC", "DBT", "DCC", "DCI", "DCL", "DEE", "DEH", "DNT", "DTC", "IPD"]),
+  Maestría: new Set(["IPG", "MBC", "MBI", "MCC", "MCI", "MEH", "MEM", "MDU", "MNA", "MSM", "RAP", "RCA", "RCR", "REA", "REC", "REE", "REG", "REM", "REN", "REO", "RER", "REU", "RGE", "RNE", "RNP", "RPS", "RUR"])
+};
 const activities = ["clases", "gimnasio", "intramuros", "vivencia"];
 const STORAGE_KEY = "recsports_os_local_captures";
 const SCHEDULE_KEY = "recsports_os_class_schedules";
@@ -1856,11 +1862,22 @@ function studentDatabaseFromCloud(row) {
     row.programa,
     row["Desc Escuela Programa"]
   ], "Sin carrera");
+  const programCodeSource = [
+    row["Clave de programa"],
+    row["Programa Académico"],
+    row["v_Clave Major Agrupado"],
+    row["Clave Major Agrupado"],
+    row.Carrera,
+    row.carrera,
+    row.Programa,
+    row.programa
+  ].filter(Boolean).join(" ");
   return {
     matricula,
     genero: normalizeStudentGender(generoRaw),
     carrera: programa,
     programa,
+    programCodeSource,
     semestre: studentSemesterApi.studentSemesterFromRow(row),
     nivel: normalizeStudentLevel(nivelRaw),
     gradoEscolar: nivelRaw,
@@ -11551,8 +11568,14 @@ function executivePostgraduateModuleSummary() {
     return "";
   };
   const degreeForStudent = (student) => {
-    const rawLevel = normalizeText([student.gradoEscolar, student.programa, student.carrera].filter(Boolean).join(" "));
-    return rawLevel.includes("doctor") ? "Doctorado" : rawLevel.includes("maestr") || rawLevel.includes("maestria") ? "Maestría" : "";
+    const rawSource = [student.gradoEscolar, student.programCodeSource, student.programa, student.carrera].filter(Boolean).join(" ");
+    const rawLevel = normalizeText(rawSource);
+    if (rawLevel.includes("doctor")) return "Doctorado";
+    if (rawLevel.includes("maestr") || rawLevel.includes("maestria")) return "Maestría";
+    const programCodes = String(rawSource).toUpperCase().split(/[^A-Z0-9]+/).map((token) => token.match(/^([A-Z]{2,4})\d{0,2}[A-Z]?$/)?.[1]).filter(Boolean);
+    if (programCodes.some((code) => POSTGRADUATE_PROGRAM_CODES.Doctorado.has(code))) return "Doctorado";
+    if (programCodes.some((code) => POSTGRADUATE_PROGRAM_CODES.Maestría.has(code))) return "Maestría";
+    return "";
   };
   mentorActivityRows().forEach((row) => {
     const matricula = normalizeMatricula(row.matricula);

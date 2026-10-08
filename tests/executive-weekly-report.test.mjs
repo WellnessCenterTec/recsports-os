@@ -194,8 +194,12 @@ test("postgraduate summary shows doctorate and masters cards by module", () => {
     "exec-insight-posgrado-mentors",
     "Posgrado · participación"
   ].forEach((needle) => assert.ok(source.includes(needle), `Missing postgraduate marker: ${needle}`));
-  assert.match(source, /rawLevel\.includes\("doctor"\)\s*\?\s*"Doctorado"/, "Doctorate must be identified from the original academic level text");
-  assert.match(source, /rawLevel\.includes\("maestr"\)[\s\S]*?\?\s*"Maestría"/, "Masters must be identified from the original academic level text");
+  assert.match(source, /rawLevel\.includes\("doctor"\)[\s\S]*?return "Doctorado"/, "Doctorate must be identified from the original academic level text");
+  assert.match(source, /rawLevel\.includes\("maestr"\)[\s\S]*?return "Maestría"/, "Masters must be identified from the original academic level text");
+  const postgraduateCatalog = source.slice(source.indexOf("const POSTGRADUATE_PROGRAM_CODES"), source.indexOf("const activities"));
+  ["DBC", "DBT", "DCC", "DCI", "DCL", "DEE", "DEH", "DNT", "DTC", "IPD"].forEach((code) => assert.ok(postgraduateCatalog.includes(`"${code}"`), `Missing doctorate code ${code}`));
+  ["IPG", "MBC", "MBI", "MCC", "MCI", "MEH", "MEM", "MDU", "MNA", "MSM", "RAP", "RCA", "RCR", "REA", "REC", "REE", "REG", "REM", "REN", "REO", "RER", "REU", "RGE", "RNE", "RNP", "RPS", "RUR"].forEach((code) => assert.ok(postgraduateCatalog.includes(`"${code}"`), `Missing masters code ${code}`));
+  assert.match(source, /token\.match\(\/\^\(\[A-Z\]\{2,4\}\)\\d\{0,2\}\[A-Z\]\?\$\//, "Program-plan suffixes must be removed before classification");
   assert.match(source, /moduleLabels\s*=\s*\["Clases",\s*"Booking",\s*"Gimnasio",\s*"Intramuros",\s*"Vivencia"\]/, "The two postgraduate cards must use the requested modules");
   assert.match(source, /mentorCommunities\.slice\(0,\s*5\)/, "Mentorship side card must show the department top 5 communities");
   assert.match(styles, /\.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
