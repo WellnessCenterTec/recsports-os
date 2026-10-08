@@ -11529,7 +11529,7 @@ body.executive-report-print {
   .executive-report-print-page .exec-report-insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .executive-report-print-page .exec-report-insight-grid > article,
   .executive-report-print-page .exec-report-insight-grid > article:nth-last-child(-n + 3) { grid-column: auto; }
-  .executive-report-print-page .exec-report-insight-grid > article:last-child { grid-column: auto; }
+  .executive-report-print-page .exec-report-insight-grid > article:last-child { grid-column: 1 / -1; }
   .executive-report-print-page .exec-report-module-grid article { border-radius: 10px; gap: 2px; padding: 7px 10px; }
   .executive-report-print-page .exec-report-module-grid h3 { font-size: var(--exec-print-card-title); font-weight: 850; line-height: 1.15; }
   .executive-report-print-page .exec-report-module-grid strong { font-size: 21px; }
@@ -11573,7 +11573,7 @@ body.executive-report-print {
   .executive-report-print-page .exec-insight-mentor-communities li > strong { font-size: var(--exec-print-value); }
   .executive-report-print-page .exec-insight-mentor-communities li small { font-size: var(--exec-print-label); }
   .executive-report-print-page .exec-insight-mentor-communities > p { font-size: 8px; }
-  .executive-report-print-page .exec-posgrado-degree-grid { gap: 4px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, .78fr); }
+  .executive-report-print-page .exec-posgrado-degree-grid { gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .executive-report-print-page .exec-insight-posgrado-panel { border-radius: 7px; padding: 5px; }
   .executive-report-print-page .exec-insight-posgrado-panel h4 { font-size: var(--exec-print-label); }
   .executive-report-print-page .exec-mentoria-community-list { gap: 2px; }
