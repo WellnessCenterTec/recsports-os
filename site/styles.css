@@ -6964,8 +6964,9 @@ tbody tr:hover td {
 .exec-report-module-grid b { border-top: 1px solid #d3e2f2; color: #08285d; margin-top: 8px; padding-top: 12px; }
 .exec-report-insight-grid { align-items: stretch; grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .exec-report-insight-grid > article { grid-column: span 3; }
-.exec-report-insight-grid > article:nth-last-child(-n + 3) { grid-column: span 2; }
-.exec-report-insight-grid > article:last-child { grid-column: 1 / -1; }
+.exec-insight-posgrado-mentoria-row { display: grid; gap: 14px; grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.exec-insight-posgrado-card { grid-column: span 2; }
+.exec-insight-mentoria-card { align-content: start; background: #fbf8ff; grid-column: span 1; }
 .exec-insight-card { align-content: start; min-width: 0; }
 .exec-insight-card > h3 { font-size: 17px; margin-bottom: 10px; }
 .exec-insight-card-heading { align-items: center; display: flex; gap: 8px; justify-content: space-between; margin-bottom: 8px; }
@@ -7023,9 +7024,10 @@ tbody tr:hover td {
 .exec-insight-posgrado-mentors { background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%); }
 .exec-insight-posgrado-mentors > .exec-insight-card-heading h3 { font-size: 19px; }
 .exec-insight-posgrado-mentors > .exec-insight-card-heading > span { font-size: 12px; }
-.exec-posgrado-degree-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.exec-insight-mentoria-card > .exec-insight-card-heading h3 { font-size: 19px; }
+.exec-insight-mentoria-card > .exec-insight-card-heading > span { font-size: 12px; }
+.exec-posgrado-degree-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .exec-insight-posgrado-panel { background: #f4f9ff; border-radius: 12px; display: grid; grid-template-rows: auto 1fr; min-width: 0; padding: 12px; }
-.exec-insight-mentoria-panel { background: #fbf8ff; }
 .exec-insight-posgrado-panel h4 { color: #08285d; font-size: 15px; margin: 0; }
 .exec-insight-posgrado-panel .exec-insight-card-heading > span { font-size: 12px; padding: 4px 9px; }
 .exec-mentoria-community-list { align-content: space-between; display: grid; gap: 5px; grid-template-rows: repeat(5, minmax(20px, 1fr)); list-style: none; margin: 0; padding: 0; }
@@ -7067,14 +7069,16 @@ tbody tr:hover td {
   .exec-report-daily-average { border-color: #d3e2f2; padding-left: 0; }
   .exec-report-module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .exec-report-insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .exec-report-insight-grid > article,
-  .exec-report-insight-grid > article:nth-last-child(-n + 3) { grid-column: auto; }
-  .exec-report-insight-grid > article:last-child { grid-column: 1 / -1; }
+  .exec-report-insight-grid > article { grid-column: auto; }
   .exec-report-intramuros-grid { grid-template-columns: repeat(var(--exec-report-intramuros-columns, 1), minmax(120px, 1fr)); overflow-x: auto; }
 }
 @media (max-width: 520px) {
   .exec-report-insight-grid { grid-template-columns: 1fr; }
   .exec-insight-columns { grid-template-columns: 1fr; }
+  .exec-insight-posgrado-mentoria-row { grid-template-columns: 1fr; }
+  .exec-insight-posgrado-card,
+  .exec-insight-mentoria-card { grid-column: auto; }
+  .exec-posgrado-degree-grid { grid-template-columns: 1fr; }
 }
 
 .exec-empty {
@@ -11533,9 +11537,10 @@ body.executive-report-print {
 
   .executive-report-print-page .exec-report-module-grid { gap: 7px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .executive-report-print-page .exec-report-insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .executive-report-print-page .exec-report-insight-grid > article,
-  .executive-report-print-page .exec-report-insight-grid > article:nth-last-child(-n + 3) { grid-column: auto; }
-  .executive-report-print-page .exec-report-insight-grid > article:last-child { grid-column: 1 / -1; }
+  .executive-report-print-page .exec-report-insight-grid > article { grid-column: auto; }
+  .executive-report-print-page .exec-insight-posgrado-mentoria-row { gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .executive-report-print-page .exec-insight-posgrado-card { grid-column: span 2; }
+  .executive-report-print-page .exec-insight-mentoria-card { grid-column: span 1; }
   .executive-report-print-page .exec-report-module-grid article { border-radius: 10px; gap: 2px; padding: 7px 10px; }
   .executive-report-print-page .exec-report-module-grid h3 { font-size: var(--exec-print-card-title); font-weight: 850; line-height: 1.15; }
   .executive-report-print-page .exec-report-module-grid strong { font-size: 21px; }
@@ -11579,7 +11584,7 @@ body.executive-report-print {
   .executive-report-print-page .exec-insight-mentor-communities li > strong { font-size: var(--exec-print-value); }
   .executive-report-print-page .exec-insight-mentor-communities li small { font-size: var(--exec-print-label); }
   .executive-report-print-page .exec-insight-mentor-communities > p { font-size: 8px; }
-  .executive-report-print-page .exec-posgrado-degree-grid { gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .executive-report-print-page .exec-posgrado-degree-grid { gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .executive-report-print-page .exec-insight-posgrado-panel { border-radius: 7px; padding: 5px; }
   .executive-report-print-page .exec-insight-posgrado-panel h4 { font-size: var(--exec-print-label); }
   .executive-report-print-page .exec-mentoria-community-list { gap: 2px; }

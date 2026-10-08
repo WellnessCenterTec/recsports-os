@@ -11617,18 +11617,20 @@ function renderExecutivePostgraduateDegreeCard(degree, ready) {
 
 function renderExecutivePostgraduateLevelCard(postgraduate, mentorCommunities) {
   return `
-    <article class="exec-insight-card exec-insight-posgrado-mentors">
-      <div class="exec-insight-card-heading"><h3>Posgrado · participación</h3><span>Maestría / Doctorado</span></div>
-      <div class="exec-posgrado-degree-grid">
-        ${postgraduate.degrees.map((degree) => renderExecutivePostgraduateDegreeCard(degree, postgraduate.ready)).join("")}
-        <section class="exec-insight-posgrado-panel exec-insight-mentoria-panel">
-          <div class="exec-insight-card-heading"><h4>Mentoría</h4><span>Top 5</span></div>
-          ${mentorCommunities.length ? `<ol class="exec-mentoria-community-list">
-            ${mentorCommunities.slice(0, 5).map((row, index) => `<li><b>${index + 1}</b><span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")}</strong></li>`).join("")}
-          </ol>` : `<p class="exec-posgrado-empty">Sin cruces de mentoría y actividad.</p>`}
-        </section>
-      </div>
-    </article>`;
+    <div class="exec-insight-posgrado-mentoria-row">
+      <article class="exec-insight-card exec-insight-posgrado-mentors exec-insight-posgrado-card">
+        <div class="exec-insight-card-heading"><h3>Posgrado · participación</h3><span>Maestría / Doctorado</span></div>
+        <div class="exec-posgrado-degree-grid">
+          ${postgraduate.degrees.map((degree) => renderExecutivePostgraduateDegreeCard(degree, postgraduate.ready)).join("")}
+        </div>
+      </article>
+      <article class="exec-insight-card exec-insight-mentoria-card">
+        <div class="exec-insight-card-heading"><h3>Mentoría</h3><span>Top 5</span></div>
+        ${mentorCommunities.length ? `<ol class="exec-mentoria-community-list">
+          ${mentorCommunities.slice(0, 5).map((row, index) => `<li><b>${index + 1}</b><span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")}</strong></li>`).join("")}
+        </ol>` : `<p class="exec-posgrado-empty">Sin cruces de mentoría y actividad.</p>`}
+      </article>
+    </div>`;
 }
 
 function renderExecutiveRankingColumn(title, rows, tone, emptyLabel) {

@@ -188,7 +188,8 @@ test("postgraduate summary shows doctorate and masters cards by module", () => {
     "Intramuros",
     "Vivencia",
     "Mentoría",
-    "exec-insight-mentoria-panel",
+    "exec-insight-mentoria-card",
+    "exec-insight-posgrado-mentoria-row",
     "exec-mentoria-community-list",
     "executiveMentorCommunityRanking",
     "exec-insight-posgrado-mentors",
@@ -203,16 +204,17 @@ test("postgraduate summary shows doctorate and masters cards by module", () => {
   assert.match(source, /moduleLabels\s*=\s*\["Clases",\s*"Booking",\s*"Gimnasio",\s*"Intramuros",\s*"Vivencia"\]/, "The two postgraduate cards must use the requested modules");
   assert.match(source, /mentorCommunities\.slice\(0,\s*5\)/, "Mentorship side card must show the department top 5 communities");
   assert.match(styles, /\.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
-  assert.match(styles, /\.exec-report-insight-grid > article:nth-last-child\(-n \+ 3\)\s*\{[^}]*grid-column:\s*span 2;/s);
-  assert.match(styles, /\.exec-report-insight-grid > article:last-child\s*\{[^}]*grid-column:\s*1 \/ -1;/s, "The postgraduate section must also span the full row online");
+  assert.match(styles, /\.exec-insight-posgrado-mentoria-row\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*grid-template-columns:\s*repeat\(3,/s, "Postgraduate and mentorship must share a full-width independent row");
+  assert.match(styles, /\.exec-insight-posgrado-card\s*\{[^}]*grid-column:\s*span 2;/s, "Postgraduate must occupy two thirds of the row");
+  assert.match(styles, /\.exec-insight-mentoria-card\s*\{[^}]*grid-column:\s*span 1;/s, "Mentorship must be a separate one-third card");
   assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
-  assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid > article:last-child\s*\{[^}]*grid-column:\s*1 \/ -1;/s, "The postgraduate section must span the full printable row");
-  assert.match(styles, /\.exec-posgrado-degree-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/s, "Doctorate, masters and mentorship must use equal columns online");
+  assert.match(styles, /\.exec-posgrado-degree-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/s, "Doctorate and masters must use equal columns online");
   assert.match(styles, /\.exec-insight-posgrado-panel\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:\s*auto 1fr;/s, "Each postgraduate panel must use its available vertical space");
   assert.match(styles, /\.exec-posgrado-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*105px\)/s);
   assert.match(styles, /\.exec-posgrado-row span\s*\{[^}]*font-size:\s*13px;/s, "Postgraduate module labels must be legible online");
   assert.match(styles, /\.exec-mentoria-community-list span\s*\{[^}]*font-size:\s*12px;/s, "Mentorship labels must be legible online");
-  assert.match(styles, /\.executive-report-print-page \.exec-posgrado-degree-grid\s*\{[^}]*gap:\s*8px;[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/s, "Doctorate, masters and mentorship must use three equally wide print columns");
+  assert.match(styles, /\.executive-report-print-page \.exec-insight-posgrado-mentoria-row\s*\{[^}]*gap:\s*8px;[^}]*grid-template-columns:\s*repeat\(3,/s, "The print row must preserve the visual separation between postgraduate and mentorship");
+  assert.match(styles, /\.executive-report-print-page \.exec-posgrado-degree-grid\s*\{[^}]*gap:\s*8px;[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/s, "Doctorate and masters must use two equal print columns");
 });
 
 test("class demand ranks complete disciplines instead of separate PMT blocks", () => {
