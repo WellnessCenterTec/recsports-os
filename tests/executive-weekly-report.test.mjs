@@ -198,9 +198,10 @@ test("postgraduate summary shows doctorate and masters cards by module", () => {
   assert.match(source, /mentorCommunities\.slice\(0,\s*5\)/, "Mentorship side card must show the department top 5 communities");
   assert.match(styles, /\.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(6,/s);
   assert.match(styles, /\.exec-report-insight-grid > article:nth-last-child\(-n \+ 3\)\s*\{[^}]*grid-column:\s*span 2;/s);
+  assert.match(styles, /\.exec-report-insight-grid > article:last-child\s*\{[^}]*grid-column:\s*1 \/ -1;/s, "The postgraduate section must also span the full row online");
   assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,/s);
   assert.match(styles, /\.executive-report-print-page \.exec-report-insight-grid > article:last-child\s*\{[^}]*grid-column:\s*1 \/ -1;/s, "The postgraduate section must span the full printable row");
-  assert.match(styles, /\.exec-posgrado-degree-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(0,\s*1fr\)\s*minmax\(0,\s*\.78fr\);/s);
+  assert.match(styles, /\.exec-posgrado-degree-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/s, "Doctorate, masters and mentorship must use equal columns online");
   assert.match(styles, /\.exec-posgrado-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*96px\)/s);
   assert.match(styles, /\.executive-report-print-page \.exec-posgrado-degree-grid\s*\{[^}]*gap:\s*8px;[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/s, "Doctorate, masters and mentorship must use three equally wide print columns");
 });

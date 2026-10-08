@@ -6964,6 +6964,7 @@ tbody tr:hover td {
 .exec-report-insight-grid { align-items: stretch; grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .exec-report-insight-grid > article { grid-column: span 3; }
 .exec-report-insight-grid > article:nth-last-child(-n + 3) { grid-column: span 2; }
+.exec-report-insight-grid > article:last-child { grid-column: 1 / -1; }
 .exec-insight-card { align-content: start; min-width: 0; }
 .exec-insight-card > h3 { font-size: 17px; margin-bottom: 10px; }
 .exec-insight-card-heading { align-items: center; display: flex; gap: 8px; justify-content: space-between; margin-bottom: 8px; }
@@ -7019,7 +7020,7 @@ tbody tr:hover td {
 .exec-insight-mentor-communities li small { color: #42638d; font-size: 9px; }
 .exec-insight-mentor-communities > p { color: #6a7d8f; font-size: 10px; margin: 0; }
 .exec-insight-posgrado-mentors { background: linear-gradient(180deg, #ffffff 0%, #f6fbff 100%); }
-.exec-posgrado-degree-grid { display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, .78fr); }
+.exec-posgrado-degree-grid { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .exec-insight-posgrado-panel { background: #f4f9ff; border-radius: 12px; min-width: 0; padding: 10px; }
 .exec-insight-mentoria-panel { background: #fbf8ff; }
 .exec-insight-posgrado-panel h4 { color: #08285d; font-size: 13px; margin: 0; }
@@ -7064,6 +7065,7 @@ tbody tr:hover td {
   .exec-report-insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .exec-report-insight-grid > article,
   .exec-report-insight-grid > article:nth-last-child(-n + 3) { grid-column: auto; }
+  .exec-report-insight-grid > article:last-child { grid-column: 1 / -1; }
   .exec-report-intramuros-grid { grid-template-columns: repeat(var(--exec-report-intramuros-columns, 1), minmax(120px, 1fr)); overflow-x: auto; }
 }
 @media (max-width: 520px) {
