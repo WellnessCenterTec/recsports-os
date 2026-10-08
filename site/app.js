@@ -11954,7 +11954,7 @@ function renderExecutiveGeneralDashboard() {
       </div>
       <div class="exec-page">
         <header class="exec-report-titlebar">
-          <div class="exec-logo">WS</div>
+          <div class="exec-logo"><img class="exec-logo-image" src="/assets/borregos_logo_manual_oficial.png" alt="Borregos" /></div>
           <div><h2>${escapeHtml(executiveReportState.title || "Reporte Wellness")}</h2><span>WellSync · RecSports &amp; Wellness · ${escapeHtml(executiveReportState.period)}</span></div>
           <div><strong>Semana ${executiveReportState.week}</strong><span>Semana ${executiveReportState.week} de 20</span></div>
         </header>

@@ -7,6 +7,8 @@ const styles = fs.readFileSync(new URL("../site/styles.css", import.meta.url), "
 
 test("the general module is named Reporte Wellness", () => {
   assert.match(source, /id:\s*"general",\s*name:\s*"Reporte Wellness"/s);
+  assert.match(source, /class="exec-logo-image"\s+src="\/assets\/borregos_logo_manual_oficial\.png"\s+alt="Borregos"/, "The Wellness report header must use the official Borregos logo");
+  assert.doesNotMatch(source, /<div class="exec-logo">WS<\/div>/, "The old WS initials must not remain in the Wellness report header");
   assert.doesNotMatch(source, /name:\s*"Reporte General"/);
 });
 

@@ -6899,7 +6899,8 @@ tbody tr:hover td {
 .exec-report-titlebar span { color: #42638d; font-weight: 800; }
 .exec-report-titlebar > div:last-child { display: grid; gap: 5px; justify-items: end; }
 .exec-report-titlebar > div:last-child strong { color: #0767d6; font-size: 23px; }
-.exec-report-titlebar .exec-logo { background: linear-gradient(135deg, #063f86, #079de0); border: 0; border-radius: 18px; color: #fff; }
+.exec-report-titlebar .exec-logo { background: #f4f9ff; border: 1px solid #d3e2f2; border-radius: 18px; box-sizing: border-box; padding: 7px; }
+.exec-report-titlebar .exec-logo-image { display: block; height: 100%; object-fit: contain; width: 100%; }
 .exec-report-hero { background: linear-gradient(120deg, #034487, #0069c8 58%, #08a8eb); border-radius: 22px; color: #fff; display: grid; grid-template-columns: 58% 42%; min-height: 240px; padding: 20px 30px; }
 .exec-report-hero p { font-size: 18px; font-weight: 950; letter-spacing: .04em; margin: 0 0 18px; }
 .exec-report-hero ul { display: grid; gap: 10px 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; }
@@ -11484,7 +11485,7 @@ body.executive-report-print {
   .executive-report-print-page .exec-report-titlebar span { font-size: 11px; }
   .executive-report-print-page .exec-report-titlebar > div:last-child { gap: 1px; }
   .executive-report-print-page .exec-report-titlebar > div:last-child strong { font-size: 17px; }
-  .executive-report-print-page .exec-logo { border-radius: 11px; font-size: 15px; height: 42px; width: 42px; }
+  .executive-report-print-page .exec-logo { border-radius: 11px; font-size: 15px; height: 42px; padding: 3px; width: 42px; }
 
   .executive-report-print-page .exec-report-hero {
     border-radius: 13px;
