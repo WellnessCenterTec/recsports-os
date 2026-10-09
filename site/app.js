@@ -6939,6 +6939,17 @@ function physicalNumericValue(result) {
   return Number.isFinite(value) ? value : null;
 }
 
+const PHYSICAL_HALL_ROWING_DISTANCE_PERIOD = "AD26";
+const PHYSICAL_HALL_ROWING_DISTANCE_START_DATE = "2026-09-30";
+
+function physicalHallRankingRowEligible(row, testKey) {
+  if (testKey !== "remo_distancia") return true;
+  const period = String(row?.period_key || row?.semester_label || "").trim().toUpperCase();
+  const evaluatedAt = String(row?.evaluated_at || "").slice(0, 10);
+  return period === PHYSICAL_HALL_ROWING_DISTANCE_PERIOD
+    && evaluatedAt >= PHYSICAL_HALL_ROWING_DISTANCE_START_DATE;
+}
+
 function physicalHallGenderValue(row, collaboratorIndex = collaboratorPhotoIndex()) {
   const profile = physicalHallCollaboratorProfile(row, collaboratorIndex);
   const value = String(profile?.gender || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -6976,6 +6987,7 @@ function physicalHallRanking(testKey, collaboratorIndex = collaboratorPhotoIndex
   const bestByCollaborator = new Map();
   physicalEvaluations
     .forEach((row) => {
+      if (!physicalHallRankingRowEligible(row, testKey)) return;
       const collaboratorNomina = String(row.collaborator_nomina || "").trim();
       if (!collaboratorNomina) return;
       const collaboratorProfile = physicalHallCollaboratorProfile(row, collaboratorIndex);

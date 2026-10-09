@@ -36,6 +36,15 @@ function payload(overrides = {}) {
   };
 }
 
+function loadHallRankingEligibility() {
+  const start = appSource.indexOf("const PHYSICAL_HALL_ROWING_DISTANCE_PERIOD");
+  const end = appSource.indexOf("function physicalHallGenderValue");
+  assert.ok(start >= 0 && end > start, "No se encontró el filtro del ranking de remo distancia");
+  const context = {};
+  vm.runInNewContext(`${appSource.slice(start, end)}\nthis.physicalHallRankingRowEligible = physicalHallRankingRowEligible;`, context);
+  return context.physicalHallRankingRowEligible;
+}
+
 test("el formulario valida unidades y rangos antes de llamar a Supabase", () => {
   const validate = loadValidator();
   assert.equal(validate(payload()), "");
@@ -73,4 +82,14 @@ test("el salón de la fama muestra la foto del coach al doble y aprovecha el anc
   assert.match(stylesSource, /\.physical-hof-leader-row\s*\{[^}]*grid-template-columns:\s*132px minmax\(0, 1fr\)/s);
   assert.match(stylesSource, /\.physical-hof-person-avatar\s*\{[^}]*width:\s*132px;[^}]*height:\s*132px;/s);
   assert.match(stylesSource, /\.physical-hof-record-body\s*\{[^}]*min-height:\s*132px;/s);
+});
+
+test("remo distancia del salón de la fama usa solo AD26 desde el 30 de septiembre de 2026", () => {
+  const eligible = loadHallRankingEligibility();
+  assert.equal(eligible({ period_key: "AD26", evaluated_at: "2026-09-30T08:00:00Z" }, "remo_distancia"), true);
+  assert.equal(eligible({ period_key: "AD26", evaluated_at: "2026-10-15" }, "remo_distancia"), true);
+  assert.equal(eligible({ period_key: "AD26", evaluated_at: "2026-09-29" }, "remo_distancia"), false);
+  assert.equal(eligible({ period_key: "FJ26", evaluated_at: "2026-10-15" }, "remo_distancia"), false);
+  assert.equal(eligible({ period_key: "FJ26", evaluated_at: "2024-01-01" }, "cooper_12m"), true);
+  assert.match(appSource, /if \(!physicalHallRankingRowEligible\(row, testKey\)\) return;/);
 });
