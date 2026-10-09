@@ -796,8 +796,10 @@ const viewCacheApi = window.WellSyncViewCache;
 const lastViewStore = viewCacheApi?.createLastViewStore(localStorage) || null;
 let cachedViewSnapshot = null;
 let viewSnapshotTimer = null;
+let viewSnapshotIdleId = null;
 let cloudCaptures = [];
 let cloudStudentDatabase = [];
+let cloudStudentsByMatricula = new Map();
 let studentDatabaseLoaded = false;
 let studentDatabaseImporting = false;
 let cloudCollaborators = [];
@@ -1926,13 +1928,16 @@ async function loadStudentDatabase() {
     return;
   }
   cloudStudentDatabase = rows.map(studentDatabaseFromCloud);
+  cloudStudentsByMatricula = new Map(
+    cloudStudentDatabase.map((student) => [normalizeMatricula(student.matricula), student])
+  );
   studentDatabaseLoaded = true;
 }
 
 function findStudentInDatabase(matricula) {
   const clean = normalizeMatricula(matricula);
   if (!clean) return null;
-  return cloudStudentDatabase.find((student) => normalizeMatricula(student.matricula) === clean) || null;
+  return cloudStudentsByMatricula.get(clean) || null;
 }
 
 async function loadGymAsistencias(period = activeMasterPeriod) {
@@ -2932,14 +2937,16 @@ async function loadSupabaseCaptures() {
   cloudStatus = "Supabase conectado";
 }
 
-async function loadVivenciaParticipantDetails() {
+async function loadVivenciaParticipantDetails(eventIds = []) {
+  if (!eventIds.length) return { data: [], error: null, count: 0 };
   const rows = [];
   const pageSize = 1000;
   const maxRows = 12000;
   for (let offset = 0; offset < maxRows; offset += pageSize) {
     const response = await supabaseClient
       .from("vivencia_participant_details")
-      .select("*")
+      .select("id, event_id, matricula, source_name, source_row_number, created_at, campus, event_name, event_date, classification, branch, event_status, is_signature_event, genero, carrera, semestre, nivel_escolar")
+      .in("event_id", eventIds)
       .order("created_at", { ascending: false })
       .range(offset, offset + pageSize - 1);
     if (response.error) return { data: [], error: response.error, count: 0 };
@@ -2968,9 +2975,12 @@ async function loadVivenciaFormsFeed() {
 async function loadVivenciaEvents() {
   await loadVivenciaFormsFeed();
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const { start, end } = masterPeriodBounds(activeMasterPeriod);
   const { data, error } = await supabaseClient
     .from("vivencia_events")
     .select("*")
+    .gte("event_date", start)
+    .lte("event_date", end)
     .order("event_date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(1500);
@@ -2988,23 +2998,29 @@ async function loadVivenciaEvents() {
     console.error(error);
     return;
   }
+  vivenciaEventsAvailable = true;
+  vivenciaEvents = data || [];
+  const activeEventIds = [...new Set(vivenciaEvents.filter(isVisibleVivenciaEvent).map((event) => event.id).filter(Boolean))];
   const [metricsResult, participantsResult, uploadsResult, imagesResult, settingsResult] = await Promise.all([
-    supabaseClient
+    activeEventIds.length ? supabaseClient
       .from("vivencia_event_metrics")
       .select("*")
+      .in("event_id", activeEventIds)
       .order("event_date", { ascending: false })
-      .limit(1500),
-    loadVivenciaParticipantDetails(),
-    supabaseClient
+      .limit(1500) : Promise.resolve({ data: [], error: null }),
+    loadVivenciaParticipantDetails(activeEventIds),
+    activeEventIds.length ? supabaseClient
       .from("vivencia_participant_uploads")
       .select("*")
+      .in("event_id", activeEventIds)
       .order("upload_date", { ascending: false })
-      .limit(200),
-    supabaseClient
+      .limit(200) : Promise.resolve({ data: [], error: null }),
+    activeEventIds.length ? supabaseClient
       .from("vivencia_event_images")
       .select("*")
+      .in("event_id", activeEventIds)
       .order("created_at", { ascending: false })
-      .limit(3000),
+      .limit(3000) : Promise.resolve({ data: [], error: null }),
     supabaseClient
       .from("vivencia_dashboard_settings")
       .select("impact_goal, updated_at")
@@ -3014,21 +3030,19 @@ async function loadVivenciaEvents() {
   if (metricsResult.error || participantsResult.error || uploadsResult.error || imagesResult.error || settingsResult.error) {
     console.warn(metricsResult.error || participantsResult.error || uploadsResult.error || imagesResult.error || settingsResult.error);
   }
-  vivenciaEventsAvailable = true;
-  vivenciaEvents = (data || []).filter((event) => masterPeriodMatchesDate(event.event_date));
-  const activeEventIds = new Set(vivenciaEvents.filter(isVisibleVivenciaEvent).map((event) => event.id));
+  const activeEventIdSet = new Set(activeEventIds);
   vivenciaEventMetrics = metricsResult.error
     ? []
-    : (metricsResult.data || []).filter((row) => activeEventIds.has(row.event_id) || masterPeriodMatchesDate(row.event_date));
+    : (metricsResult.data || []).filter((row) => activeEventIdSet.has(row.event_id));
   vivenciaParticipantUploads = uploadsResult.error
     ? []
-    : (uploadsResult.data || []).filter((row) => activeEventIds.has(row.event_id) || masterPeriodMatchesDate(row.upload_date));
+    : (uploadsResult.data || []).filter((row) => activeEventIdSet.has(row.event_id));
   const activeParticipantDetails = participantsResult.error
     ? []
-    : (participantsResult.data || []).filter((participant) => activeEventIds.has(participant.event_id));
+    : (participantsResult.data || []).filter((participant) => activeEventIdSet.has(participant.event_id));
   vivenciaParticipantDetailsCount = activeParticipantDetails.length;
   vivenciaEventImages = (imagesResult.error ? [] : (imagesResult.data || []))
-    .filter((image) => activeEventIds.has(image.event_id))
+    .filter((image) => activeEventIdSet.has(image.event_id))
     .map((image) => ({
     ...image,
     public_url: supabaseClient.storage.from("vivencia-event-images").getPublicUrl(image.storage_path).data.publicUrl
@@ -3062,11 +3076,14 @@ async function loadCommunicationEvents() {
     communicationDashboardSettings = { impact_goal: 3800 };
     return;
   }
-  const [eventsResult, settingsResult, participantsResult, uploadsResult, imagesResult] = await Promise.all([
+  const { start, end } = masterPeriodBounds(activeMasterPeriod);
+  const [eventsResult, settingsResult] = await Promise.all([
     supabaseClient
       .from("communication_events")
       .select("*")
       .is("archived_at", null)
+      .gte("event_date", start)
+      .lte("event_date", end)
       .order("event_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(1500),
@@ -3074,21 +3091,7 @@ async function loadCommunicationEvents() {
       .from("communication_dashboard_settings")
       .select("impact_goal, updated_at")
       .eq("id", 1)
-      .maybeSingle(),
-    supabaseClient
-      .from("communication_participants")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(12000),
-    supabaseClient
-      .from("communication_participant_uploads")
-      .select("*")
-      .order("upload_date", { ascending: false })
-      .limit(200),
-    supabaseClient
-      .from("communication_event_images")
-      .select("event_id, storage_path, file_name, mime_type, file_size, updated_at")
-      .limit(1500)
+      .maybeSingle()
   ]);
   if (eventsResult.error) {
     communicationEvents = [];
@@ -3096,13 +3099,37 @@ async function loadCommunicationEvents() {
     communicationParticipantUploads = [];
     communicationEventImages = [];
     communicationEventsAvailable = false;
-    communicationParticipantsAvailable = !participantsResult.error;
+    communicationParticipantsAvailable = false;
     communicationDashboardSettings = { impact_goal: 3800 };
     console.warn("No se pudo cargar el centro de eventos de Comunicación", eventsResult.error);
     return;
   }
   communicationEventsAvailable = true;
-  communicationEvents = (eventsResult.data || []).filter((event) => masterPeriodMatchesDate(event.event_date));
+  communicationEvents = eventsResult.data || [];
+  const activeEventIdList = [...new Set(communicationEvents.map((event) => event.id).filter(Boolean))];
+  const [participantsResult, uploadsResult, imagesResult] = activeEventIdList.length ? await Promise.all([
+    supabaseClient
+      .from("communication_participants")
+      .select("id, event_id, matricula, source_name, source_row_number, created_at")
+      .in("event_id", activeEventIdList)
+      .order("created_at", { ascending: false })
+      .limit(12000),
+    supabaseClient
+      .from("communication_participant_uploads")
+      .select("id, event_id, upload_date, total_processed, total_inserted, duplicates_ignored, errors_detected, source_name, created_at")
+      .in("event_id", activeEventIdList)
+      .order("upload_date", { ascending: false })
+      .limit(200),
+    supabaseClient
+      .from("communication_event_images")
+      .select("event_id, storage_path, file_name, mime_type, file_size, updated_at")
+      .in("event_id", activeEventIdList)
+      .limit(1500)
+  ]) : [
+    { data: [], error: null },
+    { data: [], error: null },
+    { data: [], error: null }
+  ];
   const activeEventIds = new Set(communicationEvents.map((event) => event.id));
   communicationEventImagesAvailable = !imagesResult.error;
   if (imagesResult.error) console.warn("No se pudieron cargar las imágenes de eventos de Comunicación", imagesResult.error);
@@ -6039,21 +6066,33 @@ function cleanViewSnapshotHtml(contentNode) {
 
 function scheduleViewSnapshotPersist(areaId, viewId, { allowPartial = false } = {}) {
   clearTimeout(viewSnapshotTimer);
+  if (viewSnapshotIdleId !== null && typeof window.cancelIdleCallback === "function") {
+    window.cancelIdleCallback(viewSnapshotIdleId);
+    viewSnapshotIdleId = null;
+  }
   viewSnapshotTimer = setTimeout(() => {
-    const status = areaDataStatus(areaId, viewId);
-    if (!currentUser || areaId !== activeArea || viewId !== activeView || (status !== "ready" && !(allowPartial && status === "error"))) return;
-    const contentHtml = cleanViewSnapshotHtml($("#contentArea"));
-    if (!contentHtml.trim()) return;
-    const userId = cachedWorkspaceUserId();
-    const snapshot = {
-      area: areaId,
-      view: viewId,
-      title: $("#currentTitle")?.textContent || labelArea(areaId),
-      contentHtml,
-      kpisHtml: $("#executiveKpis")?.innerHTML || ""
+    const persistSnapshot = () => {
+      viewSnapshotIdleId = null;
+      const status = areaDataStatus(areaId, viewId);
+      if (!currentUser || areaId !== activeArea || viewId !== activeView || (status !== "ready" && !(allowPartial && status === "error"))) return;
+      const contentHtml = cleanViewSnapshotHtml($("#contentArea"));
+      if (!contentHtml.trim()) return;
+      const userId = cachedWorkspaceUserId();
+      const snapshot = {
+        area: areaId,
+        view: viewId,
+        title: $("#currentTitle")?.textContent || labelArea(areaId),
+        contentHtml,
+        kpisHtml: $("#executiveKpis")?.innerHTML || ""
+      };
+      if (lastViewStore?.writeSnapshot(userId, activeMasterPeriod, snapshot)) cachedViewSnapshot = snapshot;
     };
-    if (lastViewStore?.writeSnapshot(userId, activeMasterPeriod, snapshot)) cachedViewSnapshot = snapshot;
-  }, 160);
+    if (typeof window.requestIdleCallback === "function") {
+      viewSnapshotIdleId = window.requestIdleCallback(persistSnapshot, { timeout: 800 });
+    } else {
+      persistSnapshot();
+    }
+  }, 250);
 }
 
 function renderAreaLoadingState(area) {
@@ -22697,8 +22736,11 @@ $$(".segmented button").forEach((button) => button.addEventListener("click", () 
   render();
 }));
 
+let globalSearchRenderTimer = null;
+
 ["levelFilter", "careerFilter", "genderFilter", "globalSearch", "roleSelect"].forEach((id) => {
   $(`#${id}`).addEventListener("input", (event) => {
+    clearTimeout(globalSearchRenderTimer);
     if (id === "roleSelect") {
       const user = demoUsers.find((item) => item.id === event.target.value) || demoUsers[0];
       saveSession(user);
@@ -22707,6 +22749,10 @@ $$(".segmented button").forEach((button) => button.addEventListener("click", () 
     } else {
       const filterKey = { levelFilter: "level", careerFilter: "career", genderFilter: "gender", globalSearch: "search" }[id];
       globalFilterState[filterKey] = event.target.value;
+    }
+    if (id === "globalSearch") {
+      globalSearchRenderTimer = setTimeout(() => render(), 180);
+      return;
     }
     render();
   });
