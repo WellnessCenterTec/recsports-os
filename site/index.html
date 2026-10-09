@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="wellsync-version" content="20261009-performance-v1" />
+    <meta name="wellsync-version" content="20261009-performance-v2" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="./styles.css?v=20261009-performance-v1" />
     <script>
       (() => {
-        const currentVersion = "20261009-performance-v1";
+        const currentVersion = "20261009-performance-v2";
         let checkingVersion = false;
 
         async function ensureLatestWellSync() {
@@ -157,7 +157,35 @@
     <script src="./env.js?v=20260610-students-db"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-    <script src="./assets/vendor/xlsx.mini.min.js?v=0.18.5"></script>
+    <script>
+      window.WellSyncAssets = (() => {
+        const pending = new Map();
+        const loadScript = (key, src, ready) => {
+          if (ready()) return Promise.resolve();
+          if (pending.has(key)) return pending.get(key);
+          const request = new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = src;
+            script.async = true;
+            script.onload = () => ready() ? resolve() : reject(new Error(`El recurso ${key} no quedó disponible`));
+            script.onerror = () => reject(new Error(`No se pudo cargar ${key}`));
+            document.head.appendChild(script);
+          }).catch((error) => {
+            pending.delete(key);
+            throw error;
+          });
+          pending.set(key, request);
+          return request;
+        };
+        return {
+          ensureSpreadsheet: () => loadScript(
+            "xlsx",
+            "./assets/vendor/xlsx.mini.min.js?v=0.18.5",
+            () => Boolean(window.XLSX)
+          )
+        };
+      })();
+    </script>
     <script src="./upload-status.js?v=20260722-upload-success-v3"></script>
     <script src="./presentation-history.js?v=20260909-presentation-designs-v1"></script>
     <script src="./presentation-priorities.js?v=20260909-presentation-designs-v1"></script>
@@ -178,6 +206,6 @@
     <script src="./vivencia-forms-feed.js?v=20260904-vivencia-forms-preview-v1"></script>
     <script src="./participation-posgrado-report.js?v=20260915-v2"></script>
     <script src="./participation-verification.js?v=20260915-posgrado-v2"></script>
-    <script src="./app.js?v=20261009-performance-v1"></script>
+    <script src="./app.js?v=20261009-performance-v2"></script>
   </body>
 </html>

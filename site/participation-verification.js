@@ -149,8 +149,13 @@
     XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(detail, { header: ["Matrícula", "Módulo", "Actividad", "Fecha", "Fuente", "ID origen", "Categoría"] }), "DETALLE");
     XLSX.writeFile(book, "verificacion-participacion.xlsx");
   }
-  function bindView(container, client, XLSX) {
-    const refresh = () => { container.innerHTML = renderView(); bindView(container, client, XLSX); };
+  function bindView(container, client) {
+    const refresh = () => { container.innerHTML = renderView(); bindView(container, client); };
+    const spreadsheet = async () => {
+      if (!root.XLSX) await root.WellSyncAssets?.ensureSpreadsheet?.();
+      if (!root.XLSX) throw new Error("No está disponible el lector de Excel.");
+      return root.XLSX;
+    };
     container.querySelectorAll("[data-pv-mode]").forEach((button) => button.addEventListener("click", () => { setMode(button.dataset.pvMode); refresh(); }));
     container.querySelector("#pvBuildReport")?.addEventListener("click", async () => {
       if (state.loading || !state.batchRows || !root.WellSyncPosgradoReport) return;
@@ -161,7 +166,10 @@
       } catch (error) { state.reportError = error.message; }
       finally { state.loading = false; refresh(); }
     });
-    container.querySelector("#pvReportExcel")?.addEventListener("click", () => { try { root.WellSyncPosgradoReport.exportWorkbook(XLSX, state.report); } catch (error) { state.reportError = error.message; refresh(); } });
+    container.querySelector("#pvReportExcel")?.addEventListener("click", async () => {
+      try { root.WellSyncPosgradoReport.exportWorkbook(await spreadsheet(), state.report); }
+      catch (error) { state.reportError = error.message; refresh(); }
+    });
     container.querySelector("#pvReportPdf")?.addEventListener("click", () => {
       const page = container.querySelector("#pvPosgradoReport .pv-report-page");
       if (!page) return;
@@ -179,6 +187,7 @@
       state.error = ""; state.batchRows = null; state.report = null; state.reportError = ""; state.rows = null; state.detail = null;
       try {
         if (!/\.(xlsx|csv)$/i.test(file.name)) throw new Error("Usa un archivo .xlsx o .csv.");
+        const XLSX = await spreadsheet();
         const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
         const grid = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
         if (!grid.length) throw new Error("El archivo está vacío.");
@@ -216,7 +225,10 @@
     container.querySelectorAll(".pv-sort").forEach((button) => button.addEventListener("click", () => { state.descending = state.sort === button.dataset.sort ? !state.descending : false; state.sort = button.dataset.sort; refresh(); }));
     container.querySelectorAll(".pv-detail").forEach((button) => button.addEventListener("click", () => { state.detail = button.dataset.matricula; refresh(); }));
     container.querySelector("#pvClose")?.addEventListener("click", () => { state.detail = null; refresh(); });
-    container.querySelector("#pvExport")?.addEventListener("click", () => { try { exportWorkbook(XLSX); } catch (error) { state.error = error.message; refresh(); } });
+    container.querySelector("#pvExport")?.addEventListener("click", async () => {
+      try { exportWorkbook(await spreadsheet()); }
+      catch (error) { state.error = error.message; refresh(); }
+    });
   }
   root.WellSyncParticipationVerification = { renderView, bindView, inputSummary, singleInput, setMode, consolidate, activityForBooking, validBooking, query, exportWorkbook, useSession, state };
 })(typeof window === "undefined" ? globalThis : window);

@@ -131,6 +131,25 @@
   }
 ];
 
+async function ensureSpreadsheetLibrary() {
+  if (window.XLSX) return window.XLSX;
+  if (!window.WellSyncAssets?.ensureSpreadsheet) {
+    throw new Error("No está disponible el lector de Excel");
+  }
+  await window.WellSyncAssets.ensureSpreadsheet();
+  if (!window.XLSX) throw new Error("No está disponible el lector de Excel");
+  return window.XLSX;
+}
+
+function runSpreadsheetAction(action) {
+  Promise.resolve()
+    .then(action)
+    .catch((error) => {
+      console.error("No se pudo completar la operación de Excel", error);
+      toast(error?.message || "No se pudo cargar el lector de Excel");
+    });
+}
+
 const classTeacherPerformance = [
   { teacher: "Adrian Guadalupe Torres Sandoval", total: 312, approved: 251, failed: 61, approvedRate: 80, failedRate: 20 },
   { teacher: "Arturo Yared Nájera Núñez", total: 60, approved: 46, failed: 14, approvedRate: 77, failedRate: 23 },
@@ -2261,11 +2280,12 @@ function parseScheduleRows(rows, source) {
 
 async function rowsFromScheduleFile(file) {
   const ext = file.name.split(".").pop().toLowerCase();
-  if (["xlsx", "xls"].includes(ext) && window.XLSX) {
+  if (["xlsx", "xls"].includes(ext)) {
+    const XLSX = await ensureSpreadsheetLibrary();
     const buffer = await file.arrayBuffer();
-    const workbook = window.XLSX.read(buffer, { type: "array" });
+    const workbook = XLSX.read(buffer, { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    return window.XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
+    return XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
   }
   const text = await file.text();
   const rows = parseCsv(text);
@@ -2276,10 +2296,11 @@ async function rowsFromScheduleFile(file) {
 async function rowsFromBookingScheduleFile(file) {
   const ext = file.name.split(".").pop().toLowerCase();
   if (!["xlsx", "xls"].includes(ext)) return rowsFromScheduleFile(file);
-  if (!window.XLSX || !window.WellSyncBookingScheduleImport) {
+  const XLSX = await ensureSpreadsheetLibrary();
+  if (!window.WellSyncBookingScheduleImport) {
     throw new Error("No está disponible el lector de Booking");
   }
-  return window.WellSyncBookingScheduleImport.bookingRowsFromFile(file, window.XLSX);
+  return window.WellSyncBookingScheduleImport.bookingRowsFromFile(file, XLSX);
 }
 
 function findWorkbookSheet(workbook, targetName) {
@@ -2324,15 +2345,15 @@ function bookingSheetToRows(sheet) {
 }
 
 async function schedulesFromMasterWorkbook(file) {
-  if (!window.XLSX) throw new Error("No esta disponible el lector de Excel");
+  const XLSX = await ensureSpreadsheetLibrary();
   const buffer = await file.arrayBuffer();
-  const workbook = window.XLSX.read(buffer, { type: "array" });
+  const workbook = XLSX.read(buffer, { type: "array" });
   const officialName = findWorkbookSheet(workbook, "programacion clases");
   const bookingName = findWorkbookSheet(workbook, "booking ofertados");
   const masterErrors = [];
   if (!officialName) masterErrors.push({ row: 0, message: 'No encontre la hoja "programacion clases"' });
   const officialRows = officialName
-    ? window.XLSX.utils.sheet_to_json(workbook.Sheets[officialName], { defval: "", raw: false })
+    ? XLSX.utils.sheet_to_json(workbook.Sheets[officialName], { defval: "", raw: false })
       .filter((row) => String(pickColumn(row, ["NOMBRE_ASIGNATURA", "Disciplina", "Actividad"]) || "").trim())
     : [];
   const bookingRows = bookingName ? bookingSheetToRows(workbook.Sheets[bookingName]) : [];
@@ -4066,10 +4087,10 @@ function parseVivenciaEventRows(rows, sourceName) {
 async function vivenciaRowsFromFile(file) {
   const extension = file.name.split(".").pop().toLowerCase();
   if (["xlsx", "xls"].includes(extension)) {
-    if (!window.XLSX) throw new Error("No esta disponible el lector de Excel");
-    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
+    const XLSX = await ensureSpreadsheetLibrary();
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    return vivenciaRowsFromGrid(window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }));
+    return vivenciaRowsFromGrid(XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }));
   }
   return vivenciaRowsFromGrid(parseCsv(await file.text()));
 }
@@ -4077,10 +4098,10 @@ async function vivenciaRowsFromFile(file) {
 async function vivenciaGridFromFile(file) {
   const extension = file.name.split(".").pop().toLowerCase();
   if (["xlsx", "xls"].includes(extension)) {
-    if (!window.XLSX) throw new Error("No esta disponible el lector de Excel");
-    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
+    const XLSX = await ensureSpreadsheetLibrary();
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    return window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+    return XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
   }
   return parseCsv(await file.text());
 }
@@ -5806,11 +5827,8 @@ function exportCollaboratorBackup() {
   toast("Respaldo descargado");
 }
 
-function exportCollaboratorTableExcel() {
-  if (!window.XLSX) {
-    toast("No está disponible el generador de Excel");
-    return;
-  }
+async function exportCollaboratorTableExcel() {
+  const XLSX = await ensureSpreadsheetLibrary();
   const columns = collaboratorColumns();
   const rows = collaboratorRows();
   if (!rows.length) {
@@ -5821,15 +5839,15 @@ function exportCollaboratorTableExcel() {
     columns,
     ...rows.map((row) => columns.map((column) => String(row[column] ?? "")))
   ];
-  const worksheet = window.XLSX.utils.aoa_to_sheet(grid);
+  const worksheet = XLSX.utils.aoa_to_sheet(grid);
   worksheet["!autofilter"] = { ref: worksheet["!ref"] };
   worksheet["!cols"] = columns.map((column, index) => ({
     wch: Math.min(42, Math.max(12, column.length + 2, ...grid.slice(1, 101).map((row) => String(row[index] || "").length + 2)))
   }));
-  const workbook = window.XLSX.utils.book_new();
-  window.XLSX.utils.book_append_sheet(workbook, worksheet, "Profesores y colaboradores");
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Profesores y colaboradores");
   const date = new Date().toISOString().slice(0, 10);
-  window.XLSX.writeFile(workbook, `archivo-maestro-colaboradores-${date}.xlsx`);
+  XLSX.writeFile(workbook, `archivo-maestro-colaboradores-${date}.xlsx`);
   addAudit("exportacion", `Tabla Excel de colaboradores (${rows.length} registros)`);
   toast(`${rows.length} colaboradores descargados en Excel sin fotografías`);
 }
@@ -8760,7 +8778,8 @@ async function importSemanaTecDraft() {
   toast("Semana Tec guardada permanentemente en Supabase");
 }
 
-function downloadSemanaTecTemplate() {
+async function downloadSemanaTecTemplate() {
+  const XLSX = await ensureSpreadsheetLibrary();
   const sample = [{
     Matriculas: "A01234567",
     "Clave Materia": "WKLI1008S",
@@ -8775,13 +8794,14 @@ function downloadSemanaTecTemplate() {
     Genero: "Masculino",
     "Semestre acreditado": "Cuarto Semestre"
   }];
-  const workbook = window.XLSX.utils.book_new();
-  window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(sample), "Semana Tec");
-  window.XLSX.writeFile(workbook, "plantilla-semana-tec.xlsx");
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sample), "Semana Tec");
+  XLSX.writeFile(workbook, "plantilla-semana-tec.xlsx");
   toast("Plantilla de Semana Tec descargada");
 }
 
-function downloadSemanaTecProgramTemplate() {
+async function downloadSemanaTecProgramTemplate() {
+  const XLSX = await ensureSpreadsheetLibrary();
   const sample = [
     {
       PERIODO: "202613", SEDE: "MTY", CODIGO_ASIGNATURA: "WKLI1014S", NOMBRE_ASIGNATURA: "Construyendo cuerpo y mente", ESCUELA: "LF", DEPARTAMENTO: "DFOD", ETIQUETA_GRUPO: 101, CRN: "12345", STATUS: "ACTIVO", ATR_GRUPO: "ST6", CODIGO_DOCENTE: "L00000001", NOMBRE_DOCENTE: "Profesor responsable", SALAS: "416 - A-A4-", HORA_INICIO: "08:00", HORA_FIN: "11:00", DURACION: "03:00", LUN: "X", MAR: "X", MIE: "", JUE: "X", VIE: "X", FECHA_INICIO: "2026-09-14", FECHA_FIN: "2026-09-20"
@@ -8790,13 +8810,13 @@ function downloadSemanaTecProgramTemplate() {
       PERIODO: "202613", SEDE: "MTY", CODIGO_ASIGNATURA: "WKLI1014S", NOMBRE_ASIGNATURA: "Construyendo cuerpo y mente", ESCUELA: "LF", DEPARTAMENTO: "DFOD", ETIQUETA_GRUPO: 201, CRN: "12346", STATUS: "ACTIVO", ATR_GRUPO: "ST12,INGL", CODIGO_DOCENTE: "L00000002", NOMBRE_DOCENTE: "Profesor responsable", SALAS: "221 - A-A4-", HORA_INICIO: "11:00", HORA_FIN: "14:00", DURACION: "03:00", LUN: "X", MAR: "X", MIE: "X", JUE: "X", VIE: "X", FECHA_INICIO: "2026-10-26", FECHA_FIN: "2026-11-01"
     }
   ];
-  const workbook = window.XLSX.utils.book_new();
-  const sheet = window.XLSX.utils.json_to_sheet(sample);
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.json_to_sheet(sample);
   sheet["!cols"] = [
     { wch: 12 }, { wch: 8 }, { wch: 20 }, { wch: 32 }, { wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 10 }, { wch: 12 }, { wch: 16 }, { wch: 18 }, { wch: 28 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 7 }, { wch: 14 }, { wch: 14 }
   ];
-  window.XLSX.utils.book_append_sheet(workbook, sheet, "Programación Semana Tec");
-  window.XLSX.writeFile(workbook, "plantilla-programacion-semana-tec.xlsx");
+  XLSX.utils.book_append_sheet(workbook, sheet, "Programación Semana Tec");
+  XLSX.writeFile(workbook, "plantilla-programacion-semana-tec.xlsx");
   toast("Plantilla de programación descargada");
 }
 
@@ -9681,10 +9701,11 @@ function intramurosParticipantRowsFromGrid(grid) {
 async function rowsFromIntramurosParticipantsFile(file) {
   const ext = file.name.split(".").pop().toLowerCase();
   const grids = [];
-  if (["xlsx", "xls"].includes(ext) && window.XLSX) {
-    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array" });
+  if (["xlsx", "xls"].includes(ext)) {
+    const XLSX = await ensureSpreadsheetLibrary();
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
     workbook.SheetNames.forEach((sheetName) => {
-      grids.push(window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" }));
+      grids.push(XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" }));
     });
   } else {
     grids.push(parseCsv(await file.text()));
@@ -10241,11 +10262,12 @@ async function parseIntramurosRolesFile(file) {
   const allRows = [];
   const templateSummaries = [];
   const missingFields = new Set();
-  if (["xlsx", "xls"].includes(ext) && window.XLSX) {
-    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  if (["xlsx", "xls"].includes(ext)) {
+    const XLSX = await ensureSpreadsheetLibrary();
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
     const sourceSheets = intramurosRoleWorkbookSheets(workbook);
     sourceSheets.forEach((sheetName) => {
-      const grid = window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "", raw: true });
+      const grid = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "", raw: true });
       const templateResult = intramurosTemplateRoleRowsFromGrid(grid, sheetName, file.name);
       const result = templateResult.detected ? templateResult : intramurosGridRowsFromSheet(grid, sheetName, file.name);
       if (templateResult.detected) templateSummaries.push(templateResult);
@@ -15082,13 +15104,14 @@ async function saveMentorshipCloud(rows, fileName) {
 }
 
 async function importMentorshipWorkbook(file) {
-  if (!file || !window.XLSX || !window.WellSyncMentors) return;
+  if (!file || !window.WellSyncMentors) return;
   mentorshipImporting = true;
   render();
   try {
-    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const XLSX = await ensureSpreadsheetLibrary();
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
     const sheetName = workbook.SheetNames[0];
-    const sourceRows = window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "", raw: false });
+    const sourceRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "", raw: false });
     const parsed = window.WellSyncMentors.normalizeMentorshipRows(sourceRows);
     if (!parsed.rows.length) throw new Error("No se encontraron columnas válidas de Matrícula, Mentor(a) y Comunidad");
     mentorshipRows = parsed.rows;
@@ -15515,12 +15538,12 @@ async function replaceClassGradesPeriods(periods) {
 async function rowsFromClassGradesFile(file) {
   const extension = String(file?.name || "").split(".").pop().toLowerCase();
   if (["xlsx", "xls"].includes(extension)) {
-    if (!window.XLSX) throw new Error("No esta disponible el lector de Excel");
-    const workbook = window.XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const XLSX = await ensureSpreadsheetLibrary();
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
     const sheetName = findWorkbookSheet(workbook, "calificaciones")
       || findWorkbookSheet(workbook, "CD Lista de Alumnos")
       || workbook.SheetNames[0];
-    return window.XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+    return XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
   }
   if (extension !== "csv") throw new Error("Usa un archivo Excel o CSV");
   const grid = parseCsv(await file.text());
@@ -20980,7 +21003,7 @@ function render() {
     $(".filters-band").hidden = true;
     $(".segmented").hidden = true;
     $("#contentArea").innerHTML = window.WellSyncParticipationVerification.renderView();
-    window.WellSyncParticipationVerification.bindView($("#contentArea"), supabaseClient, window.XLSX);
+    window.WellSyncParticipationVerification.bindView($("#contentArea"), supabaseClient);
     return;
   }
   if (area && activeArea !== area.id) activeArea = area.id;
@@ -21145,7 +21168,7 @@ function render() {
     render();
   }));
   $("#selectSemanaTecProgram")?.addEventListener("click", () => $("#semanaTecProgramFile")?.click());
-  $("#downloadSemanaTecProgramTemplate")?.addEventListener("click", downloadSemanaTecProgramTemplate);
+  $("#downloadSemanaTecProgramTemplate")?.addEventListener("click", () => runSpreadsheetAction(downloadSemanaTecProgramTemplate));
   $("#semanaTecProgramFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (file) await loadSemanaTecProgramFile(file);
@@ -21186,7 +21209,7 @@ function render() {
     representativosFilters.search = event.target.value;
     render();
   });
-  $("#downloadSemanaTecTemplate")?.addEventListener("click", downloadSemanaTecTemplate);
+  $("#downloadSemanaTecTemplate")?.addEventListener("click", () => runSpreadsheetAction(downloadSemanaTecTemplate));
   $("#semanaTecFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (file) await loadSemanaTecFile(file);
@@ -21849,7 +21872,9 @@ function render() {
       render();
     });
   });
-  $$("[data-simulator-export]").forEach((button) => button.addEventListener("click", () => exportSimulatorProposal(button.dataset.simulatorExport)));
+  $$("[data-simulator-export]").forEach((button) => button.addEventListener("click", () => {
+    runSpreadsheetAction(() => exportSimulatorProposal(button.dataset.simulatorExport));
+  }));
   $("#resetSimulator")?.addEventListener("click", resetSimulatorFromMaster);
   $$(".gym-week-filter").forEach((select) => select.addEventListener("change", (event) => {
     gymWeekSelection[event.target.dataset.facility] = Number(event.target.value);
@@ -21932,7 +21957,7 @@ function render() {
   }));
   $("#addCollaboratorRow")?.addEventListener("click", addCollaboratorRow);
   $("#addCollaboratorColumn")?.addEventListener("click", addCollaboratorColumn);
-  $("#downloadCollaboratorTable")?.addEventListener("click", exportCollaboratorTableExcel);
+  $("#downloadCollaboratorTable")?.addEventListener("click", () => runSpreadsheetAction(exportCollaboratorTableExcel));
   $("#exportCollaboratorBackup")?.addEventListener("click", exportCollaboratorBackup);
   $("#openCollaboratorPhotoUploader")?.addEventListener("click", () => {
     photoUploaderOpen = true;
@@ -22037,7 +22062,7 @@ function render() {
     $("#classGradesFile")?.click();
   });
   $$('[data-download-class-template]').forEach((button) => button.addEventListener("click", () => {
-    downloadClassTemplate(button.dataset.downloadClassTemplate);
+    runSpreadsheetAction(() => downloadClassTemplate(button.dataset.downloadClassTemplate));
   }));
   $("#classGradesFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
@@ -22378,7 +22403,7 @@ function downloadClassGradesCsv() {
   toast("Calificaciones exportadas");
 }
 
-function downloadClassTemplate(type) {
+async function downloadClassTemplate(type) {
   const templates = {
     grades: {
       filename: "plantilla-calificaciones.csv",
@@ -22394,11 +22419,8 @@ function downloadClassTemplate(type) {
     }
   };
   if (type === "master") {
-    if (!window.XLSX) {
-      toast("La plantilla maestra requiere el lector de Excel. Intenta de nuevo cuando cargue la página.");
-      return;
-    }
-    const workbook = window.XLSX.utils.book_new();
+    const XLSX = await ensureSpreadsheetLibrary();
+    const workbook = XLSX.utils.book_new();
     const officialBase = templates.official.rows[0];
     const official = [
       officialBase,
@@ -22406,9 +22428,9 @@ function downloadClassTemplate(type) {
       { ...officialBase, CODIGO_ASIGNATURA: "XAFG3013", NOMBRE_ASIGNATURA: "Acondicionamiento físico PMT3", ETIQUETA_GRUPO: "301", ATR_GRUPO: "CVAS,PMT3", SEMANAS: "19,20,21,22,23", NUM_SEMANAS: 5, FECHA_INICIO: "2026-05-11", FECHA_FIN: "2026-06-14" }
     ];
     const booking = templates.booking.rows;
-    window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(official), "programacion clases");
-    window.XLSX.utils.book_append_sheet(workbook, window.XLSX.utils.json_to_sheet(booking), "booking ofertados");
-    window.XLSX.writeFile(workbook, "plantilla-archivo-maestro-clases.xlsx");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(official), "programacion clases");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(booking), "booking ofertados");
+    XLSX.writeFile(workbook, "plantilla-archivo-maestro-clases.xlsx");
     toast("Plantilla archivo maestro descargada");
     return;
   }
@@ -22517,18 +22539,19 @@ function simulatorExportRows() {
   }));
 }
 
-function exportSimulatorProposal(format) {
+async function exportSimulatorProposal(format) {
   const rows = simulatorExportRows();
   if (!rows.length) {
     toast("No hay programacion propuesta para exportar");
     return;
   }
   const filenameBase = `programacion-propuesta-${new Date().toISOString().slice(0, 10)}`;
-  if (format === "xlsx" && window.XLSX) {
-    const workbook = window.XLSX.utils.book_new();
-    const worksheet = window.XLSX.utils.json_to_sheet(rows);
-    window.XLSX.utils.book_append_sheet(workbook, worksheet, "Programacion propuesta");
-    window.XLSX.writeFile(workbook, `${filenameBase}.xlsx`);
+  if (format === "xlsx") {
+    const XLSX = await ensureSpreadsheetLibrary();
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Programacion propuesta");
+    XLSX.writeFile(workbook, `${filenameBase}.xlsx`);
     addAudit("simulador horarios", "Exportacion Excel de programacion propuesta");
     toast("Programacion propuesta exportada en Excel");
     return;

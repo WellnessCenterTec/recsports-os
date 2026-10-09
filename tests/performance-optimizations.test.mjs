@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 const appSource = fs.readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
+const indexSource = fs.readFileSync(new URL("../site/index.html", import.meta.url), "utf8");
+const participationVerificationSource = fs.readFileSync(new URL("../site/participation-verification.js", import.meta.url), "utf8");
 const rootVercel = JSON.parse(fs.readFileSync(new URL("../vercel.json", import.meta.url), "utf8"));
 const siteVercel = JSON.parse(fs.readFileSync(new URL("../site/vercel.json", import.meta.url), "utf8"));
 
@@ -55,4 +57,14 @@ test("Vivencia and Communication filter large detail queries before download", (
   assert.match(communicationSource, /\.gte\("event_date", start\)[\s\S]*\.lte\("event_date", end\)/);
   assert.match(communicationSource, /\.from\("communication_participants"\)[\s\S]*\.in\("event_id", activeEventIdList\)/);
   assert.doesNotMatch(communicationSource, /\.from\("communication_participants"\)\s*\.select\("\*"\)/);
+});
+
+test("the spreadsheet runtime is loaded only when an Excel workflow needs it", () => {
+  assert.doesNotMatch(indexSource, /<script src="\.\/assets\/vendor\/xlsx\.mini\.min\.js/);
+  assert.match(indexSource, /ensureSpreadsheet:\s*\(\) => loadScript\(/);
+  assert.match(indexSource, /if \(pending\.has\(key\)\) return pending\.get\(key\)/);
+  assert.match(appSource, /async function ensureSpreadsheetLibrary\(\)/);
+  assert.match(appSource, /async function rowsFromScheduleFile\(file\)[\s\S]*const XLSX = await ensureSpreadsheetLibrary\(\)/);
+  assert.match(appSource, /async function exportCollaboratorTableExcel\(\)[\s\S]*const XLSX = await ensureSpreadsheetLibrary\(\)/);
+  assert.match(participationVerificationSource, /if \(!root\.XLSX\) await root\.WellSyncAssets\?\.ensureSpreadsheet\?\.\(\)/);
 });
