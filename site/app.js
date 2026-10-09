@@ -735,6 +735,7 @@ let presentationMapImageDraft = null;
 let presentationInventoryPendingUploadKeys = new Set();
 let physicalHallOfFameOpen = false;
 let physicalHallOfFameGender = "todos";
+let physicalHallOfFamePeriod = "todos";
 let physicalHallOfFameTopTest = "";
 let localCaptures = loadCaptures();
 let scheduleState = loadSchedules();
@@ -6950,6 +6951,19 @@ function physicalHallRankingRowEligible(row, testKey) {
     && evaluatedAt >= PHYSICAL_HALL_ROWING_DISTANCE_START_DATE;
 }
 
+function physicalHallPeriodValue(row) {
+  return String(row?.period_key || row?.semester_label || "").trim();
+}
+
+function physicalHallPeriodMatches(row, selectedPeriod = physicalHallOfFamePeriod) {
+  return selectedPeriod === "todos" || physicalHallPeriodValue(row) === selectedPeriod;
+}
+
+function physicalHallPeriodOptions() {
+  return [...new Set(physicalEvaluations.map(physicalHallPeriodValue).filter(Boolean))]
+    .sort((a, b) => b.localeCompare(a, "es", { numeric: true }));
+}
+
 function physicalHallGenderValue(row, collaboratorIndex = collaboratorPhotoIndex()) {
   const profile = physicalHallCollaboratorProfile(row, collaboratorIndex);
   const value = String(profile?.gender || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -6987,6 +7001,7 @@ function physicalHallRanking(testKey, collaboratorIndex = collaboratorPhotoIndex
   const bestByCollaborator = new Map();
   physicalEvaluations
     .forEach((row) => {
+      if (!physicalHallPeriodMatches(row)) return;
       if (!physicalHallRankingRowEligible(row, testKey)) return;
       const collaboratorNomina = String(row.collaborator_nomina || "").trim();
       if (!collaboratorNomina) return;
@@ -7049,6 +7064,7 @@ function physicalHallAvatar(leader) {
 function renderPhysicalHallOfFame() {
   if (!physicalHallOfFameOpen) return "";
   const cards = physicalHallCards();
+  const periodOptions = physicalHallPeriodOptions();
   const selectedTop = cards.find((item) => item.id === physicalHallOfFameTopTest);
   return `
     <section class="physical-hof-panel physical-hof-view" aria-label="Salón de la Fama de Evaluaciones Físicas">
@@ -7070,6 +7086,13 @@ function renderPhysicalHallOfFame() {
               </button>
             `).join("")}
           </div>
+          <label class="physical-hof-period-filter">
+            <span>Periodo</span>
+            <select id="physicalHallPeriod" aria-label="Filtrar Salón de la Fama por periodo">
+              <option value="todos" ${physicalHallOfFamePeriod === "todos" ? "selected" : ""}>Todos los periodos</option>
+              ${periodOptions.map((period) => `<option value="${escapeHtml(period)}" ${physicalHallOfFamePeriod === period ? "selected" : ""}>${escapeHtml(period)}</option>`).join("")}
+            </select>
+          </label>
           <button class="ghost-btn physical-hof-back" id="closePhysicalHallOfFame" type="button">Volver a Evaluaciones Físicas</button>
         </div>
       </div>
@@ -22068,6 +22091,11 @@ function render() {
     physicalHallOfFameGender = button.dataset.physicalHofGender || "todos";
     render();
   }));
+  $("#physicalHallPeriod")?.addEventListener("change", (event) => {
+    physicalHallOfFamePeriod = event.target.value || "todos";
+    physicalHallOfFameTopTest = "";
+    render();
+  });
   $$("[data-physical-hof-top]").forEach((button) => button.addEventListener("click", () => {
     physicalHallOfFameTopTest = button.dataset.physicalHofTop || "";
     render();
@@ -22933,6 +22961,7 @@ $("#logoutButton").addEventListener("click", () => {
     physicalHallOfFameOpen = false;
     physicalHallOfFameTopTest = "";
     physicalHallOfFameGender = "todos";
+    physicalHallOfFamePeriod = "todos";
     classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
     classScheduleSimulatorCloudReady = false;
     collaboratorsCloudLoaded = false;

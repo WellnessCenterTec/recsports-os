@@ -3665,6 +3665,32 @@ body[data-theme="dark"] .communication-diffusion-preview {
   box-shadow: 0 8px 20px rgba(6, 22, 34, .10);
 }
 
+.physical-hof-period-filter {
+  display: grid;
+  grid-template-columns: auto minmax(130px, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 6px 4px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.physical-hof-period-filter select {
+  min-height: 34px;
+  padding: 0 34px 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background-color: #e9eff3;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 900;
+}
+
 .physical-hof-back {
   min-height: 44px;
   border-radius: 999px;
@@ -11345,6 +11371,8 @@ body.planning-modal-open {
   .physical-hof-header-actions { width: 100%; justify-content: stretch; }
   .physical-hof-segmented { width: 100%; justify-content: space-between; }
   .physical-hof-segmented button { flex: 1; padding: 0 10px; }
+  .physical-hof-period-filter { width: 100%; grid-template-columns: auto minmax(0, 1fr); }
+  .physical-hof-period-filter select { width: 100%; }
   .physical-hof-back { width: 100%; }
   .physical-hof-grid { grid-template-columns: 1fr; }
   .vivencia-event-form { grid-template-columns: 1fr !important; }

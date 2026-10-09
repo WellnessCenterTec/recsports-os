@@ -45,6 +45,15 @@ function loadHallRankingEligibility() {
   return context.physicalHallRankingRowEligible;
 }
 
+function loadHallPeriodMatcher() {
+  const start = appSource.indexOf("function physicalHallPeriodValue");
+  const end = appSource.indexOf("function physicalHallPeriodOptions");
+  assert.ok(start >= 0 && end > start, "No se encontró el filtro de periodo del Salón de la Fama");
+  const context = {};
+  vm.runInNewContext(`${appSource.slice(start, end)}\nthis.physicalHallPeriodMatches = physicalHallPeriodMatches;`, context);
+  return context.physicalHallPeriodMatches;
+}
+
 test("el formulario valida unidades y rangos antes de llamar a Supabase", () => {
   const validate = loadValidator();
   assert.equal(validate(payload()), "");
@@ -92,4 +101,15 @@ test("remo distancia del salón de la fama usa solo AD26 desde el 30 de septiemb
   assert.equal(eligible({ period_key: "FJ26", evaluated_at: "2026-10-15" }, "remo_distancia"), false);
   assert.equal(eligible({ period_key: "FJ26", evaluated_at: "2024-01-01" }, "cooper_12m"), true);
   assert.match(appSource, /if \(!physicalHallRankingRowEligible\(row, testKey\)\) return;/);
+});
+
+test("el periodo del salón de la fama se combina con género y alimenta todos los Top 5", () => {
+  const matches = loadHallPeriodMatcher();
+  assert.equal(matches({ period_key: "AD26" }, "todos"), true);
+  assert.equal(matches({ period_key: "AD26" }, "AD26"), true);
+  assert.equal(matches({ period_key: "FJ26" }, "AD26"), false);
+  assert.equal(matches({ semester_label: "FJ26" }, "FJ26"), true);
+  assert.match(appSource, /id="physicalHallPeriod"[^]*Todos los periodos/);
+  assert.match(appSource, /if \(!physicalHallPeriodMatches\(row\)\) return;/);
+  assert.match(appSource, /physicalHallOfFamePeriod = event\.target\.value \|\| "todos"/);
 });

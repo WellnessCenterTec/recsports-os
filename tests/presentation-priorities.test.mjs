@@ -144,7 +144,7 @@ test("WellSync loads the priority module before the app and uses it in editor an
   ]);
 
   assert.match(index, /presentation-priorities\.js[^]*app\.js/);
-  assert.match(index, /wellsync-version" content="20261009-performance-v5/);
+  assert.match(index, /wellsync-version" content="20261009-performance-v6/);
   assert.match(index, /presentation-priorities\.js\?v=20260909-presentation-designs-v1/);
   assert.match(app, /WellSyncPresentationPriorities/);
   assert.match(app, /renderPriorityEditor\(notes\.priorities/);
