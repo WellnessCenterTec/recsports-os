@@ -6780,6 +6780,12 @@ const PHYSICAL_RESULT_CORRECTIONS = [
     value: 0.82
   },
   {
+    collaborator: "Selene Anabel Sifuentes Hernandez",
+    evaluatedAt: "2026-09-30",
+    testKey: "remo_distancia",
+    value: 0.724
+  },
+  {
     collaborator: "Josué Fernando Silguero Urquiza",
     evaluatedAt: "2026-09-30",
     testKey: "cooper_12m",
@@ -6803,6 +6809,7 @@ function physicalTestValueDisplay(testKey, value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "";
   if (testKey === "cooper_12m") return number.toFixed(3);
+  if (testKey === "remo_distancia" && Math.abs(number) > 0 && Math.abs(number) < 1) return number.toFixed(3);
   if (PHYSICAL_WHOLE_NUMBER_TESTS.has(testKey)) return String(Math.trunc(number));
   return number.toLocaleString("es-MX", { maximumFractionDigits: 2 });
 }
