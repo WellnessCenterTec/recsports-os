@@ -105,11 +105,12 @@ test("el salón de la fama muestra la foto del coach al doble y aprovecha el anc
   assert.match(stylesSource, /\.physical-hof-record-body\s*\{[^}]*min-height:\s*132px;/s);
 });
 
-test("remo distancia del salón de la fama usa solo AD26 desde el 30 de septiembre de 2026", () => {
+test("remo distancia del salón de la fama usa solo AD26 desde el 1 de septiembre de 2026", () => {
   const eligible = loadHallRankingEligibility();
+  assert.equal(eligible({ period_key: "AD26", evaluated_at: "2026-09-01T08:00:00Z" }, "remo_distancia"), true);
   assert.equal(eligible({ period_key: "AD26", evaluated_at: "2026-09-30T08:00:00Z" }, "remo_distancia"), true);
   assert.equal(eligible({ period_key: "AD26", evaluated_at: "2026-10-15" }, "remo_distancia"), true);
-  assert.equal(eligible({ period_key: "AD26", evaluated_at: "2026-09-29" }, "remo_distancia"), false);
+  assert.equal(eligible({ period_key: "AD26", evaluated_at: "2026-08-31" }, "remo_distancia"), false);
   assert.equal(eligible({ period_key: "FJ26", evaluated_at: "2026-10-15" }, "remo_distancia"), false);
   assert.equal(eligible({ period_key: "Pendiente", evaluated_at: "2026-10-15" }, "remo_distancia"), true);
   assert.equal(eligible({ period_key: "FJ26", evaluated_at: "2024-01-01" }, "cooper_12m"), true);

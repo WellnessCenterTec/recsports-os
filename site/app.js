@@ -6941,7 +6941,7 @@ function physicalNumericValue(result) {
 }
 
 const PHYSICAL_HALL_ROWING_DISTANCE_PERIOD = "AD26";
-const PHYSICAL_HALL_ROWING_DISTANCE_START_DATE = "2026-09-30";
+const PHYSICAL_HALL_ROWING_DISTANCE_START_DATE = "2026-09-01";
 
 function physicalHallRankingRowEligible(row, testKey) {
   if (testKey !== "remo_distancia") return true;
