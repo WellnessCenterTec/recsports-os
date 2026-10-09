@@ -6768,6 +6768,18 @@ const PHYSICAL_WHOLE_NUMBER_TESTS = new Set([
 
 const PHYSICAL_RESULT_CORRECTIONS = [
   {
+    collaborator: "Selene Anabel Sifuentes Hernandez",
+    evaluatedAt: "2026-09-30",
+    testKey: "cooper_12m",
+    value: 0.82
+  },
+  {
+    collaborator: "Josué Fernando Silguero Urquiza",
+    evaluatedAt: "2026-09-30",
+    testKey: "cooper_12m",
+    value: 3.18
+  },
+  {
     collaborator: "Carlos Daniel Navarro Luna",
     evaluatedAt: "2026-09-30",
     testKey: "remo_distancia",

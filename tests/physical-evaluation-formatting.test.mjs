@@ -21,10 +21,20 @@ function loadPhysicalRawFormatter() {
   return context.formatPhysicalRawValue;
 }
 
+function loadPhysicalCorrection() {
+  const block = source.match(/(const PHYSICAL_RESULT_CORRECTIONS = \[[^]*?function correctedPhysicalNumericValue\(row, testKey, result = physicalResult\(row, testKey\)\) \{[^]*?\n})\n\nfunction physicalAverage/);
+  assert.ok(block, "No se encontró la corrección focalizada de resultados físicos");
+  const context = {};
+  vm.runInNewContext(`${block[1]}\nthis.correctPhysicalValue = correctedPhysicalNumericValue;`, context);
+  return context.correctPhysicalValue;
+}
+
 test("Cooper conserva tres decimales y las demás pruebas muestran solo enteros", () => {
   const format = loadPhysicalFormatter();
 
   assert.equal(format("cooper_12m", 1.62), "1.620");
+  assert.equal(format("cooper_12m", 0.82), "0.820");
+  assert.equal(format("cooper_12m", 3.18), "3.180");
   assert.equal(format("abdominales", 40.0), "40");
   assert.equal(format("lagartijas", 65.99), "65");
   assert.equal(format("saltos_cuerda", 110.0), "110");
@@ -53,8 +63,14 @@ test("Remo distancia elimina m, mts y metros sin alterar otros textos", () => {
   assert.doesNotMatch(source, /if \(testKey === "remo_distancia"\) return `\$\{formatted} m`;/);
 });
 
-test("corrige únicamente los dos resultados de remo indicados", () => {
+test("corrige únicamente los resultados físicos indicados", () => {
+  const correct = loadPhysicalCorrection();
+  assert.match(source, /collaborator: "Selene Anabel Sifuentes Hernandez",\s+evaluatedAt: "2026-09-30",\s+testKey: "cooper_12m",\s+value: 0\.82/);
+  assert.match(source, /collaborator: "Josué Fernando Silguero Urquiza",\s+evaluatedAt: "2026-09-30",\s+testKey: "cooper_12m",\s+value: 3\.18/);
   assert.match(source, /collaborator: "Carlos Daniel Navarro Luna",\s+evaluatedAt: "2026-09-30",\s+testKey: "remo_distancia",\s+value: 168/);
   assert.match(source, /collaborator: "Jesús Francisco Vázquez Reza",\s+evaluatedAt: "2026-09-26",\s+testKey: "remo_distancia",\s+value: 275/);
   assert.match(source, /\.map\(\(row\) => correctedPhysicalNumericValue\(row, testKey\)\)/);
+  assert.equal(correct({ captured_name: "Selene Anabel Sifuentes Hernandez", evaluated_at: "2026-09-30T12:00:00Z" }, "cooper_12m", { numeric_value: 82 }), 0.82);
+  assert.equal(correct({ captured_name: "Josué Fernando Silguero Urquiza", evaluated_at: "2026-09-30T12:00:00Z" }, "cooper_12m", { numeric_value: 3180 }), 3.18);
+  assert.equal(correct({ captured_name: "Otra persona", evaluated_at: "2026-09-30T12:00:00Z" }, "cooper_12m", { numeric_value: 2.5 }), 2.5);
 });
