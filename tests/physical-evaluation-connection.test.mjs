@@ -40,7 +40,13 @@ function loadHallRankingEligibility() {
   const start = appSource.indexOf("const PHYSICAL_HALL_ROWING_DISTANCE_PERIOD");
   const end = appSource.indexOf("function physicalHallGenderValue");
   assert.ok(start >= 0 && end > start, "No se encontró el filtro del ranking de remo distancia");
-  const context = {};
+  const context = {
+    MASTER_PERIODS: {
+      FJ26: { start: "2026-01-01", end: "2026-06-30" },
+      IN26: { start: "2026-06-01", end: "2026-07-31" },
+      AD26: { start: "2026-07-01", end: "2026-12-31" }
+    }
+  };
   vm.runInNewContext(`${appSource.slice(start, end)}\nthis.physicalHallRankingRowEligible = physicalHallRankingRowEligible;`, context);
   return context.physicalHallRankingRowEligible;
 }
@@ -49,7 +55,13 @@ function loadHallPeriodMatcher() {
   const start = appSource.indexOf("function physicalHallPeriodValue");
   const end = appSource.indexOf("function physicalHallPeriodOptions");
   assert.ok(start >= 0 && end > start, "No se encontró el filtro de periodo del Salón de la Fama");
-  const context = {};
+  const context = {
+    MASTER_PERIODS: {
+      FJ26: { start: "2026-01-01", end: "2026-06-30" },
+      IN26: { start: "2026-06-01", end: "2026-07-31" },
+      AD26: { start: "2026-07-01", end: "2026-12-31" }
+    }
+  };
   vm.runInNewContext(`${appSource.slice(start, end)}\nthis.physicalHallPeriodMatches = physicalHallPeriodMatches;`, context);
   return context.physicalHallPeriodMatches;
 }
@@ -99,6 +111,7 @@ test("remo distancia del salón de la fama usa solo AD26 desde el 30 de septiemb
   assert.equal(eligible({ period_key: "AD26", evaluated_at: "2026-10-15" }, "remo_distancia"), true);
   assert.equal(eligible({ period_key: "AD26", evaluated_at: "2026-09-29" }, "remo_distancia"), false);
   assert.equal(eligible({ period_key: "FJ26", evaluated_at: "2026-10-15" }, "remo_distancia"), false);
+  assert.equal(eligible({ period_key: "Pendiente", evaluated_at: "2026-10-15" }, "remo_distancia"), true);
   assert.equal(eligible({ period_key: "FJ26", evaluated_at: "2024-01-01" }, "cooper_12m"), true);
   assert.match(appSource, /if \(!physicalHallRankingRowEligible\(row, testKey\)\) return;/);
 });
@@ -109,6 +122,9 @@ test("el periodo del salón de la fama se combina con género y alimenta todos l
   assert.equal(matches({ period_key: "AD26" }, "AD26"), true);
   assert.equal(matches({ period_key: "FJ26" }, "AD26"), false);
   assert.equal(matches({ semester_label: "FJ26" }, "FJ26"), true);
+  assert.equal(matches({ period_key: "Pendiente", evaluated_at: "2026-03-09" }, "FJ26"), true);
+  assert.equal(matches({ period_key: "", evaluated_at: "2026-05-26" }, "FJ26"), true);
+  assert.equal(matches({ period_key: "IN26", evaluated_at: "2026-06-15" }, "IN26"), true);
   assert.match(appSource, /id="physicalHallPeriod"[^]*Todos los periodos/);
   assert.match(appSource, /if \(!physicalHallPeriodMatches\(row\)\) return;/);
   assert.match(appSource, /physicalHallOfFamePeriod = event\.target\.value \|\| "todos"/);

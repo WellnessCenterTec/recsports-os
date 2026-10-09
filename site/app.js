@@ -6945,14 +6945,18 @@ const PHYSICAL_HALL_ROWING_DISTANCE_START_DATE = "2026-09-30";
 
 function physicalHallRankingRowEligible(row, testKey) {
   if (testKey !== "remo_distancia") return true;
-  const period = String(row?.period_key || row?.semester_label || "").trim().toUpperCase();
   const evaluatedAt = String(row?.evaluated_at || "").slice(0, 10);
-  return period === PHYSICAL_HALL_ROWING_DISTANCE_PERIOD
+  return physicalHallPeriodValue(row) === PHYSICAL_HALL_ROWING_DISTANCE_PERIOD
     && evaluatedAt >= PHYSICAL_HALL_ROWING_DISTANCE_START_DATE;
 }
 
 function physicalHallPeriodValue(row) {
-  return String(row?.period_key || row?.semester_label || "").trim();
+  const explicitPeriod = String(row?.period_key || row?.semester_label || "").trim().toUpperCase();
+  if (MASTER_PERIODS[explicitPeriod]) return explicitPeriod;
+  const evaluatedAt = String(row?.evaluated_at || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(evaluatedAt)) return "";
+  return Object.entries(MASTER_PERIODS)
+    .find(([, bounds]) => evaluatedAt >= bounds.start && evaluatedAt <= bounds.end)?.[0] || "";
 }
 
 function physicalHallPeriodMatches(row, selectedPeriod = physicalHallOfFamePeriod) {
