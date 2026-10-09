@@ -6,6 +6,7 @@ import vm from "node:vm";
 const formSource = await readFile(new URL("../site/evaluaciones-fisicas.js", import.meta.url), "utf8");
 const appSource = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
 const formHtml = await readFile(new URL("../site/evaluaciones-fisicas.html", import.meta.url), "utf8");
+const stylesSource = await readFile(new URL("../site/styles.css", import.meta.url), "utf8");
 
 function loadValidator() {
   const start = formSource.indexOf("const PHYSICAL_TESTS = [");
@@ -65,4 +66,11 @@ test("una captura guardada notifica al tablero abierto y usa activos versionados
   assert.match(appSource, /window\.addEventListener\("storage", \(event\) => \{/);
   assert.match(appSource, /loadPhysicalEvaluations\(\)\.then/);
   assert.match(formHtml, /evaluaciones-fisicas\.js\?v=20261009-performance-v3/);
+});
+
+test("el salón de la fama muestra la foto del coach al doble y aprovecha el ancho de la tarjeta", () => {
+  assert.match(appSource, /class="physical-hof-record-body"/);
+  assert.match(stylesSource, /\.physical-hof-leader-row\s*\{[^}]*grid-template-columns:\s*132px minmax\(0, 1fr\)/s);
+  assert.match(stylesSource, /\.physical-hof-person-avatar\s*\{[^}]*width:\s*132px;[^}]*height:\s*132px;/s);
+  assert.match(stylesSource, /\.physical-hof-record-body\s*\{[^}]*min-height:\s*132px;/s);
 });

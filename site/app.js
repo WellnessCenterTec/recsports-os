@@ -7075,14 +7075,16 @@ function renderPhysicalHallOfFame() {
             </div>
             <div class="physical-hof-leader-row">
               ${physicalHallAvatar(leader)}
-              <div class="physical-hof-record-meta">
-                <span class="physical-hof-medal">#1</span>
-                <strong class="physical-hof-leader">${leader ? escapeHtml(leader.collaborator) : "Sin datos reales"}</strong>
+              <div class="physical-hof-record-body">
+                <div class="physical-hof-record-meta">
+                  <span class="physical-hof-medal">#1</span>
+                  <strong class="physical-hof-leader">${leader ? escapeHtml(leader.collaborator) : "Sin datos reales"}</strong>
+                </div>
+                <span class="physical-hof-result">${leader ? escapeHtml(leader.result) : "Pendiente"}</span>
+                <span class="physical-hof-year">${leader ? escapeHtml(leader.year) : "Sin año"}</span>
+                <p class="physical-hof-days">${leader?.days !== null && leader?.days !== undefined ? ` ${leader.days} días sin ser superada` : "Sin fecha para calcular días"}</p>
               </div>
             </div>
-            <span class="physical-hof-result">${leader ? escapeHtml(leader.result) : "Pendiente"}</span>
-            <span class="physical-hof-year">${leader ? escapeHtml(leader.year) : "Sin año"}</span>
-            <p class="physical-hof-days">${leader?.days !== null && leader?.days !== undefined ? ` ${leader.days} días sin ser superada` : "Sin fecha para calcular días"}</p>
             <button class="ghost-btn compact-action" type="button" data-physical-hof-top="${escapeHtml(item.id)}">Top 5 ></button>
           </article>
         `;
