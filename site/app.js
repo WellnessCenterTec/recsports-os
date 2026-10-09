@@ -6768,6 +6768,12 @@ const PHYSICAL_WHOLE_NUMBER_TESTS = new Set([
 
 const PHYSICAL_RESULT_CORRECTIONS = [
   {
+    collaborator: "Sofía monreal",
+    evaluatedAt: "2026-03-07",
+    testKey: "cooper_12m",
+    value: 2
+  },
+  {
     collaborator: "Selene Anabel Sifuentes Hernandez",
     evaluatedAt: "2026-09-30",
     testKey: "cooper_12m",

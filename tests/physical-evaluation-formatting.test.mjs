@@ -65,11 +65,13 @@ test("Remo distancia elimina m, mts y metros sin alterar otros textos", () => {
 
 test("corrige únicamente los resultados físicos indicados", () => {
   const correct = loadPhysicalCorrection();
+  assert.match(source, /collaborator: "Sofía monreal",\s+evaluatedAt: "2026-03-07",\s+testKey: "cooper_12m",\s+value: 2/);
   assert.match(source, /collaborator: "Selene Anabel Sifuentes Hernandez",\s+evaluatedAt: "2026-09-30",\s+testKey: "cooper_12m",\s+value: 0\.82/);
   assert.match(source, /collaborator: "Josué Fernando Silguero Urquiza",\s+evaluatedAt: "2026-09-30",\s+testKey: "cooper_12m",\s+value: 3\.18/);
   assert.match(source, /collaborator: "Carlos Daniel Navarro Luna",\s+evaluatedAt: "2026-09-30",\s+testKey: "remo_distancia",\s+value: 168/);
   assert.match(source, /collaborator: "Jesús Francisco Vázquez Reza",\s+evaluatedAt: "2026-09-26",\s+testKey: "remo_distancia",\s+value: 275/);
   assert.match(source, /\.map\(\(row\) => correctedPhysicalNumericValue\(row, testKey\)\)/);
+  assert.equal(correct({ captured_name: "Sofía monreal", evaluated_at: "2026-03-07T12:00:00Z" }, "cooper_12m", { raw_value: "2 k" }), 2);
   assert.equal(correct({ captured_name: "Selene Anabel Sifuentes Hernandez", evaluated_at: "2026-09-30T12:00:00Z" }, "cooper_12m", { numeric_value: 82 }), 0.82);
   assert.equal(correct({ captured_name: "Josué Fernando Silguero Urquiza", evaluated_at: "2026-09-30T12:00:00Z" }, "cooper_12m", { numeric_value: 3180 }), 3.18);
   assert.equal(correct({ captured_name: "Otra persona", evaluated_at: "2026-09-30T12:00:00Z" }, "cooper_12m", { numeric_value: 2.5 }), 2.5);
