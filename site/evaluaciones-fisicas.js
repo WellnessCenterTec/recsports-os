@@ -1,12 +1,14 @@
 const PHYSICAL_TESTS = [
-  { key: "cooper_12m", name: "Prueba de Cooper", detail: "Distancia recorrida en 12 minutos", unit: "km", step: "0.01" },
-  { key: "abdominales", name: "Abdominales", detail: "Total de repeticiones", unit: "repeticiones", step: "1" },
-  { key: "lagartijas", name: "Lagartijas", detail: "Total de repeticiones", unit: "repeticiones", step: "1" },
-  { key: "saltos_cuerda", name: "Saltos con cuerda", detail: "Total de repeticiones", unit: "repeticiones", step: "1" },
-  { key: "wall_ball", name: "Wall Ball Shots", detail: "Sentadilla con lanzamiento", unit: "repeticiones", step: "1" },
-  { key: "remo_distancia", name: "Remo con máquina", detail: "Distancia recorrida", unit: "metros", step: "1" },
-  { key: "remo_suspendido", name: "Remo suspendido", detail: "Total de repeticiones", unit: "repeticiones", step: "1" }
+  { key: "cooper_12m", name: "Prueba de Cooper", detail: "Distancia recorrida en 12 minutos", unit: "km", step: "0.001", min: 0.001, max: 10, hint: "Captura kilómetros, por ejemplo 1.620" },
+  { key: "abdominales", name: "Abdominales", detail: "Total de repeticiones", unit: "repeticiones", step: "1", min: 0, max: 1000, integer: true },
+  { key: "lagartijas", name: "Lagartijas", detail: "Total de repeticiones", unit: "repeticiones", step: "1", min: 0, max: 1000, integer: true },
+  { key: "saltos_cuerda", name: "Saltos con cuerda", detail: "Total de repeticiones", unit: "repeticiones", step: "1", min: 0, max: 5000, integer: true },
+  { key: "wall_ball", name: "Wall Ball Shots", detail: "Sentadilla con lanzamiento", unit: "repeticiones", step: "1", min: 0, max: 1000, integer: true },
+  { key: "remo_distancia", name: "Remo con máquina", detail: "Distancia recorrida", unit: "metros", step: "0.001", min: 0, max: 20000, hint: "Captura la distancia en metros" },
+  { key: "remo_suspendido", name: "Remo suspendido", detail: "Total de repeticiones", unit: "repeticiones", step: "1", min: 0, max: 1000, integer: true }
 ];
+
+const PHYSICAL_EVALUATION_UPDATE_KEY = "wellsync_physical_evaluation_updated_at";
 
 const env = window.RECSPORTS_ENV || {};
 const client = window.supabase && env.SUPABASE_URL && env.SUPABASE_ANON_KEY
@@ -43,9 +45,10 @@ function renderTests() {
       <label class="test-value-field">
         Resultado
         <span class="input-with-unit">
-          <input class="test-value" type="number" min="0" step="${test.step}" inputmode="decimal" />
+          <input class="test-value" type="number" min="${test.min}" max="${test.max}" step="${test.step}" inputmode="decimal" />
           <span>${test.unit}</span>
         </span>
+        ${test.hint ? `<small>${test.hint}</small>` : ""}
       </label>
       <label class="test-note-field" hidden>
         Motivo u observación
@@ -137,8 +140,13 @@ function validatePayload(payload) {
   if (!payload.discipline) return "Escribe la disciplina o clase.";
   for (const result of payload.results) {
     const test = PHYSICAL_TESTS.find((item) => item.key === result.test_key);
-    if (result.status === "realizada" && (result.value === "" || Number(result.value) < 0)) {
-      return `Captura el resultado de ${test.name}.`;
+    if (result.status === "realizada") {
+      const value = Number(String(result.value).replace(",", "."));
+      if (result.value === "" || !Number.isFinite(value)) return `Captura un resultado numérico para ${test.name}.`;
+      if (value < test.min || value > test.max) {
+        return `${test.name} debe estar entre ${test.min} y ${test.max} ${test.unit}.`;
+      }
+      if (test.integer && !Number.isInteger(value)) return `${test.name} debe registrarse con repeticiones enteras.`;
     }
     if (result.status !== "realizada" && !result.notes) {
       return `Describe el motivo para ${test.name}.`;
@@ -189,11 +197,16 @@ async function saveEvaluation() {
     $("#physicalFormMessage").textContent = `No se pudo guardar: ${response.error.message}`;
     return;
   }
+  try {
+    localStorage.setItem(PHYSICAL_EVALUATION_UPDATE_KEY, new Date().toISOString());
+  } catch (error) {
+    console.warn("No se pudo notificar la actualización de evaluaciones", error);
+  }
   $("#physicalReviewContent").innerHTML = `
     <div class="physical-success">
       <div class="physical-success-mark">✓</div>
       <h2>Evaluación guardada</h2>
-      <p>La información ya se encuentra en WellSync y el dashboard se actualizará automáticamente.</p>
+      <p>La información ya se encuentra en WellSync. Si el tablero está abierto en otra pestaña, se actualizará automáticamente.</p>
     </div>
   `;
   $(".physical-review-actions").innerHTML = '<button class="primary-btn" type="button" onclick="window.location.reload()">Capturar otra evaluación</button>';

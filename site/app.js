@@ -944,6 +944,9 @@ let physicalEvaluationFilter = {
   classification: "todos",
   test: "cooper_12m"
 };
+const PHYSICAL_HISTORY_PAGE_SIZE = 50;
+const PHYSICAL_EVALUATION_UPDATE_KEY = "wellsync_physical_evaluation_updated_at";
+let physicalEvaluationPage = 1;
 let budgetAreaPlans = loadBudgetAreaPlans();
 let budgetRequestRows = loadBudgetRequestRows();
 const budgetRequestSupport = window.WellSyncBudgetRequests;
@@ -7126,6 +7129,10 @@ function renderPhysicalHallOfFameModal(test) {
 
 function renderPhysicalEvaluationsDashboard() {
   const rows = filteredPhysicalEvaluations();
+  const historyPageCount = Math.max(1, Math.ceil(rows.length / PHYSICAL_HISTORY_PAGE_SIZE));
+  physicalEvaluationPage = Math.min(Math.max(1, physicalEvaluationPage), historyPageCount);
+  const historyStart = (physicalEvaluationPage - 1) * PHYSICAL_HISTORY_PAGE_SIZE;
+  const historyRows = rows.slice(historyStart, historyStart + PHYSICAL_HISTORY_PAGE_SIZE);
   const unique = new Set(rows.map((row) => row.collaborator_nomina || row.captured_name)).size;
   const initial = rows.filter((row) => row.evaluation_stage === "inicial").length;
   const final = rows.filter((row) => row.evaluation_stage === "final").length;
@@ -7260,7 +7267,7 @@ function renderPhysicalEvaluationsDashboard() {
           </tr>
         </thead>
         <tbody>
-          ${rows.slice(0, 169).map((row) => `
+          ${historyRows.map((row) => `
             <tr>
               <td>${row.evaluated_at ? new Date(row.evaluated_at).toLocaleDateString("es-MX") : "Sin fecha"}</td>
               <td>${escapeHtml(row.captured_name || row.collaborator_nomina || "Sin identificar")}</td>
@@ -7272,6 +7279,11 @@ function renderPhysicalEvaluationsDashboard() {
           `).join("") || '<tr><td colspan="12">No hay evaluaciones para estos filtros.</td></tr>'}
         </tbody>
       </table>
+    </div>
+    <div class="class-grade-pagination physical-history-pagination" aria-label="Paginación del historial de evaluaciones">
+      <button type="button" class="ghost-btn" data-physical-page="${physicalEvaluationPage - 1}" ${physicalEvaluationPage <= 1 ? "disabled" : ""} aria-label="Página anterior">&lt;</button>
+      <span>Mostrando ${rows.length ? historyStart + 1 : 0}–${Math.min(historyStart + PHYSICAL_HISTORY_PAGE_SIZE, rows.length)} de ${rows.length} · Página ${physicalEvaluationPage} de ${historyPageCount}</span>
+      <button type="button" class="ghost-btn" data-physical-page="${physicalEvaluationPage + 1}" ${physicalEvaluationPage >= historyPageCount ? "disabled" : ""} aria-label="Página siguiente">&gt;</button>
     </div>
     <section class="physical-code-panel">
       <div>
@@ -22006,6 +22018,11 @@ function render() {
   $("#importCollaboratorsToCloud")?.addEventListener("click", importCollaboratorsToCloud);
   $$(".physical-filter").forEach((select) => select.addEventListener("input", (event) => {
     physicalEvaluationFilter[event.target.dataset.filter] = event.target.value;
+    physicalEvaluationPage = 1;
+    render();
+  }));
+  $$('[data-physical-page]').forEach((button) => button.addEventListener("click", () => {
+    physicalEvaluationPage = Number(button.dataset.physicalPage) || 1;
     render();
   }));
   $("#refreshPhysicalEvaluations")?.addEventListener("click", async () => {
@@ -22737,6 +22754,17 @@ if (currentUser?.auth !== "supabase" && currentUser) ensureAreaData(activeArea).
 window.setInterval(refreshPresentationEphemeridesOnDateChange, 60000);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshPresentationEphemeridesOnDateChange();
+});
+window.addEventListener("storage", (event) => {
+  if (event.key !== PHYSICAL_EVALUATION_UPDATE_KEY || !event.newValue || currentUser?.auth !== "supabase") return;
+  loadPhysicalEvaluations().then(() => {
+    if (!physicalEvaluationsLoaded) {
+      toast("No se pudo actualizar Evaluaciones Físicas");
+      return;
+    }
+    if (activeArea === "colaboradores" && activeView === "evaluations") render();
+    toast("Nueva evaluación física recibida");
+  }).catch((error) => console.warn("No se pudo actualizar Evaluaciones Físicas", error));
 });
 loadSupabaseSession().catch((error) => console.warn("No se pudo recuperar la sesión de Supabase", error));
 
