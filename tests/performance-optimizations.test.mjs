@@ -19,6 +19,7 @@ test("versioned static assets are reusable while shell and environment stay fres
   for (const config of [rootVercel, siteVercel]) {
     assert.equal(headerValue(config, "/(.*)\\.(js|css)"), "public, max-age=31536000, immutable");
     assert.equal(headerValue(config, "/assets/(.*)"), "public, max-age=31536000, immutable");
+    assert.equal(headerValue(config, "/app.js"), "no-cache, max-age=0, must-revalidate");
     assert.equal(headerValue(config, "/env.js"), "no-store, max-age=0");
     assert.equal(headerValue(config, "/"), "no-store, max-age=0");
     assert.equal(headerValue(config, "/index.html"), "no-store, max-age=0");
