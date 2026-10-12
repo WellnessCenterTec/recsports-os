@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="wellsync-version" content="20261012-report-pdf-v5" />
+    <meta name="wellsync-version" content="20261012-report-vivencia-v1" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>WellSync | Wellness Center</title>
-    <link rel="stylesheet" href="./styles.css?v=20261012-report-pdf-v5" />
+    <link rel="stylesheet" href="./styles.css?v=20261012-report-vivencia-v1" />
     <script>
       (() => {
-        const currentVersion = "20261012-report-pdf-v5";
+        const currentVersion = "20261012-report-vivencia-v1";
         let checkingVersion = false;
 
         async function ensureLatestWellSync() {
@@ -206,7 +206,7 @@
     <script src="./vivencia-forms-feed.js?v=20260904-vivencia-forms-preview-v1"></script>
     <script src="./participation-posgrado-report.js?v=20260915-v2"></script>
     <script src="./participation-verification.js?v=20260915-posgrado-v2"></script>
-    <script src="./app.js?v=20261012-report-pdf-v5"></script>
+    <script src="./app.js?v=20261012-report-vivencia-v1"></script>
     <script>
       (() => {
         const completeWellnessTransferTime = () => {
@@ -215,6 +215,16 @@
               label.textContent = "Transferencia 2:00 a 4:30 p. m.";
             }
           });
+          const vivenciaCard = Array.from(document.querySelectorAll(".exec-report-hero li"))
+            .find((card) => card.querySelector("span")?.textContent.trim() === "Vivencia");
+          const value = vivenciaCard?.querySelector("strong");
+          const detail = vivenciaCard?.querySelector("em");
+          const legacyDetail = detail?.textContent.trim().match(/^eventos\s*·\s*([\d.,]+)\s+participaciones$/i);
+          if (value && detail && legacyDetail) {
+            const eventCount = value.textContent.trim();
+            value.textContent = legacyDetail[1];
+            detail.textContent = `participaciones · ${eventCount} eventos`;
+          }
         };
         const reportRoot = document.getElementById("contentArea");
         if (reportRoot) new MutationObserver(completeWellnessTransferTime).observe(reportRoot, { childList: true, subtree: true });

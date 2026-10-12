@@ -12139,7 +12139,7 @@ function renderExecutiveGeneralDashboard() {
               <li><span>Intramuros</span><strong>${attentions.intramuros.toLocaleString("es-MX")}</strong><em>registros</em></li>
               <li><span>Booking</span><strong>${attentions.booking.toLocaleString("es-MX")}</strong><em>reservaciones</em></li>
               <li><span>Clases</span><strong>${attentions.clases.toLocaleString("es-MX")}</strong><em>inscritos</em></li>
-              <li><span>Vivencia</span><strong>${vivenciaEventsCount.toLocaleString("es-MX")}</strong><em>eventos · ${attentions.vivencia.toLocaleString("es-MX")} participaciones</em></li>
+              <li><span>Vivencia</span><strong>${attentions.vivencia.toLocaleString("es-MX")}</strong><em>participaciones · ${vivenciaEventsCount.toLocaleString("es-MX")} eventos</em></li>
               <li><span>Semana TEC</span><strong>${attentions.semanaTec.toLocaleString("es-MX")}</strong><em>intervenciones</em></li>
             </ul>
           </div>
