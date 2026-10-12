@@ -63,6 +63,8 @@ test("every gym week with data receives its strong series color", () => {
   assert.match(source, /exec-report-card exec-report-gym-card/);
   assert.match(styles, /\.exec-report-gym-card \.exec-report-gym-columns\s*\{[^}]*min-height:\s*147px;/s, "La altura interna debe reducirse exactamente 30%");
   assert.match(styles, /\.exec-report-gym-card\s*\{[^}]*padding:\s*15px 20px;/s);
+  assert.match(styles, /\.exec-report-gym-card \.exec-report-daily-average div span,\s*\.exec-report-gym-card \.exec-report-daily-average div strong\s*\{[^}]*font-size:\s*16\.25px;/s, "Los días y promedios deben crecer exactamente 25%");
+  assert.match(styles, /\.exec-report-gym-card \.exec-report-daily-service em\s*\{[^}]*font-size:\s*11\.25px;/s, "El porcentaje de servicio debe crecer exactamente 25%");
 });
 
 test("general report PDF uses an isolated one-page portrait export view", () => {
@@ -127,7 +129,7 @@ test("executive PDF increases compact typography and preserves both information 
   assert.match(styles, /\.exec-report-hero\s*\{[^}]*background:\s*linear-gradient\(/s, "The upper blue information band must remain");
   assert.match(styles, /\.exec-report-hero\s*\{[^}]*min-height:\s*240px;/s, "The upper blue band must not leave unused space below the module cards");
   assert.match(styles, /\.exec-report-gym-card \.exec-report-gym-columns b\s*\{[^}]*font-size:\s*10px;/s, "Gym chart values must be legible on screen");
-  assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events strong\s*\{[^}]*font-size:\s*11px;/s, "Vivencia items must be legible on screen");
+  assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events strong\s*\{[^}]*font-size:\s*13\.75px;/s, "Vivencia items must grow exactly 25% on screen");
   assert.match(styles, /\.exec-insight-mentor-communities li > strong\s*\{[^}]*font-size:\s*14px;/s, "Mentor totals must be legible on screen");
   assert.match(styles, /\.exec-footer-kpis\s*\{[^}]*background:\s*var\(--teal\);[^}]*color:\s*#fff;/s, "The lower information band must remain");
 });
@@ -226,7 +228,9 @@ test("postgraduate summary shows doctorate and masters cards by module", () => {
   assert.match(styles, /\.exec-insight-posgrado-panel\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:\s*auto 1fr;/s, "Each postgraduate panel must use its available vertical space");
   assert.match(styles, /\.exec-posgrado-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*105px\)/s);
   assert.match(styles, /\.exec-posgrado-row span\s*\{[^}]*font-size:\s*13px;/s, "Postgraduate module labels must be legible online");
-  assert.match(styles, /\.exec-mentoria-community-list span\s*\{[^}]*font-size:\s*12px;/s, "Mentorship labels must be legible online");
+  assert.match(styles, /\.exec-mentoria-community-list span\s*\{[^}]*font-size:\s*15px;/s, "Mentorship labels must grow exactly 25% online");
+  assert.match(styles, /\.exec-mentoria-community-list strong\s*\{[^}]*font-size:\s*18\.75px;/s, "Mentorship totals must grow exactly 25% online");
+  assert.match(styles, /\.exec-mentoria-community-list li\s*\{[^}]*grid-template-columns:\s*25px minmax\(0, 1fr\) auto;[^}]*min-width:\s*0;/s, "The larger mentorship text must remain inside its card");
   assert.match(styles, /\.executive-report-print-page \.exec-insight-posgrado-mentoria-row\s*\{[^}]*gap:\s*8px;[^}]*grid-template-columns:\s*repeat\(3,/s, "The print row must preserve the visual separation between postgraduate and mentorship");
   assert.match(styles, /\.executive-report-print-page \.exec-posgrado-degree-grid\s*\{[^}]*gap:\s*8px;[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/s, "Doctorate and masters must use two equal print columns");
 });
