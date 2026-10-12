@@ -11498,7 +11498,7 @@ function renderExecutiveGymWeeklyReport(rows) {
         ${averages.map((row) => {
           const capacity = wellnessDailyServiceCapacity(row.day);
           const service = row.average === null ? null : Math.round((row.average / capacity) * 100);
-          return `<div class="exec-report-daily-service ${service !== null && service > 100 ? "over-capacity" : ""}"><span>${row.day}</span><strong>${row.average === null ? "—" : row.average.toLocaleString("es-MX")}</strong><em>${service === null ? "—" : `${service}% servicio`}</em></div>`;
+          return `<div class="exec-report-daily-service ${service !== null && service > 100 ? "over-capacity" : ""}"><span>${row.day}</span><strong>${row.average === null ? "—" : row.average.toLocaleString("es-MX")}</strong><em>${service === null ? "—" : `${service}%`}</em></div>`;
         }).join("")}
         <small>Servicio = asistencias promedio del día ÷ capacidad diaria. Lunes a viernes: 2,400 alumnos; sábado y domingo: 990 alumnos. Referencia calculada con una estancia aproximada de 2 horas por alumno.</small>
       </aside>
@@ -11519,13 +11519,13 @@ function renderExecutiveIntramurosTiles(rows) {
   return `<div class="exec-report-intramuros-grid" style="--exec-report-intramuros-columns:${Math.max(rows.length, 1)}">${rows.length ? rows.map((row) => `<article><span class="exec-report-sport-icon" aria-hidden="true">${executiveIntramurosSportIcon(row.label)}</span><span class="exec-report-intramuros-label">${escapeHtml(row.label)}</span><strong>${row.value.toLocaleString("es-MX")}</strong></article>`).join("") : `<div class="exec-empty">Sin registros de Intramuros.</div>`}</div>`;
 }
 
-function renderExecutiveGenderDonut(summary, total) {
+function renderExecutiveGenderDonut(summary) {
   const maleStop = summary.known ? summary.masculinoPct : 0;
   return `
     <div class="exec-report-gender">
       <h4>Distribución por género</h4>
       <div class="exec-report-gender-donut ${summary.known ? "" : "empty"}" style="--male-stop:${maleStop}%">
-        <div><strong>${total.toLocaleString("es-MX")}</strong><span>total</span></div>
+        <div><strong>100%</strong><span>total</span></div>
       </div>
       <div class="exec-report-gender-legend">
         <span class="male">Masculino <b>${summary.known ? `${summary.masculinoPct}%` : "—"}</b></span>
@@ -12145,7 +12145,7 @@ function renderExecutiveGeneralDashboard() {
           </div>
           <div class="exec-report-attended">
             <div class="exec-report-attended-total"><span>ALUMNOS ATENDIDOS</span><strong>${attentions.total.toLocaleString("es-MX")}</strong></div>
-            ${renderExecutiveGenderDonut(genderSummary, attentions.total)}
+            ${renderExecutiveGenderDonut(genderSummary)}
           </div>
         </section>
         <h3 class="exec-report-section-title">Comportamiento semanal e impacto real</h3>

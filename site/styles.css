@@ -6944,9 +6944,9 @@ tbody tr:hover td {
 .exec-report-hero li em { font-size: 13px; font-style: normal; grid-column: 1 / -1; opacity: .9; text-align: right; }
 .exec-report-hero small { display: none; }
 .exec-report-attended { align-items: center; border-left: 1px solid rgba(255,255,255,.75); display: grid; gap: 12px; grid-template-columns: minmax(0, 1.05fr) minmax(170px, .95fr); padding-left: 24px; }
-.exec-report-attended-total { container-type: inline-size; display: grid; gap: 7px; justify-items: center; min-width: 0; text-align: center; }
+.exec-report-attended-total { background: transparent; border: 0; box-shadow: none; container-type: inline-size; display: grid; gap: 7px; justify-items: center; min-width: 0; text-align: center; }
 .exec-report-attended-total > span { font-size: clamp(11px, 8.5cqw, 18px); font-weight: 950; white-space: nowrap; }
-.exec-report-attended-total > strong { font-size: clamp(26px, 22cqw, 72px); letter-spacing: -.03em; line-height: .92; max-width: 100%; text-shadow: 0 8px 18px rgba(0,38,92,.25); white-space: nowrap; }
+.exec-report-attended-total > strong { background: transparent; border: 0; box-shadow: none; font-size: clamp(26px, 22cqw, 72px); letter-spacing: -.03em; line-height: .92; max-width: 100%; text-shadow: none; white-space: nowrap; }
 .exec-report-section-title { color: #08285d; font-size: 25px; margin: 12px 0 2px; }
 .exec-report-card { border: 1px solid #d3e2f2; border-radius: 20px; padding: 22px 28px; }
 .exec-report-card > h3 { color: #08285d; font-size: 23px; margin: 0 0 12px; }
@@ -11556,17 +11556,18 @@ body.executive-report-print {
   .executive-report-print-page .exec-report-hero li strong { font-size: 16px; }
   .executive-report-print-page .exec-report-hero li em { font-size: 9px; }
   .executive-report-print-page .exec-report-attended { border-left: 1px solid rgba(255,255,255,.75); border-top: 0; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 0; padding-left: 16px; padding-top: 0; }
-  .executive-report-print-page .exec-report-attended-total { gap: 3px; }
+  .executive-report-print-page .exec-report-attended-total { background: transparent; border: 0; box-shadow: none; gap: 3px; }
   .executive-report-print-page .exec-report-attended-total > span { font-size: 11px; }
-  .executive-report-print-page .exec-report-attended-total > strong { font-size: 38px; }
-  .executive-report-print-page .exec-report-gender { gap: 1px; }
-  .executive-report-print-page .exec-report-gender h4 { font-size: 10px; margin: 0; }
-  .executive-report-print-page .exec-report-gender-donut { height: 58px; width: 58px; }
-  .executive-report-print-page .exec-report-gender-donut > div { height: 40px; width: 40px; }
-  .executive-report-print-page .exec-report-gender-donut strong { font-size: 10px; }
-  .executive-report-print-page .exec-report-gender-donut span,
-  .executive-report-print-page .exec-report-gender-legend span { font-size: 8px; }
-  .executive-report-print-page .exec-report-gender-legend { gap: 7px; }
+  .executive-report-print-page .exec-report-attended-total > strong { background: transparent; border: 0; box-shadow: none; font-size: 38px; text-shadow: none; }
+  .executive-report-print-page .exec-report-gender { gap: 3px; }
+  .executive-report-print-page .exec-report-gender h4 { font-size: 11.5px; margin: 0; }
+  .executive-report-print-page .exec-report-gender-donut { height: 72px; width: 72px; }
+  .executive-report-print-page .exec-report-gender-donut > div { height: 50px; width: 50px; }
+  .executive-report-print-page .exec-report-gender-donut strong { font-size: 13px; }
+  .executive-report-print-page .exec-report-gender-donut span { font-size: 8px; }
+  .executive-report-print-page .exec-report-gender-legend { align-items: start; gap: 8px; justify-content: center; }
+  .executive-report-print-page .exec-report-gender-legend span { font-size: 8.5px; text-align: center; white-space: normal; }
+  .executive-report-print-page .exec-report-gender-legend b { display: block; margin-top: 1px; }
 
   .executive-report-print-page .exec-report-section-title { font-size: 15px; margin: 0; }
   .executive-report-print-page .exec-report-card { border-radius: 11px; padding: 7px 12px; }

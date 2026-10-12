@@ -46,7 +46,8 @@ test("daily Wellness average is computed from dated Wellness visits only", () =>
   assert.ok(source.includes("const wellnessWeekdayServiceCapacity = 2400"));
   assert.ok(source.includes("const wellnessWeekendServiceCapacity = 990"));
   assert.ok(source.includes('["Sábado", "Domingo"].includes(day)'));
-  assert.ok(source.includes("% servicio"));
+  assert.match(source, /`\$\{service\}%`/);
+  assert.doesNotMatch(source, /`\$\{service\}% servicio`/, "Daily percentage badges must omit the word servicio");
   assert.ok(source.includes("estancia aproximada de 2 horas por alumno"));
   assert.ok(styles.includes(".exec-report-daily-service.over-capacity"));
 });
@@ -108,6 +109,12 @@ test("general report PDF uses an isolated one-page portrait export view", () => 
   assert.match(styles, /\.exec-report-attended\s*{[^}]*grid-template-columns:\s*minmax\(0,\s*1\.05fr\)\s*minmax\(170px,\s*\.95fr\)/s, "Attended total and gender chart must reserve separate screen columns");
   assert.match(styles, /\.exec-report-attended-total\s*{[^}]*container-type:\s*inline-size/s, "Attended total must size against its own column");
   assert.match(styles, /\.exec-report-attended-total > strong\s*{[^}]*font-size:\s*clamp\(26px,\s*22cqw,\s*72px\)[^}]*white-space:\s*nowrap/s, "Large attended totals must stay inside their own column");
+  assert.match(styles, /\.exec-report-attended-total\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/s, "Attended total must blend into the report hero without a dark card");
+  assert.match(styles, /\.exec-report-attended-total > strong\s*\{[^}]*background:\s*transparent;[^}]*text-shadow:\s*none;/s, "The large white attended total must not carry a dark backing or shadow");
+  assert.match(source, /exec-report-gender-donut[\s\S]*?<div><strong>100%<\/strong><span>total<\/span><\/div>/, "Gender donut must use a complete compact center label instead of repeating the long attended total");
+  assert.match(styles, /\.executive-report-print-page \.exec-report-gender-donut\s*\{[^}]*height:\s*72px;[^}]*width:\s*72px;/s, "Gender chart must be enlarged in the PDF");
+  assert.match(styles, /\.executive-report-print-page \.exec-report-gender-legend span\s*\{[^}]*font-size:\s*8\.5px;[^}]*white-space:\s*normal;/s, "Gender labels must remain complete in the PDF");
+  assert.match(styles, /\.executive-report-print-page \.exec-report-gender-legend b\s*\{[^}]*display:\s*block;/s, "Each gender percentage must have its own complete line");
 });
 
 test("Wellness PDF suggests the visible week in its default filename", () => {
