@@ -131,6 +131,19 @@ test("executive PDF increases compact typography and preserves both information 
   assert.match(styles, /\.exec-report-gym-card \.exec-report-gym-columns b\s*\{[^}]*font-size:\s*10px;/s, "Gym chart values must be legible on screen");
   assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events strong\s*\{[^}]*font-size:\s*13\.75px;/s, "Vivencia items must grow exactly 25% on screen");
   assert.match(styles, /\.exec-insight-mentor-communities li > strong\s*\{[^}]*font-size:\s*14px;/s, "Mentor totals must be legible on screen");
+  assert.match(index, /body:not\(\.executive-report-print\) \.exec-report-gym-card \.exec-report-daily-average h4/, "The fresh-shell screen safeguard must not override PDF typography");
+  assert.match(styles, /\.executive-report-print-page \.exec-report-daily-average h4\s*\{[^}]*font-size:\s*15\.625px;/s, "The daily-average PDF heading must grow exactly 25%");
+  assert.match(styles, /\.executive-report-print-page \.exec-report-daily-average div span,\s*\.executive-report-print-page \.exec-report-daily-average div strong\s*\{[^}]*font-size:\s*12\.5px;/s, "Daily PDF labels and values must grow exactly 25%");
+  assert.match(styles, /\.executive-report-print-page \.exec-report-daily-service em\s*\{[^}]*font-size:\s*11\.25px;/s, "Daily PDF service badges must match their enlarged screen size");
+  assert.match(styles, /\.executive-report-print-page \.exec-insight-vivencia > h3\s*\{[^}]*font-size:\s*15\.625px;/s, "Vivencia PDF title must grow exactly 25%");
+  assert.match(styles, /\.executive-report-print-page \.exec-insight-vivencia-history strong\s*\{[^}]*font-size:\s*10\.3125px;/s, "Vivencia PDF event names must grow exactly 25%");
+  assert.match(styles, /\.executive-report-print-page \.exec-insight-vivencia-history time\s*\{[^}]*font-size:\s*10\.3125px;/s, "Vivencia PDF dates must grow exactly 25%");
+  assert.match(styles, /\.executive-report-print-page \.exec-insight-vivencia-history b\s*\{[^}]*font-size:\s*12\.5px;/s, "Vivencia PDF totals must grow exactly 25%");
+  assert.match(styles, /\.executive-report-print-page \.exec-insight-mentoria-card > \.exec-insight-card-heading h3\s*\{[^}]*font-size:\s*15\.625px;/s, "Mentoría PDF title must grow exactly 25%");
+  assert.match(styles, /\.executive-report-print-page \.exec-insight-mentoria-card > \.exec-insight-card-heading > span\s*\{[^}]*font-size:\s*10\.3125px;/s, "Mentoría PDF Top 5 badge must grow exactly 25%");
+  assert.match(styles, /\.executive-report-print-page \.exec-mentoria-community-list b\s*\{[^}]*font-size:\s*8\.75px;[^}]*height:\s*15px;[^}]*width:\s*15px;/s, "Mentoría PDF rank markers must grow without overflowing");
+  assert.match(styles, /\.executive-report-print-page \.exec-mentoria-community-list span\s*\{[^}]*font-size:\s*10\.3125px;/s, "Mentoría PDF names must grow exactly 25%");
+  assert.match(styles, /\.executive-report-print-page \.exec-mentoria-community-list strong\s*\{[^}]*font-size:\s*12\.5px;/s, "Mentoría PDF totals must grow exactly 25%");
   assert.match(styles, /\.exec-footer-kpis\s*\{[^}]*background:\s*var\(--teal\);[^}]*color:\s*#fff;/s, "The lower information band must remain");
 });
 
