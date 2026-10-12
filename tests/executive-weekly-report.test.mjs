@@ -179,6 +179,8 @@ test("Vivencia shows the eight latest participant uploads instead of upcoming ev
   assert.doesNotMatch(source, /Vivencia · próximos eventos|Sin próximos eventos con fecha/);
   assert.match(styles, /\.exec-insight-vivencia-history > div\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto;[^}]*border-bottom:\s*0;/s);
   assert.match(styles, /\.exec-insight-vivencia-meta\s*\{[^}]*align-items:\s*center;[^}]*justify-content:\s*flex-end;/s);
+  assert.match(styles, /\.executive-report-print-page \.exec-insight-vivencia-history strong\s*\{[^}]*overflow:\s*visible;[^}]*overflow-wrap:\s*anywhere;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;/s, "La descarga debe mostrar completo el nombre y el horario de cada carga de Vivencia");
+  assert.match(styles, /\.executive-report-print-page \.exec-insight-vivencia-meta\s*\{[^}]*flex-shrink:\s*0;/s, "La fecha y el total no deben reducir el texto hasta recortarlo");
   assert.match(styles, /\.exec-insight-vivencia\s*\{[^}]*padding:\s*18px 19px !important;/s, "Vivencia debe conservar espacio para texto legible en la fila de tres tarjetas");
   assert.match(styles, /\.exec-insight-vivencia \.exec-insight-events > div\s*\{[^}]*padding:\s*4px 0;/s);
 });

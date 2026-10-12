@@ -11619,6 +11619,16 @@ body.executive-report-print {
   .executive-report-print-page .exec-insight-events > div { gap: 4px; padding: 2px 0; }
   .executive-report-print-page .exec-insight-events time { border-radius: 4px; font-size: var(--exec-print-label); padding: 2px 3px; }
   .executive-report-print-page .exec-insight-events strong { font-size: var(--exec-print-label); }
+  .executive-report-print-page .exec-insight-vivencia-history > div { align-items: start; }
+  .executive-report-print-page .exec-insight-vivencia-history strong {
+    line-height: 1.15;
+    min-width: 0;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+  }
+  .executive-report-print-page .exec-insight-vivencia-meta { flex-shrink: 0; }
   .executive-report-print-page .exec-week-group-grid { gap: 4px; }
   .executive-report-print-page .exec-week-group-grid > article { gap: 3px; }
   .executive-report-print-page .exec-week-group-tile { align-content: space-evenly; border-radius: 7px; gap: 1px; padding: 5px 4px; }
