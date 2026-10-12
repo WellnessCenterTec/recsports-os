@@ -11340,7 +11340,7 @@ function executiveWellnessReportDisplayLabel(value) {
   const label = String(value || "").trim();
   const normalized = normalizeText(label);
   const corrections = {
-    "transaferenciaa 2:00 a 4:30": "Transferencia 2:00 a 4:30",
+    "transaferenciaa 2:00 a 4:30": "Transferencia 2:00 a 4:30 p. m.",
     "dia de muertos: claveras literarias": "DÍA DE MUERTOS: CALAVERAS LITERARIAS",
     "futbol 7 emcs": "Fútbol 7 EMCS"
   };

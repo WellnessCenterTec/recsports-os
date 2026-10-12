@@ -131,7 +131,7 @@ test("executive PDF increases compact typography and preserves both information 
 
 test("weekly report corrects display labels and groups the hidden Intramuros tournaments", () => {
   assert.match(source, /function executiveWellnessReportDisplayLabel\(value\)/);
-  assert.ok(source.includes('"transaferenciaa 2:00 a 4:30": "Transferencia 2:00 a 4:30"'));
+  assert.ok(source.includes('"transaferenciaa 2:00 a 4:30": "Transferencia 2:00 a 4:30 p. m."'));
   assert.ok(source.includes('"dia de muertos: claveras literarias": "DÍA DE MUERTOS: CALAVERAS LITERARIAS"'));
   assert.ok(source.includes('"futbol 7 emcs": "Fútbol 7 EMCS"'));
   assert.match(source, /const lightningTournamentTotal = ranked\.slice\(8\)\.reduce/);
