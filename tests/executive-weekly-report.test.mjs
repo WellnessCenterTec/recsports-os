@@ -4,6 +4,7 @@ import test from "node:test";
 
 const source = fs.readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
 const styles = fs.readFileSync(new URL("../site/styles.css", import.meta.url), "utf8");
+const index = fs.readFileSync(new URL("../site/index.html", import.meta.url), "utf8");
 
 test("the general module is named Reporte Wellness", () => {
   assert.match(source, /id:\s*"general",\s*name:\s*"Reporte Wellness"/s);
@@ -138,6 +139,7 @@ test("weekly report corrects display labels and groups the hidden Intramuros tou
   assert.match(source, /const lightningTournamentTotal = ranked\.slice\(8\)\.reduce/);
   assert.ok(source.includes('{ label: "Torneos relámpagos", value: lightningTournamentTotal }'));
   assert.match(source, /eventName: executiveWellnessReportDisplayLabel\(/);
+  assert.match(index, /completeWellnessTransferTime[\s\S]*?transferencia 2:00 a 4:30[\s\S]*?Transferencia 2:00 a 4:30 p\. m\./, "El shell fresco debe corregir también una copia antigua del bundle antes de imprimir");
 });
 
 test("repeated module totals are replaced by actionable comparisons", () => {
