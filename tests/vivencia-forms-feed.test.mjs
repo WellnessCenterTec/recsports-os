@@ -37,5 +37,23 @@ test("keeps missing gender explicit instead of inventing women or men counts", (
 
 test("extracts Spanish event dates", () => {
   assert.equal(vivenciaFormsFeed.extractEventDate("Halloween Run 3k 15 de octubre", 2026), "2026-10-15");
+  assert.equal(vivenciaFormsFeed.extractEventDate("Combine 8 oct", 2026), "2026-10-08");
   assert.equal(vivenciaFormsFeed.extractEventDate("Evento sin fecha", 2026), "");
+});
+
+test("keeps normalized matrículas only for the private authenticated sync", () => {
+  const values = [
+    ["Marca temporal", "Dirección de correo electrónico", "Matricula", "Seleccióna el evento al que deseas inscribirte"],
+    ["10/08/2026 12:00:00", "private@example.com", "a00100002 ", "EVENTO COMBINE BOLETOS BORREGOS 2 de octubre"],
+    ["10/08/2026 12:01:00", "private@example.com", "A00100002", "EVENTO COMBINE BORREGOS 2 de octubre"],
+    ["10/08/2026 12:02:00", "other@example.com", "A00100003", "EVENTO COMBINE BORREGOS 2 de octubre"]
+  ];
+  const publicResult = vivenciaFormsFeed.parseGoogleFormsValues(values, { cutoffDate: "2026-08-10" });
+  const privateResult = vivenciaFormsFeed.parseGoogleFormsValues(values, { cutoffDate: "2026-08-10", includeParticipants: true });
+
+  assert.equal(publicResult.events.length, 1);
+  assert.equal(publicResult.participant_records, 2);
+  assert.equal(JSON.stringify(publicResult).includes("A00100002"), false);
+  assert.deepEqual(privateResult.events[0].participants.map((row) => row.matricula), ["A00100002", "A00100003"]);
+  assert.equal(JSON.stringify(privateResult).includes("example.com"), false);
 });

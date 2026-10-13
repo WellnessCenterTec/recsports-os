@@ -14,11 +14,17 @@
     junio: 6,
     julio: 7,
     agosto: 8,
+    ago: 8,
     septiembre: 9,
     setiembre: 9,
+    sept: 9,
+    sep: 9,
     octubre: 10,
+    oct: 10,
     noviembre: 11,
-    diciembre: 12
+    nov: 11,
+    diciembre: 12,
+    dic: 12
   });
 
   function normalizeText(value) {
@@ -77,7 +83,7 @@
     const match = String(value || "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
     if (!match) return null;
     const [, day, month, year, hour, minute, second = "0"] = match;
-    const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+    const date = new Date(`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${minute}:${String(second).padStart(2, "0")}-06:00`);
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
@@ -93,7 +99,10 @@
   }
 
   function eventKey(eventName) {
-    return normalizeText(eventName);
+    return normalizeText(eventName)
+      .split(" ")
+      .filter((token) => !["dinamica", "evento", "boletos"].includes(token))
+      .join(" ");
   }
 
   function headerIndex(headers, aliases) {
@@ -101,10 +110,11 @@
     return headers.map(normalizeText).findIndex((header) => normalizedAliases.includes(header));
   }
 
-  function parseGoogleFormsCsv(text, options = {}) {
+  function parseGoogleFormsRows(inputRows, options = {}) {
     const cutoffDate = String(options.cutoffDate || "2026-08-10");
     const defaultYear = Number(options.defaultYear || cutoffDate.slice(0, 4) || 2026);
-    const rows = parseCsv(text).filter((row) => row.some((cell) => String(cell || "").trim()));
+    const includeParticipants = options.includeParticipants === true;
+    const rows = (inputRows || []).filter((row) => Array.isArray(row) && row.some((cell) => String(cell || "").trim()));
     if (rows.length < 2) return { cutoff_date: cutoffDate, response_count: 0, participant_records: 0, events: [] };
     const headers = rows[0];
     const timestampColumn = headerIndex(headers, ["Marca temporal", "Timestamp"]);
@@ -114,40 +124,55 @@
       throw new Error("La hoja necesita las columnas Marca temporal, Matricula y Evento");
     }
 
-    const cutoff = new Date(`${cutoffDate}T00:00:00`);
+    const cutoff = new Date(`${cutoffDate}T00:00:00-06:00`);
     const grouped = new Map();
     let lastResponseAt = null;
-    rows.slice(1).forEach((row) => {
+    let omittedRecords = 0;
+    rows.slice(1).forEach((row, index) => {
       const submittedAt = parseTimestamp(row[timestampColumn]);
       const matricula = normalizeMatricula(row[matriculaColumn]);
       const eventName = String(row[eventColumn] || "").trim();
-      if (!submittedAt || submittedAt < cutoff || !/^A\d{7,9}$/.test(matricula) || !eventName) return;
+      if (!submittedAt || submittedAt < cutoff) return;
+      if (!/^A\d{7,9}$/.test(matricula) || !eventName) {
+        omittedRecords += 1;
+        return;
+      }
       if (!lastResponseAt || submittedAt > lastResponseAt) lastResponseAt = submittedAt;
       const key = eventKey(eventName);
       if (!grouped.has(key)) {
+        const eventDate = extractEventDate(eventName, defaultYear);
         grouped.set(key, {
           id: `google-forms-${key.replace(/\s+/g, "-").slice(0, 72)}`,
+          source_key: `${eventDate || "sin-fecha"}:${key}`,
           event_name: eventName,
-          event_date: extractEventDate(eventName, defaultYear),
+          event_date: eventDate,
           response_count: 0,
-          matriculas: new Set()
+          matriculas: new Map()
         });
       }
       const event = grouped.get(key);
       event.response_count += 1;
-      event.matriculas.add(matricula);
+      if (!event.matriculas.has(matricula)) {
+        event.matriculas.set(matricula, {
+          matricula,
+          source_row_number: index + 2,
+          submitted_at: submittedAt.toISOString()
+        });
+      }
     });
 
     const events = [...grouped.values()]
       .map((event) => ({
         id: event.id,
+        source_key: event.source_key,
         event_name: event.event_name,
         event_date: event.event_date,
         response_count: event.response_count,
         participant_records: event.matriculas.size,
         women: null,
         men: null,
-        unspecified: event.matriculas.size
+        unspecified: event.matriculas.size,
+        ...(includeParticipants ? { participants: [...event.matriculas.values()] } : {})
       }))
       .sort((first, second) => String(second.event_date).localeCompare(String(first.event_date)) || second.participant_records - first.participant_records);
 
@@ -157,8 +182,17 @@
       last_response_at: lastResponseAt ? lastResponseAt.toISOString() : "",
       response_count: events.reduce((sum, event) => sum + event.response_count, 0),
       participant_records: events.reduce((sum, event) => sum + event.participant_records, 0),
+      omitted_records: omittedRecords,
       events
     };
+  }
+
+  function parseGoogleFormsCsv(text, options = {}) {
+    return parseGoogleFormsRows(parseCsv(text), options);
+  }
+
+  function parseGoogleFormsValues(values, options = {}) {
+    return parseGoogleFormsRows(values, options);
   }
 
   function normalizeFeed(payload, options = {}) {
@@ -170,17 +204,28 @@
       last_response_at: String(payload?.last_response_at || ""),
       response_count: Math.max(0, Number(payload?.response_count || 0)),
       participant_records: Math.max(0, Number(payload?.participant_records || 0)),
+      omitted_records: Math.max(0, Number(payload?.omitted_records || 0)),
       events: events
         .filter((event) => event && event.event_name && event.event_date)
         .map((event) => ({
           id: String(event.id || `google-forms-${eventKey(event.event_name).replace(/\s+/g, "-")}`),
+          source_key: String(event.source_key || `${event.event_date}:${eventKey(event.event_name)}`),
           event_name: String(event.event_name),
           event_date: String(event.event_date),
           response_count: Math.max(0, Number(event.response_count || 0)),
           participant_records: Math.max(0, Number(event.participant_records || 0)),
           women: event.women == null ? null : Math.max(0, Number(event.women || 0)),
           men: event.men == null ? null : Math.max(0, Number(event.men || 0)),
-          unspecified: Math.max(0, Number(event.unspecified || 0))
+          unspecified: Math.max(0, Number(event.unspecified || 0)),
+          participants: Array.isArray(event.participants)
+            ? event.participants
+              .map((participant) => ({
+                matricula: normalizeMatricula(participant?.matricula),
+                source_row_number: Math.max(1, Number(participant?.source_row_number || 1)),
+                submitted_at: String(participant?.submitted_at || "")
+              }))
+              .filter((participant) => /^A\d{7,9}$/.test(participant.matricula))
+            : []
         }))
     };
   }
@@ -201,5 +246,5 @@
     ];
   }
 
-  return { eventKey, extractEventDate, genderRows, normalizeFeed, normalizeMatricula, normalizeText, parseCsv, parseGoogleFormsCsv, parseTimestamp };
+  return { eventKey, extractEventDate, genderRows, normalizeFeed, normalizeMatricula, normalizeText, parseCsv, parseGoogleFormsCsv, parseGoogleFormsValues, parseTimestamp };
 });
