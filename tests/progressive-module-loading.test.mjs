@@ -25,8 +25,14 @@ test("loads only the active area's dependencies and reuses ready data", async ()
   assert.equal(plan.status("gimnasio"), "ready");
 
   await plan.ensureArea("clases");
-  assert.deepEqual(calls, ["student-master", "gym", "class-grades", "booking", "class-simulator"]);
+  assert.deepEqual(calls, ["student-master", "gym", "class-grades"]);
   assert.equal(plan.status("clases"), "ready");
+
+  await plan.ensureArea("clases", "booking");
+  assert.deepEqual(calls, ["student-master", "gym", "class-grades", "booking"]);
+
+  await plan.ensureArea("clases", "simulator");
+  assert.deepEqual(calls, ["student-master", "gym", "class-grades", "booking", "class-simulator"]);
 
   await plan.ensureArea("gimnasio");
   assert.deepEqual(calls, ["student-master", "gym", "class-grades", "booking", "class-simulator"]);
@@ -37,6 +43,26 @@ test("loads only the active area's dependencies and reuses ready data", async ()
   assert.equal(plan.status("gimnasio"), "idle");
   await plan.ensureArea("gimnasio");
   assert.deepEqual(calls.slice(-2), ["student-master", "gym"]);
+});
+
+test("defers physical evaluations until the collaborator view needs them", async () => {
+  const calls = [];
+  const expected = ["collaborators", "uniformes", "physical-evaluations"];
+  const coordinator = createModuleDataLoader();
+  const plan = createModuleDataPlan({
+    coordinator,
+    period: "AD26",
+    loaders: Object.fromEntries(expected.map((name) => [name, async () => calls.push(name)]))
+  });
+
+  await plan.ensureArea("colaboradores", "dashboard");
+  assert.deepEqual(calls, ["collaborators", "uniformes"]);
+
+  await plan.ensureArea("colaboradores", "evaluations");
+  assert.deepEqual(calls, expected);
+
+  await plan.ensureArea("colaboradores", "collaborator-infographic");
+  assert.deepEqual(calls, expected);
 });
 
 test("Intramuros carga Representativos para detectar matrículas no elegibles", async () => {

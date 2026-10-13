@@ -7,7 +7,7 @@
 
   const AREA_DEPENDENCIES = Object.freeze({
     gimnasio: ["student-master", "gym"],
-    clases: ["class-grades", "booking", "class-simulator"],
+    clases: ["class-grades"],
     intramuros: ["student-master", "intramuros", "representativos", "planning"],
     vivencia: ["student-master", "vivencia", "planning"],
     "semana-tec": ["student-master", "semana-tec", "semana-tec-program"],
@@ -17,7 +17,7 @@
       "mentorship", "captures", "class-grades", "gym", "booking", "vivencia", "semana-tec",
       "representativos", "gamer", "communication", "intramuros"
     ],
-    colaboradores: ["collaborators", "physical-evaluations", "uniformes"],
+    colaboradores: ["collaborators", "uniformes"],
     compras: ["budget", "planning"],
     configuracion: ["quick-links", "collaborators"],
     presentacion: ["captures", "collaborators", "physical-evaluations", "budget", "planning", "uniformes"],
@@ -31,6 +31,14 @@
   const AREA_VIEW_DEPENDENCIES = Object.freeze({
     general: Object.freeze({
       schedules: ["planning"]
+    }),
+    clases: Object.freeze({
+      booking: ["booking"],
+      simulator: ["class-simulator"]
+    }),
+    colaboradores: Object.freeze({
+      evaluations: ["physical-evaluations"],
+      "collaborator-infographic": ["physical-evaluations"]
     })
   });
 

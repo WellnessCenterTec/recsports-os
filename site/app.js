@@ -858,6 +858,7 @@ let vivenciaFormsFeed = null;
 let vivenciaFormsFeedError = "";
 let vivenciaFormsSyncFingerprint = "";
 let vivenciaFormsSyncSummary = null;
+let vivenciaFormsRefreshPromise = null;
 let planningCalendarRows = [];
 let planningCalendarLoaded = false;
 let planningCalendarError = "";
@@ -3032,12 +3033,19 @@ async function syncVivenciaFormsFeedToSupabase(feed) {
   return vivenciaFormsSyncSummary;
 }
 
-async function loadVivenciaFormsFeed() {
-  const feedUrl = String(window.RECSPORTS_ENV?.VIVENCIA_FORMS_FEED_URL || "").trim();
-  const fallbackUrl = String(window.RECSPORTS_ENV?.VIVENCIA_FORMS_FALLBACK_URL || "").trim();
-  vivenciaFormsFeed = null;
-  vivenciaFormsFeedError = "";
-  if (!feedUrl || !window.WellSyncVivenciaFormsFeed) return;
+function normalizeVivenciaFormsFeed(payload) {
+  return window.WellSyncVivenciaFormsFeed.normalizeFeed(payload, { cutoffDate: "2026-08-10" });
+}
+
+async function loadVivenciaFormsFallbackFeed(fallbackUrl) {
+  if (!fallbackUrl) return null;
+  const separator = fallbackUrl.includes("?") ? "&" : "?";
+  const response = await fetch(`${fallbackUrl}${separator}v=20261013-performance-phase2a-v1`, { cache: "force-cache" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return normalizeVivenciaFormsFeed(await response.json());
+}
+
+async function refreshVivenciaFormsFeed(feedUrl, { hasFallback = false } = {}) {
   try {
     const headers = {};
     if (supabaseClient && currentUser?.auth === "supabase") {
@@ -3045,21 +3053,53 @@ async function loadVivenciaFormsFeed() {
       if (data?.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
     }
     const separator = feedUrl.includes("?") ? "&" : "?";
-    let response = await fetch(`${feedUrl}${separator}fresh=${Date.now()}`, { cache: "no-store", headers });
-    if (!response.ok && fallbackUrl) {
-      const fallbackSeparator = fallbackUrl.includes("?") ? "&" : "?";
-      response = await fetch(`${fallbackUrl}${fallbackSeparator}fresh=${Date.now()}`, { cache: "no-store" });
-      vivenciaFormsFeedError = "Lectura automática pendiente; mostrando el último corte guardado";
-    }
+    const response = await fetch(`${feedUrl}${separator}fresh=${Date.now()}`, { cache: "no-store", headers });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    vivenciaFormsFeed = window.WellSyncVivenciaFormsFeed.normalizeFeed(await response.json(), { cutoffDate: "2026-08-10" });
-    if (vivenciaFormsFeed.events.some((event) => event.participants.length)) {
-      await syncVivenciaFormsFeedToSupabase(vivenciaFormsFeed);
+    const freshFeed = normalizeVivenciaFormsFeed(await response.json());
+    vivenciaFormsFeed = freshFeed;
+    vivenciaFormsFeedError = "";
+    if (freshFeed.events.some((event) => event.participants.length)) {
+      await syncVivenciaFormsFeedToSupabase(freshFeed);
     }
+    scheduleProgressiveRender();
+    return freshFeed;
   } catch (error) {
-    vivenciaFormsFeedError = "No se pudo actualizar la fuente de Google Forms";
+    vivenciaFormsFeedError = hasFallback
+      ? "Lectura automática pendiente; mostrando el último corte guardado"
+      : "No se pudo actualizar la fuente de Google Forms";
     console.warn(vivenciaFormsFeedError, error);
+    scheduleProgressiveRender();
+    return null;
   }
+}
+
+function startVivenciaFormsFeedRefresh(feedUrl, options) {
+  if (!feedUrl) return null;
+  if (vivenciaFormsRefreshPromise) return vivenciaFormsRefreshPromise;
+  vivenciaFormsRefreshPromise = refreshVivenciaFormsFeed(feedUrl, options)
+    .finally(() => { vivenciaFormsRefreshPromise = null; });
+  return vivenciaFormsRefreshPromise;
+}
+
+async function loadVivenciaFormsFeed() {
+  const feedUrl = String(window.RECSPORTS_ENV?.VIVENCIA_FORMS_FEED_URL || "").trim();
+  const fallbackUrl = String(window.RECSPORTS_ENV?.VIVENCIA_FORMS_FALLBACK_URL || "").trim();
+  vivenciaFormsFeed = null;
+  vivenciaFormsFeedError = "";
+  if (!window.WellSyncVivenciaFormsFeed) return;
+
+  let fallbackLoaded = false;
+  if (fallbackUrl) {
+    try {
+      vivenciaFormsFeed = await loadVivenciaFormsFallbackFeed(fallbackUrl);
+      fallbackLoaded = Boolean(vivenciaFormsFeed);
+    } catch (error) {
+      console.warn("No se pudo leer el último corte guardado de Vivencia", error);
+    }
+  }
+
+  const refreshPromise = startVivenciaFormsFeedRefresh(feedUrl, { hasFallback: fallbackLoaded });
+  if (!fallbackLoaded && refreshPromise) await refreshPromise;
 }
 
 async function loadVivenciaEvents() {

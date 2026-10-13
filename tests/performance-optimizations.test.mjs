@@ -19,11 +19,14 @@ test("versioned static assets are reusable while shell and environment stay fres
   for (const config of [rootVercel, siteVercel]) {
     assert.equal(headerValue(config, "/(.*)\\.(js|css)"), "public, max-age=31536000, immutable");
     assert.equal(headerValue(config, "/assets/(.*)"), "public, max-age=31536000, immutable");
-    assert.equal(headerValue(config, "/app.js"), "no-cache, max-age=0, must-revalidate");
+    assert.equal(headerValue(config, "/app.js"), "public, max-age=31536000, immutable");
+    assert.equal(headerValue(config, "/vivencia-forms-preview.json"), "public, max-age=31536000, immutable");
     assert.equal(headerValue(config, "/env.js"), "no-store, max-age=0");
     assert.equal(headerValue(config, "/"), "no-store, max-age=0");
     assert.equal(headerValue(config, "/index.html"), "no-store, max-age=0");
   }
+  assert.match(indexSource, /module-data-plan\.js\?v=20261013-performance-phase2a-v1/);
+  assert.match(indexSource, /app\.js\?v=20261013-performance-phase2a-v1/);
 });
 
 test("student lookup uses the normalized matricula index", () => {
@@ -58,6 +61,18 @@ test("Vivencia and Communication filter large detail queries before download", (
   assert.match(communicationSource, /\.gte\("event_date", start\)[\s\S]*\.lte\("event_date", end\)/);
   assert.match(communicationSource, /\.from\("communication_participants"\)[\s\S]*\.in\("event_id", activeEventIdList\)/);
   assert.doesNotMatch(communicationSource, /\.from\("communication_participants"\)\s*\.select\("\*"\)/);
+});
+
+test("Vivencia renders its versioned fallback before refreshing Google in the background", () => {
+  const source = appSource.slice(
+    appSource.indexOf("async function loadVivenciaFormsFallbackFeed"),
+    appSource.indexOf("async function loadVivenciaEvents")
+  );
+  assert.match(source, /v=20261013-performance-phase2a-v1/);
+  assert.match(source, /cache: "force-cache"/);
+  assert.match(source, /startVivenciaFormsFeedRefresh\(feedUrl, \{ hasFallback: fallbackLoaded \}\)/);
+  assert.match(source, /if \(!fallbackLoaded && refreshPromise\) await refreshPromise/);
+  assert.doesNotMatch(source, /fallbackUrl[^\n]*fresh=\$\{Date\.now\(\)\}/);
 });
 
 test("the spreadsheet runtime is loaded only when an Excel workflow needs it", () => {
