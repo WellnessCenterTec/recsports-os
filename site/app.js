@@ -1927,22 +1927,22 @@ function isValidVivenciaMatricula(value) {
 
 async function loadStudentDatabase() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
-  const rows = [];
-  const pageSize = 1000;
-  let error = null;
-  for (let offset = 0; ; offset += pageSize) {
-    const response = await supabaseClient
-      .from("Base de datos_alumnos")
-      .select("*")
-      .order("Matricula", { ascending: true })
-      .range(offset, offset + pageSize - 1);
-    if (response.error) {
-      error = response.error;
-      break;
-    }
-    rows.push(...(response.data || []));
-    if (!response.data || response.data.length < pageSize) break;
-  }
+  const studentColumns = [
+    "Matricula",
+    '"Nombre Campus"',
+    '"Desc Nivel Acad Alumno"',
+    '"Periodo acad"',
+    '"v_Clave Major Agrupado"',
+    '"Desc Programa Academico"',
+    '"Desc Genero"',
+    '"Desc Escuela Programa"',
+    "Semestre",
+    "carrera"
+  ].join(",");
+  const paginationApi = window.WellSyncStudentDatabasePagination;
+  const { data: rows, error } = paginationApi
+    ? await paginationApi.loadStudentDatabasePages(supabaseClient, { columns: studentColumns })
+    : { data: [], error: new Error("No está disponible la paginación de la base de alumnos") };
   if (error) {
     studentDatabaseLoaded = false;
     console.error(error);
