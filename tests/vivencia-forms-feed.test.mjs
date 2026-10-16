@@ -41,6 +41,17 @@ test("extracts Spanish event dates", () => {
   assert.equal(vivenciaFormsFeed.extractEventDate("Evento sin fecha", 2026), "");
 });
 
+test("unifies Vivencia variants that only differ by accents, time, or venue on the same date", () => {
+  const first = "Dinámica Combine BOLETOS BORREGOS vs ZORROS CETYS, 8 de octubre, Jardín de las Carreras";
+  const second = "Dinamica Combine Borregos VS Zorros Cetys 8 oct 09:00 horas";
+
+  assert.equal(vivenciaFormsFeed.eventKey(first), vivenciaFormsFeed.eventKey(second));
+  assert.notEqual(
+    vivenciaFormsFeed.eventKey("Halloween Run 3K 13 de octubre"),
+    vivenciaFormsFeed.eventKey("Halloween Run 3K 15 de octubre")
+  );
+});
+
 test("keeps normalized matrículas only for the private authenticated sync", () => {
   const values = [
     ["Marca temporal", "Dirección de correo electrónico", "Matricula", "Seleccióna el evento al que deseas inscribirte"],

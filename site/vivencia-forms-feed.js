@@ -99,10 +99,15 @@
   }
 
   function eventKey(eventName) {
-    return normalizeText(eventName)
+    const normalized = normalizeText(eventName);
+    const monthPattern = Object.keys(MONTHS).join("|");
+    const dateMatch = normalized.match(new RegExp(`\\b\\d{1,2}\\s+(?:de\\s+)?(?:${monthPattern})\\b`));
+    const title = (dateMatch ? normalized.slice(0, dateMatch.index) : normalized)
       .split(" ")
       .filter((token) => !["dinamica", "evento", "boletos"].includes(token))
       .join(" ");
+    const eventDate = extractEventDate(eventName);
+    return [title, eventDate].filter(Boolean).join(" ");
   }
 
   function headerIndex(headers, aliases) {
