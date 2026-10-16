@@ -72,7 +72,7 @@ test("student database pagination keeps the sequential fallback when count is un
 test("WellSync loads the optimized student paginator and requests only used student columns", () => {
   const index = fs.readFileSync(new URL("../site/index.html", import.meta.url), "utf8");
   const app = fs.readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
-  assert.match(index, /student-database-pagination\.js\?v=20261013-performance-phase2a-v1[^]*app\.js\?v=20261016-vivencia-cecilia-v10/);
+  assert.match(index, /student-database-pagination\.js\?v=20261013-performance-phase2a-v1[^]*app\.js\?v=20261016-direccion-email-v11/);
   assert.match(app, /WellSyncStudentDatabasePagination/);
   assert.match(app, /"Matricula"[\s\S]*?'"Desc Genero"'[\s\S]*?\.join\(","\)/);
   const loader = app.slice(app.indexOf("async function loadStudentDatabase()"), app.indexOf("function findStudentInDatabase"));

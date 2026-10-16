@@ -15038,3 +15038,20 @@ tbody tr:hover td {
 @media (max-width: 580px) { .pv-report-page { padding: 15px; } .pv-report-title { grid-template-columns: auto minmax(0,1fr); } .pv-report-file { grid-column: 1 / -1; justify-items: start; } .pv-report-hero-modules { grid-template-columns: 1fr; } .pv-report-hero-impact { grid-template-columns: 1fr; } .pv-report-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 .pv-report-print-root { display: none; }
 @media print { @page { size: A4 landscape; margin: 10mm; } body.pv-report-print > *:not(.pv-report-print-root) { display: none !important; } body.pv-report-print .pv-report-print-root { display: block !important; zoom: .62; } body.pv-report-print .pv-report-page { border: 0; border-radius: 0; padding: 0; print-color-adjust: exact; } body.pv-report-print .pv-report-card, body.pv-report-print .pv-report-hero, body.pv-report-print .pv-report-kpis { break-inside: avoid; } }
+
+/* Correo de retroalimentación de Dirección */
+.direccion-email { display: grid; gap: 16px; }
+.direccion-email-controls { align-items: end; display: flex; flex-wrap: wrap; gap: 12px; }
+.direccion-email-controls label { display: grid; gap: 6px; font-weight: 750; min-width: 260px; }
+.direccion-email-controls select, .direccion-email-draft input, .direccion-email-draft textarea { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; color: var(--ink); font: inherit; padding: 10px 12px; width: 100%; }
+.direccion-email-controls .primary-btn { min-height: 42px; }
+.direccion-email-summary { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.direccion-email-summary article { border: 1px solid var(--line); border-left: 4px solid #d25858; border-radius: 7px; display: grid; gap: 3px; padding: 14px 16px; }
+.direccion-email-summary .direccion-email-strength { border-left-color: #168c70; }
+.direccion-email-summary span { color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; }
+.direccion-email-summary strong { font-size: 24px; }
+.direccion-email-summary em { color: var(--muted); font-size: 13px; font-style: normal; }
+.direccion-email-draft { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 14px; padding: 18px; }
+.direccion-email-draft label { display: grid; gap: 7px; font-size: 13px; font-weight: 750; }
+.direccion-email-draft textarea { line-height: 1.5; resize: vertical; }
+@media (max-width: 620px) { .direccion-email-summary { grid-template-columns: 1fr; } .direccion-email-controls label { min-width: 100%; } }

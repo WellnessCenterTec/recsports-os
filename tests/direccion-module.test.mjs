@@ -41,14 +41,28 @@ test("Dirección includes a checklist with responsible photos, timestamps, and l
   assert.match(styles, /\.direccion-task-check/);
 });
 
-test("Dirección exposes only Seguimiento and Historial in its module navigation", () => {
+test("Dirección exposes Seguimiento, Historial, and Correo in its module navigation", () => {
   assert.match(appSource, /dashboardTab\.textContent = "Seguimiento"/);
   assert.match(appSource, /schedulesTab\.textContent = isDireccion \? "Historial"/);
+  assert.match(appSource, /direccionEmailTab\.hidden = !isDireccion/);
+  assert.match(appSource, /direccionEmailTab = \$\("#direccionEmailViewButton"\)/);
   assert.match(appSource, /reportsTab\.hidden = [^;]*isDireccion/);
   assert.match(appSource, /systemTab\.hidden = [^;]*isDireccion/);
   assert.match(appSource, /function renderDireccionHistory\(\)/);
   assert.match(appSource, /activeView === "schedules"\) contentHtml = isDireccion \? renderDireccionHistory\(\)/);
   assert.match(styles, /\.direccion-history-columns/);
+});
+
+test("Dirección generates an area email with four priorities and three favorable indicators", () => {
+  assert.match(appSource, /function direccionEmailInsights\(areaId\)/);
+  assert.match(appSource, /function direccionEmailDraft\(areaId = direccionEmailArea\)/);
+  assert.match(appSource, /insights\.critical\.slice\(0, 4\)/);
+  assert.match(appSource, /insights\.favorable\.slice\(0, 3\)/);
+  assert.match(appSource, /id="direccionEmailArea"/);
+  assert.match(appSource, /id="copyDireccionEmail"/);
+  assert.match(appSource, /navigator\.clipboard\.writeText/);
+  assert.match(appSource, /activeView === "direccion-email"\) contentHtml = isDireccion \? renderDireccionEmail\(\)/);
+  assert.match(styles, /\.direccion-email-draft/);
 });
 
 test("completed tasks leave Seguimiento and render in the matching Historial column", () => {

@@ -860,6 +860,7 @@ let classGradesImporting = false;
 let classGradesUploadSummary = null;
 let classStudentSearch = "";
 let expandedClassTeacherRows = new Set();
+let direccionEmailArea = "clases";
 let gymAttendanceRecords = [];
 let gymAsistencias = [];
 let gymManualAttendanceRows = [];
@@ -11539,6 +11540,136 @@ function renderDireccionHistory() {
   `;
 }
 
+function direccionEmailInsight(title, detail) {
+  return { title: String(title || "Indicador"), detail: String(detail || "Sin detalle disponible") };
+}
+
+function direccionEmailPlanningInsights(areaId) {
+  const activities = planningActivitiesForArea(planningCalendarRows, areaId);
+  const critical = [
+    ...activities.filter((activity) => !activity.date).map((activity) => direccionEmailInsight("Actividad sin fecha", activity.activity || "Actividad pendiente de programación")),
+    ...activities.filter((activity) => !activity.responsible).map((activity) => direccionEmailInsight("Actividad sin responsable", activity.activity || "Actividad pendiente de asignación"))
+  ];
+  const favorable = activities
+    .filter((activity) => activity.date)
+    .sort((first, second) => String(first.date).localeCompare(String(second.date)))
+    .map((activity) => direccionEmailInsight("Actividad programada", `${activity.activity || "Actividad"} · ${activity.date}`));
+  return { critical, favorable };
+}
+
+function direccionEmailInsights(areaId) {
+  if (areaId === "clases") {
+    return {
+      critical: classOperationalAlerts().map((alert) => direccionEmailInsight(`${alert.type}: ${alert.title}`, `${alert.detail}. ${alert.action}.`)),
+      favorable: classDisciplineRows()
+        .filter((row) => row.captured)
+        .sort((first, second) => second.approvedRate - first.approvedRate || first.issueRate - second.issueRate)
+        .map((row) => direccionEmailInsight(`Desempeño destacado: ${row.discipline}`, `${row.approvedRate}% de acreditación y ${row.issueRate}% de incidencia.`))
+    };
+  }
+  if (areaId === "gimnasio") {
+    const rows = gymDailyRows().filter((row) => row.value > 0);
+    return {
+      critical: rows.slice().sort((first, second) => first.value - second.value)
+        .map((row) => direccionEmailInsight("Afluencia por reforzar", `${row.label}: promedio de ${row.value.toFixed(1)} asistencias.`)),
+      favorable: rows.slice().sort((first, second) => second.value - first.value)
+        .map((row) => direccionEmailInsight("Mayor afluencia", `${row.label}: promedio de ${row.value.toFixed(1)} asistencias.`))
+    };
+  }
+  if (areaId === "intramuros") {
+    const rows = intramurosRoleTournamentProgressRows();
+    return {
+      critical: rows.slice().sort((first, second) => second.pending - first.pending || first.progress - second.progress)
+        .map((row) => direccionEmailInsight("Resultados pendientes", `${row.torneo}: ${row.pending} juegos pendientes de ${row.games} programados (${row.progress}% registrado).`)),
+      favorable: rows.slice().sort((first, second) => second.progress - first.progress || second.withResult - first.withResult)
+        .map((row) => direccionEmailInsight("Avance de torneo", `${row.torneo}: ${row.progress}% de resultados registrados (${row.withResult}/${row.games}).`))
+    };
+  }
+  if (areaId === "vivencia") {
+    const events = vivenciaVisibleEvents();
+    const metrics = new Map(vivenciaVisibleMetrics().map((row) => [row.event_id, row]));
+    return {
+      critical: vivenciaOperationalAlerts(events, metrics)
+        .map((alert) => direccionEmailInsight(alert.label, `${alert.event.event_name || "Evento sin nombre"} · ${alert.event.event_date || "Sin fecha"}.`)),
+      favorable: events.map((event) => ({ event, participants: vivenciaEventParticipantsCount(event, metrics) }))
+        .filter((row) => row.participants > 0)
+        .sort((first, second) => second.participants - first.participants)
+        .map((row) => direccionEmailInsight("Mayor participación", `${row.event.event_name || "Evento"}: ${row.participants.toLocaleString("es-MX")} participaciones.`))
+    };
+  }
+  if (areaId === "semana-tec") {
+    const rows = semanaTecRowsForActivePeriod();
+    const missing = [
+      ["profesor", "Grupo sin profesor asignado"],
+      ["numero_grupo", "Registro sin número de grupo"],
+      ["programa", "Registro sin programa identificado"],
+      ["semestre", "Registro sin semestre identificado"]
+    ].map(([field, label]) => ({ field, label, count: rows.filter((row) => !String(row[field] || "").trim()).length }))
+      .filter((row) => row.count);
+    return {
+      critical: missing.map((row) => direccionEmailInsight(row.label, `${row.count.toLocaleString("es-MX")} registros requieren revisión.`)),
+      favorable: semanaTecCountRows(rows.filter((row) => row.profesor), "profesor")
+        .map((row) => direccionEmailInsight("Cobertura de grupos", `${row.label}: ${row.value.toLocaleString("es-MX")} registros asignados.`))
+    };
+  }
+  if (areaId === "comunicacion") {
+    const activities = communicationDashboardActivities();
+    return {
+      critical: [
+        ...activities.filter((activity) => !activity.event_date).map((activity) => direccionEmailInsight("Actividad sin fecha", activity.event_name || "Actividad de Comunicación")),
+        ...activities.filter((activity) => !activity.responsible_name).map((activity) => direccionEmailInsight("Actividad sin responsable", activity.event_name || "Actividad de Comunicación"))
+      ],
+      favorable: activities.map((activity) => ({ activity, participants: Number(activity.reported_total_participants || 0) }))
+        .filter((row) => row.participants > 0)
+        .sort((first, second) => second.participants - first.participants)
+        .map((row) => direccionEmailInsight("Alcance registrado", `${row.activity.event_name || "Actividad"}: ${row.participants.toLocaleString("es-MX")} participaciones.`))
+    };
+  }
+  return direccionEmailPlanningInsights(areaId);
+}
+
+function direccionEmailDraft(areaId = direccionEmailArea) {
+  const column = direccionColumnDefinitions().find((item) => item.id === areaId) || direccionColumnDefinitions()[0];
+  const insights = direccionEmailInsights(column.id);
+  const critical = insights.critical.slice(0, 4);
+  const favorable = insights.favorable.slice(0, 3);
+  const dateLabel = new Date().toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" });
+  const formatItems = (items, emptyMessage) => items.length
+    ? items.map((item, index) => `${index + 1}. ${item.title}. ${item.detail}`).join("\n")
+    : `Sin indicadores suficientes en WellSync para priorizar este apartado. ${emptyMessage}`;
+  return {
+    column,
+    critical,
+    favorable,
+    subject: `Retroalimentación WellSync | ${column.name} | ${dateLabel}`,
+    body: `Hola ${column.coordinator},\n\nComparto la retroalimentación de ${column.name} con base en los indicadores disponibles en WellSync al ${dateLabel}.\n\nPRIORIDADES DE SEGUIMIENTO\n${formatItems(critical, "Conviene completar la carga o validación de datos del área.")}\n\nFORTALEZAS Y AVANCES\n${formatItems(favorable, "Al contar con datos validados se mostrarán aquí los avances destacados.")}\n\nAgradezco revisar las prioridades y definir las acciones de seguimiento correspondientes.\n\nSaludos,\nDirección Deportiva`
+  };
+}
+
+function renderDireccionEmail() {
+  if (!direccionAccessGranted) return renderDireccionDashboard();
+  const draft = direccionEmailDraft();
+  return `
+    <section class="direccion-email" aria-label="Correo de retroalimentación">
+      <header class="direccion-dashboard-header">
+        <div><p class="eyebrow">Dirección</p><h2>Correo de retroalimentación</h2><span>Genera un borrador con prioridades y fortalezas desde los datos disponibles de WellSync.</span></div>
+      </header>
+      <div class="direccion-email-controls">
+        <label>Área<select id="direccionEmailArea">${direccionColumnDefinitions().map((column) => `<option value="${escapeHtml(column.id)}" ${column.id === direccionEmailArea ? "selected" : ""}>${escapeHtml(column.name)}</option>`).join("")}</select></label>
+        <button class="primary-btn" type="button" id="copyDireccionEmail"><i data-lucide="copy" aria-hidden="true"></i>Copiar correo</button>
+      </div>
+      <div class="direccion-email-summary">
+        <article class="direccion-email-priority"><span>Prioridades</span><strong>${draft.critical.length || 0} de 4</strong><em>indicadores críticos disponibles</em></article>
+        <article class="direccion-email-strength"><span>Fortalezas</span><strong>${draft.favorable.length || 0} de 3</strong><em>indicadores favorables disponibles</em></article>
+      </div>
+      <section class="direccion-email-draft">
+        <label>Asunto<input id="direccionEmailSubject" value="${escapeHtml(draft.subject)}" readonly /></label>
+        <label>Mensaje<textarea id="direccionEmailBody" readonly rows="19">${escapeHtml(draft.body)}</textarea></label>
+      </section>
+    </section>
+  `;
+}
+
 function representativosHasValue(value) {
   const normalized = normalizeText(value);
   return Boolean(normalized && !["n a", "na", "sin dato", "sin programa", "sin semestre", "no encontrado", "no especificado"].includes(normalized));
@@ -21811,6 +21942,7 @@ function render() {
   const collaboratorInfographicTab = $("#collaboratorInfographicViewButton");
   const dashboardTab = $(`.segmented button[data-view="dashboard"]`);
   const schedulesTab = $(`.segmented button[data-view="schedules"]`);
+  const direccionEmailTab = $("#direccionEmailViewButton");
   const systemTab = $(`.segmented button[data-view="blueprint"]`);
   const reportsTab = $(`.segmented button[data-view="reports"]`);
   const isGym = activeArea === "gimnasio";
@@ -21842,6 +21974,7 @@ function render() {
   if (communicationDiffusionTab) communicationDiffusionTab.hidden = !isCommunication;
   if (budgetAllocationTab) budgetAllocationTab.hidden = !isBudget;
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
+  if (direccionEmailTab) direccionEmailTab.hidden = !isDireccion;
   if (dashboardTab) dashboardTab.textContent = isSemanaTec ? "Programación" : "Dashboard";
   if (schedulesTab) {
     schedulesTab.hidden = isGym || isBudget || isCollaborators || isSemanaTec || isCommunication || isRepresentativos || isMentors || isGamer;
@@ -21869,6 +22002,7 @@ function render() {
   if (isRepresentativos && !["dashboard", "representativos-upload"].includes(activeView)) activeView = "dashboard";
   if (!isRepresentativos && activeView === "representativos-upload") activeView = "dashboard";
   if (isGym && !["dashboard", "gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
+  if (isDireccion && !["dashboard", "schedules", "direccion-email"].includes(activeView)) activeView = "dashboard";
   if (!isGym && ["gym-attendance", "gym-registrations"].includes(activeView)) activeView = "dashboard";
   if (!isVivencia && !isCommunication && activeView === "vivencia-events") activeView = "dashboard";
   if (activeView === "communication-diffusion" && !isCommunication) activeView = "dashboard";
@@ -21895,6 +22029,7 @@ function render() {
     else if (activeView === "budget-allocation") contentHtml = renderBudgetAllocationView();
     else if (activeView === "budget-request") contentHtml = renderBudgetRequestView();
     else if (activeView === "schedules") contentHtml = isDireccion ? renderDireccionHistory() : isGeneral ? renderExecutiveCalendarView() : isIntramuros ? renderIntramurosParticipantUploadView() : renderSchedules(area);
+    else if (activeView === "direccion-email") contentHtml = isDireccion ? renderDireccionEmail() : renderDashboard(area);
     else if (activeView === "booking") contentHtml = renderClassBookingDashboard();
     else if (activeView === "simulator") contentHtml = renderScheduleSimulatorView();
     else if (activeView === "reports") contentHtml = isIntramuros ? renderIntramurosOmarWorkspace() : renderReports(area);
@@ -21934,6 +22069,20 @@ function render() {
   $$("[data-direccion-task-complete]").forEach((input) => input.addEventListener("change", async (event) => {
     await setDireccionChecklistItemCompleted(input.dataset.direccionTaskComplete, input.checked);
   }));
+  $("#direccionEmailArea")?.addEventListener("change", (event) => {
+    direccionEmailArea = event.target.value;
+    render();
+  });
+  $("#copyDireccionEmail")?.addEventListener("click", async () => {
+    const subject = String($("#direccionEmailSubject")?.value || "");
+    const body = String($("#direccionEmailBody")?.value || "");
+    try {
+      await navigator.clipboard.writeText(`Asunto: ${subject}\n\n${body}`);
+      toast("Correo copiado al portapapeles");
+    } catch {
+      toast("No se pudo copiar el correo; selecciónalo desde el borrador");
+    }
+  });
   $("[data-retry-area]")?.addEventListener("click", (event) => {
     ensureAreaData(event.currentTarget.dataset.retryArea).catch(() => {});
   });
