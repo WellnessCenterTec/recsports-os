@@ -17562,6 +17562,15 @@ function classDashboardBlockOptions() {
 }
 
 function classDefaultDashboardBlock() {
+  const gradedBlocks = new Set(effectiveClassGradeRows()
+    .filter((row) => {
+      const grade = normalizeClassGrade(row.grade);
+      return grade !== "" && grade !== null;
+    })
+    .map((row) => classGradeBlockLabel(row))
+    .filter(Boolean));
+  const latestGradedBlock = ["PMT3", "PMT2", "PMT1"].find((block) => gradedBlocks.has(block));
+  if (latestGradedBlock) return latestGradedBlock;
   const options = classDashboardBlockOptions();
   return options.find((block) => /^PMT\s*3/.test(block)) || options[0] || "";
 }
