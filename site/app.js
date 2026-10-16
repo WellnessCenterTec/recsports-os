@@ -11955,7 +11955,23 @@ function executiveAttentionSummary() {
   const clases = Number(classes.banner || 0);
   const vivencia = vivenciaVisibleMetrics().reduce((sum, row) => sum + vivenciaMetricParticipants(row), 0);
   const semanaTec = semanaTecRows.length;
-  return { gym, intramuros, booking, clases, vivencia, semanaTec, total: gym + intramuros + booking + clases + vivencia + semanaTec };
+  const comunicacion = communicationEvents
+    .filter(isVisibleVivenciaEvent)
+    .reduce((sum, event) => sum + Math.max(0, Number(event.reported_total_participants || 0)), 0);
+  const gamerRows = participationAcademicRows(participationUploadState.gamer.imported?.rows || [])
+    .filter((row) => row.matricula && !row.duplicate);
+  const gamer = new Set(gamerRows.map((row) => normalizeMatricula(row.matricula)).filter(Boolean)).size;
+  return {
+    gym,
+    intramuros,
+    booking,
+    clases,
+    vivencia,
+    semanaTec,
+    comunicacion,
+    gamer,
+    total: gym + intramuros + booking + clases + vivencia + semanaTec + comunicacion + gamer
+  };
 }
 
 function executiveGenderAttendanceSummary() {
@@ -12786,6 +12802,8 @@ function renderExecutiveGeneralDashboard() {
               <li><span>Clases</span><strong>${attentions.clases.toLocaleString("es-MX")}</strong><em>inscritos</em></li>
               <li><span>Vivencia</span><strong>${attentions.vivencia.toLocaleString("es-MX")}</strong><em>participaciones · ${vivenciaEventsCount.toLocaleString("es-MX")} eventos</em></li>
               <li><span>Semana TEC</span><strong>${attentions.semanaTec.toLocaleString("es-MX")}</strong><em>intervenciones</em></li>
+              <li><span>Comunicación</span><strong>${attentions.comunicacion.toLocaleString("es-MX")}</strong><em>participaciones</em></li>
+              <li><span>Gamer</span><strong>${attentions.gamer.toLocaleString("es-MX")}</strong><em>participantes</em></li>
             </ul>
           </div>
           <div class="exec-report-attended">

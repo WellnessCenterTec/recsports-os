@@ -18,6 +18,8 @@ test("weekly report uses the approved ten-week full-width dashboard", () => {
     "Reporte Wellness",
     "ALUMNOS ATENDIDOS",
     "<span>Semana TEC</span><strong>",
+    "<span>Comunicación</span><strong>",
+    "<span>Gamer</span><strong>",
     "Promedio de asistencias en Wellness",
     "Distribución por género",
     "executiveGenderAttendanceSummary",
@@ -35,6 +37,9 @@ test("weekly report uses the approved ten-week full-width dashboard", () => {
   assert.ok(!source.includes("Alumnos únicos en Gimnasio"), "Legacy gym-only unique KPI must stay removed");
   assert.ok(!source.includes("Datos reales consultados directamente en los módulos de WellSync"), "Removed report legend must stay absent");
   assert.ok(!source.includes("Fuente: módulos vigentes de WellSync"), "The report source legend must stay absent");
+  assert.ok(source.includes("const comunicacion = communicationEvents"), "Comunicación debe usar sus participaciones registradas");
+  assert.ok(source.includes("participationUploadState.gamer.imported?.rows"), "Gamer debe usar solamente su última carga confirmada");
+  assert.ok(source.includes("+ semanaTec + comunicacion + gamer"), "Los dos bloques deben sumarse a Alumnos atendidos");
   assert.match(source, /<li><span>Vivencia<\/span><strong>\$\{attentions\.vivencia\.toLocaleString\("es-MX"\)\}<\/strong><em>participaciones · \$\{vivenciaEventsCount\.toLocaleString\("es-MX"\)\} eventos<\/em><\/li>/, "Vivencia debe destacar participaciones y dejar eventos como dato secundario");
   assert.match(index, /legacyDetail[\s\S]*?participaciones · \$\{eventCount\} eventos/, "El shell fresco debe corregir también una copia antigua del bundle");
 });
