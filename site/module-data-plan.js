@@ -6,12 +6,14 @@
   "use strict";
 
   const AREA_DEPENDENCIES = Object.freeze({
+    direccion: ["collaborators"],
     gimnasio: ["student-master", "gym"],
     clases: ["class-grades"],
     intramuros: ["student-master", "intramuros", "representativos", "planning"],
     vivencia: ["student-master", "vivencia", "planning"],
     "semana-tec": ["student-master", "semana-tec", "semana-tec-program"],
     comunicacion: ["student-master", "communication", "communication-images", "planning"],
+    gamer: ["student-master", "gamer"],
     representativos: ["student-master", "representativos"],
     mentores: [
       "mentorship", "captures", "class-grades", "gym", "booking", "vivencia", "semana-tec",

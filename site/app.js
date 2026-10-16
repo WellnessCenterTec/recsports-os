@@ -10,6 +10,16 @@
     reports: ["Resumen ejecutivo PDF", "Base agregada Excel", "Cruce de participación por área"]
   },
   {
+    id: "direccion",
+    name: "Dirección",
+    tone: "blue",
+    source: "Seguimiento de áreas operativas",
+    capture: [],
+    indicators: ["Clases Deportivas", "Gimnasio", "Intramuros", "Vivencia", "Semana Tec", "Comunicación", "Diseño"],
+    charts: [],
+    reports: []
+  },
+  {
     id: "mentores",
     name: "Mentores",
     tone: "blue",
@@ -78,6 +88,16 @@
     indicators: ["Alcance", "Conversión a registro", "Servicios promovidos", "Participación atribuida"],
     charts: ["Conversión por canal", "Impacto por área", "Tendencia de campañas"],
     reports: ["Reporte de campañas", "Conversión por área", "Resumen para dirección"]
+  },
+  {
+    id: "gamer",
+    name: "Gamer",
+    tone: "blue",
+    source: "Excel de participantes Gamer",
+    capture: ["Matrícula"],
+    indicators: ["Participantes cargados", "Matrículas encontradas", "Género", "Carrera", "Nivel"],
+    charts: ["Participación por género", "Top de carreras", "Distribución por nivel"],
+    reports: ["Carga vigente de participantes Gamer"]
   },
   {
     id: "representativos",
@@ -624,6 +644,12 @@ const PHYSICAL_HALL_TESTS = [
 
 let activeArea = "general";
 let activeView = "dashboard";
+const DIRECCION_ACCESS_CODE_HASH = "33dc0ba86008f4434bd43d050df9022209367483c1eef5280b25da861c32f6ad";
+let direccionAccessGranted = false;
+const DIRECCION_CHECKLIST_STORAGE_KEY = "wellsync_direccion_checklist_v1";
+let direccionChecklistItems = loadDireccionChecklistLocal();
+let direccionChecklistCloudAvailable = true;
+let direccionChecklistLoaded = false;
 let globalFilterState = { level: "todos", career: "todos", gender: "todos", search: "" };
 const ACTIVE_AREA_STORAGE_KEY = "wellsync_active_area_v1";
 const MENTORSHIP_STORAGE_KEY = "wellsync_mentorship_assignments_v1";
@@ -939,6 +965,9 @@ let classGradeFilter = {
   status: "todos"
 };
 let classDashboardBlock = "auto";
+let classLivePeriod = "todos";
+let classLiveDay = "actual";
+let classLiveHour = "actual";
 let physicalEvaluationFilter = {
   period: "todos",
   stage: "todos",
@@ -1704,6 +1733,7 @@ function saveSession(user) {
 
 function clearSession() {
   currentUser = null;
+  direccionAccessGranted = false;
   localStorage.removeItem(SESSION_KEY);
 }
 
@@ -6015,6 +6045,13 @@ async function syncPendingLocalUploadBackups() {
 }
 
 async function loadSupabaseDataBundle() {
+  if (activeArea === "general") {
+    // The executive overview reads nearly every operational source. Let the
+    // cached view paint first and give a module selected right after login
+    // priority over that broad background refresh.
+    await new Promise((resolve) => window.setTimeout(resolve, 4000));
+    if (activeArea !== "general") return;
+  }
   return ensureAreaData(activeArea);
 }
 
@@ -6101,6 +6138,9 @@ function currentWorkspaceState() {
       gymFacility: gymDashboardFacility,
       gymHeatmap: gymHeatmapMode,
       classGrades: copyFilterState(classGradeFilter),
+      classLivePeriod,
+      classLiveDay,
+      classLiveHour,
       collaborators: copyFilterState(collaboratorFilter),
       physicalEvaluations: copyFilterState(physicalEvaluationFilter),
       budget: copyFilterState(budgetFilters),
@@ -6134,6 +6174,9 @@ function restoreCachedWorkspace(fallbackArea = "general") {
     Object.assign(simulatorFilters, copyFilterState(filters.simulator));
     Object.assign(gymWeekSelection, copyFilterState(filters.gymWeeks));
     Object.assign(classGradeFilter, copyFilterState(filters.classGrades));
+    if (typeof filters.classLivePeriod === "string") classLivePeriod = filters.classLivePeriod;
+    if (typeof filters.classLiveDay === "string") classLiveDay = filters.classLiveDay;
+    if (typeof filters.classLiveHour === "string") classLiveHour = filters.classLiveHour;
     Object.assign(collaboratorFilter, copyFilterState(filters.collaborators));
     Object.assign(physicalEvaluationFilter, copyFilterState(filters.physicalEvaluations));
     Object.assign(budgetFilters, copyFilterState(filters.budget));
@@ -6628,10 +6671,10 @@ function collaboratorMatchKey(value) {
 
 function collaboratorPhotoIndex() {
   const byNomina = new Map();
+  const byName = new Map();
   collaboratorRows().forEach((row) => {
     const nomina = String(row.Nomina || row.nomina || "").trim();
     const nominaKey = collaboratorMatchKey(nomina);
-    if (!nominaKey) return;
     const profile = {
       nomina,
       name: String(row.Colaboradores || row.full_name || row.nombre_completo || row.Nomina || "").trim(),
@@ -6639,9 +6682,11 @@ function collaboratorPhotoIndex() {
       photoUrl: row.__photoUrl || "",
       initials: collaboratorInitials(row.Colaboradores || row.full_name || row.nombre_completo || row.Nomina || "")
     };
-    if (!byNomina.has(nominaKey)) byNomina.set(nominaKey, profile);
+    if (nominaKey && !byNomina.has(nominaKey)) byNomina.set(nominaKey, profile);
+    const nameKey = collaboratorMatchKey(profile.name);
+    if (nameKey && !byName.has(nameKey)) byName.set(nameKey, profile);
   });
-  return { byNomina };
+  return { byNomina, byName };
 }
 
 function physicalHallCollaboratorProfile(row, index = collaboratorPhotoIndex()) {
@@ -7481,6 +7526,8 @@ function renderNav() {
     vivencia: "calendar-days",
     "semana-tec": "calendar-range",
     comunicacion: "megaphone",
+    gamer: "gamepad-2",
+    direccion: "briefcase-business",
     representativos: "medal",
     colaboradores: "users",
     compras: "wallet-cards",
@@ -7502,12 +7549,202 @@ function renderNav() {
   window.lucide?.createIcons();
   $$(".nav-item").forEach((button) => button.addEventListener("click", async () => {
     const targetArea = button.dataset.area;
+    if (targetArea === "direccion" && !direccionAccessGranted) {
+      openDireccionAccessGate();
+      return;
+    }
+    if (targetArea !== "direccion") direccionAccessGranted = false;
     activeArea = targetArea;
     activeView = "dashboard";
     rememberActiveArea(targetArea);
     render();
     if (targetArea !== "participation-verification") ensureAreaData(targetArea).catch(() => {});
   }));
+}
+
+async function direccionAccessCodeMatches(value) {
+  if (!/^\d{4}$/.test(value) || !window.crypto?.subtle) return false;
+  const payload = new TextEncoder().encode(value);
+  const digest = await window.crypto.subtle.digest("SHA-256", payload);
+  const hash = Array.from(new Uint8Array(digest)).map((part) => part.toString(16).padStart(2, "0")).join("");
+  return hash === DIRECCION_ACCESS_CODE_HASH;
+}
+
+function normalizeDireccionChecklistItem(row) {
+  const content = String(row?.content || "").trim();
+  const areaKey = String(row?.area_key || row?.areaKey || "").trim();
+  if (!content || !areaKey) return null;
+  return {
+    id: String(row.id || crypto.randomUUID()),
+    areaKey,
+    content,
+    completed: Boolean(row.completed),
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+    updatedAt: row.updated_at || row.updatedAt || row.created_at || row.createdAt || new Date().toISOString(),
+    completedAt: row.completed_at || row.completedAt || "",
+    source: row.source || "local"
+  };
+}
+
+function loadDireccionChecklistLocal() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DIRECCION_CHECKLIST_STORAGE_KEY) || "[]");
+    return Array.isArray(saved) ? saved.map(normalizeDireccionChecklistItem).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDireccionChecklistLocal() {
+  try {
+    localStorage.setItem(DIRECCION_CHECKLIST_STORAGE_KEY, JSON.stringify(direccionChecklistItems));
+  } catch (error) {
+    console.warn("No se pudo guardar la lista de Dirección en este navegador", error);
+  }
+}
+
+function direccionChecklistTimestamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Registro sin fecha";
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Monterrey"
+  }).format(date).replace(".", "");
+}
+
+function direccionChecklistPayload(item) {
+  return {
+    id: item.id,
+    area_key: item.areaKey,
+    content: item.content,
+    completed: item.completed,
+    completed_at: item.completedAt || null,
+    created_by: currentUser?.id || null
+  };
+}
+
+async function loadDireccionChecklistCloud() {
+  direccionChecklistLoaded = true;
+  if (!supabaseClient || currentUser?.auth !== "supabase") return;
+  const { data, error } = await supabaseClient
+    .from("direccion_checklist_items")
+    .select("id, area_key, content, completed, completed_at, created_at, updated_at")
+    .order("created_at", { ascending: false });
+  if (error) {
+    direccionChecklistCloudAvailable = false;
+    console.warn("La lista compartida de Dirección aún no está disponible", error);
+    return;
+  }
+  direccionChecklistItems = (data || []).map((row) => normalizeDireccionChecklistItem({ ...row, source: "cloud" })).filter(Boolean);
+  direccionChecklistCloudAvailable = true;
+  saveDireccionChecklistLocal();
+}
+
+async function saveDireccionChecklistItem(item) {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return false;
+  const { data, error } = await supabaseClient
+    .from("direccion_checklist_items")
+    .upsert(direccionChecklistPayload(item))
+    .select("id, area_key, content, completed, completed_at, created_at, updated_at")
+    .single();
+  if (error) {
+    direccionChecklistCloudAvailable = false;
+    console.warn("No se pudo sincronizar una tarea de Dirección", error);
+    return false;
+  }
+  const saved = normalizeDireccionChecklistItem({ ...data, source: "cloud" });
+  const index = direccionChecklistItems.findIndex((current) => current.id === item.id);
+  if (saved && index >= 0) direccionChecklistItems[index] = saved;
+  direccionChecklistCloudAvailable = true;
+  saveDireccionChecklistLocal();
+  return true;
+}
+
+async function addDireccionChecklistItem(areaKey, rawContent) {
+  const content = String(rawContent || "").trim();
+  if (!content) return;
+  const now = new Date().toISOString();
+  const item = normalizeDireccionChecklistItem({
+    id: crypto.randomUUID(),
+    areaKey,
+    content,
+    completed: false,
+    createdAt: now,
+    updatedAt: now,
+    source: "local"
+  });
+  if (!item) return;
+  direccionChecklistItems = [item, ...direccionChecklistItems];
+  saveDireccionChecklistLocal();
+  render();
+  const shared = await saveDireccionChecklistItem(item);
+  if (!shared && currentUser?.auth === "supabase") toast("Tarea guardada en este navegador; la lista compartida se sincronizará al activar Dirección.");
+}
+
+async function setDireccionChecklistItemCompleted(id, completed) {
+  const index = direccionChecklistItems.findIndex((item) => item.id === id);
+  if (index < 0) return;
+  const now = new Date().toISOString();
+  const item = {
+    ...direccionChecklistItems[index],
+    completed: Boolean(completed),
+    completedAt: completed ? now : "",
+    updatedAt: now
+  };
+  direccionChecklistItems[index] = item;
+  saveDireccionChecklistLocal();
+  render();
+  const shared = await saveDireccionChecklistItem(item);
+  if (!shared && currentUser?.auth === "supabase") toast("El cambio quedó guardado en este navegador.");
+}
+
+function openDireccionAccessGate() {
+  if ($("#direccionAccessGate")) {
+    $("#direccionAccessCode")?.focus();
+    return;
+  }
+  document.body.insertAdjacentHTML("beforeend", `
+    <div class="direccion-access-gate" id="direccionAccessGate" role="dialog" aria-modal="true" aria-labelledby="direccionAccessTitle">
+      <form class="direccion-access-card" id="direccionAccessForm">
+        <p class="eyebrow">Acceso restringido</p>
+        <h2 id="direccionAccessTitle">Dirección</h2>
+        <p>Ingresa tu contraseña de cuatro dígitos para ver este módulo.</p>
+        <input id="direccionAccessCode" type="password" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="one-time-code" aria-label="Contraseña de cuatro dígitos" />
+        <p class="direccion-access-error" id="direccionAccessError" role="alert"></p>
+        <div class="direccion-access-actions"><button class="ghost-btn" type="button" id="cancelDireccionAccess">Cancelar</button><button class="primary-btn" type="submit">Entrar</button></div>
+      </form>
+    </div>
+  `);
+  const input = $("#direccionAccessCode");
+  input?.focus();
+  input?.addEventListener("input", () => { input.value = input.value.replace(/\D/g, "").slice(0, 4); });
+  $("#cancelDireccionAccess")?.addEventListener("click", () => $("#direccionAccessGate")?.remove());
+  $("#direccionAccessForm")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const error = $("#direccionAccessError");
+    const submit = event.currentTarget.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    const valid = await direccionAccessCodeMatches(input?.value || "");
+    if (!valid) {
+      if (error) error.textContent = "La contraseña no es correcta.";
+      if (input) { input.value = ""; input.focus(); }
+      if (submit) submit.disabled = false;
+      return;
+    }
+    direccionAccessGranted = true;
+    $("#direccionAccessGate")?.remove();
+    activeArea = "direccion";
+    activeView = "dashboard";
+    rememberActiveArea(activeArea);
+    render();
+    ensureAreaData("direccion").catch(() => {});
+    await loadDireccionChecklistCloud();
+    render();
+  });
 }
 
 function renderLogin() {
@@ -9533,7 +9770,7 @@ async function loadParticipationUploadFile(areaId, file) {
     participationUploadState[areaId].draft = validateParticipationUpload(areaId, rows, file.name);
     render();
     const draft = participationUploadState[areaId].draft;
-    const canSaveImmediately = areaId === "representativos"
+    const canSaveImmediately = ["gamer", "representativos"].includes(areaId)
       && currentUser?.auth === "supabase"
       && canEditArea(areaId)
       && draft.rows.length
@@ -11126,6 +11363,178 @@ function renderParticipationUploadDashboard(areaId) {
           </div>
         </section>
       ` : ""}
+    </section>
+  `;
+}
+
+function renderGamerDashboard() {
+  if (participationUploadLoading.gamer) return `<div class="permission-strip">Recuperando la última carga de Gamer desde Supabase...</div>`;
+  const state = participationUploadState.gamer;
+  const result = state.draft || state.imported;
+  const rows = participationAcademicRows(result?.rows || []);
+  const validRows = rows.filter((row) => row.matricula && !row.duplicate);
+  const foundRows = validRows.filter((row) => row.found);
+  const notFoundRows = validRows.filter((row) => !row.found);
+  const uniqueStudents = new Set(validRows.map((row) => row.matricula)).size;
+  const importedAt = state.imported?.importedAt ? new Date(state.imported.importedAt) : null;
+  const sourceLabel = state.draft
+    ? `Revisando ${state.draft.fileName || state.fileName || "archivo"}`
+    : importedAt && !Number.isNaN(importedAt.getTime())
+      ? `Última carga: ${importedAt.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}`
+      : "Aún no se ha cargado un archivo.";
+  const validationMessages = result?.errors?.length
+    ? result.errors.map((message) => `<p class="red">${escapeHtml(message)}</p>`).join("")
+    : result?.warnings?.length
+      ? result.warnings.map((message) => `<p class="yellow">${escapeHtml(message)}</p>`).join("")
+      : "";
+
+  return `
+    <section class="upload-center gamer-dashboard">
+      <header class="gamer-dashboard-header">
+        <div>
+          <p class="eyebrow">Participación estudiantil</p>
+          <h2>Gamer</h2>
+          <p>Sube el Excel de participantes para actualizar el dashboard.</p>
+        </div>
+        <div class="gamer-upload-control">
+          <label class="primary-btn gamer-upload-button" for="gamerParticipantsFile">
+            <i data-lucide="file-up" aria-hidden="true"></i><span>Subir Excel</span>
+          </label>
+          <input id="gamerParticipantsFile" type="file" accept=".xlsx,.xls,.csv" data-participation-upload="gamer" hidden />
+          <small>${escapeHtml(state.fileName || state.imported?.fileName || "Archivo esperado: columna Matrícula")}</small>
+        </div>
+      </header>
+      <section class="gamer-dashboard-status ${result?.errors?.length ? "is-error" : ""}">
+        <span>${escapeHtml(sourceLabel)}</span>
+        <strong>${state.source === "cloud" && state.imported ? "Guardado" : result?.rows?.length ? "Información lista" : "Pendiente"}</strong>
+      </section>
+      ${validationMessages ? `<div class="upload-message-list">${validationMessages}</div>` : ""}
+      ${result?.rows?.length ? `
+        <div class="upload-kpi-grid gamer-kpi-grid">
+          <article><span>Participantes</span><strong>${uniqueStudents.toLocaleString("es-MX")}</strong><em>matrículas únicas</em></article>
+          <article><span>Encontradas</span><strong>${foundRows.length.toLocaleString("es-MX")}</strong><em>en base general</em></article>
+          <article><span>Por revisar</span><strong>${notFoundRows.length.toLocaleString("es-MX")}</strong><em>no encontradas</em></article>
+          <article><span>Duplicados</span><strong>${result.summary.duplicates.toLocaleString("es-MX")}</strong><em>en el archivo</em></article>
+        </div>
+        <div class="upload-chart-grid gamer-chart-grid">
+          ${renderUploadBars("Participación por género", uploadGroupCounts(rows, "genero", { foundOnly: true }), 4)}
+          ${renderUploadBars("Top de carreras", uploadGroupCounts(rows, "carrera", { foundOnly: true }))}
+          ${renderUploadBars("Distribución por nivel", uploadGroupCounts(rows, "nivel", { foundOnly: true }), 4)}
+        </div>
+      ` : `
+        <section class="gamer-empty-state">
+          <i data-lucide="gamepad-2" aria-hidden="true"></i>
+          <strong>Dashboard listo para recibir información.</strong>
+          <span>Selecciona un archivo Excel o CSV con la columna Matrícula.</span>
+        </section>
+      `}
+    </section>
+  `;
+}
+
+function direccionColumnDefinitions() {
+  return [
+    { id: "clases", name: "Clases Deportivas", coordinator: "Ivonne Casas", photoName: "Ramona Ivonne Casas Rey" },
+    { id: "gimnasio", name: "Gimnasio", coordinator: "Pamela Treviño", photoName: "Pamela Treviño Ibarra" },
+    { id: "intramuros", name: "Intramuros", coordinator: "Omar Ruiz", photoName: "Omar Alejandro Ruíz Garibay" },
+    { id: "vivencia", name: "Vivencia", coordinator: "Jessica García", photoName: "Jessica Guadalupe Garcia Romero" },
+    { id: "semana-tec", name: "Semana Tec", coordinator: "Jessica García", photoName: "Jessica Guadalupe Garcia Romero" },
+    { id: "comunicacion", name: "Comunicación", coordinator: "Cecilia González", photoName: "Cecilia Estefania Valdez Palacios" },
+    { id: "diseno", name: "Diseño", coordinator: "Wendy García", photoName: "Wendy Griselda Garcia Puente" }
+  ];
+}
+
+function renderDireccionDashboard() {
+  if (!direccionAccessGranted) return `
+    <section class="direccion-locked-state">
+      <i data-lucide="lock-keyhole" aria-hidden="true"></i>
+      <strong>Dirección requiere contraseña.</strong>
+      <button class="primary-btn" id="openDireccionAccess" type="button">Ingresar contraseña</button>
+    </section>
+  `;
+  const columns = direccionColumnDefinitions();
+  const photoIndex = collaboratorPhotoIndex();
+  return `
+    <section class="direccion-dashboard" aria-label="Tablero de Dirección">
+      <header class="direccion-dashboard-header">
+        <div><p class="eyebrow">Dirección</p><h2>Seguimiento por área</h2><span>Registra tareas y confirma su cumplimiento por responsable.</span></div>
+        <strong class="direccion-sync-state ${direccionChecklistCloudAvailable ? "is-ready" : ""}">${direccionChecklistCloudAvailable && currentUser?.auth === "supabase" ? "Lista compartida" : "Respaldo local"}</strong>
+      </header>
+      <div class="direccion-columns">
+        ${columns.map((column) => {
+          const profile = classLiveTeacherProfile(column.photoName, photoIndex);
+          const photo = profile?.photoUrl
+            ? `<img src="${escapeHtml(profile.photoUrl)}" alt="Foto de ${escapeHtml(column.coordinator)}" loading="lazy" />`
+            : `<span>${escapeHtml(collaboratorInitials(column.coordinator))}</span>`;
+          const tasks = direccionChecklistItems
+            .filter((item) => item.areaKey === column.id && !item.completed)
+            .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+          return `<section class="direccion-column" data-direccion-column="${escapeHtml(column.id)}">
+            <header>
+              <h3>${escapeHtml(column.name)}</h3>
+              <div class="direccion-responsible">
+                <span class="direccion-responsible-photo ${profile?.photoUrl ? "has-photo" : ""}">${photo}</span>
+                <p><span>Responsable</span>${escapeHtml(column.coordinator)}</p>
+              </div>
+            </header>
+            <div class="direccion-task-board">
+              <form class="direccion-task-form" data-direccion-task-form="${escapeHtml(column.id)}">
+                <label class="sr-only" for="direccionTask-${escapeHtml(column.id)}">Nueva tarea para ${escapeHtml(column.name)}</label>
+                <input id="direccionTask-${escapeHtml(column.id)}" name="content" maxlength="240" autocomplete="off" placeholder="Escribir una tarea" />
+                <button class="icon-btn" type="submit" title="Agregar tarea" aria-label="Agregar tarea"><i data-lucide="plus" aria-hidden="true"></i></button>
+              </form>
+              <div class="direccion-task-list">
+                ${tasks.length ? tasks.map((item) => `<article class="direccion-task ${item.completed ? "is-completed" : ""}">
+                  <label class="direccion-task-check"><input type="checkbox" data-direccion-task-complete="${escapeHtml(item.id)}" ${item.completed ? "checked" : ""} aria-label="Marcar como cumplida: ${escapeHtml(item.content)}" /><span></span></label>
+                  <div><strong>${escapeHtml(item.content)}</strong><time datetime="${escapeHtml(item.createdAt)}">Registrado ${escapeHtml(direccionChecklistTimestamp(item.createdAt))}</time></div>
+                </article>`).join("") : `<p class="direccion-task-empty">Sin tareas registradas.</p>`}
+              </div>
+            </div>
+          </section>`;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderDireccionHistory() {
+  if (!direccionAccessGranted) return renderDireccionDashboard();
+  const columns = direccionColumnDefinitions();
+  const photoIndex = collaboratorPhotoIndex();
+  return `
+    <section class="direccion-history" aria-label="Historial de Dirección">
+      <header class="direccion-dashboard-header">
+        <div><p class="eyebrow">Dirección</p><h2>Historial de tareas</h2><span>Actividades concluidas por responsable.</span></div>
+        <strong class="direccion-sync-state ${direccionChecklistCloudAvailable ? "is-ready" : ""}">${direccionChecklistCloudAvailable && currentUser?.auth === "supabase" ? "Lista compartida" : "Respaldo local"}</strong>
+      </header>
+      <div class="direccion-columns direccion-history-columns">
+        ${columns.map((column) => {
+          const profile = classLiveTeacherProfile(column.photoName, photoIndex);
+          const photo = profile?.photoUrl
+            ? `<img src="${escapeHtml(profile.photoUrl)}" alt="Foto de ${escapeHtml(column.coordinator)}" loading="lazy" />`
+            : `<span>${escapeHtml(collaboratorInitials(column.coordinator))}</span>`;
+          const tasks = direccionChecklistItems
+            .filter((item) => item.areaKey === column.id && item.completed)
+            .sort((a, b) => String(b.completedAt || b.createdAt).localeCompare(String(a.completedAt || a.createdAt)));
+          return `<section class="direccion-column" data-direccion-history-column="${escapeHtml(column.id)}">
+            <header>
+              <h3>${escapeHtml(column.name)}</h3>
+              <div class="direccion-responsible">
+                <span class="direccion-responsible-photo ${profile?.photoUrl ? "has-photo" : ""}">${photo}</span>
+                <p><span>Responsable</span>${escapeHtml(column.coordinator)}</p>
+              </div>
+            </header>
+            <div class="direccion-task-board direccion-history-task-board">
+              <div class="direccion-task-list">
+                ${tasks.length ? tasks.map((item) => `<article class="direccion-task is-completed">
+                  <span class="direccion-task-check is-static" aria-label="Tarea cumplida"><span></span></span>
+                  <div><strong>${escapeHtml(item.content)}</strong><time datetime="${escapeHtml(item.completedAt || item.createdAt)}">Completada ${escapeHtml(direccionChecklistTimestamp(item.completedAt || item.createdAt))}</time></div>
+                </article>`).join("") : `<p class="direccion-task-empty">Sin tareas completadas.</p>`}
+              </div>
+            </div>
+          </section>`;
+        }).join("")}
+      </div>
     </section>
   `;
 }
@@ -15454,7 +15863,8 @@ function renderDashboard(area) {
   if (area.id === "representativos") return renderRepresentativosDashboard();
   if (area.id === "intramuros") return renderIntramurosDashboard();
   if (area.id === "compras") return renderBudgetDashboard();
-  if (area.id === "gamer") return renderParticipationUploadDashboard(area.id);
+  if (area.id === "direccion") return renderDireccionDashboard();
+  if (area.id === "gamer") return renderGamerDashboard();
   const data = filteredStudents();
   const metrics = metricSet(data);
   const byArea = areas.filter(a => a.id !== "general").map(a => ({
@@ -16525,10 +16935,148 @@ function renderBudgetDashboard() {
 
 function renderClassesDashboard() {
   return `
+    ${renderClassLivePresenceTimeline()}
     ${renderClassDisciplineIndicators()}
     ${renderClassTeacherPerformance()}
     ${renderClassScheduleComparison()}
     ${renderClassAlertsPanel()}
+  `;
+}
+
+function classScheduleNow(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Monterrey",
+    weekday: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(date).reduce((values, part) => ({ ...values, [part.type]: part.value }), {});
+  const days = {
+    Monday: "Lunes",
+    Tuesday: "Martes",
+    Wednesday: "Miercoles",
+    Thursday: "Jueves",
+    Friday: "Viernes",
+    Saturday: "Sabado",
+    Sunday: "Domingo"
+  };
+  const hour = Number(parts.hour || 0);
+  const minute = Number(parts.minute || 0);
+  return {
+    day: days[parts.weekday] || "",
+    minutes: hour * 60 + minute,
+    label: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+  };
+}
+
+function classLiveScheduleRows(day = classScheduleNow().day) {
+  const seen = new Set();
+  return (scheduleState.official || [])
+    .filter((row) => row.day === day)
+    .filter((row) => Number.isFinite(timeToMinutes(row.start)) && Number.isFinite(timeToMinutes(row.end)))
+    .filter((row) => {
+      const key = [row.professor, row.discipline, row.start, row.end].map(normalizeText).join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+}
+
+function classLivePeriodOptions(rows = scheduleState.official || []) {
+  return [...new Set(rows.map((row) => row.block || normalizeClassScheduleBlock("", row.discipline)).filter(Boolean))]
+    .sort((a, b) => classPeriodSortValue(a) - classPeriodSortValue(b) || a.localeCompare(b, "es", { numeric: true }));
+}
+
+function classLiveDayOptions(rows = scheduleState.official || []) {
+  const available = new Set(rows.map((row) => row.day).filter(Boolean));
+  return scheduleDays.filter((day) => available.has(day));
+}
+
+function classLiveHourOptions(rows = scheduleState.official || []) {
+  return [...new Set(rows.map((row) => row.start).filter((value) => Number.isFinite(timeToMinutes(value))))]
+    .sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+}
+
+function classLiveTeacherProfile(name, index = collaboratorPhotoIndex()) {
+  const key = collaboratorMatchKey(name);
+  if (!key) return null;
+  const exactProfile = index.byName.get(key);
+  if (exactProfile) return exactProfile;
+
+  const nameParts = new Set(key.split(" ").filter((part) => part.length > 1));
+  let closest = null;
+  let closestScore = 0;
+  index.byName.forEach((profile, profileKey) => {
+    const profileParts = new Set(profileKey.split(" ").filter((part) => part.length > 1));
+    const sharedParts = [...nameParts].filter((part) => profileParts.has(part)).length;
+    const requiredParts = Math.min(3, Math.min(nameParts.size, profileParts.size));
+    const matchRatio = sharedParts / Math.max(nameParts.size, profileParts.size);
+    if (sharedParts >= requiredParts && matchRatio >= 0.6 && sharedParts > closestScore) {
+      closest = profile;
+      closestScore = sharedParts;
+    }
+  });
+  return closest;
+}
+
+function renderClassLivePresenceTimeline() {
+  const currentMoment = classScheduleNow();
+  const periodOptions = classLivePeriodOptions();
+  const dayOptions = classLiveDayOptions();
+  const hourOptions = classLiveHourOptions();
+  const selectedDay = classLiveDay === "actual" ? currentMoment.day : classLiveDay;
+  const selectedHour = classLiveHour === "actual" ? currentMoment.label : classLiveHour;
+  const selectedMinutes = classLiveHour === "actual" ? currentMoment.minutes : timeToMinutes(classLiveHour);
+  const rows = classLiveScheduleRows(selectedDay)
+    .filter((row) => classLivePeriod === "todos" || (row.block || normalizeClassScheduleBlock("", row.discipline)) === classLivePeriod);
+  const active = rows.filter((row) => timeToMinutes(row.start) <= selectedMinutes && timeToMinutes(row.end) > selectedMinutes);
+  const nextStart = Math.min(...rows.filter((row) => timeToMinutes(row.start) > selectedMinutes).map((row) => timeToMinutes(row.start)));
+  const upcoming = Number.isFinite(nextStart)
+    ? rows.filter((row) => timeToMinutes(row.start) === nextStart)
+    : [];
+  const teacherCount = new Set(active.map((row) => normalizeText(row.professor)).filter(Boolean)).size;
+  const teacherIndex = collaboratorPhotoIndex();
+  const dayLabel = selectedDay || "Sin programación";
+  const isCurrentMoment = classLiveDay === "actual" && classLiveHour === "actual";
+  return `
+    <section class="class-live-presence" aria-label="Presencia actual de profesores">
+      <div class="class-live-presence-heading">
+        <div>
+          <p class="eyebrow">Presencia en el Tec</p>
+          <h2>${isCurrentMoment ? "Ahora" : "Consulta"} · ${escapeHtml(dayLabel)} ${escapeHtml(selectedHour)}</h2>
+        </div>
+        <div class="class-live-actions">
+          <label class="class-live-period-picker"><span>Periodo</span><select id="classLivePeriod"><option value="todos" ${classLivePeriod === "todos" ? "selected" : ""}>Todos</option>${periodOptions.map((period) => `<option value="${escapeHtml(period)}" ${classLivePeriod === period ? "selected" : ""}>${escapeHtml(period)}</option>`).join("")}</select></label>
+          <label class="class-live-period-picker"><span>Día</span><select id="classLiveDay"><option value="actual" ${classLiveDay === "actual" ? "selected" : ""}>Hoy</option>${dayOptions.map((day) => `<option value="${escapeHtml(day)}" ${classLiveDay === day ? "selected" : ""}>${escapeHtml(day)}</option>`).join("")}</select></label>
+          <label class="class-live-period-picker"><span>Hora</span><select id="classLiveHour"><option value="actual" ${classLiveHour === "actual" ? "selected" : ""}>Ahora</option>${hourOptions.map((hour) => `<option value="${escapeHtml(hour)}" ${classLiveHour === hour ? "selected" : ""}>${escapeHtml(hour)}</option>`).join("")}</select></label>
+          <strong>${active.length ? `${teacherCount} profesor${teacherCount === 1 ? "" : "es"} en clase` : "Sin clases activas"}</strong>
+        </div>
+      </div>
+      <div class="class-live-track" aria-hidden="true"><i></i><span>${escapeHtml(selectedHour)}</span></div>
+      ${active.length ? `
+        <div class="class-live-list">
+          ${active.map((row) => {
+            const teacherName = row.professor || "Profesor por asignar";
+            const teacherProfile = classLiveTeacherProfile(teacherName, teacherIndex);
+            const teacherPhoto = teacherProfile?.photoUrl
+              ? `<img src="${escapeHtml(teacherProfile.photoUrl)}" alt="Foto de ${escapeHtml(teacherName)}" loading="lazy" />`
+              : `<span>${escapeHtml(collaboratorInitials(teacherName))}</span>`;
+            return `
+            <article class="class-live-item">
+              <span class="class-live-teacher-photo ${teacherProfile?.photoUrl ? "has-photo" : ""}">${teacherPhoto}</span>
+              <div>
+                <strong>${escapeHtml(teacherName)}</strong>
+                <span>${escapeHtml(row.discipline || "Clase deportiva")}</span>
+                <em>${escapeHtml(row.start)}-${escapeHtml(row.end)}</em>
+              </div>
+            </article>
+          `;
+          }).join("")}
+        </div>
+      ` : `<p class="class-live-empty">No hay profesores con clase programada en este momento.</p>`}
+      ${upcoming.length ? `<p class="class-live-next">Siguiente inicio ${escapeHtml(upcoming[0].start)}: ${upcoming.map((row) => escapeHtml(row.professor || "Profesor por asignar")).join(", ")}.</p>` : ""}
+    </section>
   `;
 }
 
@@ -21268,6 +21816,8 @@ function render() {
   const isCollaborators = activeArea === "colaboradores";
   const isPresentation = activeArea === "presentacion";
   const isClasses = activeArea === "clases";
+  const isGamer = activeArea === "gamer";
+  const isDireccion = activeArea === "direccion";
   $$(".segmented button").forEach((button) => { button.style.order = ""; });
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
   if (collaboratorInfographicTab) collaboratorInfographicTab.hidden = !isCollaborators;
@@ -21285,13 +21835,14 @@ function render() {
   if (budgetRequestTab) budgetRequestTab.hidden = !isBudget;
   if (dashboardTab) dashboardTab.textContent = isSemanaTec ? "Programación" : "Dashboard";
   if (schedulesTab) {
-    schedulesTab.hidden = isGym || isBudget || isCollaborators || isSemanaTec || isCommunication || isRepresentativos || isMentors;
-    schedulesTab.textContent = isGeneral ? "Calendario" : isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
+    schedulesTab.hidden = isGym || isBudget || isCollaborators || isSemanaTec || isCommunication || isRepresentativos || isMentors || isGamer;
+    schedulesTab.textContent = isDireccion ? "Historial" : isGeneral ? "Calendario" : isIntramuros ? "Cargar Registro de Participantes" : "Horarios";
     if (isGeneral) schedulesTab.style.order = "2";
   }
-  if (reportsTab) reportsTab.hidden = isClasses || isGym || isSemanaTec || isRepresentativos || isMentors;
+  if (dashboardTab && isDireccion) dashboardTab.textContent = "Seguimiento";
+  if (reportsTab) reportsTab.hidden = isClasses || isGym || isSemanaTec || isRepresentativos || isMentors || isGamer || isDireccion;
   if (systemTab) {
-    systemTab.hidden = isClasses || isGym || isSemanaTec || isRepresentativos || isMentors || (!isIntramuros && !isLeadership());
+    systemTab.hidden = isClasses || isGym || isSemanaTec || isRepresentativos || isMentors || isGamer || isDireccion || (!isIntramuros && !isLeadership());
     systemTab.textContent = isIntramuros ? "Cargar Roles de Juego" : "Sistema";
   }
   if (isCollaborators) {
@@ -21303,7 +21854,7 @@ function render() {
   const filtersBand = $(".filters-band");
   if (filtersBand) filtersBand.hidden = !isGeneral;
   const segmentedNav = $(".segmented");
-  if (segmentedNav) segmentedNav.hidden = isPresentation || isMentors;
+  if (segmentedNav) segmentedNav.hidden = isPresentation || isMentors || isGamer;
   if (isSemanaTec && !["dashboard", "semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
   if (!isSemanaTec && ["semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
   if (isRepresentativos && !["dashboard", "representativos-upload"].includes(activeView)) activeView = "dashboard";
@@ -21334,7 +21885,7 @@ function render() {
     else if (activeView === "communication-diffusion") contentHtml = renderCommunicationDiffusionView();
     else if (activeView === "budget-allocation") contentHtml = renderBudgetAllocationView();
     else if (activeView === "budget-request") contentHtml = renderBudgetRequestView();
-    else if (activeView === "schedules") contentHtml = isGeneral ? renderExecutiveCalendarView() : isIntramuros ? renderIntramurosParticipantUploadView() : renderSchedules(area);
+    else if (activeView === "schedules") contentHtml = isDireccion ? renderDireccionHistory() : isGeneral ? renderExecutiveCalendarView() : isIntramuros ? renderIntramurosParticipantUploadView() : renderSchedules(area);
     else if (activeView === "booking") contentHtml = renderClassBookingDashboard();
     else if (activeView === "simulator") contentHtml = renderScheduleSimulatorView();
     else if (activeView === "reports") contentHtml = isIntramuros ? renderIntramurosOmarWorkspace() : renderReports(area);
@@ -21360,6 +21911,20 @@ function render() {
     contentHtml = `<div class="permission-strip">No se pudo cargar esta vista: ${escapeHtml(error?.message || "error desconocido")}</div>`;
   }
   $("#contentArea").innerHTML = contentHtml;
+  $("#openDireccionAccess")?.addEventListener("click", openDireccionAccessGate);
+  $$("[data-direccion-task-form]").forEach((form) => form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const input = form.elements.content;
+    const content = String(input?.value || "").trim();
+    if (!content) {
+      input?.focus();
+      return;
+    }
+    await addDireccionChecklistItem(form.dataset.direccionTaskForm, content);
+  }));
+  $$("[data-direccion-task-complete]").forEach((input) => input.addEventListener("change", async (event) => {
+    await setDireccionChecklistItemCompleted(input.dataset.direccionTaskComplete, input.checked);
+  }));
   $("[data-retry-area]")?.addEventListener("click", (event) => {
     ensureAreaData(event.currentTarget.dataset.retryArea).catch(() => {});
   });
@@ -22264,6 +22829,21 @@ function render() {
     classDashboardBlock = event.target.value;
     render();
   });
+  $("#classLivePeriod")?.addEventListener("change", (event) => {
+    classLivePeriod = event.target.value;
+    persistWorkspaceState();
+    render();
+  });
+  $("#classLiveDay")?.addEventListener("change", (event) => {
+    classLiveDay = event.target.value;
+    persistWorkspaceState();
+    render();
+  });
+  $("#classLiveHour")?.addEventListener("change", (event) => {
+    classLiveHour = event.target.value;
+    persistWorkspaceState();
+    render();
+  });
   $$(".grade-input").forEach((control) => control.addEventListener("change", (event) => {
     updateClassGrade(event.target.dataset.gradeKey, event.target.value);
   }));
@@ -22943,6 +23523,9 @@ if (currentUser?.auth !== "supabase" && currentUser) createProgressiveDataPlan()
 render();
 if (currentUser?.auth !== "supabase" && currentUser) ensureAreaData(activeArea).catch(() => {});
 window.setInterval(refreshPresentationEphemeridesOnDateChange, 60000);
+window.setInterval(() => {
+  if (currentUser && activeArea === "clases" && activeView === "dashboard") render();
+}, 60000);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshPresentationEphemeridesOnDateChange();
 });

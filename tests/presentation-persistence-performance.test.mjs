@@ -89,7 +89,7 @@ test("schedule view omits the duplicated Calendario Maestro banner", async () =>
 test("Clases Deportivas hides Reportes and returns stale report links to its dashboard", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
 
-  assert.match(app, /if \(reportsTab\) reportsTab\.hidden = isClasses \|\| isGym \|\| isSemanaTec \|\| isRepresentativos \|\| isMentors;/);
+  assert.match(app, /if \(reportsTab\) reportsTab\.hidden = isClasses \|\| isGym \|\| isSemanaTec \|\| isRepresentativos \|\| isMentors \|\| isGamer \|\| isDireccion;/);
   assert.match(app, /if \(isClasses && activeView === "reports"\) activeView = "dashboard";/);
 });
 

@@ -251,3 +251,15 @@ test("authenticated startup renders the cached workspace before background refre
   assert.match(appSource, /Algunas fuentes no respondieron\. Se muestra la información disponible\./);
   assert.match(appSource, /currentAreaDataStatus !== "ready" && currentAreaDataStatus !== "error" && cachedView/);
 });
+
+test("the broad executive refresh yields to a module selected immediately after login", async () => {
+  const appSource = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const bundleSource = appSource.slice(
+    appSource.indexOf("async function loadSupabaseDataBundle()"),
+    appSource.indexOf("function createProgressiveDataPlan()")
+  );
+  assert.match(bundleSource, /if \(activeArea === "general"\)/);
+  assert.match(bundleSource, /window\.setTimeout\(resolve, 4000\)/);
+  assert.match(bundleSource, /if \(activeArea !== "general"\) return/);
+  assert.match(bundleSource, /return ensureAreaData\(activeArea\)/);
+});
