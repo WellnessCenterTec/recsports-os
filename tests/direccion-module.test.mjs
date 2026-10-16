@@ -12,7 +12,7 @@ test("Dirección renders the seven requested area columns without data loading",
   ["Clases Deportivas", "Gimnasio", "Intramuros", "Vivencia", "Semana Tec", "Comunicación", "Diseño"].forEach((name) => {
     assert.match(appSource, new RegExp(`\\"${name}\\"`));
   });
-  ["Ivonne Casas", "Pamela Treviño", "Omar Ruiz", "Jessica García", "Cecilia González", "Wendy García"].forEach((name) => {
+  ["Ivonne Casas", "Pamela Treviño", "Omar Ruiz", "Jessica García", "Cecilia del Carmen González", "Wendy García"].forEach((name) => {
     assert.match(appSource, new RegExp(`\\"${name}\\"`));
   });
   assert.match(appSource, /area\.id === "direccion"\) return renderDireccionDashboard\(\)/);

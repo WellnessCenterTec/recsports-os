@@ -11439,7 +11439,7 @@ function direccionColumnDefinitions() {
     { id: "intramuros", name: "Intramuros", coordinator: "Omar Ruiz", photoName: "Omar Alejandro Ruíz Garibay" },
     { id: "vivencia", name: "Vivencia", coordinator: "Jessica García", photoName: "Jessica Guadalupe Garcia Romero" },
     { id: "semana-tec", name: "Semana Tec", coordinator: "Jessica García", photoName: "Jessica Guadalupe Garcia Romero" },
-    { id: "comunicacion", name: "Comunicación", coordinator: "Cecilia González", photoName: "Cecilia Estefania Valdez Palacios" },
+    { id: "comunicacion", name: "Comunicación", coordinator: "Cecilia del Carmen González", photoName: "Cecilia del Carmen González Lozano" },
     { id: "diseno", name: "Diseño", coordinator: "Wendy García", photoName: "Wendy Griselda Garcia Puente" }
   ];
 }
