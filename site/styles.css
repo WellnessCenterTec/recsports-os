@@ -12337,6 +12337,14 @@ body.executive-report-print {
   font-weight: 900;
 }
 
+.class-dashboard-priority-rule {
+  color: #42638d;
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
 .class-discipline-rankings article,
 .class-comparison-grid article {
   border: 1px solid var(--line);

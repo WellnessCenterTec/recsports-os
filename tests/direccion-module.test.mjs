@@ -58,6 +58,11 @@ test("Dirección generates an area email with four priorities and three favorabl
   assert.match(appSource, /function direccionEmailDraft\(areaId = direccionEmailArea\)/);
   assert.match(appSource, /insights\.critical\.slice\(0, 4\)/);
   assert.match(appSource, /insights\.favorable\.slice\(0, 3\)/);
+  assert.match(appSource, /Calificaciones por cargar/);
+  assert.match(appSource, /Calificaciones pendientes/);
+  assert.match(appSource, /Cobertura de asistencia/);
+  assert.match(appSource, /Asistencias por consolidar/);
+  assert.match(appSource, /gymDailyRows\("Ambas"\)/);
   assert.match(appSource, /id="direccionEmailArea"/);
   assert.match(appSource, /id="copyDireccionEmail"/);
   assert.match(appSource, /navigator\.clipboard\.writeText/);

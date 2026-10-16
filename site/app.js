@@ -11559,21 +11559,46 @@ function direccionEmailPlanningInsights(areaId) {
 
 function direccionEmailInsights(areaId) {
   if (areaId === "clases") {
+    const rows = classDisciplineRows();
+    const summary = classOperationalSummary();
+    const tracking = [];
+    if (!summary.banner) {
+      tracking.push(direccionEmailInsight("Calificaciones por cargar", "No hay alumnos con calificaciones disponibles en el bloque activo; conviene completar la carga para habilitar el seguimiento académico."));
+    } else {
+      if (summary.pending) tracking.push(direccionEmailInsight("Calificaciones pendientes", `${summary.pending.toLocaleString("es-MX")} de ${summary.banner.toLocaleString("es-MX")} alumnos aún no tienen resultado capturado.`));
+      if (summary.bajas || summary.np) tracking.push(direccionEmailInsight("Bajas y NP", `${(summary.bajas + summary.np).toLocaleString("es-MX")} registros requieren seguimiento: ${summary.bajas.toLocaleString("es-MX")} bajas y ${summary.np.toLocaleString("es-MX")} NP.`));
+      if (!summary.pending && !summary.bajas && !summary.np) tracking.push(direccionEmailInsight("Seguimiento de resultados", `La captura del bloque activo está completa para ${summary.banner.toLocaleString("es-MX")} alumnos; mantener el monitoreo de acreditación.`));
+    }
+    const strengths = rows
+      .filter((row) => row.captured)
+      .sort((first, second) => second.approvedRate - first.approvedRate || first.issueRate - second.issueRate)
+      .map((row) => direccionEmailInsight(`Desempeño destacado: ${row.discipline}`, `${row.approvedRate}% de acreditación y ${row.issueRate}% de incidencia.`));
+    if (!strengths.length && summary.banner) strengths.push(direccionEmailInsight("Avance de captura", `${summary.captured.toLocaleString("es-MX")} de ${summary.banner.toLocaleString("es-MX")} alumnos cuentan con una calificación o estatus registrado.`));
     return {
-      critical: classOperationalAlerts().map((alert) => direccionEmailInsight(`${alert.type}: ${alert.title}`, `${alert.detail}. ${alert.action}.`)),
-      favorable: classDisciplineRows()
-        .filter((row) => row.captured)
-        .sort((first, second) => second.approvedRate - first.approvedRate || first.issueRate - second.issueRate)
-        .map((row) => direccionEmailInsight(`Desempeño destacado: ${row.discipline}`, `${row.approvedRate}% de acreditación y ${row.issueRate}% de incidencia.`))
+      critical: [
+        ...classOperationalAlerts().map((alert) => direccionEmailInsight(`${alert.type}: ${alert.title}`, `${alert.detail}. ${alert.action}.`)),
+        ...tracking
+      ],
+      favorable: strengths
     };
   }
   if (areaId === "gimnasio") {
-    const rows = gymDailyRows().filter((row) => row.value > 0);
+    const rows = gymDailyRows("Ambas").filter((row) => row.value > 0);
+    const attendanceTotal = gymAttendanceRecords.reduce((sum, row) => sum + (Number(row.attendee_count ?? row.cantidad ?? row.total ?? 0) || 0), 0);
+    const attendanceDates = new Set(gymAttendanceRecords.map((row) => row.attendance_date).filter(Boolean)).size;
+    const tracking = !rows.length
+      ? [direccionEmailInsight("Asistencias por consolidar", gymAttendanceRecords.length ? "Hay registros cargados, pero aún no hay promedios diarios comparables; conviene revisar fecha, sede y cantidad." : "No hay asistencias cargadas para generar prioridades de seguimiento.")]
+      : [direccionEmailInsight("Cobertura de asistencia", `${rows.length.toLocaleString("es-MX")} días de la semana presentan asistencia registrada en ${attendanceDates.toLocaleString("es-MX")} fechas.`)];
+    const strengths = rows.slice().sort((first, second) => second.value - first.value)
+      .map((row) => direccionEmailInsight("Mayor afluencia", `${row.label}: promedio de ${row.value.toFixed(1)} asistencias.`));
+    if (!strengths.length && attendanceTotal) strengths.push(direccionEmailInsight("Registros consolidados", `${attendanceTotal.toLocaleString("es-MX")} asistencias están disponibles para revisión operativa.`));
     return {
-      critical: rows.slice().sort((first, second) => first.value - second.value)
-        .map((row) => direccionEmailInsight("Afluencia por reforzar", `${row.label}: promedio de ${row.value.toFixed(1)} asistencias.`)),
-      favorable: rows.slice().sort((first, second) => second.value - first.value)
-        .map((row) => direccionEmailInsight("Mayor afluencia", `${row.label}: promedio de ${row.value.toFixed(1)} asistencias.`))
+      critical: [
+        ...rows.slice().sort((first, second) => first.value - second.value)
+          .map((row) => direccionEmailInsight("Afluencia por reforzar", `${row.label}: promedio de ${row.value.toFixed(1)} asistencias.`)),
+        ...tracking
+      ],
+      favorable: strengths
     };
   }
   if (areaId === "intramuros") {
@@ -17362,11 +17387,12 @@ function renderClassDisciplineIndicators() {
         <div>
           <p class="eyebrow">CD Indicadores clases</p>
           <h2>Indicadores por disciplina y periodo</h2>
+          <span class="class-dashboard-priority-rule">Prioridad automática: último bloque con calificaciones (PMT1, PMT2, PMT3).</span>
         </div>
         <label class="class-dashboard-period-picker">
           <span>${escapeHtml(semesterLabel)} | Bloque activo</span>
           <select id="classDashboardBlock">
-            <option value="auto" ${classDashboardBlock === "auto" ? "selected" : ""}>Actual (${escapeHtml(selectedBlock || "sin datos")})</option>
+            <option value="auto" ${classDashboardBlock === "auto" ? "selected" : ""}>Prioridad automática (${escapeHtml(selectedBlock || "sin datos")})</option>
             ${blockOptions.map((block) => `<option value="${escapeHtml(block)}" ${classDashboardBlock === block ? "selected" : ""}>${escapeHtml(block)}</option>`).join("")}
             <option value="todos" ${classDashboardBlock === "todos" ? "selected" : ""}>Todos los bloques</option>
           </select>

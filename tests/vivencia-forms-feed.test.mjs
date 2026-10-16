@@ -41,15 +41,36 @@ test("extracts Spanish event dates", () => {
   assert.equal(vivenciaFormsFeed.extractEventDate("Evento sin fecha", 2026), "");
 });
 
-test("unifies Vivencia variants that only differ by accents, time, or venue on the same date", () => {
+test("unifies Vivencia variants that only differ by accents, time, venue, or an inconsistent date", () => {
   const first = "Dinámica Combine BOLETOS BORREGOS vs ZORROS CETYS, 8 de octubre, Jardín de las Carreras";
   const second = "Dinamica Combine Borregos VS Zorros Cetys 8 oct 09:00 horas";
 
   assert.equal(vivenciaFormsFeed.eventKey(first), vivenciaFormsFeed.eventKey(second));
-  assert.notEqual(
+  assert.equal(
     vivenciaFormsFeed.eventKey("Halloween Run 3K 13 de octubre"),
     vivenciaFormsFeed.eventKey("Halloween Run 3K 15 de octubre")
   );
+  assert.notEqual(
+    vivenciaFormsFeed.eventKey("EVENTO COMBINE BORREGOS 10 de septiembre"),
+    vivenciaFormsFeed.eventKey("EVENTO COMBINE BORREGOS 2 de octubre")
+  );
+});
+
+test("merges same-title Form events across dates without duplicating shared matrículas", () => {
+  const values = [
+    ["Marca temporal", "Matrícula", "Evento"],
+    ["10/10/2026 09:00:00", "A00100001", "Halloween Run 3K 13 de octubre, Centro Deportivo"],
+    ["10/10/2026 09:01:00", "A00100002", "Halloween Run 3K 13 de octubre, Centro Deportivo"],
+    ["11/10/2026 09:00:00", "A00100002", "Halloween Run 3K 15 de octubre, Centro Deportivo"],
+    ["11/10/2026 09:01:00", "A00100003", "Halloween Run 3K 15 de octubre, Centro Deportivo"]
+  ];
+
+  const result = vivenciaFormsFeed.parseGoogleFormsValues(values, { cutoffDate: "2026-08-10", includeParticipants: true });
+
+  assert.equal(result.events.length, 1);
+  assert.equal(result.events[0].event_date, "2026-10-13");
+  assert.equal(result.events[0].participant_records, 3);
+  assert.equal(result.participant_records, 3);
 });
 
 test("keeps normalized matrículas only for the private authenticated sync", () => {
