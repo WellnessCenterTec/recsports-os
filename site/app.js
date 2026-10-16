@@ -2126,9 +2126,19 @@ function headerKey(value) {
 
 function scheduleMasterRows() {
   return [...(scheduleState.official || []), ...(scheduleState.booking || [])]
-    .map((row, index) => ({ ...row, id: row.id || `${row.source || "row"}-${index}` }))
+    .map((row, index) => classScheduleOperationalCorrection({ ...row, id: row.id || `${row.source || "row"}-${index}` }))
     .filter((row) => !/PMT[23]/i.test(row.discipline || ""))
     .sort((a, b) => scheduleDays.indexOf(a.day) - scheduleDays.indexOf(b.day) || timeToMinutes(a.start) - timeToMinutes(b.start));
+}
+
+function classScheduleOperationalCorrection(row) {
+  const discipline = normalizeText(row?.discipline);
+  const day = normalizeDay(row?.day);
+  // Confirmed correction from the area: this PMT1 group meets Tue/Fri, 11:00-12:30.
+  if (discipline === "gap gluteo abdomen y pierna pmt1" && ["Martes", "Viernes"].includes(day)) {
+    return { ...row, start: "11:00", end: "12:30", duration: "01:30" };
+  }
+  return row;
 }
 
 function scheduleProfessors() {
@@ -3448,8 +3458,12 @@ function normalizePlanningArea(value) {
   const area = normalizeText(value);
   const compactArea = area.replace(/\s+/g, "");
   if (compactArea === "comunicacion" || compactArea.startsWith("comunicaci")) return "comunicacion";
+  if (compactArea === "clases" || compactArea === "clasesdeportivas") return "clases";
+  if (compactArea === "gimnasio") return "gimnasio";
   if (compactArea === "intramuros") return "intramuros";
   if (compactArea === "vivencia") return "vivencia";
+  if (compactArea === "semanatec") return "semana-tec";
+  if (compactArea === "diseno") return "diseno";
   return area;
 }
 
@@ -7583,6 +7597,8 @@ function normalizeDireccionChecklistItem(row) {
     createdAt: row.created_at || row.createdAt || new Date().toISOString(),
     updatedAt: row.updated_at || row.updatedAt || row.created_at || row.createdAt || new Date().toISOString(),
     completedAt: row.completed_at || row.completedAt || "",
+    calendarDate: row.calendar_date || row.calendarDate || "",
+    sourceKey: row.source_key || row.sourceKey || "",
     source: row.source || "local"
   };
 }
@@ -7701,6 +7717,75 @@ async function setDireccionChecklistItemCompleted(id, completed) {
   render();
   const shared = await saveDireccionChecklistItem(item);
   if (!shared && currentUser?.auth === "supabase") toast("El cambio quedó guardado en este navegador.");
+}
+
+function direccionPlanningWindow(referenceDate = new Date()) {
+  const start = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 20);
+  return {
+    start,
+    end,
+    startKey: start.toISOString().slice(0, 10),
+    endKey: end.toISOString().slice(0, 10)
+  };
+}
+
+function direccionPlanningDateLabel(value) {
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "Fecha por confirmar";
+  return new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short" }).format(date).replace(".", "");
+}
+
+function direccionPlanningTasksForNextTwentyDays(rows = planningCalendarRows, referenceDate = new Date()) {
+  const window = direccionPlanningWindow(referenceDate);
+  const columns = new Set(direccionColumnDefinitions().map((column) => column.id));
+  return (rows || [])
+    .map((row, index) => applyPlanningEventOverride(normalizePlanningCalendarRow(row, index)))
+    .filter((row) => columns.has(row.area)
+      && row.activity
+      && !normalizeText(row.activity).startsWith("__ocultar_actividad__")
+      && row.date >= window.startKey
+      && row.date <= window.endKey)
+    .map((row) => ({
+      areaKey: row.area,
+      calendarDate: row.date,
+      sourceKey: `planning:${row.id}`,
+      content: `${direccionPlanningDateLabel(row.date)}: ${row.activity}`
+    }))
+    .sort((first, second) => first.calendarDate.localeCompare(second.calendarDate) || first.content.localeCompare(second.content, "es"));
+}
+
+function syncDireccionPlanningTasks() {
+  if (!planningCalendarLoaded || planningCalendarError) return [];
+  const existingKeys = new Set(direccionChecklistItems.map((item) => item.sourceKey).filter(Boolean));
+  const existingTasks = new Set(direccionChecklistItems.map((item) => `${item.areaKey}|${normalizeText(item.content)}`));
+  const now = new Date().toISOString();
+  const added = direccionPlanningTasksForNextTwentyDays().filter((task) => !existingKeys.has(task.sourceKey)
+    && !existingTasks.has(`${task.areaKey}|${normalizeText(task.content)}`))
+    .map((task) => normalizeDireccionChecklistItem({
+      id: crypto.randomUUID(),
+      ...task,
+      completed: false,
+      createdAt: now,
+      updatedAt: now,
+      source: "planning"
+    }))
+    .filter(Boolean);
+  if (!added.length) return [];
+  direccionChecklistItems = [...added, ...direccionChecklistItems];
+  saveDireccionChecklistLocal();
+  if (currentUser?.auth === "supabase") {
+    Promise.all(added.map((item) => saveDireccionChecklistItem(item))).catch(() => {});
+  }
+  return added;
+}
+
+async function refreshDireccionPlanningTasks() {
+  await loadPlanningCalendarRows();
+  const added = syncDireccionPlanningTasks();
+  render();
+  toast(added.length ? `${added.length} actividad${added.length === 1 ? "" : "es"} del calendario agregada${added.length === 1 ? "" : "s"}.` : "El calendario no tiene actividades nuevas para los próximos 20 días.");
 }
 
 function openDireccionAccessGate() {
@@ -11455,12 +11540,15 @@ function renderDireccionDashboard() {
   `;
   const columns = direccionColumnDefinitions();
   const photoIndex = collaboratorPhotoIndex();
+  const calendarWindow = direccionPlanningWindow();
+  syncDireccionPlanningTasks();
   return `
     <section class="direccion-dashboard" aria-label="Tablero de Dirección">
       <header class="direccion-dashboard-header">
         <div><p class="eyebrow">Dirección</p><h2>Seguimiento por área</h2><span>Registra tareas y confirma su cumplimiento por responsable.</span></div>
-        <strong class="direccion-sync-state ${direccionChecklistCloudAvailable ? "is-ready" : ""}">${direccionChecklistCloudAvailable && currentUser?.auth === "supabase" ? "Lista compartida" : "Respaldo local"}</strong>
+        <div class="direccion-header-status"><strong class="direccion-sync-state ${direccionChecklistCloudAvailable ? "is-ready" : ""}">${direccionChecklistCloudAvailable && currentUser?.auth === "supabase" ? "Lista compartida" : "Respaldo local"}</strong><button class="ghost-btn direccion-calendar-refresh" id="refreshDireccionPlanning" type="button"><i data-lucide="calendar-sync" aria-hidden="true"></i>Actualizar calendario</button></div>
       </header>
+      <div class="direccion-calendar-window"><i data-lucide="calendar-days" aria-hidden="true"></i><span>Calendario de Planeación: actividades de los próximos 20 días, del ${escapeHtml(direccionPlanningDateLabel(calendarWindow.startKey))} al ${escapeHtml(direccionPlanningDateLabel(calendarWindow.endKey))}.</span></div>
       <div class="direccion-columns">
         ${columns.map((column) => {
           const profile = classLiveTeacherProfile(column.photoName, photoIndex);
@@ -22113,6 +22201,9 @@ function render() {
   $$("[data-direccion-task-complete]").forEach((input) => input.addEventListener("change", async (event) => {
     await setDireccionChecklistItemCompleted(input.dataset.direccionTaskComplete, input.checked);
   }));
+  $("#refreshDireccionPlanning")?.addEventListener("click", () => {
+    refreshDireccionPlanningTasks().catch(() => toast("No se pudo actualizar el calendario en este momento."));
+  });
   $("#direccionEmailArea")?.addEventListener("change", (event) => {
     direccionEmailArea = event.target.value;
     render();

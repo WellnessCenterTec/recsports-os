@@ -22,7 +22,7 @@ test("Dirección renders the seven requested area columns without data loading",
   assert.match(appSource, /targetArea === "direccion" && !direccionAccessGranted/);
   assert.match(appSource, /function openDireccionAccessGate\(\)/);
   assert.doesNotMatch(appSource, /"1717"/);
-  assert.match(planSource, /direccion: \["collaborators"\]/);
+  assert.match(planSource, /direccion: \["collaborators", "planning"\]/);
   assert.match(styles, /\.direccion-columns \{/);
   assert.match(styles, /\.direccion-access-gate \{/);
   assert.match(styles, /repeat\(7, minmax\(220px, 1fr\)\)/);
@@ -76,4 +76,19 @@ test("completed tasks leave Seguimiento and render in the matching Historial col
   assert.match(appSource, /data-direccion-history-column/);
   assert.match(appSource, /Completada \$\{escapeHtml\(direccionChecklistTimestamp/);
   assert.match(styles, /\.direccion-task-check\.is-static/);
+});
+
+test("Dirección imports only dated planning activities from the next twenty days without duplicating tasks", () => {
+  assert.match(appSource, /function direccionPlanningWindow\(referenceDate = new Date\(\)\)/);
+  assert.match(appSource, /end\.setDate\(end\.getDate\(\) \+ 20\)/);
+  assert.match(appSource, /function direccionPlanningTasksForNextTwentyDays\(rows = planningCalendarRows/);
+  assert.match(appSource, /row\.date >= window\.startKey/);
+  assert.match(appSource, /row\.date <= window\.endKey/);
+  assert.match(appSource, /sourceKey: \`planning:\$\{row\.id\}\`/);
+  assert.match(appSource, /function syncDireccionPlanningTasks\(\)/);
+  assert.match(appSource, /existingKeys\.has\(task\.sourceKey\)/);
+  assert.match(appSource, /id="refreshDireccionPlanning"/);
+  assert.match(appSource, /Calendario de Planeación: actividades de los próximos 20 días/);
+  assert.match(appSource, /refreshDireccionPlanningTasks\(\)/);
+  assert.match(planSource, /direccion: \["collaborators", "planning"\]/);
 });

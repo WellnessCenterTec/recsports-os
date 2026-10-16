@@ -6,7 +6,7 @@
   "use strict";
 
   const AREA_DEPENDENCIES = Object.freeze({
-    direccion: ["collaborators"],
+    direccion: ["collaborators", "planning"],
     gimnasio: ["student-master", "gym"],
     clases: ["class-grades"],
     intramuros: ["student-master", "intramuros", "representativos", "planning"],

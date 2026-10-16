@@ -136,3 +136,12 @@ test("official schedule import ignores total-only footer rows", () => {
 
   assert.match(appSource, /hasScheduleSessionValue/);
 });
+
+test("confirmed GAP PMT1 correction keeps Tuesday and Friday while updating only the time", () => {
+  const appSource = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
+  assert.match(appSource, /function classScheduleOperationalCorrection\(row\)/);
+  assert.match(appSource, /discipline === "gap gluteo abdomen y pierna pmt1"/);
+  assert.match(appSource, /\["Martes", "Viernes"\]\.includes\(day\)/);
+  assert.match(appSource, /start: "11:00", end: "12:30", duration: "01:30"/);
+  assert.match(appSource, /\.map\(\(row, index\) => classScheduleOperationalCorrection/);
+});
