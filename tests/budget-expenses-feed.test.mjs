@@ -8,6 +8,9 @@ import { runInNewContext } from "node:vm";
 const require = createRequire(import.meta.url);
 const feed = require("../site/budget-expenses-feed.js");
 const endpoint = require("../site/api/budget-expenses.js");
+const snapshotContext = {};
+runInNewContext(readFileSync(new URL("../site/budget-expenses-snapshot.js", import.meta.url), "utf8"), snapshotContext);
+const snapshot = snapshotContext.WellSyncBudgetExpenseSnapshot;
 const headers = ["ID", "Nombre", "Tipo de gasto", "Tipo de pago", "Costo", "Área", "Comentario / OC", "Adjuntar archivo", "Fecha", "Mes", "Usuario"];
 
 function response() {
@@ -55,6 +58,16 @@ test("Rechaza encabezados, importes y fechas inválidos sin convertirlos en cero
   const result = feed.parse([headers, ["a1", "Compra", "", "", "importe?", "Gimnasio", "", "", "2/30/2026"]]);
   assert.equal(result.rows.length, 0);
   assert.match(result.issues[0].reason, /Costo, Fecha/);
+});
+
+test("El corte manual de AppSheet conserva 113 gastos AD26 y su total conciliado", () => {
+  assert.equal(snapshot.source, "Gastos Log · AppSheet");
+  assert.equal(snapshot.sourcePeriod, "AD26");
+  assert.equal(snapshot.rows.length, 113);
+  assert.equal(Math.round(snapshot.rows.reduce((sum, row) => sum + row.amount, 0) * 100) / 100, 1192540.67);
+  assert.equal(snapshot.rows.every((row) => row.area && row.date && row.amount > 0), true);
+  assert.equal(snapshot.rows.every((row) => row.provider.startsWith("AppSheet · ")), true);
+  assert.deepEqual(Array.from(snapshot.rows.filter((row) => !row.category), (row) => row.id), ["de42c763"]);
 });
 
 test("El endpoint rechaza llamadas sin sesión antes de leer Google", async () => {
@@ -117,9 +130,10 @@ test("La vista pendiente no presenta importes ausentes como cero", () => {
   assert.ok(start >= 0 && end > start);
   const context = {
     budgetSheetExpenses: [], budgetFilters: { area: "todos", period: "AD26" }, budgetSheetFetchedAt: "",
-    budgetSheetState: "pendiente", budgetSheetMessage: "Sin lectura", budgetSheetDuplicates: 0,
+    budgetSheetState: "pendiente", budgetSheetMessage: "Sin lectura", budgetSheetDuplicates: 0, budgetSheetMode: "",
     budgetSheetIssues: [], escapeHtml: (value) => String(value),
     money: (value) => `$${value}`, budgetAreaLabel: (value) => value,
+    budgetEffectiveSheetExpenses: () => [],
     window: { WellSyncBudgetExpensesFeed: feed }
   };
   const html = runInNewContext(`${app.slice(start, end)}\nrenderBudgetSheetPreview()`, context);
@@ -136,6 +150,7 @@ test("La suma del tablero usa la hoja solo al estar validada y solo en AD26", ()
   assert.ok(start >= 0 && end > start);
   const context = {
     budgetFilters: { period: "AD26" }, budgetSheetState: "activo",
+    budgetRequestRows: [],
     budgetSheetExpenses: [
       { period: "AD26", area: "gimnasio", amount: 250 },
       { period: "AD26", area: "clases", amount: 700 }
@@ -157,6 +172,21 @@ test("La suma del tablero usa la hoja solo al estar validada y solo en AD26", ()
   assert.equal(summarize("gimnasio").spent, 100);
 });
 
+test("No suma dos veces un gasto ejercido que ya existe en WellSync", () => {
+  const app = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
+  const start = app.indexOf("function budgetDashboardAreaSummary(areaKey) {");
+  const end = app.indexOf("\nfunction budgetStatusLabel", start);
+  const context = {
+    budgetFilters: { period: "AD26" }, budgetSheetState: "activo",
+    budgetSheetExpenses: [{ period: "AD26", area: "gimnasio", amount: 250, date: "2026-09-17", concept: "Material" }],
+    budgetRequestRows: [{ period: "AD26", area: "gimnasio", amount: 250, date: "2026-09-17", concept: "Material", status: "ejercido" }],
+    budgetAreaSummary: () => ({ assigned: 1000, threshold: 80, spent: 250, committed: 0 })
+  };
+  const summarize = runInNewContext(`${app.slice(start, end)}\nbudgetDashboardAreaSummary`, context);
+  assert.equal(summarize("gimnasio").sheetSpent, 0);
+  assert.equal(summarize("gimnasio").spent, 250);
+});
+
 test("La hoja AD26 no aparece al seleccionar otro periodo", () => {
   const app = readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
   const start = app.indexOf("function renderBudgetSheetPreview() {");
@@ -164,9 +194,10 @@ test("La hoja AD26 no aparece al seleccionar otro periodo", () => {
   const context = {
     budgetSheetExpenses: [{ period: "AD26", area: "gimnasio", amount: 250, date: "2026-09-17", concept: "Material", sourceArea: "Gimnasio", category: "Material" }],
     budgetFilters: { area: "todos", period: "FJ26" }, budgetSheetFetchedAt: "",
-    budgetSheetState: "activo", budgetSheetMessage: "Lectura privada", budgetSheetDuplicates: 0,
+    budgetSheetState: "activo", budgetSheetMessage: "Lectura privada", budgetSheetDuplicates: 0, budgetSheetMode: "live",
     budgetSheetIssues: [], escapeHtml: (value) => String(value),
     money: (value) => `$${value}`, budgetAreaLabel: (value) => value,
+    budgetEffectiveSheetExpenses: () => context.budgetSheetExpenses,
     window: { WellSyncBudgetExpensesFeed: feed }
   };
   const html = runInNewContext(`${app.slice(start, end)}\nrenderBudgetSheetPreview()`, context);

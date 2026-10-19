@@ -585,6 +585,7 @@ let budgetSheetDuplicates = 0;
 let budgetSheetFetchedAt = "";
 let budgetSheetState = "pendiente";
 let budgetSheetMessage = "";
+let budgetSheetMode = "";
 const BUDGET_ACTIVE_PERIODS = new Set(["AD26"]);
 const BUDGET_RETIRED_PERIODS = ["AN26"];
 let budgetPeriodFormOpen = false;
@@ -1393,6 +1394,7 @@ async function loadBudgetSheetExpenses() {
     budgetSheetDuplicates = 0;
     budgetSheetFetchedAt = "";
     budgetSheetState = "ejemplo";
+    budgetSheetMode = "ejemplo";
     budgetSheetMessage = "Datos de ejemplo para revisar el diseño; no son gastos de la hoja";
     return;
   }
@@ -1400,7 +1402,9 @@ async function loadBudgetSheetExpenses() {
   budgetSheetIssues = [];
   budgetSheetDuplicates = 0;
   budgetSheetFetchedAt = "";
+  budgetSheetMode = "";
   if (!supabaseClient || currentUser?.auth !== "supabase") {
+    if (activateBudgetExpenseSnapshot("La lectura privada en vivo requiere iniciar sesión con Supabase")) return;
     budgetSheetState = "pendiente";
     budgetSheetMessage = "Inicia sesión con Supabase para consultar la hoja privada";
     return;
@@ -1419,13 +1423,28 @@ async function loadBudgetSheetExpenses() {
     budgetSheetDuplicates = Number(payload.duplicateCount) || 0;
     budgetSheetFetchedAt = payload.fetchedAt || "";
     budgetSheetState = budgetSheetIssues.length ? "revision" : "activo";
+    budgetSheetMode = "live";
     budgetSheetMessage = budgetSheetIssues.length
       ? "Hay registros con datos inválidos o áreas sin equivalencia; la suma al tablero queda detenida hasta revisarlos"
       : "Lectura privada de Gastos Log";
   } catch (error) {
+    if (activateBudgetExpenseSnapshot(error.message || "No se pudo consultar la hoja en vivo")) return;
     budgetSheetState = "pendiente";
     budgetSheetMessage = error.message || "No se pudo consultar la hoja";
   }
+}
+
+function activateBudgetExpenseSnapshot(prefix = "") {
+  const snapshot = window.WellSyncBudgetExpenseSnapshot;
+  if (!snapshot || !Array.isArray(snapshot.rows) || !snapshot.rows.length) return false;
+  budgetSheetExpenses = snapshot.rows.map((row) => ({ ...row }));
+  budgetSheetIssues = Array.isArray(snapshot.issues) ? snapshot.issues.map((issue) => ({ ...issue })) : [];
+  budgetSheetDuplicates = Number(snapshot.duplicateCount) || 0;
+  budgetSheetFetchedAt = snapshot.capturedAt || "";
+  budgetSheetState = budgetSheetIssues.length ? "revision" : "activo";
+  budgetSheetMode = "snapshot";
+  budgetSheetMessage = `${prefix ? `${prefix}. ` : ""}Corte manual verificado de Gastos Log en AppSheet`;
+  return true;
 }
 
 async function saveBudgetAllocationToCloud(plan) {
@@ -16633,7 +16652,7 @@ function budgetAreaSummary(areaKey, period = budgetFilters.period) {
 function budgetDashboardAreaSummary(areaKey) {
   const summary = budgetAreaSummary(areaKey);
   const sheetSpent = budgetSheetState === "activo"
-    ? budgetSheetExpenses.filter((row) => row.period === budgetFilters.period && row.area === areaKey)
+    ? budgetEffectiveSheetExpenses().filter((row) => row.period === budgetFilters.period && row.area === areaKey)
       .reduce((sum, row) => sum + row.amount, 0)
     : 0;
   const spent = summary.spent + sheetSpent;
@@ -16650,6 +16669,31 @@ function budgetDashboardAreaSummary(areaKey) {
     usage,
     tone
   };
+}
+
+function budgetExpenseMatchKey(row) {
+  const concept = String(row?.concept || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  return [
+    String(row?.period || "").trim().toUpperCase(),
+    String(row?.date || "").slice(0, 10),
+    String(row?.area || "").trim().toLowerCase(),
+    concept,
+    Math.round(Number(row?.amount || 0) * 100)
+  ].join("|");
+}
+
+function budgetEffectiveSheetExpenses() {
+  const recordedExpenses = new Set(
+    budgetRequestRows
+      .filter((row) => row.status === "ejercido")
+      .map(budgetExpenseMatchKey)
+  );
+  return budgetSheetExpenses.filter((row) => !recordedExpenses.has(budgetExpenseMatchKey(row)));
 }
 
 function budgetStatusLabel(status) {
@@ -16686,9 +16730,12 @@ function budgetKpiCard(icon, title, value, meta, tone = "blue") {
 
 function renderBudgetSheetPreview() {
   const sourceMatchesPeriod = budgetFilters.period === window.WellSyncBudgetExpensesFeed.SOURCE_PERIOD;
-  const rows = budgetSheetExpenses.filter((row) => row.period === budgetFilters.period && (budgetFilters.area === "todos" || row.area === budgetFilters.area));
+  const effectiveRows = budgetEffectiveSheetExpenses();
+  const matchedRequests = budgetSheetExpenses.length - effectiveRows.length;
+  const rows = effectiveRows.filter((row) => row.period === budgetFilters.period && (budgetFilters.area === "todos" || row.area === budgetFilters.area));
   const mapped = rows.filter((row) => row.area);
   const total = mapped.reduce((sum, row) => sum + row.amount, 0);
+  const missingCategory = rows.filter((row) => !row.category).length;
   const hasSourceData = sourceMatchesPeriod && ["activo", "revision", "ejemplo"].includes(budgetSheetState);
   const lastUpdate = budgetSheetFetchedAt
     ? new Date(budgetSheetFetchedAt).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" })
@@ -16696,12 +16743,12 @@ function renderBudgetSheetPreview() {
   return `<section class="budget-sheet-preview" aria-label="Vista previa de gastos de Google Sheets">
     <div class="budget-sheet-heading">
       <div><p class="eyebrow">Fuente externa · Gastos Log · AD26</p><h3>Gastos registrados en la hoja</h3></div>
-      <div class="budget-sheet-heading-actions"><span class="budget-sheet-status ${escapeHtml(budgetSheetState)}">${budgetSheetState === "activo" ? "Conectado" : budgetSheetState === "revision" ? "Revisar datos" : budgetSheetState === "ejemplo" ? "Ejemplo local" : "Pendiente de conexión"}</span>${budgetSheetState !== "ejemplo" ? `<button class="secondary-btn compact-action" type="button" data-budget-sheet-refresh>Actualizar</button>` : ""}</div>
+      <div class="budget-sheet-heading-actions"><span class="budget-sheet-status ${escapeHtml(budgetSheetState)}">${budgetSheetState === "activo" ? (budgetSheetMode === "snapshot" ? "Corte AppSheet" : "Conectado") : budgetSheetState === "revision" ? "Revisar datos" : budgetSheetState === "ejemplo" ? "Ejemplo local" : "Pendiente de conexión"}</span>${budgetSheetState !== "ejemplo" ? `<button class="secondary-btn compact-action" type="button" data-budget-sheet-refresh>Actualizar</button>` : ""}</div>
     </div>
     <p class="budget-sheet-note">${escapeHtml(budgetSheetMessage)}. ${budgetSheetState === "activo" ? "Los gastos con área identificada se suman al gasto de WellSync en AD26; no se crean solicitudes." : "La suma al tablero está pendiente; no se modifican solicitudes ni presupuestos."}</p>
     <div class="budget-sheet-metrics"><span><strong>${hasSourceData ? mapped.length.toLocaleString("es-MX") : "—"}</strong> gastos con área identificada</span><span><strong>${hasSourceData ? money(total) : "—"}</strong> en la fuente visible${budgetFilters.area === "todos" ? "" : ` para ${escapeHtml(budgetAreaLabel(budgetFilters.area))}`}</span><span><strong>${hasSourceData ? budgetSheetIssues.length : "—"}</strong> observaciones de mapeo</span></div>
-    <p class="budget-sheet-meta">${escapeHtml(lastUpdate)}${budgetSheetDuplicates ? ` · ${budgetSheetDuplicates} ID duplicados consolidados` : ""} · Todos los registros de esta hoja corresponden a AD26; no se aplica corte por fecha.</p>
-    ${rows.length ? `<div class="budget-sheet-table-wrap"><table><thead><tr><th>Fecha</th><th>Área en la hoja</th><th>Gasto</th><th>Tipo</th><th>Monto</th></tr></thead><tbody>${rows.slice(0, 8).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.sourceArea)}${row.area ? "" : " · sin equivalencia"}</td><td>${escapeHtml(row.concept)}</td><td>${escapeHtml(row.category)}</td><td>${money(row.amount)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="budget-sheet-empty">${sourceMatchesPeriod ? "Los gastos aparecerán aquí cuando se autorice la lectura privada de la hoja." : "Esta fuente solo corresponde a AD26. Selecciona AD26 para ver sus gastos."}</p>`}
+    <p class="budget-sheet-meta">${escapeHtml(lastUpdate)}${budgetSheetDuplicates ? ` · ${budgetSheetDuplicates} ID duplicados consolidados` : ""}${matchedRequests ? ` · ${matchedRequests} gastos ya registrados en WellSync excluidos del total` : ""}${missingCategory ? ` · ${missingCategory} registro sin tipo de gasto en la fuente` : ""} · Todos los registros de esta hoja corresponden a AD26; no se aplica corte por fecha.</p>
+    ${rows.length ? `<div class="budget-sheet-table-wrap"><table><thead><tr><th>Fecha</th><th>Área en la hoja</th><th>Gasto</th><th>Tipo</th><th>Responsable</th><th>Monto</th></tr></thead><tbody>${rows.slice(0, 8).map((row) => `<tr><td>${escapeHtml(row.date)}</td><td>${escapeHtml(row.sourceArea)}${row.area ? "" : " · sin equivalencia"}</td><td>${escapeHtml(row.concept)}</td><td>${escapeHtml(row.category || "Sin tipo en la fuente")}</td><td>${escapeHtml(row.provider || "AppSheet")}</td><td>${money(row.amount)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="budget-sheet-empty">${sourceMatchesPeriod ? "No hay gastos nuevos en AppSheet después de conciliar los ya registrados en WellSync." : "Esta fuente solo corresponde a AD26. Selecciona AD26 para ver sus gastos."}</p>`}
   </section>`;
 }
 

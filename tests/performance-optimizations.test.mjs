@@ -25,7 +25,7 @@ test("versioned static assets are reusable while shell and environment stay fres
     assert.equal(headerValue(config, "/"), "no-store, max-age=0");
     assert.equal(headerValue(config, "/index.html"), "no-store, max-age=0");
   }
-  assert.match(indexSource, /module-data-plan\.js\?v=20261016-direccion-calendar-v14/);
+  assert.match(indexSource, /module-data-plan\.js\?v=20261019-planning-calendar-sync-v15/);
   const publishedVersion = indexSource.match(/name="wellsync-version" content="([^"]+)"/)?.[1];
   assert.ok(publishedVersion, "the document declares a WellSync asset version");
   assert.match(indexSource, new RegExp(`app\\.js\\?v=${publishedVersion}`));
