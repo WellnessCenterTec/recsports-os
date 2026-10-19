@@ -347,7 +347,14 @@ function activePeriodDiffusionSlot(slotKey) {
 const UNIFORMES_DATA_URL = "./uniformes-data.json";
 const CLASS_GRADES_DATA_URL = "./class-grades-data.json";
 const PLANNING_SEMESTRAL_CSV_URL = "https://docs.google.com/spreadsheets/d/1DL1GIPjzqPqXlJWlnWlAOWEiMJM9tPqknT6M4HCXEHM/gviz/tq?tqx=out:csv&sheet=Respuestas%20de%20formulario%201";
-const PLANNING_SEMESTRAL_DATA_URL = "./planning-semestral-data.json";
+const PLANNING_SEMESTRAL_FORM_SUBMIT_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc2XKrOEilT6DDskV3zZAi0Ysn6n2j-1VsTR4U03kvcsQ0VHw/formResponse";
+const PLANNING_DELETE_MARKER_PREFIX = "__OCULTAR_ACTIVIDAD__::";
+const PLANNING_FORM_ENTRIES = {
+  area: "entry.864852996",
+  month: "entry.1216259793",
+  week: "entry.1237735269",
+  activity: "entry.129099553"
+};
 const BASE_COLLABORATOR_COLUMNS = [
   "Nomina",
   "Colaboradores",
@@ -3494,10 +3501,46 @@ function getPlanningCalendarActivityId(row, rowIndex = "") {
   return btoa(unescape(encodeURIComponent(rawId))).replace(/=+$/, "");
 }
 
+function planningCalendarSourceActivityId(row) {
+  const cells = Array.isArray(row?.__cells) ? row.__cells : [];
+  const rawId = [
+    planningValue(row, ["Marca temporal", "Timestamp", "timestamp"]) || cells[0],
+    planningValue(row, ["Área", "Area", "area"]) || cells[1],
+    planningValue(row, ["Mes", "month"]) || cells[2],
+    planningValue(row, ["Semana", "week"]) || cells[4],
+    planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]) || cells[5],
+    planningValue(row, ["Actividad", "activity"]) || cells[3]
+  ].map(normalizeText).join("|");
+  return btoa(unescape(encodeURIComponent(rawId)));
+}
+
+function planningCalendarActivityValue(row) {
+  const cells = Array.isArray(row?.__cells) ? row.__cells : [];
+  return String(planningValue(row, ["Actividad", "activity"]) || cells[3] || "").trim();
+}
+
+function planningCalendarDeleteMarkerId(row) {
+  const activity = planningCalendarActivityValue(row);
+  return activity.startsWith(PLANNING_DELETE_MARKER_PREFIX)
+    ? activity.slice(PLANNING_DELETE_MARKER_PREFIX.length).trim()
+    : "";
+}
+
+function visiblePlanningCalendarRows(rows = planningCalendarRows) {
+  const deletedIds = new Set((rows || []).map(planningCalendarDeleteMarkerId).filter(Boolean));
+  return (rows || []).filter((row) => {
+    const activity = planningCalendarActivityValue(row);
+    return activity
+      && !activity.startsWith(PLANNING_DELETE_MARKER_PREFIX)
+      && !deletedIds.has(planningCalendarSourceActivityId(row));
+  });
+}
+
 function normalizePlanningCalendarRow(row, rowIndex = "") {
   const cells = Array.isArray(row?.__cells) ? row.__cells : [];
   return {
     id: getPlanningCalendarActivityId(row, rowIndex),
+    sourceActivityId: planningCalendarSourceActivityId(row),
     planningActivityId: getPlanningActivityId(row),
     date: normalizePlanningCalendarDate(planningValue(row, ["Fecha específica", "Fecha especifica", "Fecha", "specificDate"]) || cells[5]),
     area: normalizePlanningArea(planningValue(row, ["Área", "Area", "area"]) || cells[1]),
@@ -3538,7 +3581,7 @@ function applyPlanningEventOverride(activity) {
 }
 
 function planningActivitiesForArea(rows, areaId) {
-  return (rows || [])
+  return visiblePlanningCalendarRows(rows)
     .map((row, index) => normalizePlanningCalendarRow(row, index))
     .filter((row) => row.activity
       && !normalizeText(row.activity).startsWith("__ocultar_actividad__")
@@ -3634,6 +3677,10 @@ function renderPlanningActivityDetail(activity) {
     && currentUser?.auth === "supabase"
     && canEditArea("comunicacion")
     && planningEventOverridesAvailable;
+  const canDelete = Boolean(activity.sourceActivityId && canManageStructure());
+  const deleteAction = canDelete
+    ? `<button type="button" class="danger-btn" data-delete-planning-activity="${escapeHtml(activity.id)}">Eliminar del calendario</button>`
+    : "";
   if (activity.area === "comunicacion") {
     const statusOptions = ["Planeado", "En proceso", "Completado", "Cancelado", "Reprogramado"];
     return `
@@ -3674,6 +3721,7 @@ function renderPlanningActivityDetail(activity) {
             <span>${escapeHtml(activity.__original?.activity || activity.activity)} · ${escapeHtml(areaLabel || "Comunicación")} · ${escapeHtml(formattedDate)}</span>
           </div>
           <div class="planning-detail-actions">
+            ${deleteAction}
             <button type="button" class="ghost-btn" data-close-planning-detail>Cancelar</button>
             <button type="submit" class="primary-btn" ${editable ? "" : "disabled"}>${editable ? "Guardar cambios" : "Solo lectura"}</button>
           </div>
@@ -3696,6 +3744,10 @@ function renderPlanningActivityDetail(activity) {
         <div><dt>Responsable</dt><dd>${escapeHtml(activity.responsible || "Pendiente")}</dd></div>
         <div><dt>Estado</dt><dd>${escapeHtml(activity.status || "Sin estado")}</dd></div>
       </dl>
+      <div class="planning-detail-actions">
+        ${deleteAction}
+        <button type="button" class="ghost-btn" data-close-planning-detail>Cerrar</button>
+      </div>
     </aside>
     </div>`;
 }
@@ -3908,20 +3960,13 @@ async function fetchPlanningSemestralRows() {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10_000);
   try {
-    try {
-      const response = await fetch(`${PLANNING_SEMESTRAL_CSV_URL}&cacheBust=${Date.now()}`, {
-        cache: "no-store",
-        signal: controller.signal
-      });
-      if (!response.ok) throw new Error(`No se pudo leer Planeacion Semestral (${response.status})`);
-      const text = await response.text();
-      return planningRowsFromGrid(parseCsv(text));
-    } catch (remoteError) {
-      const fallback = await fetch(`${PLANNING_SEMESTRAL_DATA_URL}?v=20260703-planning-fix`, { cache: "no-store" });
-      if (!fallback.ok) throw remoteError;
-      const rows = await fallback.json();
-      return Array.isArray(rows) ? rows : [];
-    }
+    const response = await fetch(`${PLANNING_SEMESTRAL_CSV_URL}&cacheBust=${Date.now()}`, {
+      cache: "no-store",
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`No se pudo leer Planeacion Semestral (${response.status})`);
+    const text = await response.text();
+    return planningRowsFromGrid(parseCsv(text));
   } finally {
     clearTimeout(timeoutId);
   }
@@ -3940,6 +3985,56 @@ async function loadPlanningCalendarRows() {
     planningCalendarError = error?.message || "No se pudo consultar Planeacion Semestral";
   } finally {
     if (requestSequence === planningCalendarRequestSequence) planningCalendarLoaded = true;
+  }
+}
+
+function planningFormAreaValue(areaKey) {
+  const values = { comunicacion: "comunicación", direccion: "dirección" };
+  return values[areaKey] || areaKey;
+}
+
+async function deletePlanningCalendarActivity(activityId) {
+  if (!canManageStructure()) {
+    toast("Solo Dirección puede eliminar actividades del calendario.");
+    return;
+  }
+  const sourceActivity = visiblePlanningCalendarRows(planningCalendarRows)
+    .map((row, index) => normalizePlanningCalendarRow(row, index))
+    .find((row) => row.id === activityId);
+  if (!sourceActivity?.sourceActivityId) {
+    toast("No encontré la actividad en Planeación.");
+    return;
+  }
+  if (!window.confirm(`¿Eliminar “${sourceActivity.activity}” del calendario compartido?`)) return;
+
+  const formData = new URLSearchParams();
+  formData.set(PLANNING_FORM_ENTRIES.area, planningFormAreaValue(sourceActivity.area || "clases"));
+  formData.set(PLANNING_FORM_ENTRIES.month, sourceActivity.month || "agosto");
+  formData.set(PLANNING_FORM_ENTRIES.week, sourceActivity.week || "Semana 0");
+  formData.set(PLANNING_FORM_ENTRIES.activity, `${PLANNING_DELETE_MARKER_PREFIX}${sourceActivity.sourceActivityId}`);
+
+  try {
+    await fetch(PLANNING_SEMESTRAL_FORM_SUBMIT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formData.toString()
+    });
+    planningCalendarRows = [...planningCalendarRows, {
+      "Área": sourceActivity.area,
+      "Mes": sourceActivity.month,
+      "Semana": sourceActivity.week,
+      "Actividad": `${PLANNING_DELETE_MARKER_PREFIX}${sourceActivity.sourceActivityId}`
+    }];
+    closePlanningActivityDetail();
+    addAudit("planeacion", `Actividad eliminada: ${sourceActivity.activity}`);
+    toast("Actividad eliminada de Planeación y WellSync.");
+    window.setTimeout(async () => {
+      await loadPlanningCalendarRows();
+      render();
+    }, 2500);
+  } catch {
+    toast("No se pudo registrar la eliminación en Planeación.");
   }
 }
 
@@ -7740,7 +7835,7 @@ function direccionPlanningDateLabel(value) {
 function direccionPlanningTasksForNextTwentyDays(rows = planningCalendarRows, referenceDate = new Date()) {
   const window = direccionPlanningWindow(referenceDate);
   const columns = new Set(direccionColumnDefinitions().map((column) => column.id));
-  return (rows || [])
+  return visiblePlanningCalendarRows(rows)
     .map((row, index) => applyPlanningEventOverride(normalizePlanningCalendarRow(row, index)))
     .filter((row) => columns.has(row.area)
       && row.activity
@@ -12677,7 +12772,7 @@ function executivePlanningUpcomingRows() {
   today.setHours(0, 0, 0, 0);
   const end = new Date(today);
   end.setDate(end.getDate() + Number(executivePlanningFilters.days || 30));
-  return (planningCalendarRows || [])
+  return visiblePlanningCalendarRows(planningCalendarRows)
     .map((row, index) => normalizePlanningCalendarRow(row, index))
     .filter((row) => row.activity && row.date)
     .filter((row) => executivePlanningFilters.area === "todos" || row.area === executivePlanningFilters.area)
@@ -12690,7 +12785,7 @@ function executivePlanningUpcomingRows() {
 }
 
 function executivePlanningFilterOptions(field) {
-  return Array.from(new Set((planningCalendarRows || [])
+  return Array.from(new Set(visiblePlanningCalendarRows(planningCalendarRows)
     .map((row, index) => normalizePlanningCalendarRow(row, index))
     .map((row) => row[field])
     .filter(Boolean)))
@@ -12727,7 +12822,7 @@ function renderExecutivePlanningCalendar() {
   return `
     <article class="exec-panel exec-planning-panel exec-planning-standalone no-print">
       <div class="exec-planning-head">
-        <div><h3>Próximos ${Number(executivePlanningFilters.days || 30)} días</h3><p>Calendario conectado a Planeación Semestral</p></div>
+        <div><h3>Próximos ${Number(executivePlanningFilters.days || 30)} días</h3><p>Datos en vivo de Planeación Semestral</p></div>
         <div class="exec-planning-filters no-print">
           <select id="executivePlanningArea">
             <option value="todos" ${executivePlanningFilters.area === "todos" ? "selected" : ""}>Todas las áreas</option>
@@ -12740,6 +12835,7 @@ function renderExecutivePlanningCalendar() {
           <select id="executivePlanningDays">
             ${[7, 15, 30].map((days) => `<option value="${days}" ${String(executivePlanningFilters.days) === String(days) ? "selected" : ""}>${days} días</option>`).join("")}
           </select>
+          <button class="ghost-btn" id="refreshPlanningCalendar" type="button">Actualizar</button>
         </div>
       </div>
       <div class="exec-calendar-grid" aria-label="Calendario de próximos días">
@@ -14704,7 +14800,7 @@ function executivePresentationActivityWindow(referenceDate = new Date()) {
 
 function executivePresentationActivities() {
   return presentationActivitiesApi.upcomingActivities(
-    planningCalendarRows.map((row, index) => normalizePlanningCalendarRow(row, index)),
+    visiblePlanningCalendarRows(planningCalendarRows).map((row, index) => normalizePlanningCalendarRow(row, index)),
     new Date(),
     12
   );
@@ -16798,6 +16894,9 @@ async function deleteBudgetRequest(id) {
 }
 
 function renderExecutiveCalendarView() {
+  const selected = visiblePlanningCalendarRows(planningCalendarRows)
+    .map((row, index) => normalizePlanningCalendarRow(row, index))
+    .find((row) => row.id === selectedPlanningActivityId);
   return `
     <section class="executive-calendar-view">
       <div class="permission-strip">
@@ -16805,6 +16904,7 @@ function renderExecutiveCalendarView() {
         <span>${planningCalendarLoaded ? `${executivePlanningUpcomingRows().length.toLocaleString("es-MX")} actividades visibles` : "Cargando planeación"}</span>
       </div>
       ${renderExecutivePlanningCalendar()}
+      ${renderPlanningActivityDetail(selected)}
     </section>
   `;
 }
@@ -18465,7 +18565,7 @@ function vivenciaVisibleMetrics() {
 }
 
 function vivenciaPlanningEvents() {
-  return (planningCalendarRows || [])
+  return visiblePlanningCalendarRows(planningCalendarRows)
     .map((row) => buildVivenciaEventPayloadFromPlanningRow(row))
     .filter(Boolean)
     .map((event) => ({
@@ -22330,6 +22430,10 @@ function render() {
   }));
   $$("[data-planning-detail]").forEach((button) => button.addEventListener("click", () => {
     openPlanningActivityDetail(button, button.dataset.planningDetail, button.dataset.planningInstance);
+  }));
+  $$("[data-delete-planning-activity]").forEach((button) => button.addEventListener("click", () => {
+    deletePlanningCalendarActivity(button.dataset.deletePlanningActivity)
+      .catch(() => toast("No se pudo eliminar la actividad."));
   }));
   $$("[data-planning-month]").forEach((button) => button.addEventListener("click", () => {
     const areaId = button.dataset.planningArea;
