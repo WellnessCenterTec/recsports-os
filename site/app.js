@@ -849,7 +849,7 @@ let currentUser = loadSession();
 const viewCacheApi = window.WellSyncViewCache;
 const lastViewStore = viewCacheApi?.createLastViewStore(localStorage) || null;
 let cachedViewSnapshot = null;
-const EXECUTIVE_REPORT_CACHE_RULE_VERSION = "20261026-booking-top-bottom-five-v1";
+const EXECUTIVE_REPORT_CACHE_RULE_VERSION = "20261026-communication-label-v2";
 let viewSnapshotTimer = null;
 let viewSnapshotIdleId = null;
 let cloudCaptures = [];
@@ -13076,7 +13076,7 @@ function renderExecutiveGeneralDashboard() {
               <li><span>Clases</span><strong>${attentions.clases.toLocaleString("es-MX")}</strong><em>inscritos</em></li>
               <li><span>Vivencia</span><strong>${attentions.vivencia.toLocaleString("es-MX")}</strong><em>participaciones · ${vivenciaEventsCount.toLocaleString("es-MX")} eventos</em></li>
               <li><span>Semana TEC</span><strong>${attentions.semanaTec.toLocaleString("es-MX")}</strong><em>intervenciones</em></li>
-              <li><span>Comunicación</span><strong>${attentions.comunicacion.toLocaleString("es-MX")}</strong><em>participaciones</em></li>
+              <li><span>Pláticas informativas</span><strong>${attentions.comunicacion.toLocaleString("es-MX")}</strong><em>participantes</em></li>
               <li><span>Gamer</span><strong>${attentions.gamer.toLocaleString("es-MX")}</strong><em>participantes</em></li>
             </ul>
           </div>
