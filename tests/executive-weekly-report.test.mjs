@@ -200,14 +200,14 @@ test("repeated module totals are replaced by actionable comparisons", () => {
   assert.match(styles, /@media \(max-width: 520px\)[\s\S]*?\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*1fr/s, "Insight cards must stack on narrow screens");
 });
 
-test("Vivencia shows the six most recent events with participants", () => {
+test("Vivencia shows the six most recent elapsed events with participants", () => {
   const historyFunction = source.slice(
     source.indexOf("function executiveVivenciaUploadHistory"),
     source.indexOf("function executiveSemanaTecGroupCounts")
   );
-  assert.match(historyFunction, /vivenciaVisibleEvents\(\)[\s\S]*?vivenciaEventParticipantsCount\(event, metricsByEvent\)[\s\S]*?totalLoaded > 0[\s\S]*?second - first[\s\S]*?\.slice\(0, 6\)/);
+  assert.match(historyFunction, /vivenciaVisibleEvents\(\)[\s\S]*?executiveVivenciaEventIsAvailable\(event\)[\s\S]*?vivenciaEventParticipantsCount\(event, metricsByEvent\)[\s\S]*?totalLoaded > 0[\s\S]*?second - first[\s\S]*?\.slice\(0, 6\)/);
   assert.match(historyFunction, /if \(recentEvents\.length\) return recentEvents/);
-  assert.match(historyFunction, /vivenciaParticipantUploads[\s\S]*?\.slice\(0, 6\)/, "The historical uploads remain as an empty-state fallback");
+  assert.match(historyFunction, /vivenciaParticipantUploads[\s\S]*?executiveVivenciaEventIsAvailable\(eventsById\.get\(row\.event_id\)\)[\s\S]*?\.slice\(0, 6\)/, "The historical uploads remain as a date-filtered empty-state fallback");
   assert.match(source, /Vivencia · últimas cargas/);
   assert.match(source, /upload\.eventName[\s\S]*?exec-insight-vivencia-meta[\s\S]*?upload\.uploadDate[\s\S]*?upload\.totalLoaded/);
   assert.doesNotMatch(source, /Vivencia · próximos eventos|Sin próximos eventos con fecha/);

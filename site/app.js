@@ -12518,9 +12518,18 @@ function executiveClassGroupCount(block = "PMT1") {
     .reduce((total, value) => total + value, 0);
 }
 
+function executiveVivenciaEventIsAvailable(event, today = new Date()) {
+  const eventDate = vivenciaEventDate(event);
+  if (!eventDate) return false;
+  const endOfToday = new Date(today);
+  endOfToday.setHours(23, 59, 59, 999);
+  return eventDate.getTime() <= endOfToday.getTime();
+}
+
 function executiveVivenciaUploadHistory() {
   const metricsByEvent = vivenciaEventMetricMap();
   const recentEvents = vivenciaVisibleEvents()
+    .filter((event) => executiveVivenciaEventIsAvailable(event))
     .map((event) => ({
       event,
       totalLoaded: vivenciaEventParticipantsCount(event, metricsByEvent)
@@ -12542,6 +12551,7 @@ function executiveVivenciaUploadHistory() {
   const eventsById = new Map(vivenciaEvents.map((event) => [event.id, event]));
   return vivenciaParticipantUploads
     .slice()
+    .filter((row) => executiveVivenciaEventIsAvailable(eventsById.get(row.event_id)))
     .sort((a, b) => {
       const first = new Date(a.upload_date || a.created_at || 0).getTime() || 0;
       const second = new Date(b.upload_date || b.created_at || 0).getTime() || 0;
