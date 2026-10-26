@@ -12519,6 +12519,26 @@ function executiveClassGroupCount(block = "PMT1") {
 }
 
 function executiveVivenciaUploadHistory() {
+  const metricsByEvent = vivenciaEventMetricMap();
+  const recentEvents = vivenciaVisibleEvents()
+    .map((event) => ({
+      event,
+      totalLoaded: vivenciaEventParticipantsCount(event, metricsByEvent)
+    }))
+    .filter((row) => row.totalLoaded > 0)
+    .sort((a, b) => {
+      const first = vivenciaEventDate(a.event)?.getTime() || 0;
+      const second = vivenciaEventDate(b.event)?.getTime() || 0;
+      return second - first || String(a.event.event_name || "").localeCompare(String(b.event.event_name || ""), "es");
+    })
+    .slice(0, 6)
+    .map(({ event, totalLoaded }) => ({
+      eventName: executiveWellnessReportDisplayLabel(event.event_name || "Evento no encontrado"),
+      uploadDate: formatVivenciaUploadDate(event.event_date ? `${event.event_date}T12:00:00` : ""),
+      totalLoaded
+    }));
+  if (recentEvents.length) return recentEvents;
+
   const eventsById = new Map(vivenciaEvents.map((event) => [event.id, event]));
   return vivenciaParticipantUploads
     .slice()
@@ -12527,7 +12547,7 @@ function executiveVivenciaUploadHistory() {
       const second = new Date(b.upload_date || b.created_at || 0).getTime() || 0;
       return second - first;
     })
-    .slice(0, 8)
+    .slice(0, 6)
     .map((row) => ({
       ...row,
       eventName: executiveWellnessReportDisplayLabel(eventsById.get(row.event_id)?.event_name || "Evento no encontrado"),
