@@ -208,7 +208,27 @@ test("Booking shows five most and five least popular activities with the correct
   );
   assert.match(popularityFunction, /normalizeText\(label\) === "de natacion" \? "Natación" : label/);
   assert.match(popularityFunction, /executivePopularitySplit\([\s\S]*?5,[\s\S]*?5[\s\S]*?\)/);
+  assert.match(popularityFunction, /excludeBottom: \(row\) => normalizeText\(row\.label\) === "natacion"/);
   assert.doesNotMatch(popularityFunction, /\n\s*3,\n\s*3\n/);
+
+  const splitSource = source.slice(
+    source.indexOf("function executivePopularitySplit"),
+    source.indexOf("function executiveBookingDisplayLabel")
+  );
+  const split = Function(`${splitSource}; return executivePopularitySplit;`)();
+  const ranking = split(
+    [
+      { label: "Natación", value: 1 },
+      { label: "Pilates", value: 2 },
+      { label: "Yoga", value: 20 },
+      { label: "Ciclismo", value: 15 }
+    ],
+    2,
+    2,
+    { excludeBottom: (row) => row.label === "Natación" }
+  );
+  assert.deepEqual(ranking.top.map((row) => row.label), ["Yoga", "Ciclismo"]);
+  assert.deepEqual(ranking.bottom.map((row) => row.label), ["Pilates"]);
 });
 
 test("Vivencia shows the six most recent elapsed events with participants", () => {

@@ -849,7 +849,7 @@ let currentUser = loadSession();
 const viewCacheApi = window.WellSyncViewCache;
 const lastViewStore = viewCacheApi?.createLastViewStore(localStorage) || null;
 let cachedViewSnapshot = null;
-const EXECUTIVE_REPORT_CACHE_RULE_VERSION = "20261026-communication-label-v2";
+const EXECUTIVE_REPORT_CACHE_RULE_VERSION = "20261026-booking-exclude-swimming-v3";
 let viewSnapshotTimer = null;
 let viewSnapshotIdleId = null;
 let cloudCaptures = [];
@@ -12433,13 +12433,14 @@ function renderExecutiveGenderDonut(summary) {
     </div>`;
 }
 
-function executivePopularitySplit(rows, topLimit, bottomLimit) {
+function executivePopularitySplit(rows, topLimit, bottomLimit, options = {}) {
   const ranked = [...rows].sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "es"));
   const top = ranked.slice(0, topLimit);
   const topLabels = new Set(top.map((row) => row.label));
+  const excludeBottom = typeof options.excludeBottom === "function" ? options.excludeBottom : () => false;
   const bottom = [...ranked]
     .sort((a, b) => a.value - b.value || a.label.localeCompare(b.label, "es"))
-    .filter((row) => !topLabels.has(row.label))
+    .filter((row) => !topLabels.has(row.label) && !excludeBottom(row))
     .slice(0, bottomLimit);
   return { top, bottom };
 }
@@ -12459,7 +12460,8 @@ function executiveBookingPopularity() {
   return executivePopularitySplit(
     Array.from(counts, ([label, value]) => ({ label, value })),
     5,
-    5
+    5,
+    { excludeBottom: (row) => normalizeText(row.label) === "natacion" }
   );
 }
 
