@@ -12444,17 +12444,22 @@ function executivePopularitySplit(rows, topLimit, bottomLimit) {
   return { top, bottom };
 }
 
+function executiveBookingDisplayLabel(value) {
+  const label = String(value || "").trim();
+  return normalizeText(label) === "de natacion" ? "Natación" : label;
+}
+
 function executiveBookingPopularity() {
   const counts = new Map();
   classBookingReservations.forEach((row) => {
-    const label = String(row.activity || "").trim();
+    const label = executiveBookingDisplayLabel(row.activity);
     if (!label || normalizeText(label) === "sin actividad") return;
     counts.set(label, (counts.get(label) || 0) + 1);
   });
   return executivePopularitySplit(
     Array.from(counts, ([label, value]) => ({ label, value })),
-    3,
-    3
+    5,
+    5
   );
 }
 

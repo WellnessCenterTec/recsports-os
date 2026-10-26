@@ -46,6 +46,6 @@ test("la vista rápida de Reporte Wellness caduca al cambiar la fecha", () => {
 });
 
 test("la versión identifica la nueva regla de fechas", () => {
-  assert.match(indexSource, /20261026-vivencia-elapsed-events-v3/);
-  assert.match(indexSource, /app\.js\?v=20261026-vivencia-elapsed-events-v3/);
+  assert.match(indexSource, /20261026-booking-top-bottom-five-v4/);
+  assert.match(indexSource, /app\.js\?v=20261026-booking-top-bottom-five-v4/);
 });

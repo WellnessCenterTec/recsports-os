@@ -200,6 +200,16 @@ test("repeated module totals are replaced by actionable comparisons", () => {
   assert.match(styles, /@media \(max-width: 520px\)[\s\S]*?\.exec-report-insight-grid\s*{[^}]*grid-template-columns:\s*1fr/s, "Insight cards must stack on narrow screens");
 });
 
+test("Booking shows five most and five least popular activities with the corrected swimming label", () => {
+  const popularityFunction = source.slice(
+    source.indexOf("function executiveBookingDisplayLabel"),
+    source.indexOf("function executiveClassPopularity")
+  );
+  assert.match(popularityFunction, /normalizeText\(label\) === "de natacion" \? "Natación" : label/);
+  assert.match(popularityFunction, /executivePopularitySplit\([\s\S]*?5,[\s\S]*?5[\s\S]*?\)/);
+  assert.doesNotMatch(popularityFunction, /\n\s*3,\n\s*3\n/);
+});
+
 test("Vivencia shows the six most recent elapsed events with participants", () => {
   const historyFunction = source.slice(
     source.indexOf("function executiveVivenciaUploadHistory"),
