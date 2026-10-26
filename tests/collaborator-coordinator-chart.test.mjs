@@ -13,5 +13,5 @@ test("coordinator gender chart uses a compact single-line layout", async () => {
   assert.match(app, /class="\$\{row\.Mujer \? "" : "zero-count"\}"/);
   assert.match(app, /class="\$\{row\.Hombre \? "" : "zero-count"\}"/);
   assert.match(index, /styles\.css\?v=20261019-planning-calendar-sync-v15/);
-  assert.match(index, /app\.js\?v=20261026-vivencia-elapsed-events-v2/);
+  assert.match(index, /app\.js\?v=20261026-vivencia-elapsed-events-v3/);
 });

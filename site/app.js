@@ -849,6 +849,7 @@ let currentUser = loadSession();
 const viewCacheApi = window.WellSyncViewCache;
 const lastViewStore = viewCacheApi?.createLastViewStore(localStorage) || null;
 let cachedViewSnapshot = null;
+const EXECUTIVE_VIVENCIA_CACHE_RULE_VERSION = "20261026-elapsed-events-v1";
 let viewSnapshotTimer = null;
 let viewSnapshotIdleId = null;
 let cloudCaptures = [];
@@ -6324,9 +6325,16 @@ function restoreCachedWorkspace(fallbackArea = "general") {
 
 function currentCachedView() {
   if (!cachedViewSnapshot) return null;
-  return cachedViewSnapshot.area === activeArea && cachedViewSnapshot.view === activeView
-    ? cachedViewSnapshot
-    : null;
+  if (cachedViewSnapshot.area !== activeArea || cachedViewSnapshot.view !== activeView) return null;
+  if (activeArea !== "general" || activeView !== "dashboard") return cachedViewSnapshot;
+  if (cachedViewSnapshot.vivenciaTimelineVersion !== EXECUTIVE_VIVENCIA_CACHE_RULE_VERSION) return null;
+  const savedAt = new Date(cachedViewSnapshot.savedAt || "");
+  const today = new Date();
+  if (Number.isNaN(savedAt.getTime())) return null;
+  const sameLocalDay = savedAt.getFullYear() === today.getFullYear()
+    && savedAt.getMonth() === today.getMonth()
+    && savedAt.getDate() === today.getDate();
+  return sameLocalDay ? cachedViewSnapshot : null;
 }
 
 function cachedViewTimestamp(snapshot) {
@@ -6382,7 +6390,10 @@ function scheduleViewSnapshotPersist(areaId, viewId, { allowPartial = false } = 
         view: viewId,
         title: $("#currentTitle")?.textContent || labelArea(areaId),
         contentHtml,
-        kpisHtml: $("#executiveKpis")?.innerHTML || ""
+        kpisHtml: $("#executiveKpis")?.innerHTML || "",
+        vivenciaTimelineVersion: areaId === "general" && viewId === "dashboard"
+          ? EXECUTIVE_VIVENCIA_CACHE_RULE_VERSION
+          : undefined
       };
       if (lastViewStore?.writeSnapshot(userId, activeMasterPeriod, snapshot)) cachedViewSnapshot = snapshot;
     };
