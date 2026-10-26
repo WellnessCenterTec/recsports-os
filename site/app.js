@@ -849,7 +849,7 @@ let currentUser = loadSession();
 const viewCacheApi = window.WellSyncViewCache;
 const lastViewStore = viewCacheApi?.createLastViewStore(localStorage) || null;
 let cachedViewSnapshot = null;
-const EXECUTIVE_VIVENCIA_CACHE_RULE_VERSION = "20261026-elapsed-events-v1";
+const EXECUTIVE_REPORT_CACHE_RULE_VERSION = "20261026-booking-top-bottom-five-v1";
 let viewSnapshotTimer = null;
 let viewSnapshotIdleId = null;
 let cloudCaptures = [];
@@ -6327,7 +6327,7 @@ function currentCachedView() {
   if (!cachedViewSnapshot) return null;
   if (cachedViewSnapshot.area !== activeArea || cachedViewSnapshot.view !== activeView) return null;
   if (activeArea !== "general" || activeView !== "dashboard") return cachedViewSnapshot;
-  if (cachedViewSnapshot.vivenciaTimelineVersion !== EXECUTIVE_VIVENCIA_CACHE_RULE_VERSION) return null;
+  if (cachedViewSnapshot.executiveReportVersion !== EXECUTIVE_REPORT_CACHE_RULE_VERSION) return null;
   const savedAt = new Date(cachedViewSnapshot.savedAt || "");
   const today = new Date();
   if (Number.isNaN(savedAt.getTime())) return null;
@@ -6391,8 +6391,8 @@ function scheduleViewSnapshotPersist(areaId, viewId, { allowPartial = false } = 
         title: $("#currentTitle")?.textContent || labelArea(areaId),
         contentHtml,
         kpisHtml: $("#executiveKpis")?.innerHTML || "",
-        vivenciaTimelineVersion: areaId === "general" && viewId === "dashboard"
-          ? EXECUTIVE_VIVENCIA_CACHE_RULE_VERSION
+        executiveReportVersion: areaId === "general" && viewId === "dashboard"
+          ? EXECUTIVE_REPORT_CACHE_RULE_VERSION
           : undefined
       };
       if (lastViewStore?.writeSnapshot(userId, activeMasterPeriod, snapshot)) cachedViewSnapshot = snapshot;

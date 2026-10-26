@@ -36,16 +36,16 @@ test("la regla incluye la fecha actual y excluye eventos futuros", () => {
   assert.equal(isAvailable({}, today), false);
 });
 
-test("la vista rápida de Reporte Wellness caduca al cambiar la fecha", () => {
-  assert.match(appSource, /EXECUTIVE_VIVENCIA_CACHE_RULE_VERSION/);
-  assert.match(appSource, /cachedViewSnapshot\.vivenciaTimelineVersion !== EXECUTIVE_VIVENCIA_CACHE_RULE_VERSION/);
+test("la vista rápida de Reporte Wellness caduca al cambiar la versión o la fecha", () => {
+  assert.match(appSource, /EXECUTIVE_REPORT_CACHE_RULE_VERSION/);
+  assert.match(appSource, /cachedViewSnapshot\.executiveReportVersion !== EXECUTIVE_REPORT_CACHE_RULE_VERSION/);
   assert.match(appSource, /savedAt\.getFullYear\(\) === today\.getFullYear\(\)/);
   assert.match(appSource, /savedAt\.getMonth\(\) === today\.getMonth\(\)/);
   assert.match(appSource, /savedAt\.getDate\(\) === today\.getDate\(\)/);
-  assert.match(appSource, /vivenciaTimelineVersion: areaId === "general" && viewId === "dashboard"/);
+  assert.match(appSource, /executiveReportVersion: areaId === "general" && viewId === "dashboard"/);
 });
 
 test("la versión identifica la nueva regla de fechas", () => {
-  assert.match(indexSource, /20261026-booking-top-bottom-five-v4/);
-  assert.match(indexSource, /app\.js\?v=20261026-booking-top-bottom-five-v4/);
+  assert.match(indexSource, /20261026-booking-top-bottom-five-v5/);
+  assert.match(indexSource, /app\.js\?v=20261026-booking-top-bottom-five-v5/);
 });
