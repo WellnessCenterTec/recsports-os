@@ -13052,7 +13052,6 @@ function renderExecutiveGeneralDashboard() {
   const baseUniverse = 17173;
   const impact = baseUniverse ? Math.round((unique / baseUniverse) * 1000) / 10 : 0;
   const attentions = executiveAttentionSummary();
-  const vivenciaEventsCount = vivenciaVisibleEvents().length;
   const intramurosRows = executiveIntramurosRows();
   const genderSummary = executiveGenderAttendanceSummary();
   return `
@@ -13077,7 +13076,7 @@ function renderExecutiveGeneralDashboard() {
               <li><span>Intramuros</span><strong>${attentions.intramuros.toLocaleString("es-MX")}</strong><em>registros</em></li>
               <li><span>Booking</span><strong>${attentions.booking.toLocaleString("es-MX")}</strong><em>reservaciones</em></li>
               <li><span>Clases</span><strong>${attentions.clases.toLocaleString("es-MX")}</strong><em>inscritos</em></li>
-              <li><span>Vivencia</span><strong>${attentions.vivencia.toLocaleString("es-MX")}</strong><em>participaciones · ${vivenciaEventsCount.toLocaleString("es-MX")} eventos</em></li>
+              <li><span>Vivencia</span><strong>${attentions.vivencia.toLocaleString("es-MX")}</strong><em>participaciones</em></li>
               <li><span>Semana TEC</span><strong>${attentions.semanaTec.toLocaleString("es-MX")}</strong><em>intervenciones</em></li>
               <li><span>Pláticas informativas</span><strong>${attentions.comunicacion.toLocaleString("es-MX")}</strong><em>participantes</em></li>
               <li><span>Gamer</span><strong>${attentions.gamer.toLocaleString("es-MX")}</strong><em>participantes</em></li>

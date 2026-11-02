@@ -226,7 +226,7 @@
     <script src="./vivencia-forms-feed.js?v=20261016-followup-insights-v13"></script>
     <script src="./participation-posgrado-report.js?v=20260915-v2"></script>
     <script src="./participation-verification.js?v=20260915-posgrado-v2"></script>
-    <script src="./app.js?v=20261102-clases-reprobados-v2"></script>
+    <script src="./app.js?v=20261102-vivencia-sin-eventos-v1"></script>
     <script>
       (() => {
         const completeWellnessTransferTime = () => {
@@ -241,9 +241,8 @@
           const detail = vivenciaCard?.querySelector("em");
           const legacyDetail = detail?.textContent.trim().match(/^eventos\s*·\s*([\d.,]+)\s+participaciones$/i);
           if (value && detail && legacyDetail) {
-            const eventCount = value.textContent.trim();
             value.textContent = legacyDetail[1];
-            detail.textContent = `participaciones · ${eventCount} eventos`;
+            detail.textContent = "participaciones";
           }
         };
         const reportRoot = document.getElementById("contentArea");
