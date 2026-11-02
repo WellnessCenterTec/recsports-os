@@ -12755,12 +12755,13 @@ function renderExecutiveInsightCards() {
       <article class="exec-insight-card exec-insight-semana-tec">
         <h3>Semana TEC · grupos</h3>
         <div class="exec-week-group-grid">
-          ${[[6, semanaTecGroups.week6], [12, semanaTecGroups.week12]].map(([week, summary]) => `
+          ${[[6, semanaTecGroups.week6, 2], [12, semanaTecGroups.week12, 1]].map(([week, summary, droppedGroups]) => `
             <article class="week-${week}">
               <div class="exec-week-group-tile"><span>Semana ${week}</span><strong>${summary.total.toLocaleString("es-MX")}</strong><em>grupos</em></div>
               <div class="exec-week-language-breakdown">
                 <span>Español <b>${summary.hasLanguage ? summary.spanish.toLocaleString("es-MX") : "—"}</b></span>
                 <span>Inglés <b>${summary.hasLanguage ? summary.english.toLocaleString("es-MX") : "—"}</b></span>
+                <span class="exec-week-dropped-groups">${droppedGroups} ${droppedGroups === 1 ? "grupo" : "grupos"} de baja</span>
               </div>
             </article>`).join("")}
         </div>

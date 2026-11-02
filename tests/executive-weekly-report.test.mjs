@@ -192,7 +192,10 @@ test("repeated module totals are replaced by actionable comparisons", () => {
   assert.ok(styles.includes(".exec-week-group-grid"), "Semana TEC must compare weeks 6 and 12 side by side");
   assert.match(source, /function executiveSemanaTecGroupCounts\(\)[\s\S]*?languageByGroup[\s\S]*?spanish[\s\S]*?english[\s\S]*?hasLanguage/);
   assert.match(source, /exec-week-language-breakdown[\s\S]*?Español[\s\S]*?Inglés/);
+  assert.match(source, /\[6, semanaTecGroups\.week6, 2\][\s\S]*?\[12, semanaTecGroups\.week12, 1\]/, "Semana TEC must preserve both totals while pairing week 6 with two dropped groups and week 12 with one");
+  assert.match(source, /exec-week-dropped-groups[\s\S]*?grupo[\s\S]*?grupos[\s\S]*?de baja/);
   assert.match(styles, /\.exec-week-language-breakdown\s*\{[^}]*display:\s*grid;/s);
+  assert.match(styles, /\.exec-week-language-breakdown \.exec-week-dropped-groups\s*\{[^}]*background:\s*#fff0f0;[^}]*color:\s*#b52f35;/s);
   assert.match(styles, /\.exec-week-group-grid > article\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\) auto;[^}]*height:\s*100%;/s, "Semana TEC cards must use their full available height");
   assert.match(styles, /\.exec-week-language-breakdown\s*\{[^}]*gap:\s*7px;[^}]*min-height:\s*39px;/s, "Semana TEC language labels must have more vertical separation");
   assert.match(styles, /\.exec-week-language-breakdown b\s*\{[^}]*border-top:\s*0;[^}]*transform:\s*translateY\(-2px\);/s);
