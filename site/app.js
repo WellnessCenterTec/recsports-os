@@ -11785,7 +11785,7 @@ function direccionEmailInsights(areaId) {
     const strengths = rows
       .filter((row) => row.captured)
       .sort((first, second) => second.approvedRate - first.approvedRate || first.issueRate - second.issueRate)
-      .map((row) => direccionEmailInsight(`Desempeño destacado: ${row.discipline}`, `${row.approvedRate}% de acreditación y ${row.issueRate}% de incidencia.`));
+      .map((row) => direccionEmailInsight(`Desempeño destacado: ${row.discipline}`, `${row.approvedRate}% de acreditación y ${row.issueRate}% de reprobados.`));
     if (!strengths.length && summary.banner) strengths.push(direccionEmailInsight("Avance de captura", `${summary.captured.toLocaleString("es-MX")} de ${summary.banner.toLocaleString("es-MX")} alumnos cuentan con una calificación o estatus registrado.`));
     return {
       critical: [
@@ -17548,7 +17548,7 @@ function renderClassExecutiveKpis(summary) {
     <section class="class-executive-kpis">
       <article class="kpi"><span>Inscritos Banner</span><strong>${summary.banner.toLocaleString("es-MX")}</strong><em>${escapeHtml(periodLabel)}</em></article>
       <article class="kpi"><span>Acreditados</span><strong>${summary.finished.toLocaleString("es-MX")}</strong><em>${summary.approvedRate}% global</em></article>
-      <article class="kpi"><span>Bajas + NP</span><strong>${(summary.bajas + summary.np).toLocaleString("es-MX")}</strong><em>${summary.issueRate}% incidencia</em></article>
+      <article class="kpi"><span>Bajas + NP</span><strong>${(summary.bajas + summary.np).toLocaleString("es-MX")}</strong><em>${summary.issueRate}% reprobados</em></article>
       <article class="kpi risk-red"><span>Grupos criticos</span><strong>${summary.riskCounts.red}</strong><em>requieren accion</em></article>
       <article class="kpi risk-yellow"><span>En atencion</span><strong>${summary.riskCounts.yellow}</strong><em>monitoreo</em></article>
       <article class="kpi risk-green"><span>Saludables</span><strong>${summary.riskCounts.green}</strong><em>mantener</em></article>
@@ -17727,7 +17727,7 @@ function renderClassDisciplineIndicators() {
 function renderClassDisciplineBar(row) {
   const risk = classRiskLevel(row);
   const progressLabel = row.captured
-    ? `${row.approvedRate}% acreditacion / ${row.issueRate}% incidencia`
+    ? `${row.approvedRate}% acreditacion / ${row.issueRate}% reprobados`
     : `Sin calificaciones capturadas / ${row.total.toLocaleString("es-MX")} inscritos`;
   return `
     <div class="class-discipline-bar ${risk}">

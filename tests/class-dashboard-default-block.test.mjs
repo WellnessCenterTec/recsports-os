@@ -14,3 +14,14 @@ test("Clases defaults to the latest PMT block with captured grades", () => {
   assert.match(source, /Prioridad automática: último bloque con calificaciones \(PMT1, PMT2, PMT3\)\./);
   assert.match(source, /Prioridad automática \(\$\{escapeHtml\(selectedBlock \|\| "sin datos"\)\}\)/);
 });
+
+test("Clases labels non-passing percentages as reprobados", () => {
+  const executiveKpis = source.slice(source.indexOf("function renderClassExecutiveKpis"), source.indexOf("function renderClassRiskBoard"));
+  const disciplineBar = source.slice(source.indexOf("function renderClassDisciplineBar"), source.indexOf("function classResponsibleTeachers"));
+  const directionInsights = source.slice(source.indexOf('if (areaId === "clases")'), source.indexOf('if (areaId === "gimnasio")'));
+
+  assert.match(executiveKpis, /\$\{summary\.issueRate\}% reprobados/);
+  assert.match(disciplineBar, /\$\{row\.issueRate\}% reprobados/);
+  assert.match(directionInsights, /\$\{row\.issueRate\}% de reprobados\./);
+  assert.doesNotMatch(`${executiveKpis}\n${disciplineBar}\n${directionInsights}`, /incidencia/i);
+});
