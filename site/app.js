@@ -255,8 +255,11 @@ const SIMULATOR_KEY = "recsports_os_schedule_simulator";
 const CLASS_SIMULATOR_KEY = "wellsync_spinning_fitness_simulator";
 const CLASS_SCHEDULE_SNAPSHOT_KEY = "wellsync_class_schedule_snapshot";
 const CLASS_EXCEL_STORAGE_KEY = "wellsync_class_excel_grid_v1";
-const CLASS_EXCEL_ROWS = 50;
-const CLASS_EXCEL_COLUMNS = 50;
+const CLASS_EXCEL_DIMENSIONS_KEY = "wellsync_class_excel_dimensions_v1";
+const CLASS_EXCEL_DEFAULT_ROWS = 50;
+const CLASS_EXCEL_DEFAULT_COLUMNS = 50;
+const CLASS_EXCEL_MAX_ROWS = 200;
+const CLASS_EXCEL_MAX_COLUMNS = 100;
 const BUDGET_AREAS_KEY = "wellsync_budget_areas";
 const BUDGET_REQUESTS_KEY = "wellsync_budget_requests";
 const BUDGET_PENDING_REQUESTS_KEY = "wellsync_budget_requests_pending";
@@ -656,6 +659,7 @@ const PHYSICAL_HALL_TESTS = [
 let activeArea = "general";
 let activeView = "dashboard";
 let classExcelCells = loadClassExcelCells();
+let classExcelDimensions = loadClassExcelDimensions();
 let classExcelSaveTimer = null;
 const DIRECCION_ACCESS_CODE_HASH = "33dc0ba86008f4434bd43d050df9022209367483c1eef5280b25da861c32f6ad";
 let direccionAccessGranted = false;
@@ -12970,6 +12974,7 @@ async function switchMasterPeriod(nextPeriod) {
   classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
   classScheduleComparison = loadClassScheduleComparison();
   classExcelCells = loadClassExcelCells();
+  classExcelDimensions = loadClassExcelDimensions();
   intramurosOperationRows = loadIntramurosOperationRows();
   semanaTecRows = [];
   semanaTecDraft = null;
@@ -19500,6 +19505,24 @@ function saveClassExcelCells() {
   localStorage.setItem(periodStorageKey(CLASS_EXCEL_STORAGE_KEY), JSON.stringify(classExcelCells));
 }
 
+function loadClassExcelDimensions() {
+  try {
+    const saved = JSON.parse(readPeriodStorage(CLASS_EXCEL_DIMENSIONS_KEY, "null") || "null");
+    const rows = Number(saved?.rows);
+    const columns = Number(saved?.columns);
+    return {
+      rows: Number.isInteger(rows) ? Math.max(CLASS_EXCEL_DEFAULT_ROWS, Math.min(CLASS_EXCEL_MAX_ROWS, rows)) : CLASS_EXCEL_DEFAULT_ROWS,
+      columns: Number.isInteger(columns) ? Math.max(CLASS_EXCEL_DEFAULT_COLUMNS, Math.min(CLASS_EXCEL_MAX_COLUMNS, columns)) : CLASS_EXCEL_DEFAULT_COLUMNS
+    };
+  } catch {
+    return { rows: CLASS_EXCEL_DEFAULT_ROWS, columns: CLASS_EXCEL_DEFAULT_COLUMNS };
+  }
+}
+
+function saveClassExcelDimensions() {
+  localStorage.setItem(periodStorageKey(CLASS_EXCEL_DIMENSIONS_KEY), JSON.stringify(classExcelDimensions));
+}
+
 function classExcelColumnLabel(index) {
   let value = Number(index) + 1;
   let label = "";
@@ -19516,11 +19539,13 @@ function classExcelCellKey(row, column) {
 }
 
 function renderClassExcelView() {
-  const columnHeaders = Array.from({ length: CLASS_EXCEL_COLUMNS }, (_, column) =>
+  const rowsCount = classExcelDimensions.rows;
+  const columnsCount = classExcelDimensions.columns;
+  const columnHeaders = Array.from({ length: columnsCount }, (_, column) =>
     `<th scope="col">${classExcelColumnLabel(column)}</th>`
   ).join("");
-  const rows = Array.from({ length: CLASS_EXCEL_ROWS }, (_, row) => {
-    const cells = Array.from({ length: CLASS_EXCEL_COLUMNS }, (_, column) => {
+  const rows = Array.from({ length: rowsCount }, (_, row) => {
+    const cells = Array.from({ length: columnsCount }, (_, column) => {
       const key = classExcelCellKey(row, column);
       const label = `${classExcelColumnLabel(column)}${row + 1}`;
       return `<td contenteditable="true" spellcheck="false" role="gridcell" aria-label="${label}" data-class-excel-cell data-row="${row}" data-column="${column}">${escapeHtml(classExcelCells[key] || "")}</td>`;
@@ -19535,13 +19560,19 @@ function renderClassExcelView() {
           <h2>Hoja de trabajo</h2>
           <p>Cuadrícula editable guardada automáticamente en este navegador para el periodo ${escapeHtml(activeMasterPeriod)}.</p>
         </div>
-        <div class="class-excel-meta">
-          <strong>${CLASS_EXCEL_ROWS} filas × ${CLASS_EXCEL_COLUMNS} columnas</strong>
-          <span id="classExcelSaveStatus" aria-live="polite">Guardado automático</span>
+        <div class="class-excel-heading-controls">
+          <div class="class-excel-actions" aria-label="Ampliar hoja de trabajo">
+            <button class="ghost-btn" id="addClassExcelRow" type="button" ${rowsCount >= CLASS_EXCEL_MAX_ROWS ? "disabled" : ""}>+ Fila</button>
+            <button class="ghost-btn" id="addClassExcelColumn" type="button" ${columnsCount >= CLASS_EXCEL_MAX_COLUMNS ? "disabled" : ""}>+ Columna</button>
+          </div>
+          <div class="class-excel-meta">
+            <strong>${rowsCount} filas × ${columnsCount} columnas</strong>
+            <span id="classExcelSaveStatus" aria-live="polite">Guardado automático</span>
+          </div>
         </div>
       </div>
       <div class="class-excel-scroll" role="region" aria-label="Hoja de cálculo de Clases Deportivas" tabindex="0">
-        <table class="class-excel-grid" role="grid" aria-rowcount="${CLASS_EXCEL_ROWS}" aria-colcount="${CLASS_EXCEL_COLUMNS}">
+        <table class="class-excel-grid" role="grid" aria-rowcount="${rowsCount}" aria-colcount="${columnsCount}">
           <thead><tr><th class="class-excel-corner" aria-hidden="true"></th>${columnHeaders}</tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -19550,13 +19581,31 @@ function renderClassExcelView() {
 }
 
 function focusClassExcelCell(row, column) {
-  const safeRow = Math.max(0, Math.min(CLASS_EXCEL_ROWS - 1, row));
-  const safeColumn = Math.max(0, Math.min(CLASS_EXCEL_COLUMNS - 1, column));
+  const safeRow = Math.max(0, Math.min(classExcelDimensions.rows - 1, row));
+  const safeColumn = Math.max(0, Math.min(classExcelDimensions.columns - 1, column));
   const cell = $(`[data-class-excel-cell][data-row="${safeRow}"][data-column="${safeColumn}"]`);
   cell?.focus();
 }
 
 function bindClassExcelGrid() {
+  $("#addClassExcelRow")?.addEventListener("click", () => {
+    if (classExcelDimensions.rows >= CLASS_EXCEL_MAX_ROWS) return;
+    clearTimeout(classExcelSaveTimer);
+    saveClassExcelCells();
+    classExcelDimensions.rows += 1;
+    saveClassExcelDimensions();
+    render();
+    toast(`Fila ${classExcelDimensions.rows} agregada`);
+  });
+  $("#addClassExcelColumn")?.addEventListener("click", () => {
+    if (classExcelDimensions.columns >= CLASS_EXCEL_MAX_COLUMNS) return;
+    clearTimeout(classExcelSaveTimer);
+    saveClassExcelCells();
+    classExcelDimensions.columns += 1;
+    saveClassExcelDimensions();
+    render();
+    toast(`Columna ${classExcelColumnLabel(classExcelDimensions.columns - 1)} agregada`);
+  });
   const cells = $$('[data-class-excel-cell]');
   cells.forEach((cell) => {
     cell.addEventListener("input", () => {

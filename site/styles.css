@@ -4755,6 +4755,22 @@ tbody tr:hover td {
   margin: 0;
 }
 
+.class-excel-heading-controls {
+  align-items: flex-end;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 14px;
+}
+
+.class-excel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.class-excel-actions .ghost-btn {
+  min-width: 92px;
+}
+
 .class-excel-meta {
   align-items: flex-end;
   color: var(--muted);
@@ -4768,6 +4784,19 @@ tbody tr:hover td {
 .class-excel-meta strong {
   color: var(--ink);
   font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .class-excel-heading,
+  .class-excel-heading-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .class-excel-meta {
+    align-items: start;
+    justify-items: start;
+  }
 }
 
 .class-excel-scroll {

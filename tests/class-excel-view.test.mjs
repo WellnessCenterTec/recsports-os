@@ -13,12 +13,21 @@ test("Clases Deportivas incluye una pestaña Excel exclusiva del módulo", () =>
   assert.match(app, /activeView === "class-excel"\) contentHtml = renderClassExcelView\(\)/);
 });
 
-test("la hoja genera 50 filas por 50 columnas y guarda solo las celdas editadas", () => {
-  assert.match(app, /const CLASS_EXCEL_ROWS = 50/);
-  assert.match(app, /const CLASS_EXCEL_COLUMNS = 50/);
+test("la hoja inicia con 50 filas por 50 columnas y guarda solo las celdas editadas", () => {
+  assert.match(app, /const CLASS_EXCEL_DEFAULT_ROWS = 50/);
+  assert.match(app, /const CLASS_EXCEL_DEFAULT_COLUMNS = 50/);
   assert.match(app, /wellsync_class_excel_grid_v1/);
   assert.match(app, /data-class-excel-cell/);
   assert.match(app, /localStorage\.setItem\(periodStorageKey\(CLASS_EXCEL_STORAGE_KEY\)/);
+});
+
+test("la hoja permite agregar filas y columnas y conserva sus dimensiones por periodo", () => {
+  assert.match(app, /wellsync_class_excel_dimensions_v1/);
+  assert.match(app, /id="addClassExcelRow"/);
+  assert.match(app, /id="addClassExcelColumn"/);
+  assert.match(app, /classExcelDimensions\.rows \+= 1/);
+  assert.match(app, /classExcelDimensions\.columns \+= 1/);
+  assert.match(app, /localStorage\.setItem\(periodStorageKey\(CLASS_EXCEL_DIMENSIONS_KEY\)/);
 });
 
 test("la cuadrícula conserva encabezados fijos y desplazamiento en ambas direcciones", () => {
