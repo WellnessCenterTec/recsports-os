@@ -37,8 +37,8 @@ test("la programación de Intramuros usa siete botones y una cuadrícula editabl
   assert.match(app, /key: "resultado_vs", label: "VS"/);
   assert.match(app, /key: "resultado_pd", label: "PD"/);
   assert.match(app, /function intramurosProgrammingResultParts\(/);
-  assert.match(app, /\["tochito", "volei-basquet", "soccer-fut7"\]\.includes\(tabKey\)/);
-  assert.match(renderSource, /\["tochito", "volei-basquet", "soccer-fut7"\]\.includes\(activeTab\.key\)/);
+  assert.match(app, /\["tochito", "volei-basquet", "soccer-fut7", "futbol-rapido"\]\.includes\(tabKey\)/);
+  assert.match(renderSource, /\["tochito", "volei-basquet", "soccer-fut7", "futbol-rapido"\]\.includes\(activeTab\.key\)/);
   assert.match(app, /`\$\{parts\.gd\} VS \$\{parts\.pd\}`/);
 
   assert.match(styles, /\.intramuros-programming-tabs\s*\{[\s\S]*grid-template-columns:\s*repeat\(7,/);
@@ -76,6 +76,8 @@ test("Tochito separa los resultados existentes en GD, VS y PD", async () => {
   assert.deepEqual(intramurosProgrammingResultParts("GD - PD"), { gd: "GD", pd: "PD" });
   assert.deepEqual(intramurosProgrammingResultParts("48 - 6"), { gd: "48", pd: "6" });
   assert.deepEqual(intramurosProgrammingResultParts("25 VS 43"), { gd: "25", pd: "43" });
+  assert.deepEqual(intramurosProgrammingResultParts("4 GP - 4"), { gd: "4 GP", pd: "4" });
+  assert.deepEqual(intramurosProgrammingResultParts("6 - 6 GP"), { gd: "6", pd: "6 GP" });
 
   const row = { resultado: "34 - 18" };
   setIntramurosProgrammingFieldValue(row, { key: "resultado_gd", resultPart: "gd" }, "35");
