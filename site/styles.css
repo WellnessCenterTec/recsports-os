@@ -7835,8 +7835,8 @@ tbody tr:hover td {
 
 .intramuros-programming-tabs {
   display: grid;
-  gap: 7px;
-  grid-template-columns: repeat(4, minmax(145px, 1fr));
+  gap: 5px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   padding: 1px 1px 5px;
 }
 
@@ -7849,15 +7849,18 @@ tbody tr:hover td {
   cursor: pointer;
   display: grid;
   font: inherit;
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 850;
   gap: 3px;
-  min-height: 50px;
-  padding: 8px 10px;
+  line-height: 1.15;
+  min-height: 48px;
+  min-width: 0;
+  padding: 7px 8px;
   text-align: left;
 }
 
-.intramuros-programming-tabs button b { color: #6f8395; font-size: 10px; }
+.intramuros-programming-tabs button span { overflow-wrap: anywhere; }
+.intramuros-programming-tabs button b { color: #6f8395; font-size: 9px; }
 .intramuros-programming-tabs button.active { background: #0d58a4; border-color: #0d58a4; color: #fff; box-shadow: 0 3px 10px rgba(13, 88, 164, .2); }
 .intramuros-programming-tabs button.active b { color: #d9ebff; }
 
@@ -8030,7 +8033,7 @@ tbody tr:hover td {
 @media (max-width: 760px) {
   .intramuros-programming-heading { align-items: stretch; flex-direction: column; }
   .intramuros-programming-actions { justify-content: flex-start; }
-  .intramuros-programming-tabs { grid-template-columns: repeat(2, minmax(132px, 1fr)); }
+  .intramuros-programming-tabs { grid-template-columns: repeat(7, minmax(120px, 1fr)); overflow-x: auto; }
   .intramuros-programming-sheet-title { align-items: flex-start; flex-direction: column; gap: 3px; }
   .intramuros-role-court-map-section .intramuros-court-map-controls { grid-template-columns: 1fr; max-width: none; }
   .intramuros-role-court-map-section .intramuros-court-map-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

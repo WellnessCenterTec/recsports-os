@@ -30,7 +30,7 @@ test("la programación de Intramuros usa siete botones y una cuadrícula editabl
   assert.match(renderSource, /data-save-intramuros-programming/);
   assert.match(renderSource, /pegar rangos desde Excel/);
 
-  assert.match(styles, /\.intramuros-programming-tabs\s*\{[\s\S]*grid-template-columns:\s*repeat\(4,/);
+  assert.match(styles, /\.intramuros-programming-tabs\s*\{[\s\S]*grid-template-columns:\s*repeat\(7,/);
   assert.match(styles, /\.intramuros-programming-table input:focus/);
   assert.match(styles, /\.intramuros-programming-table tr\.scheduled td/);
 });
