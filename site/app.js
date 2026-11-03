@@ -840,7 +840,7 @@ const INTRAMUROS_PROGRAMMING_FIELDS = [
   { key: "equipo_visitante", label: "Equipo visitante", width: "180px" },
   { key: "tipo_uso", label: "Tipo", width: "112px" }
 ];
-const INTRAMUROS_TOCHITO_RESULT_FIELDS = [
+const INTRAMUROS_SPLIT_RESULT_FIELDS = [
   { key: "resultado_gd", label: "GD", width: "58px", resultPart: "gd" },
   { key: "resultado_vs", label: "VS", width: "44px", fixed: true },
   { key: "resultado_pd", label: "PD", width: "58px", resultPart: "pd" }
@@ -10298,9 +10298,9 @@ function intramurosProgrammingResultParts(value) {
 }
 
 function intramurosProgrammingFields(tabKey = intramurosProgrammingTab) {
-  if (tabKey !== "tochito") return INTRAMUROS_PROGRAMMING_FIELDS;
+  if (!["tochito", "volei-basquet"].includes(tabKey)) return INTRAMUROS_PROGRAMMING_FIELDS;
   return INTRAMUROS_PROGRAMMING_FIELDS.flatMap((field) => (
-    field.key === "resultado" ? INTRAMUROS_TOCHITO_RESULT_FIELDS : [field]
+    field.key === "resultado" ? INTRAMUROS_SPLIT_RESULT_FIELDS : [field]
   ));
 }
 
@@ -14132,16 +14132,16 @@ function renderIntramurosProgrammingGrid() {
     return `<button type="button" role="tab" aria-selected="${tab.key === activeTab.key}" class="${tab.key === activeTab.key ? "active" : ""}" data-intramuros-programming-tab="${tab.key}"><span>${escapeHtml(tab.label)}</span><b>${count.toLocaleString("es-MX")}</b></button>`;
   }).join("");
   const fields = intramurosProgrammingFields(activeTab.key);
-  const isTochito = activeTab.key === "tochito";
-  const headerCells = isTochito
+  const hasSplitResult = ["tochito", "volei-basquet"].includes(activeTab.key);
+  const headerCells = hasSplitResult
     ? INTRAMUROS_PROGRAMMING_FIELDS.map((field) => (
       field.key === "resultado"
         ? `<th class="intramuros-programming-result-group" colspan="3">Resultado</th>`
         : `<th rowspan="2" style="--program-column-width:${field.width}">${escapeHtml(field.label)}</th>`
     )).join("")
     : fields.map((field) => `<th style="--program-column-width:${field.width}">${escapeHtml(field.label)}</th>`).join("");
-  const resultSubheader = isTochito
-    ? `<tr class="intramuros-programming-result-subheader">${INTRAMUROS_TOCHITO_RESULT_FIELDS.map((field) => `<th style="--program-column-width:${field.width}">${escapeHtml(field.label)}</th>`).join("")}</tr>`
+  const resultSubheader = hasSplitResult
+    ? `<tr class="intramuros-programming-result-subheader">${INTRAMUROS_SPLIT_RESULT_FIELDS.map((field) => `<th style="--program-column-width:${field.width}">${escapeHtml(field.label)}</th>`).join("")}</tr>`
     : "";
   const bodyRows = rows.map((row, rowIndex) => {
     const rowKey = intramurosProgrammingRowKey(row);
@@ -14173,7 +14173,7 @@ function renderIntramurosProgrammingGrid() {
       </div>
       <div class="intramuros-programming-table-wrap">
         <table class="intramuros-programming-table">
-          <thead><tr><th class="intramuros-programming-row-number" ${isTochito ? 'rowspan="2"' : ""}>#</th>${headerCells}<th class="intramuros-programming-delete-heading" ${isTochito ? 'rowspan="2"' : ""}>Borrar</th></tr>${resultSubheader}</thead>
+          <thead><tr><th class="intramuros-programming-row-number" ${hasSplitResult ? 'rowspan="2"' : ""}>#</th>${headerCells}<th class="intramuros-programming-delete-heading" ${hasSplitResult ? 'rowspan="2"' : ""}>Borrar</th></tr>${resultSubheader}</thead>
           <tbody>${bodyRows || `<tr><td class="intramuros-programming-empty" colspan="${fields.length + 2}">No hay filas guardadas para este deporte. Usa “Agregar fila” o carga el archivo de programación en la sección superior.</td></tr>`}</tbody>
         </table>
       </div>
