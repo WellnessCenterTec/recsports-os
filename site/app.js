@@ -254,6 +254,9 @@ const CLASS_BOOKING_RESERVATIONS_KEY = "wellsync_class_booking_reservations";
 const SIMULATOR_KEY = "recsports_os_schedule_simulator";
 const CLASS_SIMULATOR_KEY = "wellsync_spinning_fitness_simulator";
 const CLASS_SCHEDULE_SNAPSHOT_KEY = "wellsync_class_schedule_snapshot";
+const CLASS_EXCEL_STORAGE_KEY = "wellsync_class_excel_grid_v1";
+const CLASS_EXCEL_ROWS = 50;
+const CLASS_EXCEL_COLUMNS = 50;
 const BUDGET_AREAS_KEY = "wellsync_budget_areas";
 const BUDGET_REQUESTS_KEY = "wellsync_budget_requests";
 const BUDGET_PENDING_REQUESTS_KEY = "wellsync_budget_requests_pending";
@@ -652,6 +655,8 @@ const PHYSICAL_HALL_TESTS = [
 
 let activeArea = "general";
 let activeView = "dashboard";
+let classExcelCells = loadClassExcelCells();
+let classExcelSaveTimer = null;
 const DIRECCION_ACCESS_CODE_HASH = "33dc0ba86008f4434bd43d050df9022209367483c1eef5280b25da861c32f6ad";
 let direccionAccessGranted = false;
 const DIRECCION_CHECKLIST_STORAGE_KEY = "wellsync_direccion_checklist_v1";
@@ -12962,6 +12967,7 @@ async function switchMasterPeriod(nextPeriod) {
   simulatorState = loadSimulator();
   classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
   classScheduleComparison = loadClassScheduleComparison();
+  classExcelCells = loadClassExcelCells();
   intramurosOperationRows = loadIntramurosOperationRows();
   semanaTecRows = [];
   semanaTecDraft = null;
@@ -19479,6 +19485,106 @@ function classGradeDerivedOptions(derive) {
     .sort((a, b) => classPeriodSortValue(b) - classPeriodSortValue(a) || String(a).localeCompare(String(b), "es", { numeric: true }));
 }
 
+function loadClassExcelCells() {
+  try {
+    const saved = JSON.parse(readPeriodStorage(CLASS_EXCEL_STORAGE_KEY, "{}") || "{}");
+    return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveClassExcelCells() {
+  localStorage.setItem(periodStorageKey(CLASS_EXCEL_STORAGE_KEY), JSON.stringify(classExcelCells));
+}
+
+function classExcelColumnLabel(index) {
+  let value = Number(index) + 1;
+  let label = "";
+  while (value > 0) {
+    value -= 1;
+    label = String.fromCharCode(65 + (value % 26)) + label;
+    value = Math.floor(value / 26);
+  }
+  return label;
+}
+
+function classExcelCellKey(row, column) {
+  return `${row}:${column}`;
+}
+
+function renderClassExcelView() {
+  const columnHeaders = Array.from({ length: CLASS_EXCEL_COLUMNS }, (_, column) =>
+    `<th scope="col">${classExcelColumnLabel(column)}</th>`
+  ).join("");
+  const rows = Array.from({ length: CLASS_EXCEL_ROWS }, (_, row) => {
+    const cells = Array.from({ length: CLASS_EXCEL_COLUMNS }, (_, column) => {
+      const key = classExcelCellKey(row, column);
+      const label = `${classExcelColumnLabel(column)}${row + 1}`;
+      return `<td contenteditable="true" spellcheck="false" role="gridcell" aria-label="${label}" data-class-excel-cell data-row="${row}" data-column="${column}">${escapeHtml(classExcelCells[key] || "")}</td>`;
+    }).join("");
+    return `<tr><th scope="row">${row + 1}</th>${cells}</tr>`;
+  }).join("");
+  return `
+    <section class="class-excel-module">
+      <div class="class-excel-heading">
+        <div>
+          <p class="eyebrow">Clases Deportivas</p>
+          <h2>Hoja de trabajo</h2>
+          <p>Cuadrícula editable guardada automáticamente en este navegador para el periodo ${escapeHtml(activeMasterPeriod)}.</p>
+        </div>
+        <div class="class-excel-meta">
+          <strong>${CLASS_EXCEL_ROWS} filas × ${CLASS_EXCEL_COLUMNS} columnas</strong>
+          <span id="classExcelSaveStatus" aria-live="polite">Guardado automático</span>
+        </div>
+      </div>
+      <div class="class-excel-scroll" role="region" aria-label="Hoja de cálculo de Clases Deportivas" tabindex="0">
+        <table class="class-excel-grid" role="grid" aria-rowcount="${CLASS_EXCEL_ROWS}" aria-colcount="${CLASS_EXCEL_COLUMNS}">
+          <thead><tr><th class="class-excel-corner" aria-hidden="true"></th>${columnHeaders}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
+function focusClassExcelCell(row, column) {
+  const safeRow = Math.max(0, Math.min(CLASS_EXCEL_ROWS - 1, row));
+  const safeColumn = Math.max(0, Math.min(CLASS_EXCEL_COLUMNS - 1, column));
+  const cell = $(`[data-class-excel-cell][data-row="${safeRow}"][data-column="${safeColumn}"]`);
+  cell?.focus();
+}
+
+function bindClassExcelGrid() {
+  const cells = $$('[data-class-excel-cell]');
+  cells.forEach((cell) => {
+    cell.addEventListener("input", () => {
+      const key = classExcelCellKey(Number(cell.dataset.row), Number(cell.dataset.column));
+      const value = String(cell.textContent || "").replace(/\r?\n/g, " ");
+      if (value) classExcelCells[key] = value;
+      else delete classExcelCells[key];
+      const status = $("#classExcelSaveStatus");
+      if (status) status.textContent = "Guardando…";
+      clearTimeout(classExcelSaveTimer);
+      classExcelSaveTimer = setTimeout(() => {
+        saveClassExcelCells();
+        const latestStatus = $("#classExcelSaveStatus");
+        if (latestStatus) latestStatus.textContent = "Guardado";
+      }, 180);
+    });
+    cell.addEventListener("blur", () => {
+      clearTimeout(classExcelSaveTimer);
+      saveClassExcelCells();
+      const status = $("#classExcelSaveStatus");
+      if (status) status.textContent = "Guardado";
+    });
+    cell.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      focusClassExcelCell(Number(cell.dataset.row) + (event.shiftKey ? -1 : 1), Number(cell.dataset.column));
+    });
+  });
+}
+
 function renderClassGrades() {
   const rows = filteredClassGrades();
   const totalRows = effectiveClassGradeRows();
@@ -22246,7 +22352,7 @@ function render() {
   }
   if (area && activeArea !== area.id) activeArea = area.id;
   renderExecutiveKpis();
-  const currentAreaDataStatus = areaDataStatus(area.id);
+  const currentAreaDataStatus = area.id === "clases" && activeView === "class-excel" ? "ready" : areaDataStatus(area.id);
   const cachedView = currentCachedView();
   const executiveKpis = $("#executiveKpis");
   if (currentAreaDataStatus !== "ready" && cachedView?.kpisHtml && executiveKpis) executiveKpis.innerHTML = cachedView.kpisHtml;
@@ -22255,6 +22361,7 @@ function render() {
   if (currentTitle) currentTitle.textContent = area.name;
   const evaluationsTab = $("#evaluationsViewButton");
   const gradesTab = $("#gradesViewButton");
+  const classExcelTab = $("#classExcelViewButton");
   const bookingTab = $("#bookingViewButton");
   const simulatorTab = $("#simulatorViewButton");
   const gymAttendanceTab = $("#gymAttendanceViewButton");
@@ -22290,6 +22397,7 @@ function render() {
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
   if (collaboratorInfographicTab) collaboratorInfographicTab.hidden = !isCollaborators;
   if (gradesTab) gradesTab.hidden = activeArea !== "clases";
+  if (classExcelTab) classExcelTab.hidden = !isClasses;
   if (bookingTab) bookingTab.hidden = activeArea !== "clases";
   if (simulatorTab) simulatorTab.hidden = activeArea !== "clases";
   if (gymAttendanceTab) gymAttendanceTab.hidden = !isGym;
@@ -22340,6 +22448,7 @@ function render() {
   if (activeView === "blueprint" && !isIntramuros && !isLeadership()) activeView = "dashboard";
   if (activeView === "evaluations" && activeArea !== "colaboradores") activeView = "dashboard";
   if (activeView === "grades" && activeArea !== "clases") activeView = "dashboard";
+  if (activeView === "class-excel" && activeArea !== "clases") activeView = "dashboard";
   if (activeView === "booking" && activeArea !== "clases") activeView = "dashboard";
   if (activeView === "simulator" && activeArea !== "clases") activeView = "dashboard";
   $$(".segmented button").forEach((b) => b.classList.toggle("active", b.dataset.view === activeView));
@@ -22361,6 +22470,7 @@ function render() {
     else if (activeView === "simulator") contentHtml = renderScheduleSimulatorView();
     else if (activeView === "reports") contentHtml = isIntramuros ? renderIntramurosOmarWorkspace() : renderReports(area);
     else if (activeView === "grades") contentHtml = renderClassGrades();
+    else if (activeView === "class-excel") contentHtml = renderClassExcelView();
     else if (activeView === "semana-tec-grades") contentHtml = renderSemanaTecGrades();
     else if (activeView === "semana-tec-upload") contentHtml = renderSemanaTecUploadView();
     else if (activeView === "representativos-upload") contentHtml = renderRepresentativosUploadView();
@@ -22382,6 +22492,7 @@ function render() {
     contentHtml = `<div class="permission-strip">No se pudo cargar esta vista: ${escapeHtml(error?.message || "error desconocido")}</div>`;
   }
   $("#contentArea").innerHTML = contentHtml;
+  if (isClasses && activeView === "class-excel") bindClassExcelGrid();
   $("#openDireccionAccess")?.addEventListener("click", openDireccionAccessGate);
   $$("[data-direccion-task-form]").forEach((form) => form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -23384,7 +23495,7 @@ function render() {
   $$("[data-delete-column]").forEach((button) => button.addEventListener("click", () => deleteCollaboratorColumn(button.dataset.deleteColumn)));
   $$(".report-download").forEach((button) => button.addEventListener("click", () => downloadCsv(button.dataset.report || "reporte")));
   persistWorkspaceState();
-  if (currentAreaDataStatus === "ready" || (currentAreaDataStatus === "error" && !cachedView)) {
+  if (activeView !== "class-excel" && (currentAreaDataStatus === "ready" || (currentAreaDataStatus === "error" && !cachedView))) {
     scheduleViewSnapshotPersist(area.id, activeView, { allowPartial: currentAreaDataStatus === "error" });
   }
 }

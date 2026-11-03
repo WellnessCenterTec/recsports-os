@@ -4732,6 +4732,123 @@ tbody tr:hover td {
   min-width: 0;
 }
 
+.class-excel-module {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.class-excel-heading {
+  align-items: end;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.class-excel-heading h2 {
+  color: var(--ink);
+  margin: 2px 0 4px;
+}
+
+.class-excel-heading p:last-child {
+  color: var(--muted);
+  margin: 0;
+}
+
+.class-excel-meta {
+  align-items: flex-end;
+  color: var(--muted);
+  display: grid;
+  flex: 0 0 auto;
+  font-size: 12px;
+  gap: 3px;
+  justify-items: end;
+}
+
+.class-excel-meta strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.class-excel-scroll {
+  background: #fff;
+  border: 1px solid #bdc9d6;
+  border-radius: 10px;
+  max-height: calc(100vh - 300px);
+  min-height: 500px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.class-excel-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  color: #172b43;
+  font-size: 13px;
+  table-layout: fixed;
+  width: max-content;
+}
+
+.class-excel-grid th,
+.class-excel-grid td {
+  border: 0;
+  border-bottom: 1px solid #d7dfe8;
+  border-right: 1px solid #d7dfe8;
+  box-sizing: border-box;
+  height: 30px;
+  min-width: 112px;
+  padding: 5px 7px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.class-excel-grid thead th {
+  background: #edf2f7;
+  color: #50657b;
+  font-weight: 850;
+  position: sticky;
+  text-align: center;
+  top: 0;
+  z-index: 2;
+}
+
+.class-excel-grid tbody th,
+.class-excel-grid .class-excel-corner {
+  background: #edf2f7;
+  color: #50657b;
+  font-weight: 850;
+  left: 0;
+  min-width: 48px;
+  position: sticky;
+  text-align: center;
+  width: 48px;
+  z-index: 1;
+}
+
+.class-excel-grid .class-excel-corner {
+  top: 0;
+  z-index: 3;
+}
+
+.class-excel-grid td {
+  background: #fff;
+  cursor: cell;
+  max-width: 112px;
+  overflow: hidden;
+}
+
+.class-excel-grid td:focus {
+  box-shadow: inset 0 0 0 2px #0874df;
+  outline: 0;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+.class-excel-grid td:not(:empty) {
+  background: #fbfdff;
+}
+
 .class-grade-kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
