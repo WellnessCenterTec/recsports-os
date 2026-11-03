@@ -797,6 +797,10 @@ let intramurosRolesPendingUpload = null;
 let intramurosRoleAgendaFilters = { team: "", startDate: "", endDate: "", tournament: "todos", status: "todos" };
 let intramurosRoleCourtMapFilters = { facilities: ["CDB1", "CDB2", "WELLNESS"], date: "", time: "" };
 let intramurosRoleAgendaSearchTimer = null;
+let intramurosProgrammingTab = "tochito";
+let intramurosProgrammingDirtyRows = new Set();
+let intramurosProgrammingDeletedIds = new Set();
+let intramurosProgrammingSaving = false;
 let selectedIntramurosTournament = "";
 let intramurosCalendarLayer = "all";
 let intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", team: "todos", sanction: "todos", search: "" };
@@ -813,6 +817,28 @@ const INTRAMUROS_REPORT_BASE_TOURNAMENTS = [
   "Fútbol rápido",
   "Tochito",
   "Tenis singles"
+];
+const INTRAMUROS_PROGRAMMING_TABS = [
+  { key: "tochito", label: "Tochito", tournaments: ["Tochito"], defaultTournament: "Tochito" },
+  { key: "volei-basquet", label: "Voleibol de sala y básquetbol", tournaments: ["Voleibol de sala", "Básquetbol", "Voleibol de sala / Básquetbol"], defaultTournament: "Voleibol de sala" },
+  { key: "soccer-fut7", label: "Fútbol soccer y fútbol 7", tournaments: ["Fútbol soccer", "Fútbol 7"], defaultTournament: "Fútbol soccer" },
+  { key: "futbol-rapido", label: "Fútbol rápido", tournaments: ["Fútbol rápido"], defaultTournament: "Fútbol rápido" },
+  { key: "padel", label: "Pádel", tournaments: ["Pádel"], defaultTournament: "Pádel" },
+  { key: "tenis", label: "Tenis singles", tournaments: ["Tenis singles"], defaultTournament: "Tenis singles" },
+  { key: "volei-playa", label: "Voleibol de playa", tournaments: ["Voleibol de playa"], defaultTournament: "Voleibol de playa" }
+];
+const INTRAMUROS_PROGRAMMING_FIELDS = [
+  { key: "torneo", label: "Deporte", width: "180px" },
+  { key: "semana", label: "Semana", width: "86px" },
+  { key: "fecha", label: "Fecha", width: "118px" },
+  { key: "hora", label: "Hora", width: "86px" },
+  { key: "cancha", label: "Cancha", width: "125px" },
+  { key: "grupo", label: "Grupo", width: "100px" },
+  { key: "rama", label: "Rama", width: "105px" },
+  { key: "equipo_local", label: "Equipo local", width: "180px" },
+  { key: "resultado", label: "Resultado", width: "120px" },
+  { key: "equipo_visitante", label: "Equipo visitante", width: "180px" },
+  { key: "tipo_uso", label: "Tipo", width: "112px" }
 ];
 const PARTICIPATION_UPLOAD_STORAGE_KEY = "wellsync_participation_uploads_v1";
 let participationUploadState = {
@@ -10254,6 +10280,175 @@ function intramurosRoleCloudRow(row) {
   return normalized;
 }
 
+function intramurosProgrammingActiveTab() {
+  return INTRAMUROS_PROGRAMMING_TABS.find((tab) => tab.key === intramurosProgrammingTab) || INTRAMUROS_PROGRAMMING_TABS[0];
+}
+
+function intramurosProgrammingRowKey(row) {
+  if (row.id) return row.id;
+  if (!row.__programmingDraftId) {
+    row.__programmingDraftId = `draft-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+  }
+  return row.__programmingDraftId;
+}
+
+function intramurosProgrammingRows(tabKey = intramurosProgrammingTab) {
+  const tab = INTRAMUROS_PROGRAMMING_TABS.find((item) => item.key === tabKey) || INTRAMUROS_PROGRAMMING_TABS[0];
+  const tournaments = new Set(tab.tournaments.map(canonicalIntramurosTournament));
+  return intramurosGameRoles
+    .filter((row) => tournaments.has(canonicalIntramurosTournament(row.torneo)))
+    .sort((left, right) => {
+      const leftKey = `${left.fecha || "9999-99-99"}|${left.hora || "99:99"}|${left.cancha || ""}|${left.equipo_local || ""}`;
+      const rightKey = `${right.fecha || "9999-99-99"}|${right.hora || "99:99"}|${right.cancha || ""}|${right.equipo_local || ""}`;
+      return leftKey.localeCompare(rightKey, "es-MX", { numeric: true });
+    });
+}
+
+function intramurosProgrammingRowTone(row) {
+  const type = normalizeText(row.tipo_uso || intramurosRoleType(row));
+  if (type.includes("evento") || type.includes("jornada nacional")) return "event";
+  if (type.includes("clase") || type.includes("reserva")) return "reserved";
+  return "scheduled";
+}
+
+function intramurosProgrammingStatus(row) {
+  if (String(row.resultado || "").trim()) return "Con resultado";
+  if (String(row.equipo_local || "").trim() && String(row.equipo_visitante || "").trim()) return "Programado";
+  if (String(row.equipo_local || row.equipo_visitante || "").trim()) return "Reservado";
+  return "Disponible";
+}
+
+function intramurosProgrammingPayload(row) {
+  const type = String(row.tipo_uso || intramurosRoleType(row) || "Intramuros").trim();
+  const existingNotes = String(row.observaciones || "")
+    .split("|")
+    .map((part) => part.trim())
+    .filter((part) => part && !/^tipo\s+de\s+uso\s*:/i.test(part));
+  return {
+    torneo: canonicalIntramurosTournament(row.torneo || intramurosProgrammingActiveTab().defaultTournament),
+    semana: String(row.semana || "").trim() || null,
+    fecha: intramurosRoleDateValue(row.fecha) || String(row.fecha || "").trim() || null,
+    hora: intramurosRoleTimeValue(row.hora) || String(row.hora || "").trim() || null,
+    cancha: String(row.cancha || "").trim() || null,
+    grupo: String(row.grupo || "").trim() || null,
+    rama: String(row.rama || "").trim() || null,
+    equipo_local: String(row.equipo_local || "").trim() || null,
+    equipo_visitante: String(row.equipo_visitante || "").trim() || null,
+    resultado: String(row.resultado || "").trim() || null,
+    observaciones: [`Tipo de uso: ${type}`, ...existingNotes].join(" | "),
+    estatus_partido: intramurosProgrammingStatus(row),
+    periodo: activeMasterPeriod,
+    fecha_carga: new Date().toISOString(),
+    archivo_origen: row.archivo_origen || "Edición directa en WellSync"
+  };
+}
+
+function addIntramurosProgrammingRow(options = {}) {
+  const tab = intramurosProgrammingActiveTab();
+  const row = {
+    torneo: tab.defaultTournament,
+    semana: "",
+    fecha: "",
+    hora: "",
+    cancha: "",
+    grupo: "",
+    rama: "",
+    equipo_local: "",
+    resultado: "",
+    equipo_visitante: "",
+    tipo_uso: "Intramuros",
+    observaciones: "Tipo de uso: Intramuros",
+    estatus_partido: "Disponible",
+    periodo: activeMasterPeriod,
+    archivo_origen: "Edición directa en WellSync"
+  };
+  const key = intramurosProgrammingRowKey(row);
+  intramurosGameRoles.push(row);
+  intramurosProgrammingDirtyRows.add(key);
+  if (!options.silent) render();
+  return row;
+}
+
+function updateIntramurosProgrammingDirtyStatus() {
+  const pending = intramurosProgrammingDirtyRows.size + intramurosProgrammingDeletedIds.size;
+  const status = $("[data-intramuros-programming-status]");
+  if (status) {
+    status.textContent = pending ? `${pending.toLocaleString("es-MX")} cambios sin guardar` : "Todos los cambios están guardados";
+    status.classList.toggle("is-dirty", pending > 0);
+  }
+  const saveButton = $("[data-save-intramuros-programming]");
+  if (saveButton) saveButton.disabled = intramurosProgrammingSaving || pending === 0;
+}
+
+async function saveIntramurosProgrammingChanges() {
+  if (intramurosProgrammingSaving) return;
+  if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("intramuros")) {
+    toast("Ingresa con Supabase y permisos de Intramuros para guardar la programación");
+    return;
+  }
+  const dirtyRows = intramurosGameRoles.filter((row) => intramurosProgrammingDirtyRows.has(intramurosProgrammingRowKey(row)));
+  if (!dirtyRows.length && !intramurosProgrammingDeletedIds.size) return;
+  intramurosProgrammingSaving = true;
+  updateIntramurosProgrammingDirtyStatus();
+  try {
+    await deleteIntramurosRowsById("intramuros_roles_juego", [...intramurosProgrammingDeletedIds]);
+    const existingRows = dirtyRows.filter((row) => row.id).map((row) => ({ id: row.id, ...intramurosProgrammingPayload(row) }));
+    const newRows = dirtyRows.filter((row) => !row.id).map(intramurosProgrammingPayload);
+    for (let index = 0; index < existingRows.length; index += 250) {
+      const { error } = await supabaseClient
+        .from("intramuros_roles_juego")
+        .upsert(existingRows.slice(index, index + 250), { onConflict: "id" });
+      if (error) throw error;
+    }
+    for (let index = 0; index < newRows.length; index += 250) {
+      const { error } = await supabaseClient
+        .from("intramuros_roles_juego")
+        .upsert(newRows.slice(index, index + 250), { onConflict: "torneo,fecha,hora,cancha,equipo_local,equipo_visitante" });
+      if (error) throw error;
+    }
+    intramurosProgrammingDirtyRows.clear();
+    intramurosProgrammingDeletedIds.clear();
+    await loadIntramurosParticipants();
+    addAudit("intramuros", `${dirtyRows.length} filas de programación editadas y guardadas en Supabase`);
+    toast("Programación guardada en Supabase");
+  } catch (error) {
+    console.error(error);
+    toast(`No se pudo guardar la programación: ${supabaseErrorDetail(error) || error.message}`);
+  } finally {
+    intramurosProgrammingSaving = false;
+    render();
+  }
+}
+
+function pasteIntramurosProgrammingRange(startRowIndex, startColumnIndex, clipboardText) {
+  const pastedRows = String(clipboardText || "")
+    .replace(/\r/g, "")
+    .split("\n")
+    .filter((row, index, values) => row !== "" || index < values.length - 1)
+    .map((row) => row.split("\t"));
+  if (!pastedRows.length) return 0;
+  let visibleRows = intramurosProgrammingRows();
+  const requiredRows = startRowIndex + pastedRows.length;
+  while (visibleRows.length < requiredRows) {
+    addIntramurosProgrammingRow({ silent: true });
+    visibleRows = intramurosProgrammingRows();
+  }
+  let updatedCells = 0;
+  pastedRows.forEach((values, rowOffset) => {
+    const row = visibleRows[startRowIndex + rowOffset];
+    if (!row) return;
+    const rowKey = intramurosProgrammingRowKey(row);
+    values.forEach((value, columnOffset) => {
+      const field = INTRAMUROS_PROGRAMMING_FIELDS[startColumnIndex + columnOffset];
+      if (!field) return;
+      row[field.key] = value;
+      intramurosProgrammingDirtyRows.add(rowKey);
+      updatedCells += 1;
+    });
+  });
+  return updatedCells;
+}
+
 const INTRAMUROS_PARTICIPANT_COLUMN_ALIASES = {
   matricula: ["Matrícula", "Matricula"],
   genero: ["Género", "Genero"],
@@ -11068,6 +11263,8 @@ async function importIntramurosRoles(file, confirmedParsed = null) {
     }
     await deleteIntramurosRowsById("intramuros_roles_juego", staleIds);
     await loadIntramurosParticipants();
+    intramurosProgrammingDirtyRows.clear();
+    intramurosProgrammingDeletedIds.clear();
     intramurosRolesPendingUpload = null;
     intramurosRolesUploadSummary = {
       fileName: file.name,
@@ -13023,6 +13220,10 @@ async function switchMasterPeriod(nextPeriod) {
   intramurosRolesUploadSummary = null;
   intramurosRolesPendingUpload = null;
   intramurosRoleAgendaFilters = { team: "", startDate: "", endDate: "", tournament: "todos", status: "todos" };
+  intramurosProgrammingTab = "tochito";
+  intramurosProgrammingDirtyRows.clear();
+  intramurosProgrammingDeletedIds.clear();
+  intramurosProgrammingSaving = false;
   intramurosFilters = { period: "todos", tournament: "todos", branch: "todos", school: "todos", gender: "todos", program: "todos", team: "todos", sanction: "todos", search: "" };
   selectedIntramurosTournament = "";
 
@@ -13880,6 +14081,54 @@ function renderIntramurosRoleFeaturedChart(title, rows) {
   return `<article class="intramuros-role-viz intramuros-role-featured"><h3>${escapeHtml(title)}</h3>${leader ? `<div class="intramuros-role-featured-leader"><span>Más actividad</span><strong>${leader.value}</strong><b title="${escapeHtml(leader.label)}">${escapeHtml(leader.label)}</b></div><ol>${values.slice(1).map((row) => `<li><span title="${escapeHtml(row.label)}">${escapeHtml(row.label)}</span><b>${row.value}</b></li>`).join("")}</ol>` : `<p>Sin juegos registrados.</p>`}</article>`;
 }
 
+function renderIntramurosProgrammingGrid() {
+  const activeTab = intramurosProgrammingActiveTab();
+  const rows = intramurosProgrammingRows(activeTab.key);
+  const canEdit = Boolean(supabaseClient && currentUser?.auth === "supabase" && canEditArea("intramuros"));
+  const pending = intramurosProgrammingDirtyRows.size + intramurosProgrammingDeletedIds.size;
+  const tabButtons = INTRAMUROS_PROGRAMMING_TABS.map((tab) => {
+    const count = intramurosProgrammingRows(tab.key).length;
+    return `<button type="button" role="tab" aria-selected="${tab.key === activeTab.key}" class="${tab.key === activeTab.key ? "active" : ""}" data-intramuros-programming-tab="${tab.key}"><span>${escapeHtml(tab.label)}</span><b>${count.toLocaleString("es-MX")}</b></button>`;
+  }).join("");
+  const headerCells = INTRAMUROS_PROGRAMMING_FIELDS.map((field) => `<th style="--program-column-width:${field.width}">${escapeHtml(field.label)}</th>`).join("");
+  const bodyRows = rows.map((row, rowIndex) => {
+    const rowKey = intramurosProgrammingRowKey(row);
+    const cells = INTRAMUROS_PROGRAMMING_FIELDS.map((field, columnIndex) => (
+      `<td style="--program-column-width:${field.width}"><input type="text" value="${escapeHtml(String(row[field.key] || ""))}" data-intramuros-programming-cell data-row-key="${escapeHtml(rowKey)}" data-field="${field.key}" data-column-index="${columnIndex}" data-row-index="${rowIndex}" aria-label="${escapeHtml(`${field.label}, fila ${rowIndex + 1}`)}" autocomplete="off" spellcheck="false" ${canEdit ? "" : "readonly"} /></td>`
+    )).join("");
+    return `<tr class="${intramurosProgrammingRowTone(row)} ${intramurosProgrammingDirtyRows.has(rowKey) ? "is-dirty" : ""}" data-programming-row="${escapeHtml(rowKey)}"><th scope="row">${rowIndex + 1}</th>${cells}<td class="intramuros-programming-row-actions"><button type="button" class="icon-btn danger" title="Eliminar fila" aria-label="Eliminar fila ${rowIndex + 1}" data-delete-intramuros-programming-row="${escapeHtml(rowKey)}" ${canEdit ? "" : "disabled"}>×</button></td></tr>`;
+  }).join("");
+  return `
+    <section class="intramuros-programming-sheet">
+      <div class="intramuros-programming-heading">
+        <div>
+          <p class="eyebrow">Programación editable</p>
+          <h3>Jornadas por deporte</h3>
+          <p>Selecciona un deporte. Puedes modificar celdas, pegar rangos desde Excel, agregar filas y borrar registros.</p>
+        </div>
+        <div class="intramuros-programming-actions">
+          <span class="intramuros-programming-save-status ${pending ? "is-dirty" : ""}" data-intramuros-programming-status>${pending ? `${pending.toLocaleString("es-MX")} cambios sin guardar` : "Todos los cambios están guardados"}</span>
+          <button type="button" class="ghost-btn" data-add-intramuros-programming-row ${canEdit ? "" : "disabled"}>Agregar fila</button>
+          <button type="button" class="primary-btn" data-save-intramuros-programming ${canEdit && pending && !intramurosProgrammingSaving ? "" : "disabled"}>${intramurosProgrammingSaving ? "Guardando..." : "Guardar cambios"}</button>
+        </div>
+      </div>
+      ${canEdit ? "" : `<div class="permission-strip">Vista de solo lectura. Inicia sesión con permisos de Intramuros para editar y guardar en Supabase.</div>`}
+      <div class="intramuros-programming-tabs" role="tablist" aria-label="Programación por deporte">${tabButtons}</div>
+      <div class="intramuros-programming-sheet-title">
+        <strong>${escapeHtml(activeTab.label)}</strong>
+        <span>${rows.length.toLocaleString("es-MX")} filas · ${escapeHtml(activeMasterPeriod)}</span>
+      </div>
+      <div class="intramuros-programming-table-wrap">
+        <table class="intramuros-programming-table">
+          <thead><tr><th class="intramuros-programming-row-number">#</th>${headerCells}<th class="intramuros-programming-delete-heading">Borrar</th></tr></thead>
+          <tbody>${bodyRows || `<tr><td class="intramuros-programming-empty" colspan="${INTRAMUROS_PROGRAMMING_FIELDS.length + 2}">No hay filas guardadas para este deporte. Usa “Agregar fila” o carga el archivo de programación en la sección superior.</td></tr>`}</tbody>
+        </table>
+      </div>
+      <p class="intramuros-programming-help">Para pegar varias celdas, copia el rango en Excel y pégalo en la primera celda de destino. Los cambios se guardan al presionar “Guardar cambios”.</p>
+    </section>
+  `;
+}
+
 function renderIntramurosRolesDashboard() {
   const roles = intramurosRolesPendingUpload?.parsed?.rows || intramurosGameRoles;
   const games = roles.filter(intramurosRoleIsGame);
@@ -13927,6 +14176,7 @@ function renderIntramurosRolesDashboard() {
       <section class="intramuros-role-court-map-section">
         ${renderIntramurosRoleCourtChart("Mapa de disponibilidad de canchas", roles)}
       </section>
+      ${renderIntramurosProgrammingGrid()}
     </section>
   `;
 }
@@ -22872,6 +23122,50 @@ function render() {
     const file = event.dataTransfer?.files?.[0];
     if (file) await importIntramurosRoles(file);
   });
+  $$('[data-intramuros-programming-tab]').forEach((button) => button.addEventListener("click", () => {
+    intramurosProgrammingTab = button.dataset.intramurosProgrammingTab;
+    render();
+  }));
+  $("[data-add-intramuros-programming-row]")?.addEventListener("click", () => {
+    addIntramurosProgrammingRow();
+  });
+  $("[data-save-intramuros-programming]")?.addEventListener("click", async () => {
+    await saveIntramurosProgrammingChanges();
+  });
+  $$('[data-intramuros-programming-cell]').forEach((input) => {
+    input.addEventListener("input", (event) => {
+      const rowKey = event.target.dataset.rowKey;
+      const row = intramurosGameRoles.find((item) => intramurosProgrammingRowKey(item) === rowKey);
+      const field = event.target.dataset.field;
+      if (!row || !INTRAMUROS_PROGRAMMING_FIELDS.some((item) => item.key === field)) return;
+      row[field] = event.target.value;
+      intramurosProgrammingDirtyRows.add(rowKey);
+      event.target.closest("tr")?.classList.add("is-dirty");
+      updateIntramurosProgrammingDirtyStatus();
+    });
+    input.addEventListener("paste", (event) => {
+      const text = event.clipboardData?.getData("text/plain") || "";
+      if (!text.includes("\t") && !/[\r\n]/.test(text)) return;
+      event.preventDefault();
+      const updated = pasteIntramurosProgrammingRange(
+        Number(event.target.dataset.rowIndex || 0),
+        Number(event.target.dataset.columnIndex || 0),
+        text
+      );
+      render();
+      toast(`${updated.toLocaleString("es-MX")} celdas pegadas; presiona Guardar cambios`);
+    });
+  });
+  $$('[data-delete-intramuros-programming-row]').forEach((button) => button.addEventListener("click", () => {
+    const rowKey = button.dataset.deleteIntramurosProgrammingRow;
+    const rowIndex = intramurosGameRoles.findIndex((row) => intramurosProgrammingRowKey(row) === rowKey);
+    if (rowIndex < 0) return;
+    const [row] = intramurosGameRoles.splice(rowIndex, 1);
+    if (row.id) intramurosProgrammingDeletedIds.add(row.id);
+    intramurosProgrammingDirtyRows.delete(rowKey);
+    render();
+    toast("Fila marcada para borrar; presiona Guardar cambios");
+  }));
   $$(".intramuros-filter").forEach((input) => input.addEventListener("input", (event) => {
     intramurosFilters[event.target.dataset.filter] = event.target.value;
     render();

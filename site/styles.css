@@ -7796,6 +7796,181 @@ tbody tr:hover td {
 .intramuros-role-court-map-section .intramuros-court-tile { min-height: 50px; padding: 7px; }
 .intramuros-role-court-map-section .intramuros-court-tile strong { font-size: 11px; }
 .intramuros-role-court-map-section .intramuros-court-tile span { font-size: 9px; }
+
+.intramuros-programming-sheet {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 7px 20px rgba(13, 42, 62, .04);
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.intramuros-programming-heading {
+  align-items: end;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.intramuros-programming-heading h3,
+.intramuros-programming-heading p { margin: 0; }
+.intramuros-programming-heading h3 { color: var(--ink); font-size: 20px; margin-top: 3px; }
+.intramuros-programming-heading > div:first-child > p:last-child { color: var(--muted); font-size: 12px; margin-top: 5px; }
+
+.intramuros-programming-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.intramuros-programming-actions button { white-space: nowrap; }
+.intramuros-programming-actions button:disabled { cursor: not-allowed; opacity: .5; }
+.intramuros-programming-save-status { color: #15704f; font-size: 11px; font-weight: 850; margin-right: 4px; }
+.intramuros-programming-save-status.is-dirty { color: #9a6500; }
+
+.intramuros-programming-tabs {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(4, minmax(145px, 1fr));
+  padding: 1px 1px 5px;
+}
+
+.intramuros-programming-tabs button {
+  align-items: center;
+  background: #f2f6fa;
+  border: 1px solid #d5e0e9;
+  border-radius: 7px;
+  color: #506579;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  gap: 3px;
+  min-height: 50px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.intramuros-programming-tabs button b { color: #6f8395; font-size: 10px; }
+.intramuros-programming-tabs button.active { background: #0d58a4; border-color: #0d58a4; color: #fff; box-shadow: 0 3px 10px rgba(13, 88, 164, .2); }
+.intramuros-programming-tabs button.active b { color: #d9ebff; }
+
+.intramuros-programming-sheet-title {
+  align-items: center;
+  background: #edf4fb;
+  border: 1px solid #cfdeeb;
+  border-radius: 7px 7px 0 0;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: -12px;
+  padding: 9px 12px;
+}
+
+.intramuros-programming-sheet-title strong { color: #0d3d73; font-size: 14px; }
+.intramuros-programming-sheet-title span { color: #5d7184; font-size: 11px; font-weight: 800; }
+
+.intramuros-programming-table-wrap {
+  border: 1px solid #bdcddd;
+  border-radius: 0 0 7px 7px;
+  max-height: 720px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.intramuros-programming-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 11px;
+  min-width: 1460px;
+  width: max-content;
+}
+
+.intramuros-programming-table th,
+.intramuros-programming-table td {
+  border-bottom: 1px solid #c9d6e1;
+  border-right: 1px solid #c9d6e1;
+  box-sizing: border-box;
+  height: 34px;
+  min-width: var(--program-column-width, 48px);
+  padding: 0;
+  width: var(--program-column-width, 48px);
+}
+
+.intramuros-programming-table thead th {
+  background: #082f65;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .02em;
+  padding: 8px 7px;
+  position: sticky;
+  text-align: left;
+  text-transform: uppercase;
+  top: 0;
+  z-index: 3;
+}
+
+.intramuros-programming-table tbody th {
+  background: #e7edf3;
+  color: #4d6274;
+  font-size: 10px;
+  font-weight: 900;
+  left: 0;
+  min-width: 46px;
+  position: sticky;
+  text-align: center;
+  width: 46px;
+  z-index: 2;
+}
+
+.intramuros-programming-table .intramuros-programming-row-number {
+  left: 0;
+  min-width: 46px;
+  text-align: center;
+  width: 46px;
+  z-index: 5;
+}
+
+.intramuros-programming-table input {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+  color: #142536;
+  font: inherit;
+  height: 33px;
+  min-width: 100%;
+  outline: 0;
+  padding: 6px 7px;
+  width: 100%;
+}
+
+.intramuros-programming-table input:focus {
+  background: #fff;
+  box-shadow: inset 0 0 0 2px #1675d1;
+  position: relative;
+  z-index: 1;
+}
+
+.intramuros-programming-table input[readonly] { color: #526678; cursor: default; }
+.intramuros-programming-table tr.scheduled td { background: #e4f8df; }
+.intramuros-programming-table tr.reserved td { background: #fff8cc; }
+.intramuros-programming-table tr.event td { background: #ffe3e3; }
+.intramuros-programming-table tr.is-dirty td { box-shadow: inset 0 -2px 0 #e49a15; }
+.intramuros-programming-table tr:hover td { filter: brightness(.985); }
+
+.intramuros-programming-delete-heading,
+.intramuros-programming-row-actions { min-width: 62px !important; text-align: center !important; width: 62px !important; }
+.intramuros-programming-row-actions .icon-btn { align-items: center; border-radius: 5px; display: inline-flex; font-size: 18px; height: 25px; justify-content: center; padding: 0; width: 28px; }
+.intramuros-programming-empty { color: var(--muted); font-size: 12px; font-weight: 750; padding: 30px !important; text-align: center; }
+.intramuros-programming-help { color: var(--muted); font-size: 11px; font-weight: 700; margin: 0; }
+
 .intramuros-court-map-controls { display: grid; gap: 5px; grid-template-columns: 72px minmax(98px, 1fr) 74px; }
 .intramuros-court-map-controls select,
 .intramuros-court-map-controls input { border: 1px solid #d8e1e9; border-radius: 6px; color: #435d70; font-size: 10px; font-weight: 800; min-width: 0; padding: 5px; }
@@ -7853,6 +8028,10 @@ tbody tr:hover td {
 .intramuros-court-tile.occupied { background: #ffebeb; border-color: #f1aaaa; color: #ae3030; }
 
 @media (max-width: 760px) {
+  .intramuros-programming-heading { align-items: stretch; flex-direction: column; }
+  .intramuros-programming-actions { justify-content: flex-start; }
+  .intramuros-programming-tabs { grid-template-columns: repeat(2, minmax(132px, 1fr)); }
+  .intramuros-programming-sheet-title { align-items: flex-start; flex-direction: column; gap: 3px; }
   .intramuros-role-court-map-section .intramuros-court-map-controls { grid-template-columns: 1fr; max-width: none; }
   .intramuros-role-court-map-section .intramuros-court-map-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
