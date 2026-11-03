@@ -12155,14 +12155,15 @@ function executiveClassSummary() {
 }
 
 function executiveGymWeekly() {
+  const visibleWeeks = Math.max(1, Math.min(20, Number(executiveReportState.week) || 1));
   const counts = { Wellness: new Map(), EMIS: new Map() };
   gymAttendanceRecords.forEach((row) => {
     const week = Number(row.week_number) || 0;
     const count = Number(row.attendee_count ?? row.cantidad ?? row.total ?? 0) || 0;
     const facility = normalizeGymSite(row.facility || row.sitio);
-    if (counts[facility] && week > 0 && week <= 10) counts[facility].set(week, (counts[facility].get(week) || 0) + count);
+    if (counts[facility] && week > 0 && week <= visibleWeeks) counts[facility].set(week, (counts[facility].get(week) || 0) + count);
   });
-  return Array.from({ length: 10 }, (_, index) => ({
+  return Array.from({ length: visibleWeeks }, (_, index) => ({
     week: index + 1,
     label: `S${index + 1}`,
     wellness: counts.Wellness.get(index + 1) || 0,
@@ -12385,10 +12386,11 @@ function renderExecutiveGymWeeklyReport(rows) {
     : wellnessWeekdayServiceCapacity;
   const lane = (key, label, tone) => {
     const laneMax = Math.max(...rows.map((row) => Number(row[key] || 0)), 1);
+    const columnGap = rows.length > 15 ? 4 : rows.length > 12 ? 6 : rows.length > 10 ? 8 : 10;
     return `
       <div class="exec-report-gym-lane ${tone}">
         <strong class="exec-report-gym-label">${label}</strong>
-        <div class="exec-report-gym-columns">
+        <div class="exec-report-gym-columns" style="--exec-report-gym-weeks:${rows.length};--exec-report-gym-gap:${columnGap}px">
           ${rows.map((row) => `<div class="${row[key] > 0 ? "has-data" : ""}"><b>${row[key] ? row[key].toLocaleString("es-MX") : ""}</b><span style="height:${Math.max(5, Math.round((row[key] / laneMax) * 119))}px"></span><em>${row.label}</em></div>`).join("")}
         </div>
       </div>`;

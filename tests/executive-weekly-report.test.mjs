@@ -13,7 +13,7 @@ test("the general module is named Reporte Wellness", () => {
   assert.doesNotMatch(source, /name:\s*"Reporte General"/);
 });
 
-test("weekly report uses the approved ten-week full-width dashboard", () => {
+test("weekly report uses the selected week count in the full-width dashboard", () => {
   [
     "Reporte Wellness",
     "ALUMNOS ATENDIDOS",
@@ -25,14 +25,15 @@ test("weekly report uses the approved ten-week full-width dashboard", () => {
     "executiveGenderAttendanceSummary",
     "Cantidad de matrículas únicas",
     "Impacto general en el Tec de Monterrey",
-    "Array.from({ length: 10 }",
+    "const visibleWeeks = Math.max(1, Math.min(20, Number(executiveReportState.week) || 1))",
+    "Array.from({ length: visibleWeeks }",
     "Array.from({ length: 20 }"
   ].forEach((needle) => assert.ok(source.includes(needle), `Missing approved report marker: ${needle}`));
   assert.doesNotMatch(source, /Reporte Ejecutivo(?: Semanal| Semana)/, "The report title must use the Wellness name");
   assert.match(source, /Reporte Wellness Semana \$\{executiveReportState\.week\}/, "Changing the week must preserve the Wellness report name");
   assert.doesNotMatch(source, /CORTE OPERATIVO · SEMANA/, "The week must not be repeated inside the blue summary band");
   assert.ok(styles.includes("max-width: 1344px"), "Report must be 20% wider than the former 1120px layout");
-  assert.ok(styles.includes("grid-template-columns: repeat(10"), "Gym chart must reserve ten weekly columns");
+  assert.ok(styles.includes("grid-template-columns: repeat(var(--exec-report-gym-weeks, 10)"), "Gym chart must adapt its columns to the selected report week");
   assert.ok(styles.includes("grid-template-columns: repeat(4"), "Intramuros must use four columns on desktop");
   assert.ok(!source.includes("Alumnos únicos en Gimnasio"), "Legacy gym-only unique KPI must stay removed");
   assert.ok(!source.includes("Datos reales consultados directamente en los módulos de WellSync"), "Removed report legend must stay absent");
@@ -40,9 +41,17 @@ test("weekly report uses the approved ten-week full-width dashboard", () => {
   assert.ok(source.includes("const comunicacion = communicationEvents"), "Comunicación debe usar sus participaciones registradas");
   assert.ok(source.includes("participationUploadState.gamer.imported?.rows"), "Gamer debe usar solamente su última carga confirmada");
   assert.ok(source.includes("+ semanaTec + comunicacion + gamer"), "Los dos bloques deben sumarse a Alumnos atendidos");
-  assert.match(source, /<li><span>Vivencia<\/span><strong>\$\{attentions\.vivencia\.toLocaleString\("es-MX"\)\}<\/strong><em>participaciones · \$\{vivenciaEventsCount\.toLocaleString\("es-MX"\)\} eventos<\/em><\/li>/, "Vivencia debe destacar participaciones y dejar eventos como dato secundario");
+  assert.match(source, /<li><span>Vivencia<\/span><strong>\$\{attentions\.vivencia\.toLocaleString\("es-MX"\)\}<\/strong><em>participaciones<\/em><\/li>/, "Vivencia debe mostrar únicamente participaciones");
   assert.match(source, /<li><span>Pláticas informativas<\/span><strong>\$\{attentions\.comunicacion\.toLocaleString\("es-MX"\)\}<\/strong><em>participantes<\/em><\/li>/, "Comunicación debe presentarse como Pláticas informativas y medir participantes");
-  assert.match(index, /legacyDetail[\s\S]*?participaciones · \$\{eventCount\} eventos/, "El shell fresco debe corregir también una copia antigua del bundle");
+  assert.match(index, /legacyDetail[\s\S]*?detail\.textContent = "participaciones"/, "El shell fresco debe corregir también una copia antigua del bundle");
+});
+
+test("gym weekly bars expand through week 12, week 15, or any selected week up to 20", () => {
+  assert.match(source, /week <= visibleWeeks/);
+  assert.match(source, /Array\.from\(\{ length: visibleWeeks \}/);
+  assert.match(source, /--exec-report-gym-weeks:\$\{rows\.length\}/);
+  assert.match(source, /rows\.length > 15 \? 4 : rows\.length > 12 \? 6 : rows\.length > 10 \? 8 : 10/);
+  assert.match(styles, /repeat\(var\(--exec-report-gym-weeks, 10\), minmax\(0, 1fr\)\)/);
 });
 
 test("daily Wellness average is computed from dated Wellness visits only", () => {

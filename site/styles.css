@@ -7075,7 +7075,7 @@ tbody tr:hover td {
 .exec-report-gym-label { color: #08285d; font-size: 18px; }
 .exec-report-gym-label::before { background: #0874df; border-radius: 999px; content: ""; display: inline-block; height: 14px; margin-right: 8px; width: 14px; }
 .exec-report-gym-lane.emis .exec-report-gym-label::before { background: #ff7900; }
-.exec-report-gym-columns { align-items: end; display: grid; gap: 14px; grid-template-columns: repeat(10, minmax(0, 1fr)); min-height: 210px; }
+.exec-report-gym-columns { align-items: end; display: grid; gap: var(--exec-report-gym-gap, 10px); grid-template-columns: repeat(var(--exec-report-gym-weeks, 10), minmax(0, 1fr)); min-height: 210px; }
 .exec-report-gym-columns > div { align-items: center; display: grid; gap: 5px; justify-items: center; }
 .exec-report-gym-columns b { color: #08285d; font-size: 10px; min-height: 12px; }
 .exec-report-gym-columns span { background: #eaf2fa; border-radius: 5px 5px 0 0; display: block; min-height: 7px; width: 62.06%; }
@@ -7096,7 +7096,7 @@ tbody tr:hover td {
 .exec-report-gym-card .exec-report-gym-lane { gap: 6px; }
 .exec-report-gym-card .exec-report-gym-label { font-size: 15px; }
 .exec-report-gym-card .exec-report-gym-label::before { height: 10px; margin-right: 6px; width: 10px; }
-.exec-report-gym-card .exec-report-gym-columns { gap: 10px; min-height: 147px; }
+.exec-report-gym-card .exec-report-gym-columns { gap: var(--exec-report-gym-gap, 10px); min-height: 147px; }
 .exec-report-gym-card .exec-report-gym-columns > div { gap: 4px; }
 .exec-report-gym-card .exec-report-gym-columns b { font-size: 10px; min-height: 10px; }
 .exec-report-gym-card .exec-report-gym-columns span { min-height: 5px; }
