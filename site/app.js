@@ -841,9 +841,9 @@ const INTRAMUROS_PROGRAMMING_FIELDS = [
   { key: "tipo_uso", label: "Tipo", width: "112px" }
 ];
 const INTRAMUROS_SPLIT_RESULT_FIELDS = [
-  { key: "resultado_gd", label: "GD", width: "58px", resultPart: "gd" },
+  { key: "resultado_gd", label: "Visita", width: "58px", resultPart: "gd" },
   { key: "resultado_vs", label: "VS", width: "44px", fixed: true },
-  { key: "resultado_pd", label: "PD", width: "58px", resultPart: "pd" }
+  { key: "resultado_pd", label: "Local", width: "58px", resultPart: "pd" }
 ];
 const PARTICIPATION_UPLOAD_STORAGE_KEY = "wellsync_participation_uploads_v1";
 let participationUploadState = {

@@ -33,9 +33,9 @@ test("la programación de Intramuros usa siete botones y una cuadrícula editabl
   assert.match(renderSource, /colspan="3">Resultado/);
   assert.match(renderSource, /intramuros-programming-result-subheader/);
 
-  assert.match(app, /key: "resultado_gd", label: "GD"/);
+  assert.match(app, /key: "resultado_gd", label: "Visita"/);
   assert.match(app, /key: "resultado_vs", label: "VS"/);
-  assert.match(app, /key: "resultado_pd", label: "PD"/);
+  assert.match(app, /key: "resultado_pd", label: "Local"/);
   assert.match(app, /function intramurosProgrammingResultParts\(/);
   assert.match(app, /\["tochito", "volei-basquet", "soccer-fut7", "futbol-rapido"\]\.includes\(tabKey\)/);
   assert.match(renderSource, /\["tochito", "volei-basquet", "soccer-fut7", "futbol-rapido"\]\.includes\(activeTab\.key\)/);
@@ -65,7 +65,7 @@ test("la programación guarda altas, cambios y borrados en Supabase", async () =
   assert.match(eventSource, /intramurosProgrammingDeletedIds\.add/);
 });
 
-test("Tochito separa los resultados existentes en GD, VS y PD", async () => {
+test("los torneos ajustados separan los resultados en Visita, VS y Local", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const helpersStart = app.indexOf("function intramurosProgrammingResultParts(");
   const helpersEnd = app.indexOf("\nfunction intramurosProgrammingRowKey(", helpersStart);
