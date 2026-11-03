@@ -10,10 +10,9 @@ function extractFunction(source, name, nextName) {
   return source.slice(start, end);
 }
 
-test("la agenda de Intramuros muestra hoy, próximos y al final los pasados", async () => {
+test("el orden operativo de Intramuros prioriza hoy, próximos y al final los pasados", async () => {
   const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
   const sorterSource = extractFunction(app, "intramurosRoleAgendaRows", "renderIntramurosRolesDashboard");
-  const rendererSource = extractFunction(app, "renderIntramurosRolesDashboard", "intramurosOperationMetrics");
   const createSorter = Function(`"use strict"; ${sorterSource}; return intramurosRoleAgendaRows;`);
   const sortAgenda = createSorter();
   const rows = [
@@ -46,7 +45,6 @@ test("la agenda de Intramuros muestra hoy, próximos y al final los pasados", as
     "future-near",
     "today-early"
   ], "el orden original de los datos no debe modificarse");
-  assert.match(rendererSource, /intramurosRoleAgendaRows\(agendaRoles\)/, "la tabla debe usar el orden operativo después de filtrar");
 });
 
 test("la alerta de resultados vencidos cuenta sólo juegos anteriores sin resultado", async () => {

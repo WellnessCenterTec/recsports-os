@@ -13882,10 +13882,6 @@ function renderIntramurosRoleFeaturedChart(title, rows) {
 
 function renderIntramurosRolesDashboard() {
   const roles = intramurosRolesPendingUpload?.parsed?.rows || intramurosGameRoles;
-  const agendaSourceRoles = roles.map((row) => ({ ...row, torneo: intramurosRoleAgendaTournament(row), estatus_partido: intramurosRoleAgendaStatus(row) }));
-  const agendaRoles = intramurosRoleAgendaFilteredRows(agendaSourceRoles);
-  const agendaTournaments = intramurosRoleAgendaTournaments(agendaSourceRoles);
-  const agendaStatuses = intramurosRoleAgendaStatuses(agendaSourceRoles);
   const games = roles.filter(intramurosRoleIsGame);
   const reservations = roles.filter((row) => !intramurosRoleIsGame(row) && String(row.equipo_local || row.equipo_visitante || "").trim());
   const withResult = games.filter(intramurosRoleHasResult).length;
@@ -13931,18 +13927,6 @@ function renderIntramurosRolesDashboard() {
       <section class="intramuros-role-court-map-section">
         ${renderIntramurosRoleCourtChart("Mapa de disponibilidad de canchas", roles)}
       </section>
-      <div class="table-wrap intramuros-role-agenda">
-        <div class="budget-table-heading"><div><p class="eyebrow">Agenda operativa</p><h3>Juegos y reservaciones detectadas</h3></div><span>${agendaRoles.length === roles.length ? `${roles.length.toLocaleString("es-MX")} registros` : `${agendaRoles.length.toLocaleString("es-MX")} de ${roles.length.toLocaleString("es-MX")} registros`}</span></div>
-        <div class="intramuros-role-agenda-filters">
-          <label>Equipo<input id="intramurosRoleAgendaTeam" value="${escapeHtml(intramurosRoleAgendaFilters.team)}" placeholder="Local o visitante" /></label>
-          <label>Desde<input id="intramurosRoleAgendaStartDate" type="date" value="${escapeHtml(intramurosRoleAgendaFilters.startDate)}" /></label>
-          <label>Hasta<input id="intramurosRoleAgendaEndDate" type="date" value="${escapeHtml(intramurosRoleAgendaFilters.endDate)}" /></label>
-          <label>Torneo<select id="intramurosRoleAgendaTournament"><option value="todos" ${intramurosRoleAgendaFilters.tournament === "todos" ? "selected" : ""}>Todos</option>${agendaTournaments.map((tournament) => `<option value="${escapeHtml(tournament)}" ${intramurosRoleAgendaFilters.tournament === tournament ? "selected" : ""}>${escapeHtml(tournament)}</option>`).join("")}</select></label>
-          <label>Estatus<select id="intramurosRoleAgendaStatus"><option value="todos" ${intramurosRoleAgendaFilters.status === "todos" ? "selected" : ""}>Todos</option>${agendaStatuses.map((status) => `<option value="${escapeHtml(status)}" ${intramurosRoleAgendaFilters.status === status ? "selected" : ""}>${escapeHtml(status)}</option>`).join("")}</select></label>
-        </div>
-        <table><thead><tr><th>Fecha</th><th>Hora</th><th>Deporte</th><th>Cancha</th><th>Local / actividad</th><th>Resultado</th><th>Visitante</th><th>Estatus</th></tr></thead>
-        <tbody>${intramurosRoleAgendaRows(agendaRoles).slice(0, 160).map((row) => { const winner = intramurosRoleWinner(row); return `<tr><td>${escapeHtml(row.fecha)}</td><td>${escapeHtml(row.hora)}</td><td>${escapeHtml(row.torneo)}</td><td>${escapeHtml(row.cancha)}</td><td class="${winner === "local" ? "role-winner" : ""}">${escapeHtml(row.equipo_local)}</td><td>${escapeHtml(row.resultado || "-")}</td><td class="${winner === "visitor" ? "role-winner" : ""}">${escapeHtml(row.equipo_visitante)}</td><td><span class="role-status ${intramurosRoleIsGame(row) ? "game" : "reservation"}">${escapeHtml(row.estatus_partido)}</span></td></tr>`; }).join("") || `<tr><td colspan="8">No hay juegos ni reservaciones con esos filtros.</td></tr>`}</tbody></table>
-      </div>
     </section>
   `;
 }

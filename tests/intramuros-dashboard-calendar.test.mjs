@@ -219,6 +219,7 @@ test("las cinco gráficas resumidas de Roles comparten una línea horizontal y e
     "renderIntramurosRoleFeaturedChart"
   ].forEach((renderer) => assert.match(rolesSource, new RegExp(renderer), `${renderer} debe usarse en Roles`));
   assert.match(rolesSource, /intramuros-role-court-map-section[\s\S]*renderIntramurosRoleCourtChart\("Mapa de disponibilidad de canchas", roles\)/);
+  assert.doesNotMatch(rolesSource, /Agenda operativa|Juegos y reservaciones detectadas|intramuros-role-agenda/, "la tabla inferior de agenda ya no debe mostrarse");
   assert.equal((rolesSource.match(/renderUploadBars\(/g) || []).length, 0);
   assert.match(styles, /\.intramuros-role-chart-grid\s*\{\s*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\);/);
   assert.match(styles, /\.intramuros-role-ranking/);
