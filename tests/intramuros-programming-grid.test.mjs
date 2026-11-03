@@ -37,8 +37,8 @@ test("la programación de Intramuros usa siete botones y una cuadrícula editabl
   assert.match(app, /key: "resultado_vs", label: "VS"/);
   assert.match(app, /key: "resultado_pd", label: "PD"/);
   assert.match(app, /function intramurosProgrammingResultParts\(/);
-  assert.match(app, /\["tochito", "volei-basquet"\]\.includes\(tabKey\)/);
-  assert.match(renderSource, /\["tochito", "volei-basquet"\]\.includes\(activeTab\.key\)/);
+  assert.match(app, /\["tochito", "volei-basquet", "soccer-fut7"\]\.includes\(tabKey\)/);
+  assert.match(renderSource, /\["tochito", "volei-basquet", "soccer-fut7"\]\.includes\(activeTab\.key\)/);
   assert.match(app, /`\$\{parts\.gd\} VS \$\{parts\.pd\}`/);
 
   assert.match(styles, /\.intramuros-programming-tabs\s*\{[\s\S]*grid-template-columns:\s*repeat\(7,/);

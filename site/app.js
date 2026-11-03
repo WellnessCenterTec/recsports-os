@@ -10298,7 +10298,7 @@ function intramurosProgrammingResultParts(value) {
 }
 
 function intramurosProgrammingFields(tabKey = intramurosProgrammingTab) {
-  if (!["tochito", "volei-basquet"].includes(tabKey)) return INTRAMUROS_PROGRAMMING_FIELDS;
+  if (!["tochito", "volei-basquet", "soccer-fut7"].includes(tabKey)) return INTRAMUROS_PROGRAMMING_FIELDS;
   return INTRAMUROS_PROGRAMMING_FIELDS.flatMap((field) => (
     field.key === "resultado" ? INTRAMUROS_SPLIT_RESULT_FIELDS : [field]
   ));
@@ -14132,7 +14132,7 @@ function renderIntramurosProgrammingGrid() {
     return `<button type="button" role="tab" aria-selected="${tab.key === activeTab.key}" class="${tab.key === activeTab.key ? "active" : ""}" data-intramuros-programming-tab="${tab.key}"><span>${escapeHtml(tab.label)}</span><b>${count.toLocaleString("es-MX")}</b></button>`;
   }).join("");
   const fields = intramurosProgrammingFields(activeTab.key);
-  const hasSplitResult = ["tochito", "volei-basquet"].includes(activeTab.key);
+  const hasSplitResult = ["tochito", "volei-basquet", "soccer-fut7"].includes(activeTab.key);
   const headerCells = hasSplitResult
     ? INTRAMUROS_PROGRAMMING_FIELDS.map((field) => (
       field.key === "resultado"
