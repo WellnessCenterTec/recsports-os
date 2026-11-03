@@ -29,10 +29,20 @@ test("la programación de Intramuros usa siete botones y una cuadrícula editabl
   assert.match(renderSource, /data-delete-intramuros-programming-row/);
   assert.match(renderSource, /data-save-intramuros-programming/);
   assert.match(renderSource, /pegar rangos desde Excel/);
+  assert.match(renderSource, /intramuros-programming-result-group/);
+  assert.match(renderSource, /colspan="3">Resultado/);
+  assert.match(renderSource, /intramuros-programming-result-subheader/);
+
+  assert.match(app, /key: "resultado_gd", label: "GD"/);
+  assert.match(app, /key: "resultado_vs", label: "VS"/);
+  assert.match(app, /key: "resultado_pd", label: "PD"/);
+  assert.match(app, /function intramurosProgrammingResultParts\(/);
+  assert.match(app, /`\$\{parts\.gd\} VS \$\{parts\.pd\}`/);
 
   assert.match(styles, /\.intramuros-programming-tabs\s*\{[\s\S]*grid-template-columns:\s*repeat\(7,/);
   assert.match(styles, /\.intramuros-programming-table input:focus/);
   assert.match(styles, /\.intramuros-programming-table tr\.scheduled td/);
+  assert.match(styles, /\.intramuros-programming-table \.intramuros-programming-result-vs/);
 });
 
 test("la programación guarda altas, cambios y borrados en Supabase", async () => {
@@ -51,4 +61,23 @@ test("la programación guarda altas, cambios y borrados en Supabase", async () =
   assert.match(eventSource, /addEventListener\("paste"/);
   assert.match(eventSource, /pasteIntramurosProgrammingRange/);
   assert.match(eventSource, /intramurosProgrammingDeletedIds\.add/);
+});
+
+test("Tochito separa los resultados existentes en GD, VS y PD", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  const helpersStart = app.indexOf("function intramurosProgrammingResultParts(");
+  const helpersEnd = app.indexOf("\nfunction intramurosProgrammingRowKey(", helpersStart);
+  const helpersSource = app.slice(helpersStart, helpersEnd);
+  const loadHelpers = new Function(`${helpersSource}; return { intramurosProgrammingResultParts, setIntramurosProgrammingFieldValue };`);
+  const { intramurosProgrammingResultParts, setIntramurosProgrammingFieldValue } = loadHelpers();
+
+  assert.deepEqual(intramurosProgrammingResultParts("GD - PD"), { gd: "GD", pd: "PD" });
+  assert.deepEqual(intramurosProgrammingResultParts("48 - 6"), { gd: "48", pd: "6" });
+  assert.deepEqual(intramurosProgrammingResultParts("25 VS 43"), { gd: "25", pd: "43" });
+
+  const row = { resultado: "34 - 18" };
+  setIntramurosProgrammingFieldValue(row, { key: "resultado_gd", resultPart: "gd" }, "35");
+  assert.equal(row.resultado, "35 VS 18");
+  setIntramurosProgrammingFieldValue(row, { key: "resultado_pd", resultPart: "pd" }, "19");
+  assert.equal(row.resultado, "35 VS 19");
 });

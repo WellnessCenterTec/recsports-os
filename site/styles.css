@@ -7919,6 +7919,16 @@ tbody tr:hover td {
   z-index: 3;
 }
 
+.intramuros-programming-table thead tr:first-child th { height: 34px; }
+.intramuros-programming-table thead .intramuros-programming-result-group { text-align: center; }
+.intramuros-programming-table thead .intramuros-programming-result-subheader th {
+  background: #0d4b8f;
+  height: 30px;
+  padding: 6px 4px;
+  text-align: center;
+  top: 34px;
+}
+
 .intramuros-programming-table tbody th {
   background: #e7edf3;
   color: #4d6274;
@@ -7962,6 +7972,15 @@ tbody tr:hover td {
 }
 
 .intramuros-programming-table input[readonly] { color: #526678; cursor: default; }
+.intramuros-programming-table .intramuros-programming-result-score input { font-weight: 850; text-align: center; }
+.intramuros-programming-table .intramuros-programming-result-vs { text-align: center; }
+.intramuros-programming-table .intramuros-programming-result-vs span {
+  color: #0d4b8f;
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 950;
+  padding-top: 9px;
+}
 .intramuros-programming-table tr.scheduled td { background: #e4f8df; }
 .intramuros-programming-table tr.reserved td { background: #fff8cc; }
 .intramuros-programming-table tr.event td { background: #ffe3e3; }

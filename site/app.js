@@ -840,6 +840,11 @@ const INTRAMUROS_PROGRAMMING_FIELDS = [
   { key: "equipo_visitante", label: "Equipo visitante", width: "180px" },
   { key: "tipo_uso", label: "Tipo", width: "112px" }
 ];
+const INTRAMUROS_TOCHITO_RESULT_FIELDS = [
+  { key: "resultado_gd", label: "GD", width: "58px", resultPart: "gd" },
+  { key: "resultado_vs", label: "VS", width: "44px", fixed: true },
+  { key: "resultado_pd", label: "PD", width: "58px", resultPart: "pd" }
+];
 const PARTICIPATION_UPLOAD_STORAGE_KEY = "wellsync_participation_uploads_v1";
 let participationUploadState = {
   gamer: { fileName: "", draft: null, imported: null, source: "" },
@@ -10284,6 +10289,41 @@ function intramurosProgrammingActiveTab() {
   return INTRAMUROS_PROGRAMMING_TABS.find((tab) => tab.key === intramurosProgrammingTab) || INTRAMUROS_PROGRAMMING_TABS[0];
 }
 
+function intramurosProgrammingResultParts(value) {
+  const result = String(value || "").trim();
+  if (!result) return { gd: "", pd: "" };
+  const parts = result.match(/^(.*?)\s*(?:-|–|—|\bvs\.?\b)\s*(.*?)$/i);
+  if (!parts) return { gd: result, pd: "" };
+  return { gd: parts[1].trim(), pd: parts[2].trim() };
+}
+
+function intramurosProgrammingFields(tabKey = intramurosProgrammingTab) {
+  if (tabKey !== "tochito") return INTRAMUROS_PROGRAMMING_FIELDS;
+  return INTRAMUROS_PROGRAMMING_FIELDS.flatMap((field) => (
+    field.key === "resultado" ? INTRAMUROS_TOCHITO_RESULT_FIELDS : [field]
+  ));
+}
+
+function intramurosProgrammingFieldValue(row, field) {
+  if (!field.resultPart) return row[field.key] || "";
+  return intramurosProgrammingResultParts(row.resultado)[field.resultPart];
+}
+
+function setIntramurosProgrammingFieldValue(row, field, value) {
+  if (!field.resultPart) {
+    row[field.key] = value;
+    return;
+  }
+  if (field.resultPart === "gd" && /(?:-|–|—|\bvs\.?\b)/i.test(String(value || ""))) {
+    const pastedResult = intramurosProgrammingResultParts(value);
+    row.resultado = `${pastedResult.gd} VS ${pastedResult.pd}`.trim();
+    return;
+  }
+  const parts = intramurosProgrammingResultParts(row.resultado);
+  parts[field.resultPart] = value;
+  row.resultado = parts.gd || parts.pd ? `${parts.gd} VS ${parts.pd}`.trim() : "";
+}
+
 function intramurosProgrammingRowKey(row) {
   if (row.id) return row.id;
   if (!row.__programmingDraftId) {
@@ -10427,6 +10467,7 @@ function pasteIntramurosProgrammingRange(startRowIndex, startColumnIndex, clipbo
     .filter((row, index, values) => row !== "" || index < values.length - 1)
     .map((row) => row.split("\t"));
   if (!pastedRows.length) return 0;
+  const fields = intramurosProgrammingFields();
   let visibleRows = intramurosProgrammingRows();
   const requiredRows = startRowIndex + pastedRows.length;
   while (visibleRows.length < requiredRows) {
@@ -10439,9 +10480,9 @@ function pasteIntramurosProgrammingRange(startRowIndex, startColumnIndex, clipbo
     if (!row) return;
     const rowKey = intramurosProgrammingRowKey(row);
     values.forEach((value, columnOffset) => {
-      const field = INTRAMUROS_PROGRAMMING_FIELDS[startColumnIndex + columnOffset];
-      if (!field) return;
-      row[field.key] = value;
+      const field = fields[startColumnIndex + columnOffset];
+      if (!field || field.fixed) return;
+      setIntramurosProgrammingFieldValue(row, field, value);
       intramurosProgrammingDirtyRows.add(rowKey);
       updatedCells += 1;
     });
@@ -14090,12 +14131,24 @@ function renderIntramurosProgrammingGrid() {
     const count = intramurosProgrammingRows(tab.key).length;
     return `<button type="button" role="tab" aria-selected="${tab.key === activeTab.key}" class="${tab.key === activeTab.key ? "active" : ""}" data-intramuros-programming-tab="${tab.key}"><span>${escapeHtml(tab.label)}</span><b>${count.toLocaleString("es-MX")}</b></button>`;
   }).join("");
-  const headerCells = INTRAMUROS_PROGRAMMING_FIELDS.map((field) => `<th style="--program-column-width:${field.width}">${escapeHtml(field.label)}</th>`).join("");
+  const fields = intramurosProgrammingFields(activeTab.key);
+  const isTochito = activeTab.key === "tochito";
+  const headerCells = isTochito
+    ? INTRAMUROS_PROGRAMMING_FIELDS.map((field) => (
+      field.key === "resultado"
+        ? `<th class="intramuros-programming-result-group" colspan="3">Resultado</th>`
+        : `<th rowspan="2" style="--program-column-width:${field.width}">${escapeHtml(field.label)}</th>`
+    )).join("")
+    : fields.map((field) => `<th style="--program-column-width:${field.width}">${escapeHtml(field.label)}</th>`).join("");
+  const resultSubheader = isTochito
+    ? `<tr class="intramuros-programming-result-subheader">${INTRAMUROS_TOCHITO_RESULT_FIELDS.map((field) => `<th style="--program-column-width:${field.width}">${escapeHtml(field.label)}</th>`).join("")}</tr>`
+    : "";
   const bodyRows = rows.map((row, rowIndex) => {
     const rowKey = intramurosProgrammingRowKey(row);
-    const cells = INTRAMUROS_PROGRAMMING_FIELDS.map((field, columnIndex) => (
-      `<td style="--program-column-width:${field.width}"><input type="text" value="${escapeHtml(String(row[field.key] || ""))}" data-intramuros-programming-cell data-row-key="${escapeHtml(rowKey)}" data-field="${field.key}" data-column-index="${columnIndex}" data-row-index="${rowIndex}" aria-label="${escapeHtml(`${field.label}, fila ${rowIndex + 1}`)}" autocomplete="off" spellcheck="false" ${canEdit ? "" : "readonly"} /></td>`
-    )).join("");
+    const cells = fields.map((field, columnIndex) => {
+      if (field.fixed) return `<td class="intramuros-programming-result-vs" style="--program-column-width:${field.width}"><span>VS</span></td>`;
+      return `<td class="${field.resultPart ? "intramuros-programming-result-score" : ""}" style="--program-column-width:${field.width}"><input type="text" value="${escapeHtml(String(intramurosProgrammingFieldValue(row, field)))}" data-intramuros-programming-cell data-row-key="${escapeHtml(rowKey)}" data-field="${field.key}" data-column-index="${columnIndex}" data-row-index="${rowIndex}" aria-label="${escapeHtml(`${field.label}, fila ${rowIndex + 1}`)}" autocomplete="off" spellcheck="false" ${canEdit ? "" : "readonly"} /></td>`;
+    }).join("");
     return `<tr class="${intramurosProgrammingRowTone(row)} ${intramurosProgrammingDirtyRows.has(rowKey) ? "is-dirty" : ""}" data-programming-row="${escapeHtml(rowKey)}"><th scope="row">${rowIndex + 1}</th>${cells}<td class="intramuros-programming-row-actions"><button type="button" class="icon-btn danger" title="Eliminar fila" aria-label="Eliminar fila ${rowIndex + 1}" data-delete-intramuros-programming-row="${escapeHtml(rowKey)}" ${canEdit ? "" : "disabled"}>×</button></td></tr>`;
   }).join("");
   return `
@@ -14120,8 +14173,8 @@ function renderIntramurosProgrammingGrid() {
       </div>
       <div class="intramuros-programming-table-wrap">
         <table class="intramuros-programming-table">
-          <thead><tr><th class="intramuros-programming-row-number">#</th>${headerCells}<th class="intramuros-programming-delete-heading">Borrar</th></tr></thead>
-          <tbody>${bodyRows || `<tr><td class="intramuros-programming-empty" colspan="${INTRAMUROS_PROGRAMMING_FIELDS.length + 2}">No hay filas guardadas para este deporte. Usa “Agregar fila” o carga el archivo de programación en la sección superior.</td></tr>`}</tbody>
+          <thead><tr><th class="intramuros-programming-row-number" ${isTochito ? 'rowspan="2"' : ""}>#</th>${headerCells}<th class="intramuros-programming-delete-heading" ${isTochito ? 'rowspan="2"' : ""}>Borrar</th></tr>${resultSubheader}</thead>
+          <tbody>${bodyRows || `<tr><td class="intramuros-programming-empty" colspan="${fields.length + 2}">No hay filas guardadas para este deporte. Usa “Agregar fila” o carga el archivo de programación en la sección superior.</td></tr>`}</tbody>
         </table>
       </div>
       <p class="intramuros-programming-help">Para pegar varias celdas, copia el rango en Excel y pégalo en la primera celda de destino. Los cambios se guardan al presionar “Guardar cambios”.</p>
@@ -23137,8 +23190,9 @@ function render() {
       const rowKey = event.target.dataset.rowKey;
       const row = intramurosGameRoles.find((item) => intramurosProgrammingRowKey(item) === rowKey);
       const field = event.target.dataset.field;
-      if (!row || !INTRAMUROS_PROGRAMMING_FIELDS.some((item) => item.key === field)) return;
-      row[field] = event.target.value;
+      const fieldDefinition = intramurosProgrammingFields().find((item) => item.key === field);
+      if (!row || !fieldDefinition || fieldDefinition.fixed) return;
+      setIntramurosProgrammingFieldValue(row, fieldDefinition, event.target.value);
       intramurosProgrammingDirtyRows.add(rowKey);
       event.target.closest("tr")?.classList.add("is-dirty");
       updateIntramurosProgrammingDirtyStatus();
