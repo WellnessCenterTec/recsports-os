@@ -85,3 +85,12 @@ test("los torneos ajustados separan los resultados en Visita, VS y Local", async
   setIntramurosProgrammingFieldValue(row, { key: "resultado_pd", resultPart: "pd" }, "19");
   assert.equal(row.resultado, "35 VS 19");
 });
+
+test("Fútbol soccer y Fútbol 7 muestran C # 3 como CS 3", async () => {
+  const app = await readFile(new URL("../site/app.js", import.meta.url), "utf8");
+  assert.match(app, /function canonicalIntramurosSoccerCourt\(/);
+  assert.match(app, /\["Fútbol soccer", "Fútbol 7"\]\.includes\(sport\)/);
+  assert.match(app, /return "CS 3"/);
+  assert.match(app, /cancha: canonicalIntramurosSoccerCourt\(row\.torneo, row\.cancha\)/);
+  assert.match(app, /row\.cancha = canonicalIntramurosSoccerCourt\(row\.torneo, row\.cancha\)/);
+});

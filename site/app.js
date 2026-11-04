@@ -10166,6 +10166,13 @@ function canonicalIntramurosTournament(value) {
   }).join(" ");
 }
 
+function canonicalIntramurosSoccerCourt(tournament, value) {
+  const court = String(value || "").trim();
+  const sport = canonicalIntramurosTournament(tournament);
+  if (["Fútbol soccer", "Fútbol 7"].includes(sport) && /^c\s*#\s*3$/i.test(court)) return "CS 3";
+  return court;
+}
+
 async function loadIntramurosTablePages(table, columns, orderColumn, period = activeMasterPeriod) {
   const rows = [];
   const pageSize = 1000;
@@ -10267,7 +10274,7 @@ function intramurosRoleCloudRow(row) {
     semana: row.semana || "",
     fecha: intramurosRoleDateValue(row.fecha) || row.fecha || "",
     hora: row.hora || "",
-    cancha: row.cancha || "",
+    cancha: canonicalIntramurosSoccerCourt(row.torneo, row.cancha),
     grupo: row.grupo || "",
     rama: row.rama || "",
     equipo_local: row.equipo_local || "",
@@ -10369,7 +10376,7 @@ function intramurosProgrammingPayload(row) {
     semana: String(row.semana || "").trim() || null,
     fecha: intramurosRoleDateValue(row.fecha) || String(row.fecha || "").trim() || null,
     hora: intramurosRoleTimeValue(row.hora) || String(row.hora || "").trim() || null,
-    cancha: String(row.cancha || "").trim() || null,
+    cancha: canonicalIntramurosSoccerCourt(row.torneo, row.cancha) || null,
     grupo: String(row.grupo || "").trim() || null,
     rama: String(row.rama || "").trim() || null,
     equipo_local: String(row.equipo_local || "").trim() || null,
@@ -11161,6 +11168,7 @@ async function parseIntramurosRolesFile(file) {
   const validRows = [];
   allRows.forEach((row) => {
     row.torneo = canonicalIntramurosTournament(row.torneo);
+    row.cancha = canonicalIntramurosSoccerCourt(row.torneo, row.cancha);
     const key = row.__slotKey || intramurosRoleSlotKey(row);
     if (seen.has(key)) {
       duplicates.push(row);
