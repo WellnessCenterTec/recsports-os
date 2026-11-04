@@ -12816,6 +12816,16 @@ function executiveVivenciaEventDisplayName(value) {
     .trim();
 }
 
+function executiveVivenciaEventDisplayParts(value) {
+  const eventName = String(value || "").trim();
+  const separatorIndex = eventName.indexOf(",");
+  if (separatorIndex < 0) return { title: eventName, details: "" };
+  return {
+    title: eventName.slice(0, separatorIndex).trim(),
+    details: eventName.slice(separatorIndex + 1).trim()
+  };
+}
+
 function executiveVivenciaUploadHistory() {
   const metricsByEvent = vivenciaEventMetricMap();
   const recentEvents = vivenciaVisibleEvents()
@@ -13021,7 +13031,10 @@ function renderExecutiveInsightCards() {
       <article class="exec-insight-card exec-insight-vivencia">
         <h3>Vivencia · últimas cargas</h3>
         <div class="exec-insight-events exec-insight-vivencia-history">
-          ${vivenciaUploads.length ? vivenciaUploads.map((upload) => `<div><strong title="${escapeHtml(upload.eventName)}">${escapeHtml(upload.eventName)}</strong><span class="exec-insight-vivencia-meta"><time>${escapeHtml(upload.uploadDate)}</time><b>${upload.totalLoaded.toLocaleString("es-MX")}</b></span></div>`).join("") : `<p>Sin cargas históricas de participantes.</p>`}
+          ${vivenciaUploads.length ? vivenciaUploads.map((upload) => {
+            const eventDisplay = executiveVivenciaEventDisplayParts(upload.eventName);
+            return `<div><strong title="${escapeHtml(upload.eventName)}"><span class="exec-insight-vivencia-title">${escapeHtml(eventDisplay.title)}</span>${eventDisplay.details ? `<small class="exec-insight-vivencia-details">, ${escapeHtml(eventDisplay.details)}</small>` : ""}</strong><span class="exec-insight-vivencia-meta"><time>${escapeHtml(upload.uploadDate)}</time><b>${upload.totalLoaded.toLocaleString("es-MX")}</b></span></div>`;
+          }).join("") : `<p>Sin cargas históricas de participantes.</p>`}
         </div>
       </article>
       <article class="exec-insight-card exec-insight-semana-tec">

@@ -52,6 +52,24 @@ test("el nombre negro de Vivencia omite la fecha y conserva la fecha azul separa
   assert.equal(displayName("Evento 03/11/2026, Auditorio"), "Evento, Auditorio");
 });
 
+test("la hora y el lugar se presentan como información secundaria", () => {
+  const start = appSource.indexOf("function executiveVivenciaEventDisplayParts");
+  const end = appSource.indexOf("function executiveVivenciaUploadHistory", start);
+  const helperSource = appSource.slice(start, end);
+  const displayParts = Function(`${helperSource}; return executiveVivenciaEventDisplayParts;`)();
+
+  assert.deepEqual(displayParts("BOLETOS BORREGOS, 13:00 horas, Jardín de las carreras"), {
+    title: "BOLETOS BORREGOS",
+    details: "13:00 horas, Jardín de las carreras"
+  });
+  assert.deepEqual(displayParts("Evento sin ubicación"), {
+    title: "Evento sin ubicación",
+    details: ""
+  });
+  assert.match(appSource, /exec-insight-vivencia-title/);
+  assert.match(appSource, /exec-insight-vivencia-details/);
+});
+
 test("la vista rápida de Reporte Wellness caduca al cambiar la versión o la fecha", () => {
   assert.match(appSource, /EXECUTIVE_REPORT_CACHE_RULE_VERSION/);
   assert.match(appSource, /cachedViewSnapshot\.executiveReportVersion !== EXECUTIVE_REPORT_CACHE_RULE_VERSION/);
@@ -61,7 +79,7 @@ test("la vista rápida de Reporte Wellness caduca al cambiar la versión o la fe
   assert.match(appSource, /executiveReportVersion: areaId === "general" && viewId === "dashboard"/);
 });
 
-test("la versión identifica la nueva regla de fechas", () => {
-  assert.match(indexSource, /20261104-vivencia-fecha-azul-v9/);
-  assert.match(indexSource, /app\.js\?v=20261104-vivencia-fecha-azul-v9/);
+test("la versión identifica la jerarquía visual de Vivencia", () => {
+  assert.match(indexSource, /20261104-vivencia-info-secundaria-v10/);
+  assert.match(indexSource, /app\.js\?v=20261104-vivencia-info-secundaria-v10/);
 });
