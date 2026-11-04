@@ -12801,6 +12801,21 @@ function executiveVivenciaEventIsAvailable(event, today = new Date()) {
   return eventDate.getTime() <= endOfToday.getTime();
 }
 
+function executiveVivenciaEventDisplayName(value) {
+  const label = executiveWellnessReportDisplayLabel(value);
+  const weekdays = "(?:lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)";
+  const months = "(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)";
+  const writtenDate = new RegExp(`(?:${weekdays}\\s*,?\\s*)?\\b\\d{1,2}\\s*(?:de\\s+)?${months}\\b(?:\\s+de\\s+\\d{4})?`, "gi");
+  return label
+    .replace(writtenDate, "")
+    .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "")
+    .replace(/\s+,/g, ",")
+    .replace(/,\s*,+/g, ",")
+    .replace(/^,\s*|,\s*$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function executiveVivenciaUploadHistory() {
   const metricsByEvent = vivenciaEventMetricMap();
   const recentEvents = vivenciaVisibleEvents()
@@ -12817,7 +12832,7 @@ function executiveVivenciaUploadHistory() {
     })
     .slice(0, 6)
     .map(({ event, totalLoaded }) => ({
-      eventName: executiveWellnessReportDisplayLabel(event.event_name || "Evento no encontrado"),
+      eventName: executiveVivenciaEventDisplayName(event.event_name || "Evento no encontrado"),
       uploadDate: formatVivenciaUploadDate(event.event_date ? `${event.event_date}T12:00:00` : ""),
       totalLoaded
     }));
@@ -12835,7 +12850,7 @@ function executiveVivenciaUploadHistory() {
     .slice(0, 6)
     .map((row) => ({
       ...row,
-      eventName: executiveWellnessReportDisplayLabel(eventsById.get(row.event_id)?.event_name || "Evento no encontrado"),
+      eventName: executiveVivenciaEventDisplayName(eventsById.get(row.event_id)?.event_name || "Evento no encontrado"),
       uploadDate: formatVivenciaUploadDate(row.upload_date || row.created_at),
       totalLoaded: Number(row.total_inserted || 0)
     }));

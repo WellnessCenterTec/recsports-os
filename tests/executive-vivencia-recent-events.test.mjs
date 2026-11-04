@@ -36,6 +36,22 @@ test("la regla incluye la fecha actual y excluye eventos futuros", () => {
   assert.equal(isAvailable({}, today), false);
 });
 
+test("el nombre negro de Vivencia omite la fecha y conserva la fecha azul separada", () => {
+  const start = appSource.indexOf("function executiveVivenciaEventDisplayName");
+  const end = appSource.indexOf("function executiveVivenciaUploadHistory", start);
+  const helperSource = appSource.slice(start, end);
+  const displayName = Function(
+    "executiveWellnessReportDisplayLabel",
+    `${helperSource}; return executiveVivenciaEventDisplayName;`
+  )((value) => String(value || ""));
+
+  assert.equal(displayName("BOLETOS INTOCABLE, MARTES 3 de NOVIEMBRE, Arena"), "BOLETOS INTOCABLE, Arena");
+  assert.equal(displayName("DÍA DE MUERTOS: CLAVERAS LITERARIAS, 3 de noviembre"), "DÍA DE MUERTOS: CLAVERAS LITERARIAS");
+  assert.equal(displayName("BOLETOS BORREGOS, MARTES 20 octubre, 13:00 horas"), "BOLETOS BORREGOS, 13:00 horas");
+  assert.equal(displayName("Halloween Run 3k 13 de octubre, Centro Deportivo"), "Halloween Run 3k, Centro Deportivo");
+  assert.equal(displayName("Evento 03/11/2026, Auditorio"), "Evento, Auditorio");
+});
+
 test("la vista rápida de Reporte Wellness caduca al cambiar la versión o la fecha", () => {
   assert.match(appSource, /EXECUTIVE_REPORT_CACHE_RULE_VERSION/);
   assert.match(appSource, /cachedViewSnapshot\.executiveReportVersion !== EXECUTIVE_REPORT_CACHE_RULE_VERSION/);
@@ -46,6 +62,6 @@ test("la vista rápida de Reporte Wellness caduca al cambiar la versión o la fe
 });
 
 test("la versión identifica la nueva regla de fechas", () => {
-  assert.match(indexSource, /20261104-intramuros-cancha-cs3-v8/);
-  assert.match(indexSource, /app\.js\?v=20261104-intramuros-cancha-cs3-v8/);
+  assert.match(indexSource, /20261104-vivencia-fecha-azul-v9/);
+  assert.match(indexSource, /app\.js\?v=20261104-vivencia-fecha-azul-v9/);
 });

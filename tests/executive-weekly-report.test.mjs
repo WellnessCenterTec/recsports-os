@@ -177,7 +177,7 @@ test("weekly report corrects display labels and groups the hidden Intramuros tou
   assert.ok(source.includes('"futbol 7 emcs": "Fútbol 7 EMCS"'));
   assert.match(source, /const lightningTournamentTotal = ranked\.slice\(8\)\.reduce/);
   assert.ok(source.includes('{ label: "Torneos relámpagos", value: lightningTournamentTotal }'));
-  assert.match(source, /eventName: executiveWellnessReportDisplayLabel\(/);
+  assert.match(source, /eventName: executiveVivenciaEventDisplayName\(/);
   assert.match(index, /completeWellnessTransferTime[\s\S]*?transferencia 2:00 a 4:30[\s\S]*?Transferencia 2:00 a 4:30 p\. m\./, "El shell fresco debe corregir también una copia antigua del bundle antes de imprimir");
 });
 
