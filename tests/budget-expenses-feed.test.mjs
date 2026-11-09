@@ -60,11 +60,13 @@ test("Rechaza encabezados, importes y fechas inválidos sin convertirlos en cero
   assert.match(result.issues[0].reason, /Costo, Fecha/);
 });
 
-test("El corte manual de AppSheet conserva 113 gastos AD26 y su total conciliado", () => {
+test("El corte manual de AppSheet conserva 139 gastos AD26 y su total conciliado", () => {
   assert.equal(snapshot.source, "Gastos Log · AppSheet");
   assert.equal(snapshot.sourcePeriod, "AD26");
-  assert.equal(snapshot.rows.length, 113);
-  assert.equal(Math.round(snapshot.rows.reduce((sum, row) => sum + row.amount, 0) * 100) / 100, 1192540.67);
+  assert.equal(snapshot.rows.length, 139);
+  assert.equal(Math.round(snapshot.rows.reduce((sum, row) => sum + row.amount, 0) * 100) / 100, 1379397.07);
+  assert.equal(new Set(snapshot.rows.map((row) => row.id)).size, snapshot.rows.length);
+  assert.equal(snapshot.rows[0].date, "2026-11-06");
   assert.equal(snapshot.rows.every((row) => row.area && row.date && row.amount > 0), true);
   assert.equal(snapshot.rows.every((row) => row.provider.startsWith("AppSheet · ")), true);
   assert.deepEqual(Array.from(snapshot.rows.filter((row) => !row.category), (row) => row.id), ["de42c763"]);

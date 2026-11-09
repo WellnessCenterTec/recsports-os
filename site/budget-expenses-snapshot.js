@@ -2,8 +2,35 @@
   "use strict";
 
   const sourceUrl = "https://www.appsheet.com/start/1d59cd91-3e38-4fb0-92cc-6ac797142587#appName=PresupuestoRecSports-45565580&table=Gastos+Log&view=Registro+de+gastos";
-  const capturedAt = "2026-10-19T09:39:50-06:00";
+  const capturedAt = "2026-11-09T09:31:36-06:00";
   const rows = [
+    ["00184a3b", "2026-11-06", "vivencia", "Vivencia y Semana Tec", "Comida Staff Semana Tec 12", "Gastos Generales", 3600, "Jessica"],
+    ["2d7ade3f", "2026-11-06", "vivencia", "Vivencia y Semana Tec", "Playeras de Maestros nuevos Semana Tec 12", "Uniformes", 1206.03, "Jessica"],
+    ["d45a1e9d", "2026-11-06", "vivencia", "Vivencia y Semana Tec", "Convivencia Bolerama", "Gastos Generales", 1579, "Jessica"],
+    ["d27d0133", "2026-11-06", "vivencia", "Vivencia y Semana Tec", "Halloween Snaks", "Gastos Generales", 3116.37, "Jessica"],
+    ["c1ce1fbb", "2026-11-06", "vivencia", "Vivencia y Semana Tec", "Medallas Halloween", "Premiación", 3306, "Jessica"],
+    ["cc881e1b", "2026-11-05", "intramuros", "Intramuros", "Lanzadores Party Popper Finales de Intramuros", "Premiación", 1880, "Omar"],
+    ["4f64a273", "2026-11-02", "gimnasio", "Gimnasio", "Switch y tab caminadora", "Refacciones", 34400, "Pamela"],
+    ["ec4a64aa", "2026-11-02", "clases", "Clases deportivas", "Aromas Yoga, EMCS, Karate", "Gastos Generales", 3896, "Ivonne"],
+    ["07c2942b", "2026-11-02", "gimnasio", "Gimnasio", "NOV Mantenimiento", "Mantenimiento", 31900, "Pamela"],
+    ["90668f32", "2026-11-02", "gimnasio", "Gimnasio", "NOV Aromas", "Servicios", 10440, "Pamela"],
+    ["3f597434", "2026-11-02", "vivencia", "Vivencia y Semana Tec", "Posada", "Premiación", 2000, "Yankarlo"],
+    ["093ec44c", "2026-11-02", "clases", "Clases deportivas", "Posada", "Premiación", 8000, "Yankarlo"],
+    ["b09dd894", "2026-11-02", "intramuros", "Intramuros", "Posada", "Premiación", 8000, "Yankarlo"],
+    ["a91c87b7", "2026-11-02", "gimnasio", "Gimnasio", "Posada", "Premiación", 8000, "Yankarlo"],
+    ["bd4c893a", "2026-11-02", "comunicacion", "Comunicación", "Posada", "Premiación", 2000, "Yankarlo"],
+    ["ad4fd4fa", "2026-11-02", "gimnasio", "Gimnasio", "Placas matrix y bancos medicina", "Material Deportivo", 12702, "Pamela"],
+    ["da6cfad0", "2026-10-30", "gimnasio", "Gimnasio", "Panes coaches HEB", "Gastos Generales", 1643, "Pamela"],
+    ["b0982f65", "2026-10-30", "gimnasio", "Gimnasio", "Pasteles y HEB coaches", "Gastos Generales", 1490, "Pamela"],
+    ["0d95d159", "2026-10-28", "comunicacion", "Comunicación", "Comida curso rcp", "Gastos Generales", 3013, "Wendy"],
+    ["9c6cc1ff", "2026-10-27", "gimnasio", "Gimnasio", "Halloween gift cards amazon", "Premiación", 8800, "Pamela"],
+    ["c8e21194", "2026-10-27", "comunicacion", "Comunicación", "impresiones cecy", "Cima", 16, "Wendy"],
+    ["9d5571c6", "2026-10-27", "gimnasio", "Gimnasio", "Bolerama wellness", "Premiación", 1543, "Pamela"],
+    ["11fefd60", "2026-10-26", "gimnasio", "Gimnasio", "Coscto halloween y coaches", "Premiación", 4722, "Pamela"],
+    ["3141c577", "2026-10-21", "comunicacion", "Comunicación", "Talleres HIIT / BENCH", "Cima", 160, "Wendy"],
+    ["e3dae2e4", "2026-10-21", "comunicacion", "Comunicación", "Diplomas Crossfit", "Gastos Generales", 48, "Wendy"],
+    ["7c499858", "2026-10-21", "comunicacion", "Comunicación", "Tarjetas altamira", "Cima", 96, "Wendy"],
+    ["d397a80f", "2026-10-19", "gimnasio", "Gimnasio", "Tapiz mitad de semestre.", "Mantenimiento", 32400, "Pamela"],
     ["d6b6f2d8", "2026-10-14", "gimnasio", "Gimnasio", "Placas matrix y Sissy", "Material Deportivo", 11252, "Pamela"],
     ["a6b34d2b", "2026-10-12", "clases", "Clases deportivas", "Gatorade", "Gastos Generales", 939.08, "Ivonne"],
     ["a76ea636", "2026-10-12", "clases", "Clases deportivas", "Aromas Octubre", "Gastos Generales", 3896, "Ivonne"],
@@ -115,8 +142,7 @@
     ["c3ff3604", "2026-08-18", "gimnasio", "Gimnasio", "Pizzas y tacos martes", "Gastos Generales", 1300, "Pamela"],
     ["b4adf154", "2026-08-18", "gimnasio", "Gimnasio", "Bienvenida pastel lety", "Gastos Generales", 495, "Pamela"],
     ["0161a34c", "2026-08-18", "gimnasio", "Gimnasio", "Pieza abductores t cable", "Refacciones", 22080, "Pamela"],
-    ["55d34371", "2026-08-18", "gimnasio", "Gimnasio", "Uniformes wellness FC", "Uniformes", 14000, "Pamela"],
-    ["4f64a273", "2026-08-18", "gimnasio", "Gimnasio", "Switch caminadora", "Refacciones", 3100, "Pamela"]
+    ["55d34371", "2026-08-18", "gimnasio", "Gimnasio", "Uniformes wellness FC", "Uniformes", 14000, "Pamela"]
   ].map(([id, date, area, sourceArea, concept, category, amount, responsible]) => Object.freeze({
     id,
     period: "AD26",
