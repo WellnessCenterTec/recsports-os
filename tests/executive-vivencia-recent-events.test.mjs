@@ -80,6 +80,6 @@ test("la vista rápida de Reporte Wellness caduca al cambiar la versión o la fe
 });
 
 test("la versión identifica la jerarquía visual de Vivencia", () => {
-  assert.match(indexSource, /20261104-vivencia-info-secundaria-v10/);
-  assert.match(indexSource, /app\.js\?v=20261104-vivencia-info-secundaria-v10/);
+  assert.match(indexSource, /20261109-booking-auto-sync-v3/);
+  assert.match(indexSource, /app\.js\?v=20261109-booking-auto-sync-v3/);
 });
