@@ -45,7 +45,7 @@ test("la vista rápida de Reporte Wellness caduca al cambiar la versión o la fe
   assert.match(appSource, /executiveReportVersion: areaId === "general" && viewId === "dashboard"/);
 });
 
-test("la versión identifica la nueva regla de fechas", () => {
-  assert.match(indexSource, /20261026-booking-exclude-swimming-v7/);
-  assert.match(indexSource, /app\.js\?v=20261026-booking-exclude-swimming-v7/);
+test("la versión identifica la jerarquía visual de Vivencia", () => {
+  assert.match(indexSource, /20261109-booking-auto-sync-v3/);
+  assert.match(indexSource, /app\.js\?v=20261109-booking-auto-sync-v3/);
 });

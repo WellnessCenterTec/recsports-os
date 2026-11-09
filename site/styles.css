@@ -5576,10 +5576,72 @@ tbody tr:hover td {
 }
 
 .booking-upload-toolbar {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 8px;
+}
+
+.booking-source-card {
   align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  min-height: 78px;
+  padding: 12px 14px;
+}
+
+.booking-source-automatic {
+  border-color: color-mix(in srgb, var(--teal) 42%, var(--line));
+}
+
+.booking-source-icon {
+  align-items: center;
+  background: rgba(0, 92, 169, .1);
+  border-radius: 12px;
+  color: var(--blue);
   display: flex;
-  justify-content: flex-end;
-  min-height: 38px;
+  height: 42px;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  width: 42px;
+}
+
+.booking-source-icon svg {
+  height: 19px;
+  width: 19px;
+}
+
+.booking-source-card > div {
+  display: grid;
+  gap: 4px;
+}
+
+.booking-source-card small,
+.booking-source-summary {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.booking-source-card > .upload-last-success {
+  grid-column: 2 / 4;
+  margin: -6px 0 0;
+  white-space: normal;
+  width: auto;
+}
+
+.booking-sync-status.ready { color: var(--teal); }
+.booking-sync-status.error { color: var(--red); }
+.booking-sync-status.pending { color: var(--gold); }
+
+.booking-source-summary {
+  margin: 0 0 14px;
+  text-align: right;
 }
 
 .booking-reservations-upload {
@@ -5608,10 +5670,12 @@ tbody tr:hover td {
 }
 
 @media (max-width: 760px) {
-  .booking-upload-toolbar,
-  .booking-reservations-upload {
-    justify-content: flex-start;
-  }
+  .booking-upload-toolbar { grid-template-columns: 1fr; }
+
+  .booking-source-card { grid-template-columns: 38px minmax(0, 1fr); }
+
+  .booking-source-card > button,
+  .booking-source-card > label { grid-column: 2; justify-self: start; }
 
   .booking-reservations-upload {
     flex-wrap: wrap;

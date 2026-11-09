@@ -777,6 +777,7 @@ let scheduleFilters = { professor: "todos", day: "todos", discipline: "todos", i
 let classBookingReservations = loadClassBookingReservations();
 let classBookingCloudAvailable = true;
 let classBookingFilters = { status: "todos", type: "todos", activity: "todos", search: "" };
+let bookingSyncState = { loading: false, configured: null, lastRun: null, error: "" };
 let intramurosParticipants = [];
 let intramurosGameRoles = [];
 let intramurosCloudAvailable = true;
@@ -1536,11 +1537,33 @@ function bookingReservationFromCloud(row) {
     student: normalizeMatricula(row.matricula),
     activity: row.activity || "Sin actividad",
     rawSpace: row.raw_space || row.activity || "",
+    sourceKind: row.source_kind || "manual",
+    sourceKey: row.source_key || row.source_reservation_id || row.id,
+    lastSyncedAt: row.last_synced_at || "",
     dateLabel: parts.date,
     day: parts.day,
     hour: parts.hour,
     month: parts.month
   };
+}
+
+function bookingReservationIdentity(row) {
+  const sourceId = String(row.sourceKey || row.id || "").trim();
+  if (sourceId && !/^booking-\d+$/i.test(sourceId)) return sourceId.startsWith("id:") ? sourceId : `id:${sourceId}`;
+  return [row.reservationDate, normalizeMatricula(row.student), row.activity, row.rawSpace]
+    .map((value) => normalizeText(value))
+    .join("|");
+}
+
+function effectiveBookingReservations(rows) {
+  const effective = new Map();
+  [...(rows || [])]
+    .sort((left, right) => Number(right.sourceKind === "automatic") - Number(left.sourceKind === "automatic"))
+    .forEach((row) => {
+      const key = row.sourceKey || bookingReservationIdentity(row);
+      if (!effective.has(key)) effective.set(key, row);
+    });
+  return [...effective.values()].sort((left, right) => String(right.reservationDate).localeCompare(String(left.reservationDate)));
 }
 
 function bookingReservationToCloud(row, fileName = "") {
@@ -1553,6 +1576,9 @@ function bookingReservationToCloud(row, fileName = "") {
     activity: row.activity || "Sin actividad",
     raw_space: row.rawSpace || null,
     source_name: fileName || "Booking",
+    source_kind: "manual",
+    source_key: bookingReservationIdentity(row),
+    last_synced_at: null,
     created_by: currentUser?.auth === "supabase" ? currentUser.id : null
   };
 }
@@ -1564,14 +1590,24 @@ async function loadClassBookingReservationsCloud() {
   const data = [];
   const pageSize = 1000;
   for (let offset = 0; ; offset += pageSize) {
-    const response = await supabaseClient
+    let response = await supabaseClient
       .from("class_booking_reservations")
-      .select("id, source_reservation_id, reservation_at, status, reservation_type, matricula, activity, raw_space")
+      .select("id, source_reservation_id, reservation_at, status, reservation_type, matricula, activity, raw_space, source_kind, source_key, last_synced_at")
       .gte("reservation_at", `${start}T00:00:00`)
       .lte("reservation_at", `${end}T23:59:59.999`)
       .order("reservation_at", { ascending: false })
       .order("id", { ascending: true })
       .range(offset, offset + pageSize - 1);
+    if (response.error && /source_kind|source_key|last_synced_at/i.test(`${response.error.message || ""} ${response.error.details || ""}`)) {
+      response = await supabaseClient
+        .from("class_booking_reservations")
+        .select("id, source_reservation_id, reservation_at, status, reservation_type, matricula, activity, raw_space")
+        .gte("reservation_at", `${start}T00:00:00`)
+        .lte("reservation_at", `${end}T23:59:59.999`)
+        .order("reservation_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+    }
     if (requestedPeriod !== activeMasterPeriod) return;
     if (response.error) {
       classBookingCloudAvailable = false;
@@ -1583,24 +1619,43 @@ async function loadClassBookingReservationsCloud() {
     if (page.length < pageSize) break;
   }
   classBookingCloudAvailable = true;
-  classBookingReservations = data.map(bookingReservationFromCloud);
+  classBookingReservations = effectiveBookingReservations(data.map(bookingReservationFromCloud));
   saveClassBookingReservations();
+  loadBookingSyncStatus({ renderAfter: false });
 }
 
 async function saveClassBookingReservationsCloud(rows, fileName = "") {
   if (!supabaseClient || currentUser?.auth !== "supabase" || !canEditArea("clases")) return false;
   const { start, end } = masterPeriodBounds();
-  const { error: deleteError } = await supabaseClient
+  let { error: deleteError } = await supabaseClient
     .from("class_booking_reservations")
     .delete()
+    .eq("source_kind", "manual")
     .gte("reservation_at", `${start}T00:00:00`)
     .lte("reservation_at", `${end}T23:59:59`);
+  let legacySchema = false;
+  if (deleteError && /source_kind/i.test(`${deleteError.message || ""} ${deleteError.details || ""}`)) {
+    legacySchema = true;
+    ({ error: deleteError } = await supabaseClient
+      .from("class_booking_reservations")
+      .delete()
+      .gte("reservation_at", `${start}T00:00:00`)
+      .lte("reservation_at", `${end}T23:59:59`));
+  }
   if (deleteError) {
     classBookingCloudAvailable = false;
     toast(`Booking quedó local; falta activar Supabase: ${supabaseErrorDetail(deleteError) || deleteError.message}`);
     return false;
   }
-  const payload = rows.map((row) => bookingReservationToCloud(row, fileName));
+  const payload = rows.map((row) => {
+    const cloudRow = bookingReservationToCloud(row, fileName);
+    if (legacySchema) {
+      delete cloudRow.source_kind;
+      delete cloudRow.source_key;
+      delete cloudRow.last_synced_at;
+    }
+    return cloudRow;
+  });
   for (let index = 0; index < payload.length; index += 500) {
     const chunk = payload.slice(index, index + 500);
     const { error } = await supabaseClient.from("class_booking_reservations").insert(chunk);
@@ -1612,6 +1667,54 @@ async function saveClassBookingReservationsCloud(rows, fileName = "") {
   }
   classBookingCloudAvailable = true;
   return true;
+}
+
+async function bookingSyncAccessToken() {
+  if (!supabaseClient || currentUser?.auth !== "supabase") return "";
+  const { data } = await supabaseClient.auth.getSession();
+  return data?.session?.access_token || "";
+}
+
+async function loadBookingSyncStatus({ renderAfter = true } = {}) {
+  const token = await bookingSyncAccessToken();
+  if (!token) return;
+  try {
+    const response = await fetch("/api/booking-sync", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "No se pudo consultar la sincronización");
+    bookingSyncState = { ...bookingSyncState, configured: payload.configured, lastRun: payload.last_run, error: "" };
+  } catch (error) {
+    bookingSyncState = { ...bookingSyncState, error: error.message || "Estado no disponible" };
+  }
+  if (renderAfter) render();
+}
+
+async function syncBookingAutomatically() {
+  if (bookingSyncState.loading || !canEditArea("clases")) return;
+  const token = await bookingSyncAccessToken();
+  if (!token) return toast("Inicia sesión con Supabase para sincronizar Booking");
+  bookingSyncState = { ...bookingSyncState, loading: true, error: "" };
+  render();
+  try {
+    const { start, end } = masterPeriodBounds();
+    const response = await fetch("/api/booking-sync", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ start, end })
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "No se pudo sincronizar Booking");
+    await loadClassBookingReservationsCloud();
+    await loadBookingSyncStatus({ renderAfter: false });
+    addAudit("booking", `${payload.result?.accepted || 0} reservaciones sincronizadas automáticamente`);
+    toast(`Booking actualizado: ${(payload.result?.accepted || 0).toLocaleString("es-MX")} reservaciones`);
+  } catch (error) {
+    bookingSyncState = { ...bookingSyncState, error: error.message || "No se pudo sincronizar" };
+    toast(bookingSyncState.error);
+  } finally {
+    bookingSyncState.loading = false;
+    render();
+  }
 }
 
 function loadSimulator() {
@@ -22055,6 +22158,21 @@ function renderBookingTypeStack(rows, total) {
   `;
 }
 
+function bookingSyncStatusCopy() {
+  if (bookingSyncState.error) return { tone: "error", title: "Requiere atención", detail: bookingSyncState.error };
+  if (!bookingSyncState.configured) return { tone: "pending", title: "Comprobando conexión", detail: "Validando la fuente segura" };
+  if (!bookingSyncState.configured.database || !bookingSyncState.configured.source) {
+    return { tone: "pending", title: "Activación pendiente", detail: "Faltan credenciales privadas en Vercel" };
+  }
+  const run = bookingSyncState.lastRun;
+  if (!run) return { tone: "ready", title: "Lista para sincronizar", detail: "Aún no hay una ejecución registrada" };
+  const when = run.finished_at || run.started_at;
+  const date = when ? new Date(when).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "fecha no disponible";
+  return run.status === "success"
+    ? { tone: "ready", title: "Sincronización activa", detail: `${date} · ${(run.rows_upserted || 0).toLocaleString("es-MX")} actualizadas` }
+    : { tone: "error", title: "Última sincronización con error", detail: date };
+}
+
 function renderClassBookingDashboard() {
   if (activeArea !== "clases") {
     return `<div class="permission-strip">Booking pertenece al módulo de Clases Deportivas. Selecciona Clases Deportivas para cargar y analizar reservaciones.</div>`;
@@ -22074,16 +22192,28 @@ function renderClassBookingDashboard() {
   const topActivity = activities[0]?.label || "Sin datos";
   const topStudent = students[0]?.label || "Sin datos";
   const topProfessor = topActivity === "Sin datos" ? "Sin datos" : inferBookingProfessor(topActivity);
+  const syncStatus = bookingSyncStatusCopy();
+  const automaticCount = allRows.filter((row) => row.sourceKind === "automatic").length;
+  const manualCount = allRows.length - automaticCount;
+  const canSync = currentUser?.auth === "supabase" && canEditArea("clases");
   return `
     <section class="booking-module">
       <div class="booking-upload-toolbar">
-        <div class="booking-reservations-upload">
+        <article class="booking-source-card booking-source-automatic">
+          <span class="booking-source-icon" aria-hidden="true">AUTO</span>
+          <div><strong>Sincronización automática</strong><small class="booking-sync-status ${syncStatus.tone}">${escapeHtml(syncStatus.title)} · ${escapeHtml(syncStatus.detail)}</small></div>
+          <button class="ghost-btn" id="syncBookingAutomatically" type="button" ${canSync && !bookingSyncState.loading ? "" : "disabled"}>${bookingSyncState.loading ? "Sincronizando..." : "Sincronizar ahora"}</button>
+        </article>
+        <article class="booking-source-card booking-source-manual">
+          <span class="booking-source-icon" aria-hidden="true">CSV</span>
+          <div><strong>CSV de respaldo</strong><small>Conserva datos únicos; la fuente automática tiene prioridad en coincidencias.</small></div>
           <label class="file-button">
-            Cargar reservaciones CSV
-            <input type="file" accept=".csv,.xlsx,.xls" id="classBookingReservationsFile" />
+            Cargar CSV
+            <input type="file" accept=".csv,.xlsx,.xls" id="classBookingReservationsFile" ${canSync ? "" : "disabled"} />
           </label>
-        </div>
+        </article>
       </div>
+      <p class="booking-source-summary">${automaticCount.toLocaleString("es-MX")} automáticas · ${manualCount.toLocaleString("es-MX")} manuales efectivas</p>
       ${renderBookingProgramPanel()}
       <div class="booking-kpi-grid">
         <article><span>Reservaciones</span><strong>${rows.length.toLocaleString("es-MX")}</strong><em>${allRows.length.toLocaleString("es-MX")} cargadas</em></article>
@@ -22140,6 +22270,7 @@ function renderClassBookingDashboard() {
 }
 
 function bindClassBookingControls() {
+  $("#syncBookingAutomatically")?.addEventListener("click", syncBookingAutomatically);
   $("#classBookingReservationsFile")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
