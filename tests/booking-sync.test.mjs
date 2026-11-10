@@ -98,4 +98,6 @@ test("Booking UI exposes both sources and automatic priority", () => {
   assert.match(app, /fuente automática tiene prioridad/);
   assert.match(app, /effectiveBookingReservations/);
   assert.match(app, /syncBookingAutomatically/);
+  assert.match(app, /deduplicateBookingReservations\(parsed\)/);
+  assert.match(app, /duplicadas omitidas/);
 });
