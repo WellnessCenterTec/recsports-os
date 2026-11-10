@@ -1606,6 +1606,18 @@ function effectiveBookingReservations(rows) {
   return [...effective.values()].sort((left, right) => String(right.reservationDate).localeCompare(String(left.reservationDate)));
 }
 
+function deduplicateBookingReservations(rows) {
+  const unique = new Map();
+  (rows || []).forEach((row) => {
+    const key = bookingReservationIdentity(row);
+    if (key) unique.set(key, row);
+  });
+  return {
+    rows: [...unique.values()],
+    duplicates: Math.max(0, (rows || []).length - unique.size)
+  };
+}
+
 function bookingReservationToCloud(row, fileName = "") {
   return {
     source_reservation_id: String(row.id || "").trim() || null,
@@ -22267,14 +22279,19 @@ function normalizeBookingReservation(row, index) {
 async function importClassBookingReservations(file) {
   const rows = await rowsFromScheduleFile(file);
   const parsed = rows.map(normalizeBookingReservation).filter((row) => row.student || row.activity || row.reservationDate);
-  classBookingReservations = parsed;
+  const normalized = deduplicateBookingReservations(parsed);
+  const automaticRows = classBookingReservations.filter((row) => row.sourceKind === "automatic");
+  classBookingReservations = effectiveBookingReservations([...automaticRows, ...normalized.rows]);
   saveClassBookingReservations();
-  const savedCloud = await saveClassBookingReservationsCloud(parsed, file.name);
+  const savedCloud = await saveClassBookingReservationsCloud(normalized.rows, file.name);
   if (savedCloud) await loadClassBookingReservationsCloud();
-  addAudit("booking", `${file.name}: ${parsed.length} reservaciones importadas`);
+  addAudit("booking", `${file.name}: ${normalized.rows.length} reservaciones importadas${normalized.duplicates ? `; ${normalized.duplicates} duplicadas omitidas` : ""}`);
   recordUploadSuccess("clases.booking");
   render();
-  toast(savedCloud ? `${parsed.length} reservaciones guardadas en Supabase` : `${parsed.length} reservaciones de Booking cargadas localmente`);
+  const duplicateCopy = normalized.duplicates ? ` · ${normalized.duplicates} duplicadas omitidas` : "";
+  toast(savedCloud
+    ? `${normalized.rows.length} reservaciones guardadas en Supabase${duplicateCopy}`
+    : `${normalized.rows.length} reservaciones de Booking cargadas localmente${duplicateCopy}`);
 }
 
 function bookingRowsFiltered() {
