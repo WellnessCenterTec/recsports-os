@@ -20,6 +20,9 @@ Durante la revisión, `wellness_usuario` mostró archivos versionados llamados `
 4. `replace_booking_automatic` hace el reemplazo por periodo en una transacción e informa filas recibidas, actualizadas y retiradas.
 5. `POST /api/booking-webhook` permite altas, cambios y bajas inmediatas cuando el backend origen lo invoque.
 6. El CSV manual sigue disponible como respaldo.
+7. Al cambiar entre una sesión personal y Dirección, WellSync reinicia el plan de carga de Booking y vuelve a consultar `class_booking_reservations`; una falla central se muestra como error y no reutiliza datos locales como si fueran actuales.
+
+Los dos accesos autorizados consultan la misma tabla y el mismo periodo. Dirección y administración tienen acceso global; el coordinador autenticado de Clases tiene acceso a Booking. Un perfil de consulta o un coordinador de otra área no puede activar la sincronización.
 
 ## Duplicados y prioridad
 

@@ -82,6 +82,14 @@ test("Booking sync and webhook reject unauthenticated calls", async () => {
   assert.equal(webhookResponse.code, 401);
 });
 
+test("Booking grants the shared source only to leadership and the Classes coordinator", () => {
+  assert.equal(service.canAccessBooking({ active: true, role: "direccion", area_key: null }), true);
+  assert.equal(service.canAccessBooking({ active: true, role: "coordinador", area_key: "clases" }, { write: true }), true);
+  assert.equal(service.canAccessBooking({ active: true, role: "coordinador", area_key: "gimnasio" }), false);
+  assert.equal(service.canAccessBooking({ active: true, role: "consulta", area_key: "clases" }, { write: true }), false);
+  assert.equal(service.canAccessBooking({ active: false, role: "direccion", area_key: null }), false);
+});
+
 test("migration preserves manual rows and makes automatic replacement atomic", () => {
   const sql = readFileSync(new URL("../supabase/20261109_booking_automatic_sync.sql", import.meta.url), "utf8");
   assert.match(sql, /source_kind in \('automatic', 'manual'\)/);
@@ -89,6 +97,7 @@ test("migration preserves manual rows and makes automatic replacement atomic", (
   assert.match(sql, /existing\.source_kind = 'automatic'/);
   assert.doesNotMatch(sql, /delete from public\.class_booking_reservations[\s\S]*source_kind = 'manual'/);
   assert.match(sql, /grant execute[\s\S]*to service_role/);
+  assert.match(sql, /current_app_role\(\) = 'coordinador'[\s\S]*current_area_key\(\) = 'clases'/);
 });
 
 test("Booking UI exposes both sources and automatic priority", () => {
@@ -100,4 +109,12 @@ test("Booking UI exposes both sources and automatic priority", () => {
   assert.match(app, /syncBookingAutomatically/);
   assert.match(app, /deduplicateBookingReservations\(parsed\)/);
   assert.match(app, /duplicadas omitidas/);
+  assert.match(app, /resetBookingSourceForSession/);
+  assert.match(app, /Fuente central Supabase/);
+  assert.match(app, /throw response\.error/);
+  assert.doesNotMatch(app.slice(app.indexOf("async function loadClassBookingReservationsCloud"), app.indexOf("async function saveClassBookingReservationsCloud")), /saveClassBookingReservations\(\)/);
+  const sessionReset = app.slice(app.indexOf("function resetBookingSourceForSession"), app.indexOf("function loadAuditLog"));
+  assert.doesNotMatch(sessionReset, /nextPeriod/);
+  const periodSwitch = app.slice(app.indexOf("async function switchMasterPeriod"), app.indexOf("function renderStudentDatabaseReportAction"));
+  assert.match(periodSwitch, /currentUser\?\.auth === "supabase"[\s\S]*classBookingReservations = \[\]/);
 });

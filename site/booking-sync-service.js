@@ -27,6 +27,14 @@ function configuration(config = envConfig()) {
   };
 }
 
+function canAccessBooking(profile, { write = false } = {}) {
+  if (!profile?.active) return false;
+  if (["admin", "direccion"].includes(profile.role)) return true;
+  const classesCoordinator = profile.role === "coordinador" && profile.area_key === "clases";
+  if (write) return classesCoordinator;
+  return classesCoordinator;
+}
+
 async function verifyWellSyncUser(token, { write = false, config = envConfig() } = {}) {
   if (!token || !config.supabaseUrl || !config.anonKey) return null;
   const headers = jsonHeaders(config.anonKey, token);
@@ -43,10 +51,7 @@ async function verifyWellSyncUser(token, { write = false, config = envConfig() }
   if (!profileResponse.ok) return null;
   const profilePayload = await profileResponse.json();
   const profile = Array.isArray(profilePayload) ? profilePayload[0] : profilePayload;
-  if (!profile?.active) return null;
-  const canRead = ["admin", "direccion"].includes(profile.role) || profile.area_key === "clases";
-  const canWrite = ["admin", "direccion"].includes(profile.role) || profile.area_key === "clases";
-  if (!canRead || (write && !canWrite)) return null;
+  if (!canAccessBooking(profile, { write })) return null;
   return { id: user.id, role: profile.role, area: profile.area_key };
 }
 
@@ -140,6 +145,7 @@ async function applyWebhook(payload, config = envConfig()) {
 module.exports = {
   DEFAULT_SOURCE_URL,
   applyWebhook,
+  canAccessBooking,
   configuration,
   envConfig,
   fetchSourceRows,

@@ -778,6 +778,7 @@ let classBookingReservations = loadClassBookingReservations();
 let classBookingCloudAvailable = true;
 let classBookingFilters = { status: "todos", type: "todos", activity: "todos", search: "" };
 let bookingSyncState = { loading: false, configured: null, lastRun: null, error: "" };
+let bookingDataState = { status: "local", sessionKey: "startup", period: activeMasterPeriod, loadedAt: "", error: "" };
 let intramurosParticipants = [];
 let intramurosGameRoles = [];
 let intramurosCloudAvailable = true;
@@ -1524,7 +1525,11 @@ function loadClassBookingReservations() {
 }
 
 function saveClassBookingReservations() {
-  localStorage.setItem(periodStorageKey(CLASS_BOOKING_RESERVATIONS_KEY), JSON.stringify(classBookingReservations));
+  const baseKey = periodStorageKey(CLASS_BOOKING_RESERVATIONS_KEY);
+  const storageKey = currentUser?.auth === "supabase"
+    ? `${baseKey}__user_${String(currentUser.id || "unknown").replace(/[^a-z0-9_-]/gi, "")}`
+    : baseKey;
+  localStorage.setItem(storageKey, JSON.stringify(classBookingReservations));
 }
 
 function bookingReservationFromCloud(row) {
@@ -1598,6 +1603,14 @@ function bookingReservationToCloud(row, fileName = "") {
 async function loadClassBookingReservationsCloud() {
   if (!supabaseClient || currentUser?.auth !== "supabase") return;
   const requestedPeriod = activeMasterPeriod;
+  const requestedUserId = currentUser.id;
+  bookingDataState = {
+    status: "loading",
+    sessionKey: `supabase:${requestedUserId}`,
+    period: requestedPeriod,
+    loadedAt: "",
+    error: ""
+  };
   const { start, end } = masterPeriodBounds(requestedPeriod);
   const data = [];
   const pageSize = 1000;
@@ -1620,11 +1633,17 @@ async function loadClassBookingReservationsCloud() {
         .order("id", { ascending: true })
         .range(offset, offset + pageSize - 1);
     }
-    if (requestedPeriod !== activeMasterPeriod) return;
+    if (requestedPeriod !== activeMasterPeriod || requestedUserId !== currentUser?.id) return;
     if (response.error) {
       classBookingCloudAvailable = false;
+      classBookingReservations = [];
+      bookingDataState = {
+        ...bookingDataState,
+        status: "error",
+        error: supabaseErrorDetail(response.error) || response.error.message || "No se pudo leer la fuente central"
+      };
       console.warn("Booking Supabase no disponible", response.error);
-      return;
+      throw response.error;
     }
     const page = response.data || [];
     data.push(...page);
@@ -1632,7 +1651,13 @@ async function loadClassBookingReservationsCloud() {
   }
   classBookingCloudAvailable = true;
   classBookingReservations = effectiveBookingReservations(data.map(bookingReservationFromCloud));
-  saveClassBookingReservations();
+  bookingDataState = {
+    status: "ready",
+    sessionKey: `supabase:${requestedUserId}`,
+    period: requestedPeriod,
+    loadedAt: new Date().toISOString(),
+    error: ""
+  };
   loadBookingSyncStatus({ renderAfter: false });
 }
 
@@ -1656,6 +1681,7 @@ async function saveClassBookingReservationsCloud(rows, fileName = "") {
   }
   if (deleteError) {
     classBookingCloudAvailable = false;
+    bookingDataState = { ...bookingDataState, status: "error", error: supabaseErrorDetail(deleteError) || deleteError.message || "No se pudo guardar en la fuente central" };
     toast(`Booking quedó local; falta activar Supabase: ${supabaseErrorDetail(deleteError) || deleteError.message}`);
     return false;
   }
@@ -1673,6 +1699,7 @@ async function saveClassBookingReservationsCloud(rows, fileName = "") {
     const { error } = await supabaseClient.from("class_booking_reservations").insert(chunk);
     if (error) {
       classBookingCloudAvailable = false;
+      bookingDataState = { ...bookingDataState, status: "error", error: supabaseErrorDetail(error) || error.message || "No se pudo guardar en la fuente central" };
       toast(`Booking quedó local; no pude guardar en Supabase: ${supabaseErrorDetail(error) || error.message}`);
       return false;
     }
@@ -1870,14 +1897,56 @@ function loadSession() {
 }
 
 function saveSession(user) {
+  const previousUser = currentUser;
   currentUser = user;
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  resetBookingSourceForSession(previousUser, user);
 }
 
 function clearSession() {
+  const previousUser = currentUser;
   currentUser = null;
   direccionAccessGranted = false;
   localStorage.removeItem(SESSION_KEY);
+  resetBookingSourceForSession(previousUser, null);
+}
+
+function bookingSessionKey(user) {
+  return user?.auth === "supabase" ? `supabase:${user.id}` : `local:${user?.id || "anonymous"}`;
+}
+
+function resetBookingSourceForSession(previousUser, nextUser) {
+  const nextSessionKey = bookingSessionKey(nextUser);
+  const identityChanged = bookingSessionKey(previousUser) !== nextSessionKey
+    || bookingDataState.sessionKey !== nextSessionKey;
+  if (!identityChanged) return;
+
+  moduleDataCoordinator?.reset();
+  moduleDataCoordinator = null;
+  moduleDataPlan = null;
+  bookingSyncState = { loading: false, configured: null, lastRun: null, error: "" };
+  classBookingCloudAvailable = true;
+
+  if (nextUser?.auth === "supabase") {
+    classBookingReservations = [];
+    bookingDataState = {
+      status: "pending",
+      sessionKey: nextSessionKey,
+      period: activeMasterPeriod,
+      loadedAt: "",
+      error: ""
+    };
+    return;
+  }
+
+  classBookingReservations = loadClassBookingReservations();
+  bookingDataState = {
+    status: "local",
+    sessionKey: nextSessionKey,
+    period: activeMasterPeriod,
+    loadedAt: "",
+    error: ""
+  };
 }
 
 function loadAuditLog() {
@@ -13072,7 +13141,19 @@ async function switchMasterPeriod(nextPeriod) {
 
   localCaptures = loadCaptures();
   scheduleState = loadSchedules();
-  classBookingReservations = loadClassBookingReservations();
+  if (currentUser?.auth === "supabase") {
+    classBookingReservations = [];
+    bookingDataState = {
+      status: "pending",
+      sessionKey: bookingSessionKey(currentUser),
+      period: nextPeriod,
+      loadedAt: "",
+      error: ""
+    };
+  } else {
+    classBookingReservations = loadClassBookingReservations();
+    bookingDataState = { ...bookingDataState, status: "local", period: nextPeriod, error: "" };
+  }
   simulatorState = loadSimulator();
   classScheduleSimulatorRows = loadClassScheduleSimulatorLocal();
   classScheduleComparison = loadClassScheduleComparison();
@@ -22176,6 +22257,9 @@ function renderBookingTypeStack(rows, total) {
 }
 
 function bookingSyncStatusCopy() {
+  if (currentUser?.auth !== "supabase") {
+    return { tone: "pending", title: "Modo demostración", detail: "La fuente central requiere una sesión Supabase" };
+  }
   if (bookingSyncState.error) return { tone: "error", title: "Requiere atención", detail: bookingSyncState.error };
   if (!bookingSyncState.configured) return { tone: "pending", title: "Comprobando conexión", detail: "Validando la fuente segura" };
   if (!bookingSyncState.configured.database || !bookingSyncState.configured.source) {
@@ -22188,6 +22272,22 @@ function bookingSyncStatusCopy() {
   return run.status === "success"
     ? { tone: "ready", title: "Sincronización activa", detail: `${date} · ${(run.rows_upserted || 0).toLocaleString("es-MX")} actualizadas` }
     : { tone: "error", title: "Última sincronización con error", detail: date };
+}
+
+function bookingDataStatusCopy() {
+  if (currentUser?.auth !== "supabase") {
+    return { tone: "pending", text: "Fuente local de demostración · no compartida entre accesos" };
+  }
+  if (bookingDataState.status === "error") {
+    return { tone: "error", text: `Fuente central no disponible · ${bookingDataState.error || "reintenta la carga"}` };
+  }
+  if (bookingDataState.status !== "ready" || bookingDataState.period !== activeMasterPeriod) {
+    return { tone: "pending", text: "Actualizando desde la fuente central de Supabase" };
+  }
+  const when = bookingDataState.loadedAt
+    ? new Date(bookingDataState.loadedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })
+    : "actualización reciente";
+  return { tone: "ready", text: `Fuente central Supabase · ${when}` };
 }
 
 function renderClassBookingDashboard() {
@@ -22210,6 +22310,7 @@ function renderClassBookingDashboard() {
   const topStudent = students[0]?.label || "Sin datos";
   const topProfessor = topActivity === "Sin datos" ? "Sin datos" : inferBookingProfessor(topActivity);
   const syncStatus = bookingSyncStatusCopy();
+  const dataStatus = bookingDataStatusCopy();
   const automaticCount = allRows.filter((row) => row.sourceKind === "automatic").length;
   const manualCount = allRows.length - automaticCount;
   const canSync = currentUser?.auth === "supabase" && canEditArea("clases");
@@ -22230,7 +22331,7 @@ function renderClassBookingDashboard() {
           </label>
         </article>
       </div>
-      <p class="booking-source-summary">${automaticCount.toLocaleString("es-MX")} automáticas · ${manualCount.toLocaleString("es-MX")} manuales efectivas</p>
+      <p class="booking-source-summary"><span class="booking-sync-status ${dataStatus.tone}">${escapeHtml(dataStatus.text)}</span> · ${automaticCount.toLocaleString("es-MX")} automáticas · ${manualCount.toLocaleString("es-MX")} manuales efectivas</p>
       ${renderBookingProgramPanel()}
       <div class="booking-kpi-grid">
         <article><span>Reservaciones</span><strong>${rows.length.toLocaleString("es-MX")}</strong><em>${allRows.length.toLocaleString("es-MX")} cargadas</em></article>
@@ -22277,7 +22378,8 @@ function renderClassBookingDashboard() {
                   <td><span class="class-grade-pill ${normalizeText(row.status)}">${escapeHtml(bookingStatusLabel(row.status))}</span></td>
                   <td>${escapeHtml(bookingTypeLabel(row.type))}</td>
                 </tr>
-              `).join("") || `<tr><td colspan="6">Carga el archivo de reservaciones para comenzar.</td></tr>`}
+              `).join("")}
+              ${rows.length ? "" : `<tr><td colspan="6">${currentUser?.auth === "supabase" && bookingDataState.status !== "ready" ? "Booking aún no está disponible desde la fuente central; no se muestran datos locales como si estuvieran actualizados." : "Carga el archivo de reservaciones para comenzar."}</td></tr>`}
             </tbody>
           </table>
         </div>

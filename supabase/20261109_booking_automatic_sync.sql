@@ -22,6 +22,20 @@ create unique index if not exists class_booking_reservations_source_identity_idx
 create index if not exists class_booking_reservations_source_kind_date_idx
   on public.class_booking_reservations(source_kind, reservation_at);
 
+drop policy if exists "booking manage classes and leadership" on public.class_booking_reservations;
+create policy "booking manage classes and leadership"
+on public.class_booking_reservations
+for all
+to authenticated
+using (
+  public.current_app_role() in ('admin', 'direccion')
+  or (public.current_app_role() = 'coordinador' and public.current_area_key() = 'clases')
+)
+with check (
+  public.current_app_role() in ('admin', 'direccion')
+  or (public.current_app_role() = 'coordinador' and public.current_area_key() = 'clases')
+);
+
 create table if not exists public.booking_sync_runs (
   id uuid primary key default gen_random_uuid(),
   status text not null check (status in ('running', 'success', 'error')),
