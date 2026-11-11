@@ -7171,6 +7171,7 @@ tbody tr:hover td {
 .exec-report-gym-columns { align-items: end; display: grid; gap: var(--exec-report-gym-gap, 10px); grid-template-columns: repeat(var(--exec-report-gym-weeks, 10), minmax(0, 1fr)); min-height: 210px; }
 .exec-report-gym-columns > div { align-items: center; display: grid; gap: 5px; justify-items: center; }
 .exec-report-gym-columns b { color: #08285d; font-size: 10px; min-height: 12px; }
+.exec-report-gym-columns > div.no-data b { color: #71869a; }
 .exec-report-gym-columns span { background: #eaf2fa; border-radius: 5px 5px 0 0; display: block; min-height: 7px; width: 62.06%; }
 .exec-report-gym-lane.wellness .exec-report-gym-columns > div.has-data span { background: #0874df; }
 .exec-report-gym-lane.emis .exec-report-gym-columns > div.has-data span { background: #ff7900; }

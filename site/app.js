@@ -12756,7 +12756,10 @@ function renderExecutiveGymWeeklyReport(rows) {
       <div class="exec-report-gym-lane ${tone}">
         <strong class="exec-report-gym-label">${label}</strong>
         <div class="exec-report-gym-columns" style="--exec-report-gym-weeks:${rows.length};--exec-report-gym-gap:${columnGap}px">
-          ${rows.map((row) => `<div class="${row[key] > 0 ? "has-data" : ""}"><b>${row[key] ? row[key].toLocaleString("es-MX") : ""}</b><span style="height:${Math.max(5, Math.round((row[key] / laneMax) * 119))}px"></span><em>${row.label}</em></div>`).join("")}
+          ${rows.map((row) => {
+            const hasData = Number(row[key] || 0) > 0;
+            return `<div class="${hasData ? "has-data" : "no-data"}"${hasData ? "" : ' title="Sin registros"'}><b>${hasData ? row[key].toLocaleString("es-MX") : "—"}</b><span style="height:${Math.max(5, Math.round((row[key] / laneMax) * 119))}px"></span><em>${row.label}</em></div>`;
+          }).join("")}
         </div>
       </div>`;
   };

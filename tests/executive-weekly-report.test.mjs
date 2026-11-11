@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import assert from "node:assert/strict";
 import test from "node:test";
+import vm from "node:vm";
 
 const source = fs.readFileSync(new URL("../site/app.js", import.meta.url), "utf8");
 const styles = fs.readFileSync(new URL("../site/styles.css", import.meta.url), "utf8");
@@ -54,6 +55,28 @@ test("gym weekly bars expand through week 12, week 15, or any selected week up t
   assert.match(styles, /repeat\(var\(--exec-report-gym-weeks, 10\), minmax\(0, 1fr\)\)/);
 });
 
+test("week 13 includes S1-S13 and preserves missing weeks as empty values", () => {
+  const functionSource = source.match(/function executiveGymWeekly\(\) \{[\s\S]*?\n\}/)?.[0];
+  assert.ok(functionSource, "The gym weekly aggregator must remain available");
+  const rows = vm.runInNewContext(`${functionSource}; executiveGymWeekly()`, {
+    executiveReportState: { week: 13 },
+    gymAttendanceRecords: [
+      { week_number: 10, attendee_count: 25, facility: "Wellness" },
+      { week_number: 13, attendee_count: 4, facility: "EMIS" }
+    ],
+    normalizeGymSite: (value) => value
+  });
+  assert.equal(rows.length, 13);
+  assert.equal(rows[0].label, "S1");
+  assert.equal(rows[12].label, "S13");
+  assert.equal(rows[10].wellness, 0, "S11 must remain empty when there are no records");
+  assert.equal(rows[11].emis, 0, "S12 must remain empty when there are no records");
+  assert.equal(rows[12].emis, 4, "S13 must retain its real recorded value");
+  assert.match(source, /class="\$\{hasData \? "has-data" : "no-data"\}"/);
+  assert.match(source, /title="Sin registros"/);
+  assert.match(source, /hasData \? row\[key\]\.toLocaleString\("es-MX"\) : "—"/);
+});
+
 test("daily Wellness average is computed from dated Wellness visits only", () => {
   assert.ok(source.includes('normalizeGymSite(row.sitio) === "Wellness"'));
   assert.ok(source.includes("perDate.set(row.fecha"));
@@ -68,7 +91,7 @@ test("daily Wellness average is computed from dated Wellness visits only", () =>
 });
 
 test("every gym week with data receives its strong series color", () => {
-  assert.ok(source.includes('class="${row[key] > 0 ? "has-data" : ""}"'), "Gym bars must mark every week with a positive value");
+  assert.ok(source.includes('class="${hasData ? "has-data" : "no-data"}"'), "Gym bars must distinguish weeks with records from empty weeks");
   assert.ok(styles.includes(".exec-report-gym-lane.wellness .exec-report-gym-columns > div.has-data span { background: #0874df; }"));
   assert.ok(styles.includes(".exec-report-gym-lane.emis .exec-report-gym-columns > div.has-data span { background: #ff7900; }"));
   assert.ok(!styles.includes(".exec-report-gym-columns > div:first-child span"), "Series colors must not be restricted to week 1");
