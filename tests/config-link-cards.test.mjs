@@ -8,6 +8,22 @@ const cardsMarkup = appSource.slice(
   appSource.indexOf('<div class="config-link-list">'),
   appSource.indexOf('</section>', appSource.indexOf('<div class="config-link-list">'))
 );
+const configurationMarkup = appSource.slice(
+  appSource.indexOf("function renderConfigurationDashboard()"),
+  appSource.indexOf("function collaboratorPhotoMarkup", appSource.indexOf("function renderConfigurationDashboard()"))
+);
+
+test("configuration starts with the quick-links workspace without the old summary", () => {
+  assert.doesNotMatch(configurationMarkup, /Panel exclusivo para Direccion Deportiva/);
+  assert.doesNotMatch(configurationMarkup, /Usuarios demo|perfiles base|areas operativas|politica por modulo/);
+  assert.match(configurationMarkup, /<div class="blueprint-grid">\s*<section class="blueprint-card wide config-links-panel">/);
+});
+
+test("configuration hides the Horarios, Reportes and Sistema navigation group", () => {
+  assert.match(appSource, /const isConfiguration = activeArea === "configuracion"/);
+  assert.match(appSource, /segmentedNav\.hidden = isPresentation \|\| isMentors \|\| isGamer \|\| isConfiguration/);
+  assert.match(appSource, /if \(isConfiguration && activeView !== "dashboard"\) activeView = "dashboard"/);
+});
 
 test("quick-link cards keep every stored link and its existing actions", () => {
   assert.match(cardsMarkup, /configLinks\.map\(\(link\) =>/);

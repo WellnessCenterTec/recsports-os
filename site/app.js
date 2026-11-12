@@ -20499,13 +20499,6 @@ function renderConfigurationDashboard() {
   const editingLink = configLinks.find((link) => link.id === configLinkEditingId) || null;
   const configLinkSource = configQuickLinksCloudAvailable && configQuickLinksLoaded ? "Supabase" : "local";
   return `
-    <div class="permission-strip">Panel exclusivo para Direccion Deportiva y administracion del sistema.</div>
-    <div class="kpi-grid">
-      <div class="kpi"><span>Usuarios demo</span><strong>${demoUsers.length}</strong><em>perfiles base</em></div>
-      <div class="kpi"><span>Modulos</span><strong>${areas.length - 1}</strong><em>areas operativas</em></div>
-      <div class="kpi"><span>Fuentes</span><strong>2</strong><em>Indicadores + Uniformes</em></div>
-      <div class="kpi"><span>Privacidad</span><strong>Activa</strong><em>politica por modulo</em></div>
-    </div>
     <div class="blueprint-grid">
       <section class="blueprint-card wide config-links-panel">
         <div class="config-links-heading">
@@ -22917,6 +22910,7 @@ function render() {
   const isClasses = activeArea === "clases";
   const isGamer = activeArea === "gamer";
   const isDireccion = activeArea === "direccion";
+  const isConfiguration = activeArea === "configuracion";
   $$(".segmented button").forEach((button) => { button.style.order = ""; });
   if (evaluationsTab) evaluationsTab.hidden = activeArea !== "colaboradores";
   if (collaboratorInfographicTab) collaboratorInfographicTab.hidden = !isCollaborators;
@@ -22955,7 +22949,8 @@ function render() {
   const filtersBand = $(".filters-band");
   if (filtersBand) filtersBand.hidden = !isGeneral;
   const segmentedNav = $(".segmented");
-  if (segmentedNav) segmentedNav.hidden = isPresentation || isMentors || isGamer;
+  if (segmentedNav) segmentedNav.hidden = isPresentation || isMentors || isGamer || isConfiguration;
+  if (isConfiguration && activeView !== "dashboard") activeView = "dashboard";
   if (isSemanaTec && !["dashboard", "semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
   if (!isSemanaTec && ["semana-tec-grades", "semana-tec-upload"].includes(activeView)) activeView = "dashboard";
   if (isRepresentativos && !["dashboard", "representativos-upload"].includes(activeView)) activeView = "dashboard";
