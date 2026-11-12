@@ -80,6 +80,6 @@ test("la vista rápida de Reporte Wellness caduca al cambiar la versión o la fe
 });
 
 test("la versión identifica la jerarquía visual de Vivencia", () => {
-  assert.match(indexSource, /20261111-gym-dynamic-weeks-v2/);
-  assert.match(indexSource, /app\.js\?v=20261111-gym-dynamic-weeks-v2/);
+  assert.match(indexSource, /20261112-config-links-blue-cards-v1/);
+  assert.match(indexSource, /app\.js\?v=20261112-config-links-blue-cards-v1/);
 });
