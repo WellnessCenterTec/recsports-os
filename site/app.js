@@ -20532,11 +20532,10 @@ function renderConfigurationDashboard() {
         <div class="config-link-list">
           ${configLinks.length ? configLinks.map((link) => `
             <article class="config-link-item">
-              <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">
+              <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir ${escapeHtml(link.name)} en una pestaña nueva">
                 <strong>${escapeHtml(link.name)}</strong>
-                <span>${escapeHtml(link.url)}</span>
               </a>
-              <div>
+              <div class="config-link-item-actions">
                 <button class="ghost-btn" type="button" data-edit-config-link="${escapeHtml(link.id)}">Editar</button>
                 <button class="danger-btn" type="button" data-delete-config-link="${escapeHtml(link.id)}">Eliminar</button>
               </div>
